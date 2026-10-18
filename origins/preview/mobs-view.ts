@@ -10,6 +10,7 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
+import type { Tier } from '../../src/core/grades.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
 import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
@@ -36,7 +37,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[] };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
 
 function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -104,7 +105,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const putOn = (v: View) => {
     const pieces = v.actor && v.wearIds ? carriers.get('goblin') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
-    try { v.actor.wear(pieces.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => 'Recruit'); }
+    try { v.actor.wear(pieces.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
   };
   const loadCarriers = (kind: string) => {
@@ -173,7 +174,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
     const row = loadoutRow(look?.loadout);
-    if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
+    if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {

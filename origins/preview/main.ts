@@ -804,7 +804,8 @@ function creatureFell(spec: MobSpec) {
   const worn = (zoneRow ?? loadZone()).unlisted ? droppedPiece(loadoutRow(mobVariant(spec.character, spec.id)?.loadout), spec.id) : undefined;
   const loadout = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), isCaptain = spec.id === warBand.captain();   // the war band's captain drops more: `warband.captain-drops` of the pieces he wore, starting at the one a normal kill would drop
   const extras = isCaptain && worn && loadout ? loadout.pieces.filter((p) => p !== worn).slice(0, Math.max(0, fxNum('warband.captain-drops') - 1)) : [];
-  if (worn) setTimeout(() => { worldToast(isCaptain ? `The captain falls! He drops ${[worn, ...extras].map(pieceLabel).join(' and ')}` : `${spec.name} drops what it wore: ${pieceLabel(worn)}`); [worn, ...extras].forEach((p, i) => killDrops.drop(p, pieceLabel(p), spec.name, (fellAt?.x ?? state.x) + i * 0.8, fellAt?.z ?? state.z)); drawFound(); }, 3600);
+  const dropLabel = (p: string): string => `${loadout?.rung ? `${loadout.rung} ` : ''}${pieceLabel(p)}`;   // the rung the piece was taken at (a Champion helmet), so a pick-up counts at its level
+  if (worn) setTimeout(() => { worldToast(isCaptain ? `The captain falls! He drops ${[worn, ...extras].map(dropLabel).join(' and ')}` : `${spec.name} drops what it wore: ${dropLabel(worn)}`); [worn, ...extras].forEach((p, i) => killDrops.drop(p, dropLabel(p), spec.name, (fellAt?.x ?? state.x) + i * 0.8, fellAt?.z ?? state.z)); drawFound(); }, 3600);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
