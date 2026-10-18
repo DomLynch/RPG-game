@@ -8,7 +8,8 @@ import DEFS from './instances.json' with { type: 'json' };
 import MANIFEST from './instances.manifest.json' with { type: 'json' };
 
 export type InstanceKind = { readonly order: number; readonly slots: number; readonly stride: number; readonly graceS: number; readonly maxS: number; readonly spawnBase: number; readonly spawnPerPlayer: number };
-export type InstanceKinds = Readonly<Record<string, InstanceKind>>;
+const MAX_SLOTS = 256;   // the slot bound the error text states (1 to 256) (exempt: scripts/as-data/allow/origins-world.json)
+export type InstanceKinds =Readonly<Record<string, InstanceKind>>;
 export type Slot = { readonly owner: string; readonly openedAt: number; readonly leftAt: number | null };
 export type Pool = { readonly kind: string; readonly slots: readonly (Slot | null)[] };
 
@@ -17,7 +18,7 @@ export function loadInstanceKinds(raw: { kinds?: unknown }): InstanceKinds {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'instances.json')]);
   const rows = raw.kinds as InstanceKinds;
   for (const [id, r] of Object.entries(rows)) {
-    if (!(r.slots >= 1 && r.slots <= 256)) throw Error(`instances "${id}": slots is 1 to 256`);
+    if (!(r.slots >= 1 && r.slots <= MAX_SLOTS)) throw Error(`instances "${id}": slots is 1 to 256`);
     if (!(Number.isFinite(r.stride) && r.stride > 0)) throw Error(`instances "${id}": stride is a number > 0`);
     if (!(Number.isFinite(r.maxS) && r.maxS > 0) || !(Number.isFinite(r.graceS) && r.graceS >= 0 && r.graceS <= r.maxS)) throw Error(`instances "${id}": maxS > 0 and 0 <= graceS <= maxS`);
     if (!(r.spawnBase >= 0) || !(Number.isFinite(r.spawnPerPlayer) && r.spawnPerPlayer >= 0)) throw Error(`instances "${id}": spawnBase is a whole number >= 0, spawnPerPlayer a number >= 0`);
