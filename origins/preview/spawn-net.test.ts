@@ -269,3 +269,24 @@ test('outbox: a kill reported with no fresh pose is refused when the flag is on 
     assert.deepEqual(t.outbox(), []);
   } finally { await w.close(); }
 });
+
+test('acceptance (audit 2026-10-18, Strategy: the guest path): a signed-out page\'s kill reaches no writer op and mints nothing, and a request without a valid session is refused before any spawn call, whatever the flags', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    let requests = 0;
+    const counted: typeof fetch = async (url, init) => { requests++; return fetch(url, init); };
+    const guest = spawnTracker({ token: () => null, character: () => PC, now: () => clock.ms, base: w.base, fetch: counted });
+    assert.deepEqual(await guest.engaged(ids[0]!), { offline: 'no-session' });
+    for (let i = 0; i < 50; i++) guest.hit(ids[0]!);
+    clock.ms += 60_000;
+    assert.deepEqual(await guest.killed(ids[0]!), { offline: 'no-session' }, 'never engaged: the answer main.ts reads as a guest kill (session-only loot, guest-loot.ts)');
+    guest.tick();
+    assert.equal(requests, 0, 'the guest page sent nothing to the writer');
+    assert.deepEqual([guest.open(), guest.outbox()], [[], []], 'nothing held to send later');
+    for (const op of ['engage', 'kill_report']) {   // a forged call without a session the writer accepts: refused at auth, before any spawn function runs
+      const res = await fetch(`${w.base}/${op}`, { method: 'POST', headers: { authorization: 'Bearer forged', 'content-type': 'application/json' }, body: JSON.stringify({ character: PC, instance: ids[0], token: 'T'.repeat(32), hits: 50 }) });
+      assert.equal(res.status, 401, `${op}: ${res.status}`);
+    }
+    assert.deepEqual(w.calls, [], 'no spawn function ran: nothing minted, nothing written');
+  } finally { await w.close(); }
+});
