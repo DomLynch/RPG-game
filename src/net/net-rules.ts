@@ -11,3 +11,4 @@ export const SILENCE_ROW = bare(RULES.silence[0]!);
 export const RECONNECT_ROW = bare(RULES.reconnect[0]!);
 export const CAPS_ROW = bare(RULES.messageCaps[0]!);
 export const ANTIFARM_ROW = bare(RULES.duelAntifarm[0]!);
+export const TIMING_ROW = bare(RULES.timing[0]!);

@@ -107,6 +107,9 @@ test('ground_take reach: a pose at the item is checked, one beyond the radius is
   await assert.rejects(() => ops({ refuseUnchecked: true }).ground_take!(ctx(stub().db), { character: PC, instance: INSTANCE }), status(422, 'unchecked'));
   const elsewhere = stub();
   await ops({ refuseUnchecked: true }).ground_take!(ctx(elsewhere.db, poseAt(0, 'exchange')), { character: PC, instance: INSTANCE }).then(() => assert.fail('a pose in another place is not checked'), status(422, 'unchecked'));
+  const logs: string[] = [];   // the why is logged (Auditor 2026-10-18): an unchecked take still goes ahead while the flag is off, and the log names the cause
+  await ops({ log: (l: string) => logs.push(l) }).ground_take!(ctx(stub().db, poseAt(0, 'exchange')), { character: PC, instance: INSTANCE });
+  assert.ok(logs.some((l) => l.includes(`reach=unchecked (other-zone: exchange not ${row.place})`)), logs.join(' | '));
 });
 
 test('ground_take refusals write nothing: a bad body is a 400, an unknown instance too, a stale claim is a 503, the migration absent is a 503, off is a 503', async () => {

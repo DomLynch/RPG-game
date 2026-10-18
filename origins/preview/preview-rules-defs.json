@@ -15,6 +15,9 @@
     { "id": "releaseFactor", "value": 1.5, "unit": "ratio" },
     { "id": "engageRetry", "value": 5000, "unit": "ms" },
     { "id": "outboxTries", "value": 12, "unit": "tries" },
+    { "id": "outboxRetry", "value": 2000, "unit": "ms" },
+    { "id": "outboxRetryMax", "value": 60000, "unit": "ms" },
+    { "id": "outboxRetryGrowth", "value": 2, "unit": "ratio" },
     { "id": "renewTimeout", "value": 3000, "unit": "ms" },
     { "id": "cameraEase", "value": 0.7, "unit": "s" },
     { "id": "campFlameSize", "value": 1.15, "unit": "ratio" },
@@ -31,6 +34,7 @@
     { "id": "kitWarmMsSoft", "value": 300000, "unit": "ms" },
     { "id": "kitProbeFrames", "value": 20, "unit": "frames" },
     { "id": "kitSlowFrameMs", "value": 100, "unit": "ms" },
+    { "id": "slowVerdictMs", "value": 86400000, "unit": "ms" },
     { "id": "gearWarmSettle", "value": 30, "unit": "frames" },
     { "id": "gearWarmBound", "value": 20000, "unit": "ms" },
     { "id": "camEaseIn", "value": 3, "unit": "per s" },
@@ -101,6 +105,10 @@
     { "id": "frameDtMax", "value": 0.05, "unit": "s" },
     { "id": "mobHeightMin", "value": 1.9, "unit": "m" },
     { "id": "mobSpeedMax", "value": 8, "unit": "m/s" },
-    { "id": "pitDtMax", "value": 0.1, "unit": "s" }
+    { "id": "pitDtMax", "value": 0.1, "unit": "s" },
+    { "id": "hiddenTickMs", "value": 100, "unit": "ms" },
+    { "id": "hiddenCheckMs", "value": 500, "unit": "ms" },
+    { "id": "loadCoverFadeMs", "value": 400, "unit": "ms" },
+    { "id": "loadCoverHoldMs", "value": 12000, "unit": "ms" }
   ]
 }
