@@ -64,7 +64,7 @@ test('settle for the QA account (fighter_profiles.is_test): the record is checke
     assert.equal(out.result, 'won'); assert.equal(out.verified, true, 'every check ran');
     assert.equal(events.length, 1);
     const payload = events[0]!.payload as Record<string, unknown>;
-    if (qa) { assert.deepEqual(asked, [], 'a QA win asks for no rewards'); assert.equal(payload.paid, false); assert.equal(payload.qa, true); }
+    if (qa === true) { assert.deepEqual(asked, [], 'a QA win asks for no rewards'); assert.equal(payload.paid, false); assert.equal(payload.qa, true); }
     else { assert.deepEqual(asked, [start.token], 'anyone else, and a blind lookup (it never aborts the settle), is paid as before'); assert.equal(payload.paid, true); assert.equal('qa' in payload, false); }
   }
 });
