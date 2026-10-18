@@ -13,7 +13,7 @@ import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { TITLES, type Tier } from '../../src/core/index.ts';
 import { calmStep, type Calm } from './calm-step.ts';   // (named so the world-sim list in tests/core-boundary.test.ts C7 does not grow)
-import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/characters.ts';
+import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/index.ts';
 import { fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
 import { fitPieces, unweightedBones } from './piece-fit.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
