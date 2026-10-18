@@ -14,7 +14,7 @@ test('the goblin camp kit: small (a tent, a totem, a fire, palisade, bones, a tr
 });
 test('the loader refuses a bad part, an unknown tint, a prop outside its kit, a bad recipe kind, a bad dress multiplier and a duplicate id; a new prop is one entry', () => {
   const p0 = d.props[0]!;
-  bad({ props: d.props.map((p, i) => (i ? p : { ...p, parts: [{ ...p.parts[0], shape: 'torus' }] })) }, /shape is box, cylinder, cone or sphere/);
+  bad({ props: d.props.map((p, i) => (i ? p : { ...p, parts: [{ ...p.parts[0], shape: 'torus' }] })) }, /shape is box, cylinder, cone, sphere/);
   bad({ props: d.props.map((p, i) => (i ? p : { ...p, parts: [{ ...p.parts[0], size: [1, 1] }] })) }, /takes 3 sizes/);
   bad({ props: d.props.map((p, i) => (i ? p : { ...p, parts: [{ ...p.parts[0], tint: 'nope' }] })) }, /tint "nope" has no row/);
   bad({ props: d.props.map((p, i) => (i ? p : { ...p, r: 0 })) }, /r > 0/);
