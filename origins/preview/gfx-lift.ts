@@ -9,7 +9,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { fxNum } from '../../src/fight/fx-rows.ts';
+import { fxNum } from '../../src/fight/index.ts';
 
 // The GLSL literals are written from the rows once (a fixed-point string for each), so the shader text carries no tuning of its own.
 const fixed = (id: string, digits: number): string => fxNum(id).toFixed(digits);
