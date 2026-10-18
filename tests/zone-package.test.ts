@@ -2,7 +2,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-// @ts-expect-error a plain .mjs script with no declaration file
 import { exportPackage, importPackage, loadTables, roundTrip, zoneRowText } from '../scripts/zone-package.mjs';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
