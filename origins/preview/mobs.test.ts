@@ -183,6 +183,13 @@ test('an unlisted zone drops the hero clear of every creature (clearM): no creat
   assert.deepEqual(spawnAmong(F, B, SPECS, CLEAR), at, 'deterministic'); assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS, undefined), 'unset = the ruled 25-35 m start');
 });
 
+test('a zone that asks to start off its camp (campStart) stands the hero view metres off the centre facing it, but never inside the start clearance; no camp = null', () => {
+  const centre = { x: 10, z: 20 }, view = 9, far = { ...SPECS[0]!, home: { x: 500, z: 500 } }, near = { ...SPECS[0]!, home: { x: 10, z: 30 } };
+  const at = campStart(centre, view, [far], 16)!;
+  assert.deepEqual([at.x, at.z], [10, 29]); const dh = at.facing - headingTo(at, centre); assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the camp');
+  assert.equal(campStart(centre, view, [far, near], 16), null, 'a creature 1 m from the spot: the caller falls back to spawnAmong'); assert.equal(campStart(null, view, [far], 16), null);
+});
+
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');

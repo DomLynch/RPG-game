@@ -24,13 +24,13 @@ import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { createLoadoutGate } from './loadout-gate.ts';
-import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
+import { campStart, mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { goblinPalette, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zonePropKit, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinPalette, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zonePropKit, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
@@ -240,7 +240,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null;   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = (PROPS?.start ? campStart(goblinKit?.centre ?? null, goblinRule('campView'), mobSpecList, fxNum('start.clear-m')) : null) ?? (frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null);   // look.props.start: off the camp, facing it, when no creature is within the start clearance; else the usual start   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
 const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in

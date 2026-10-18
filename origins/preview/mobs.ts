@@ -158,5 +158,12 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[], cle
   return null;
 }
 
+/** A zone whose row asks for it (`look.props.start`) starts the hero `viewM` m off its camp centre, facing the camp, as long as no creature's home is nearer than `clearM` (the same clearance spawnAmong keeps); null = no camp start, the caller falls back to spawnAmong. Pure. */
+export function campStart(centre: Pos | null, viewM: number, specs: readonly MobSpec[], clearM: number): { x: number; z: number; facing: number } | null {
+  if (!centre) return null;
+  const at = { x: centre.x, z: centre.z + viewM };
+  return specs.every((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) >= clearM) ? { ...at, facing: headingTo(at, centre) } : null;
+}
+
 /** The highest a name tag may sit on screen, in NDC: its centre stays `half` px below `floorPx` (the HUD stack and the player's bars), so no tag draws over them. */
 export const labelCeilingNdc = (floorPx: number, heightPx: number, half = 12): number => 1 - (2 * (floorPx + half)) / Math.max(1, heightPx);

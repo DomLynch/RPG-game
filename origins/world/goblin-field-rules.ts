@@ -69,10 +69,10 @@ export function zoneCamp(z: ZoneLookFields): string | null {
   return typeof at === 'string' && at && z.world.includes(at) ? at : (z.world[0] ?? null);
 }
 /** The kit a zone row asks for (`look.props.kit`, an id in props-defs.json) and the world zone it stands in (`look.props.camp`, a world zone of this zone, else its first); null = none. `rim`: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too. */
-export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean } | null {
+export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean; start: boolean } | null {
   const kit = zoneSet(z, 'look.props.kit'); if (typeof kit !== 'string' || !kitIds().includes(kit)) return null;
   const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
-  return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;
+  return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true, start: zoneSet(z, 'look.props.start') === true } : null;   // start: the hero starts off the camp, facing it (look.props.start)
 }
 /** The clutter multipliers a zone asks for (`look.dress`, a dress set id); unset = the base clutter as it was. */
 export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress') as string | undefined);
