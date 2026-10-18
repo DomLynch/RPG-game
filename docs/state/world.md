@@ -3,7 +3,17 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
-## 2026-10-18 (+04, ~10:00) — HANDOFF #60 (READ FIRST; supersedes #59's Now): dungeon walls #3131 + dungeon preview live, origins/world ratchet PRs stacked, the hidden-tab / Pit-first load fix is next
+## 2026-10-18 (+04, ~11:30) — HANDOFF #61 (READ FIRST; supersedes #60's Now): halls mapped into #3131 (92922040e), hidden-tab fix #3150, #3123/#3125 re-merged
+
+**Now:** (1) #3131 is with the Auditor at 92922040e (worktree /private/tmp/claude-501/rooms): answer its re-read; Lead PASS follows. (2) #3150 (hidden-tab `[zone ready]`, worktree hid, head 9395ab240, rows hiddenTickMs/hiddenCheckMs, rules count 98 -> 100): CI had 12 cancelled runs, check it; if #3123 lands first re-pin both counts (merge trunk). (3) The loading cover for the cold load is NOT built: asked Lead what it should hide (till first styled Zone 1 frame, or only the pre-first-frame blank). (4) #3123 (head 7f9e39eac) and #3125 (c6b8b08cc) were merged with trunk and pushed; #3123's test was not run locally (VPS-only hook), CI decides. Ratchet stack #3128/#3135/#3138 still to retarget as each merges.
+
+**Done today:** #3147 (Characters' halls kit, Auditor PASS) merged into #3131. Per-room `roof: open|closed` (entrance open, closed entrance refused). `enclosure.hall` theme row + `encloseHall` (dungeon.ts): 4 m cells, floor/ceiling per cell, joined walls, corners, doorway cells, sconces, `blockOnly` solid circles (loader.ts KitFixed, frontier-kit.ts). `origins/preview/kit-light.ts`: extras.light as a validated row (no defaults), pooled by lending the braziers' lights (row intensity = multiple of the lent light's `userData.base`; one flicker wave, `glow`). kitGroup now draws multi-mesh prop nodes. Sample crypt rooms resized 16x16 / 12x12. VPS: 317/317, tsc, gate exit 0, registry clean.
+
+**Open:** Auditor on #3131; follow camera clips into closed rooms (camera-collision row, follow-up); the corridor between halls is open ground; Nightborn creature rows and room design wait on Dom's layout; gates stay behind the unlisted opt-in.
+
+**Gotchas:** `check.ts --gate` exits 1 with no NEW line when a named const trips `tunables`/`content rows` (read the lines with `[tunable/...]`; make it a row). Dev-server preview has no public/ (publicDir false): Playwright `page.route` can serve /world and /arena from public/; the crypt is `?region=1&zone=6` with VITE_UNLISTED_ZONES=1. A trailing `//` comment on a long main.ts line swallows the rest of that line. In-app browser tabs report `document.hidden` false, so a hidden-tab test needs the init-script trick (scratchpad hidden.mjs).
+
+## 2026-10-18 (+04, ~10:00) — HANDOFF #60 (superseded by #61's Now; READ FIRST was #60): dungeon walls #3131 + dungeon preview live, origins/world ratchet PRs stacked, the hidden-tab / Pit-first load fix is next
 
 Lane is **World & Audio**. Trunk read 4ee9aff6f (release II live) at my last look.
 
