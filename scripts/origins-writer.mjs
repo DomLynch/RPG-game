@@ -37,7 +37,7 @@ const verifyPool = createVerifyPool();
 const tally = createVerdictTally(), reachTally = createVerdictTally();   // kills by record outcome, and by reach (checked, or why not): the strict-flip readout (server-rules strictFlip)
 const worldRecords = { snapshot: () => { const t = tally.snapshot(), r = reachTally.snapshot(); return { ...t, reach: r, flip: flipReadiness(r.outcomes, t.outcomes) }; } };   // GET /internal/world-records
 setInterval(() => { const t = worldRecords.snapshot(); if (t.total || t.reach.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}; reach ${JSON.stringify(t.reach.outcomes)}; flip ${JSON.stringify(t.flip)}`); }, 3_600_000).unref();
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, reachTally,heroOf: (account, character, version) => heroLimitOf(db, account, character, version) }; };
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, reachTally, heroOf: (account, character, version) => heroLimitOf(db, account, character, version) }; };
 const regionWear = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return killWear(c.value); };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
