@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
 const row = DEFS.rules.find((r) => r.id === 'interruptEarly') as { value: number };
 const shipped = row.value; row.value = 1000;

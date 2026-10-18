@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
 const rule = (id: string) => DEFS.rules.find((r) => r.id === id) as { value: number };
 const shipped = [rule('castPushback').value, rule('castPushbackMax').value];

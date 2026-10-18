@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 import EFFECTS from '../sandbox/spell-fx.json' with { type: 'json' };
 import FAMILIES from '../src/fight/legend-families.json' with { type: 'json' };
 import { SPELL_INFO } from '../src/fight/spell-catalogue.ts';

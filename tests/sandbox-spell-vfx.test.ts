@@ -3,6 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
 const defs = DEFS as unknown as { spellHeal: object[]; spellPick: object[]; rules: { id: string; value?: number }[] };
 for (const [id, value] of [['vfxGroundCm', 5], ['vfxScaleNear', 100], ['vfxScaleFar', 1000], ['vfxScaleMax', 3000]] as const) defs.rules.find((r) => r.id === id)!.value = value;   // the distance-scale rows (trunk 0 = off)
