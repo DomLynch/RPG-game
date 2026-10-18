@@ -22,14 +22,16 @@ export const zoneRowText = (n, root = ROOT) => readFileSync(join(root, `origins/
 
 /** Gather zone N's package from the shared tables: { files: { name: text }, manifest }. Pure over its inputs. */
 export function exportPackage(n, zoneText, tables) {
-  const zone = JSON.parse(zoneText), dungeon = tables.dungeons.find((d) => d.id === zone.dungeon), theme = dungeon && tables.themes.find((t) => t.id === dungeon.theme);
+  const zone = JSON.parse(zoneText), dungeon = tables.dungeons.find((d) => d.id === zone.dungeon), usedTheme = dungeon && tables.themes.find((t) => t.id === dungeon.theme);
+  // a theme two dungeons share is OWNED by the one whose id sorts first; the other only USES it (manifest uses.theme), so the generated table holds the row once
+  const owner = usedTheme && tables.dungeons.filter((d) => d.theme === usedTheme.id).map((d) => d.id).sort()[0] === dungeon.id, theme = owner ? usedTheme : undefined;
   if (zone.dungeon && !dungeon) throw new Error(`zone ${n} names dungeon "${zone.dungeon}", which is not a row`);
   const worlds = new Set([...(zone.world ?? []), ...(dungeon ? [dungeon.world] : [])]);
   const owned = tables.exits.filter((e) => worlds.has(e.zone)), inbound = tables.exits.filter((e) => e.to === String(n) && !worlds.has(e.zone));
   const files = { 'zone.row.json': zoneText, ...(dungeon ? { 'dungeon.row.json': canon(dungeon) } : {}), ...(theme ? { 'theme.row.json': canon(theme) } : {}), 'exits.json': canon({ owned, inbound }) };
-  const kitUrls = [...new Set([zone.kit?.url, theme?.enclosure?.kit?.url].filter(Boolean))];
+  const kitUrls = [...new Set([zone.kit?.url, usedTheme?.enclosure?.kit?.url].filter(Boolean))];
   const characters = (dungeon?.creatures ?? zone.spawns?.rows ?? []).map((c) => c.id).sort(), loot = (dungeon?.creatures ?? zone.spawns?.rows ?? []).map((c) => c.loot).filter(Boolean).sort();
-  const manifest = { schema: SCHEMA, id: dungeon?.id ?? `zone${n}`, zone: Number(n), unlisted: zone.unlisted === true, world: [...worlds].sort(), owns: { exits: owned.map((e) => e.id).sort(), dungeon: dungeon?.id ?? null, theme: theme?.id ?? null }, inbound: { exits: inbound.map((e) => e.id).sort() }, uses: { kit: kitUrls, characters, loot }, files: Object.fromEntries(Object.entries(files).map(([f, t]) => [f, { bytes: Buffer.byteLength(t), sha256: sha(t) }])) };
+  const manifest = { schema: SCHEMA, id: dungeon?.id ?? `zone${n}`, zone: Number(n), unlisted: zone.unlisted === true, world: [...worlds].sort(), owns: { exits: owned.map((e) => e.id).sort(), dungeon: dungeon?.id ?? null, theme: theme?.id ?? null, warps: [] }, inbound: { exits: inbound.map((e) => e.id).sort() }, uses: { kit: kitUrls, theme: usedTheme?.id ?? null, characters, loot }, files: Object.fromEntries(Object.entries(files).map(([f, t]) => [f, { bytes: Buffer.byteLength(t), sha256: sha(t) }])) };
   return { files: { ...files, 'package.json': canon(manifest) }, manifest };
 }
 
