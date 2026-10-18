@@ -12,7 +12,9 @@ import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Tier } from '../../src/core/grades.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
-import { loadLoot, lootWorn, loadRankLook, type RankLook } from '../../src/fight/characters.ts';
+import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/characters.ts';
+import { shapeFor } from '../../src/fight/weapon-shapes.ts';
+import { TITLES } from '../../src/core/server.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
@@ -98,6 +100,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   // A creature whose loadout row names a main-game rank look (`look`, e.g. /looks/goblin-L5.glb) is drawn in that whole fitted figure (the Pit's own armour): its body key is `<kind>@<file>`, so each rank look is fetched, warmed and shared once.
   const keyOf = (s: MobSpec): string => s.body;   // one body per kind: the rank look is the Pit's armour SET fitted onto it (wearLook), not a replacement body
   const rankLooks = new Map<string, Promise<RankLook>>();   // each look file fetched once (the Pit's loadRankLook), fitted to every creature that wears it
+  const weaponShapes = new Map<string, Promise<THREE.Mesh | undefined>>();   // each graded weapon file fetched once (the Pit's loadShape)
+  const reshapeWeapon = (v: View, weapon: WeaponId, rung: string | undefined) => {   // the Pit's per-rank weapon shape (weapon-shapes.ts shapeFor: plain 1-3, crafted 4-7, ornate 8-10) at the loadout's rung
+    const level = rung ? TITLES.indexOf(rung as (typeof TITLES)[number]) + 1 : 0, url = level > 0 ? shapeFor(weapon, level) : undefined;
+    if (!url) return;
+    const p = weaponShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load; the plain part stays`, error); return undefined; }); weaponShapes.set(url, p);
+    void p.then((mesh) => { if (mesh && v.actor) v.actor.reshape(mesh.clone()); });
+  };
   const wearRankLook = (v: View, file: string) => {
     const p = rankLooks.get(file) ?? loadRankLook(file); rankLooks.set(file, p);
     void p.then((look) => { if (v.actor) v.actor.wearLook(look); }).catch((error: unknown) => { rankLooks.delete(file); console.warn(`rank look ${file} did not fit; the goblin stays as it is`, error); });
@@ -181,7 +190,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     if (look) dressMob(actor.anchor, row?.look ? { ...look, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
-    if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
+    if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
     else if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
