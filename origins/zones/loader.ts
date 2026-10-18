@@ -10,6 +10,7 @@ import { REGISTRY } from './registry.ts';
 import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
 import { stageRule } from '../world/stage-rules.ts';
+import { heightProblems } from './height-ladder.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
 
@@ -87,6 +88,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     for (const hex of [l.fog, l.hemiSky, l.hemiGround, l.sunColor]) if (!HEX.test(hex)) bad.push(`look ${id}: ${hex} is not #rrggbb`);
     if (!(l.fogDensity > 0 && l.fogDensity < 0.1 && l.sunIntensity > 0 && l.exposure > 0.5 && l.exposure < 2.5)) bad.push(`look ${id}: a number is out of range`);
   }
+  bad.push(...heightProblems(z));   // a creature drawn above its zone tier's cap (height-ladder.json) is refused unless a named exception row lets it through
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1, rgb = (n: number) => Number.isInteger(n) && n >= 0 && n <= 0xffffff;
   if (z.defaultKind !== undefined && !Object.hasOwn(ROSTER, z.defaultKind)) bad.push(`defaultKind ${z.defaultKind}: not a roster body`);
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
