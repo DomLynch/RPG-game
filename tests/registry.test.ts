@@ -129,6 +129,23 @@ test('a manifest with a range on a non-number field, or min above max, is bad-ma
   assert.deepEqual(bad({ type: 'integer', min: 1, max: 5 }), []);
 });
 
+test('a manifest spec is checked as strictly as a row: an unknown key, a non-numeric or non-finite bound, an unknown type and a non-spec value are bad-manifest (never silently unbounded)', () => {
+  const bad = (spec: unknown) => checkTables([{ manifest: { table: 't', file: 't.json', key: 'id', required: { x: spec as never } }, rows: [] }]).problems.map((p) => `${p.rule}: ${p.message}`);
+  assert.deepEqual(bad({ type: 'integer', mx: 3 }), ['bad-manifest: x: unknown spec key "mx" (a spec has type, min and max)']);       // the misspelled max the Auditor named
+  assert.deepEqual(bad({ type: 'integer', minimum: 1, max: 3 }), ['bad-manifest: x: unknown spec key "minimum" (a spec has type, min and max)']);
+  assert.deepEqual(bad({ type: 'integer', min: '1' }), ['bad-manifest: x: min must be a finite number']);
+  assert.deepEqual(bad({ type: 'integer', max: null }), ['bad-manifest: x: max must be a finite number']);
+  assert.deepEqual(bad({ type: 'number', max: Number.NaN }), ['bad-manifest: x: max must be a finite number']);
+  assert.deepEqual(bad({ type: 'number', min: Number.NEGATIVE_INFINITY }), ['bad-manifest: x: min must be a finite number']);
+  assert.deepEqual(bad({ type: 'int', min: 1 }), ['bad-manifest: x: type must be one of string, number, integer, boolean, array, object, any', 'bad-manifest: x: min/max need a number or integer field, not int']);
+  assert.deepEqual(bad({ min: 1 }), ['bad-manifest: x: type must be one of string, number, integer, boolean, array, object, any', 'bad-manifest: x: min/max need a number or integer field, not undefined']);
+  assert.deepEqual(bad(7), ['bad-manifest: x: a field spec is a type string or { type, min?, max? }']);
+  assert.deepEqual(bad(null), ['bad-manifest: x: a field spec is a type string or { type, min?, max? }']);
+  assert.deepEqual(bad({ type: 'integer' }), []);                  // an object spec with no range is fine
+  assert.deepEqual(bad({ type: 'number', min: -2.5, max: 2.5 }), []);   // negative and fractional bounds are fine
+  assert.deepEqual(bad('integer'), []);                            // the string form is as it always was
+});
+
 test('unique fields: a second row claiming the same value is duplicate-value naming the first owner', () => {
   const m: Manifest = { table: 'trade', file: 't.json', key: 'id', required: {}, unique: ['order'] };
   const r = checkTables([{ manifest: m, rows: [{ id: 'smith', order: 0 }, { id: 'baker', order: 1 }, { id: 'tanner', order: 0 }, { id: 'none' }, { id: 'none2' }] }]);
