@@ -99,7 +99,7 @@ export function parseItemDefinition(raw: unknown, path = ''): Result<ItemDefinit
   const def: ItemDefinition = { kind: 'item-definition', schemaVersion: 1, id: id!, name: name!, category: category!, rarity: rarity!, slot: slot ?? null, power: power!, material: material!, appearance: appearance!, story: story!, binding: binding!, stack: stack! };
   if (categoryOf(def.category).slot === 'required' && def.slot === null) issues.add('rule-violation', join(path, 'slot'), 'gear must name its slot');
   if (def.slot !== null && categoryOf(def.category).slot === 'none') issues.add('rule-violation', join(path, 'slot'), `a ${def.category} item is not worn and has no slot`);
-  if (powerOf(def.power).gearOnly && categoryOf(def.category).path !== 'gear') issues.add('rule-violation', join(path, 'power'), 'only gear carries a power budget (cosmetics, materials and quest items are power "none")');
+  if (powerOf(def.power).gearOnly && !categoryOf(def.category).gear) issues.add('rule-violation', join(path, 'power'), 'only gear carries a power budget (cosmetics, materials and quest items are power "none")');
   if ((categoryOf(def.category).single || storyOf(def.story).single) && def.stack !== 1) issues.add('rule-violation', join(path, 'stack'), 'gear, cosmetics and story-critical items are single copies (stack 1)');
   if (storyOf(def.story).bindsOnAcquire && def.binding !== 'on-acquire') issues.add('rule-violation', join(path, 'binding'), 'a story-critical item binds on acquire so it can never be traded away or lost (blueprint §8)');
   const legacy = legacyLootOfItemId(def.id);
@@ -107,7 +107,7 @@ export function parseItemDefinition(raw: unknown, path = ''): Result<ItemDefinit
     // A legacy loot definition is today's piece: gear in its own slot with the slot-weight budget. Anything else would re-price a piece
     // players already own.
     // Pit-won pieces are tradeable (Dom, 2026-10-06), so they never bind.
-    if (categoryOf(def.category).path !== 'gear' || def.slot !== slotOf(legacy) || !powerOf(def.power).tiered || def.binding !== 'none') {
+    if (!categoryOf(def.category).gear || def.slot !== slotOf(legacy) || !powerOf(def.power).tiered || def.binding !== 'none') {
       issues.add('rule-violation', path || '(root)', `${def.id} is today's ${legacy}: it must be category gear, slot ${slotOf(legacy)}, power slot-weight, binding none`);
     }
   }

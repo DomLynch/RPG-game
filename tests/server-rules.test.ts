@@ -13,6 +13,7 @@ test('server rules: the exports keep the numbers they had in code', () => {
   assert.deepEqual([MIN_GAP, MARK_GAP, POSE_BYTES, POSED_FIGHT_MAX, SLACK, REACH_SLACK, POSE_AGE_MS], [2, 6.5, 20, 50, 0.5, 4, 5000]);
   assert.deepEqual(rules.encounterPose.map((r) => r.edge), [0.01]);
   assert.deepEqual(rules.encounterPose.map((r) => r.scaleFloor), [0.5]);
+  assert.deepEqual(rules.encounterPose.map((r) => r.maxCoordM), [1000], 'the pose coordinate bound the writer used to hold as 1e3');
   assert.deepEqual(rules.encounterToken.map((r) => r.randomBytes), [24]);
   const i = rules.inputLimits[0]!, c = rules.callTimeouts[0]!;
   assert.deepEqual([i.characterIdChars, i.pieceIdChars, i.instanceIdChars, i.lootIdChars, i.questIdChars, i.npcIdChars, i.stageIdChars, i.choiceIdChars, i.lineIdChars], [80, 80, 120, 40, 120, 120, 64, 64, 64], 'the field caps the handlers used to hold');

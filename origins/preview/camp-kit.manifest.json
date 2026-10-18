@@ -1,0 +1,27 @@
+{
+  "tables": [
+    {
+      "table": "campKit",
+      "file": "camp-kit.json",
+      "at": "campKit",
+      "key": "id",
+      "required": {
+        "radius": "number",
+        "fire.stones": "integer",
+        "fire.ring": "number",
+        "fire.stone": "array",
+        "fire.coal": "array",
+        "fire.logs": "integer",
+        "seat.ring": "number",
+        "seat.log": "array",
+        "seat.standOut": "number",
+        "bedroll": "array",
+        "crate": "array",
+        "barrel": "array",
+        "glow.radius": "number",
+        "glow.color": "string",
+        "glow.opacity": "number"
+      }
+    }
+  ]
+}

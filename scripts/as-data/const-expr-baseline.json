@@ -8,9 +8,6 @@
  "origins/preview/daynight.ts": {
   "DAY_NIGHT_SPEED": 1
  },
- "origins/preview/mobs-view.ts": {
-  "FETCH_RANGE": 1
- },
  "origins/preview/presence-client.ts": {
   "LEGACY_EDGE_M": 1
  },
@@ -100,9 +97,6 @@
   "EVADE_HEAL_TO_FULL": 1,
   "TAU": 1,
   "RETARGET_CONE": 1
- },
- "src/lorarii.ts": {
-  "TICK": 1
  },
  "src/net/lobby.ts": {
   "RETIRE_MS": 1
