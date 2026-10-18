@@ -48,7 +48,7 @@ try {
       await clock.run(16);
       if (n % EVERY === 0) await page.screenshot({ path: `${dir}/frames/${String(frames++).padStart(4, '0')}.jpg`, type: 'jpeg', quality: 90, animations: 'disabled' });
     }
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(60 / EVERY / 2), '-i', `${dir}/frames/%04d.jpg`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${dir}/clip.mp4`]);   // half speed: 30/EVERY... of 60 steps/s
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(60 / EVERY / 2), '-i', `${dir}/frames/%04d.jpg`, '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${dir}/clip.mp4`]);   // half speed: 30/EVERY... of 60 steps/s
     report.push({ skill, weapon, button: btn, frames });
     console.log(skill, weapon, 'button', JSON.stringify(btn), 'frames', frames);
     await context.close();
