@@ -30,7 +30,11 @@ import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { zoneBuildings, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinPalette, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zonePropKit, zoneSky } from '../world/goblin-field-rules.ts';
+import { propKit, withPropKit } from './prop-kit.ts';
+import { createAmbience } from './ambience.ts';
+import { createGoblinSmoke } from './goblin-smoke.ts';
+import { goblinDirtMaterial } from './goblin-ground.ts';
 import { buildingSkin } from './building-skin.ts';
 import { loadSkinModels } from './skin-models.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
@@ -132,7 +136,10 @@ const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(lo
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
-const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter and ambience fields (a biome row can set them all: goblin-fortress). Zones 1-4 set none of them, so they are unchanged
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow && zoneRow.set?.includes('look.dress') ? zoneDress(zoneRow) : undefined;   // the dome, the camp kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); a zone with a painted sky gets the Cinder ground carried to its edge
+const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // the camp kit's props lie on the ground and add no walk blocker; its solids (none) join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
 const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
@@ -154,16 +161,18 @@ const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (i
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
-let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null;
+let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
 const settled = { hero: false, kit: !zoneKit };
 const coverEl = document.getElementById('cover');
 const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 if (frontier && frontierParts) {
-  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
+  const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
+  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);
+  if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
   if (frontierParts.models.length) void loadSkinModels(frontierParts.models, groundY).then((g) => frontierGroup?.add(g));   // the skin's buildings: each model file is fetched only now, on entering this zone
-  { const sky = zoneSky(loadZone()); if (sky) { zoneDome = createHorizonDome(scene, sky, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; } }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  { const sky = ZONE_SKY; if (sky) { zoneDome = createHorizonDome(scene, sky, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; } }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
@@ -232,6 +241,7 @@ let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
@@ -630,6 +640,7 @@ const walkLoop = () => {
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
+  ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
   zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
@@ -899,7 +910,7 @@ let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a cr
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
-for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => zoneSound.unlock(), { passive: true });
+for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
