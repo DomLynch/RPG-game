@@ -17,6 +17,7 @@ import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS, decodeWorldRecord } from '../../src/fight/server.ts';
 import { ROLL_BAND } from '../../src/fight/server.ts';
+import { DROP_REASONS } from '../../src/fight/record-drop-rows.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
@@ -89,10 +90,10 @@ export function zoneKeyProblems(): string[] {
 }
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^[a-z0-9._:-]{1,96}$/;
-// Why the page sent a kill without a record (#3151's `drop`, src/fight/record-drop-defs.json: 'gear-change', 'hero-unclean'): a label for the readout only, never trusted for anything (a kill
-// without a verified record is unverified whatever it says). A malformed one, or one beside a record, is ignored rather than refused, so a label can never cost an honest kill its report.
-const DROP = /^[a-z0-9-]{1,40}$/;
-export const dropOf = (v: unknown, rec: string | undefined): string | null => (rec === undefined && typeof v === 'string' && DROP.test(v) ? v : null);
+// Why the page sent a kill without a record (#3151's `drop`): a label for the readout only, never trusted for anything (a kill without a verified record is unverified whatever it says).
+// Only the reasons src/fight/record-drop-defs.json lists get their own tally key; anything else the page sends is 'other' (the label is the client's, so an open set would add a key per value
+// to the in-memory tally: Lead, #3155). Beside a record it is ignored; absent, the kill is plain 'no record'. Never refused, so a label can never cost an honest kill its report.
+export const dropOf = (v: unknown, rec: string | undefined): string | null => (rec !== undefined || v === undefined ? null : typeof v === 'string' && DROP_REASONS.has(v) ? v : 'other');
 const recordOf = (v: unknown): string | undefined => { if (v === undefined) return undefined; if (typeof v !== 'string' || v.length === 0 || v.length > MAX_RECORD_CHARS) throw new BadRequest('record: a packed world record'); return v; };
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {

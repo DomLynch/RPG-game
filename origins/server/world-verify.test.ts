@@ -102,21 +102,23 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   assert.deepEqual([cohorts.organic.total, cohorts.qa.total], [3, 0], 'a caller that names no cohort counts as organic');
 });
 
-test('the page\'s `drop` (#3151: why it sent no record) is counted apart from plain "no record", logged, never trusted, and ignored beside a record or when malformed', async () => {
+test('the page\'s `drop` (#3151: why it sent no record) is counted apart from plain "no record", logged, never trusted, ignored beside a record; an unlisted or malformed label is "other"', async () => {
   const { text } = await honest(), tally = createVerdictTally(), logs: string[] = [], ops = mk({ tally, log: (l: string) => logs.push(l) });
   const send = async (body: Record<string, unknown>) => { const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, ...body }); return s; };
   const plain = await send({}), gear = await send({ drop: 'gear-change' }), unclean = await send({ drop: 'hero-unclean' });
-  await send({ drop: 'Not A Reason!' }); await send({ drop: 7 }); await send({ drop: 'x'.repeat(41) });   // malformed: counted as plain no record
+  for (let i = 0; i < 50; i++) await send({ drop: `forged-${i}` });   // unlisted labels: ONE 'other' key however many values (the in-memory tally stays bounded)
+  await send({ drop: 'Not A Reason!' }); await send({ drop: 7 }); await send({ drop: 'x'.repeat(41) });   // malformed: 'other' too
   await send({ record: text, drop: 'gear-change' });   // beside a record: the record decides, the drop is ignored
   await new Promise((r) => setTimeout(r, 200));
-  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4, 'dropped: gear-change': 1, 'dropped: hero-unclean': 1, verified: 1 });
+  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 1, 'dropped: gear-change': 1, 'dropped: hero-unclean': 1, 'dropped: other': 53, verified: 1 });
+  assert.ok(!logs.some((l) => /forged-/.test(l)), 'the log names the bucket, never the raw label');
   assert.ok(logs.some((l) => /record=none \(dropped: gear-change\)/.test(l)), logs.join(' | '));
   assert.deepEqual(paidOps(gear.kills[0]!.b), paidOps(plain.kills[0]!.b), 'flag off: a drop label changes no payout');
   assert.deepEqual(paidOps(unclean.kills[0]!.b), paidOps(plain.kills[0]!.b));
   const strict = mk({ scorecardOnlyUnverified: true }), s = stub();
   await strict.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, drop: 'gear-change' });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'flag on: a dropped window pays scorecard counts only, like any kill without a verified record');
-  assert.deepEqual([dropOf('gear-change', undefined), dropOf('gear-change', 'rec'), dropOf('BAD', undefined), dropOf(undefined, undefined)], ['gear-change', null, null, null]);
+  assert.deepEqual([dropOf('gear-change', undefined), dropOf('gear-change', 'rec'), dropOf('BAD', undefined), dropOf(undefined, undefined)], ['gear-change', null, 'other', null]);
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
