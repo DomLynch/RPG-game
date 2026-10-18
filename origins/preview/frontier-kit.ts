@@ -46,8 +46,13 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
   const marksById = Object.assign({}, ...f.zones.map((q) => q.landmarks)) as Record<string, { x: number; z: number }>;
   for (const p of zone.kit.fixed ?? []) {
     const a = marksById[p.at]; if (!a) continue;
-    placements.push({ node: p.node, x: a.x + p.dx, z: a.z + p.dz, rotY: (p.rotDeg * Math.PI) / 180, scale: p.scale });
-    if (p.solid > 0) solids.push({ x: a.x + p.dx, z: a.z + p.dz, r: p.solid * p.scale });
+    let at = { x: a.x + p.dx, z: a.z + p.dz }, rotY = (p.rotDeg * Math.PI) / 180;
+    if (p.frame === 'zone') {   // the zone's own frame (a dungeon's enclosure): turned into the world by the mount of the zone that owns the landmark (derive.ts toWorld: local +x = (-cos h, sin h), local +d = (sin h, cos h))
+      const h = f.zones.find((q) => q.landmarks[p.at])!.mount.heading, s = Math.sin(h), c = Math.cos(h);
+      at = { x: a.x - p.dx * c + p.dz * s, z: a.z + p.dx * s + p.dz * c }; rotY += h + Math.PI;
+    }
+    placements.push({ node: p.node, x: at.x, z: at.z, rotY, scale: p.scale });
+    if (p.solid > 0) solids.push({ x: at.x, z: at.z, r: p.solid * p.scale });
   }
   // The four landmarks stand along the west road just OUTSIDE the walker's first view (frontier-plan.ts inFirstView keeps tall things 10 m + their radius off the road's line), alternating sides:
   // each takes the first free spot walking out from the road's end, at least 10 m from the one before.

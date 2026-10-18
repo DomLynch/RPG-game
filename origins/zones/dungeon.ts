@@ -11,7 +11,7 @@ import EXITS_DEFS from './exit-rows.json' with { type: 'json' };
 import LOOT from '../region1/loot-tables.json' with { type: 'json' };
 
 type At = { readonly u: number; readonly v: number; readonly facing: number };
-export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[] };
+export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[]; readonly size?: { readonly w: number; readonly d: number } };   // size (m): the room's walled footprint across (w) and deep (d), centred on its landmark; absent = the theme's default room
 export type DungeonCreature = { readonly id: string; readonly level: readonly [number, number]; readonly loot: string; readonly named?: boolean; readonly [k: string]: unknown };
 export type DungeonEncounter = { readonly id: string; readonly room: string; readonly creature: string };
 export type Dungeon = {
@@ -20,7 +20,15 @@ export type Dungeon = {
   readonly creatures: readonly DungeonCreature[]; readonly encounters: readonly DungeonEncounter[]; readonly boss: { readonly encounter: string };
   readonly mount?: { readonly waypointsBefore?: readonly string[]; readonly connections?: unknown; readonly density?: unknown; readonly ambience?: unknown; readonly joins?: unknown };
 };
-export type DungeonTheme = { readonly id: string; readonly look: Readonly<Record<string, unknown>>; readonly pieces: Readonly<Record<string, string>> };
+/** How a theme ENCLOSES a room (theme row `enclosure`): the kit file and its nodes, the wall piece (`length` m of wall one piece covers at `scale`, `solid` its walk-blocking radius per unit scale), the doorway piece set into the wall facing each linked room
+ *  (`gap` m of opening), and the default room size. Every piece choice is a row, so a restyle is a data change (Dom 2026-10-18). */
+export type Enclosure = {
+  readonly kit: { readonly url: string; readonly nodes: readonly string[] };
+  readonly wall: { readonly node: string; readonly scale: number; readonly length: number; readonly solid: number };
+  readonly doorway: { readonly node: string; readonly scale: number; readonly gap: number };
+  readonly room: { readonly w: number; readonly d: number };
+};
+export type DungeonTheme = { readonly id: string; readonly look: Readonly<Record<string, unknown>>; readonly pieces: Readonly<Record<string, string>>; readonly enclosure?: Enclosure };
 
 type ExitLite = { readonly id: string; readonly landmark: string };
 
@@ -75,12 +83,45 @@ export function walkRoute(d: Dungeon): { readonly in: readonly string[]; readonl
   return { in: path, out: [...path].reverse() };
 }
 
-/** The zone-row parts a dungeon compiles to: what a zone row would otherwise carry as `place`, `spawns` and `look`. */
-export function compileDungeon(d: Dungeon, theme: DungeonTheme): { place: unknown; spawns: unknown; look: unknown; band: readonly [number, number] } {
+export type FixedPiece = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; frame: 'zone' };
+const RAD = Math.PI / 180, r3 = (n: number): number => Math.round(n * 1000) / 1000;
+/** The pieces that ENCLOSE every room of a dungeon (theme `enclosure`): four walls round the room's footprint, and a doorway set into the wall that faces each linked room (and, on the entrance room, the way out). Offsets are in the ZONE's frame
+ *  (`frame: 'zone'`: x across, d deep, relative to the room's landmark; rotDeg from the zone's +x axis), so they follow the zone's mount in the world. A room whose walls would leave the zone is refused. Pure. */
+export function encloseRooms(d: Dungeon, enc: Enclosure): readonly FixedPiece[] {
+  const local = new Map(d.rooms.map((r) => [r.id, { x: (r.at.u - 0.5) * d.size.width, d: r.at.v * d.size.depth }]));
+  const out: FixedPiece[] = [];
+  for (const room of d.rooms) {
+    const w = room.size?.w ?? enc.room.w, depth = room.size?.d ?? enc.room.d, th = room.at.facing * RAD, c = local.get(room.id)!;
+    const fwd = { x: -Math.sin(th), d: Math.cos(th) }, rgt = { x: Math.cos(th), d: Math.sin(th) };
+    // side i: its outward normal, its direction of run and its length: +forward, -forward, +right, -right
+    const sides = [{ n: fwd, run: rgt, len: w, off: depth / 2 }, { n: { x: -fwd.x, d: -fwd.d }, run: rgt, len: w, off: depth / 2 }, { n: rgt, run: fwd, len: depth, off: w / 2 }, { n: { x: -rgt.x, d: -rgt.d }, run: fwd, len: depth, off: w / 2 }];
+    const open = new Set<number>(), face = (to: { x: number; d: number }) => { const dx = to.x - c.x, dd = to.d - c.d; let best = 0, bestDot = -Infinity; sides.forEach((s, i) => { const dot = s.n.x * dx + s.n.d * dd; if (dot > bestDot) { bestDot = dot; best = i; } }); return best; };
+    for (const l of room.links) open.add(face(local.get(l)!));
+    if (room.id === d.entrance.room) open.add(0);   // the way out: the room's own facing is out of the zone
+    const put = (node: string, x: number, dd: number, ang: number, scale: number, solid: number): void => {
+      const px = c.x + x, pd = c.d + dd;
+      if (Math.abs(px) > d.size.width / 2 || pd < 0 || pd > d.size.depth) throw new Error(`dungeon "${d.id}": room "${room.id}" has a ${node} at (${r3(px)}, ${r3(pd)}) outside the ${d.size.width} x ${d.size.depth} zone: shrink the room or move it in`);
+      out.push({ node, at: room.id, dx: r3(x), dz: r3(dd), rotDeg: r3(ang), scale: r3(scale), solid, frame: 'zone' });
+    };
+    sides.forEach((s, i) => {
+      const ang = Math.atan2(s.run.d, s.run.x) / RAD, gap = open.has(i) ? enc.doorway.gap : 0, cx = s.n.x * s.off, cd = s.n.d * s.off;
+      for (const [from, to] of gap ? [[-s.len / 2, -gap / 2], [gap / 2, s.len / 2]] : [[-s.len / 2, s.len / 2]]) {
+        const span = to! - from!, n = Math.max(1, Math.ceil(span / enc.wall.length - 1e-9)), step = span / n;
+        for (let k = 0; k < n; k++) { const t = from! + (k + 0.5) * step; put(enc.wall.node, cx + s.run.x * t, cd + s.run.d * t, ang, (enc.wall.scale * step) / enc.wall.length, enc.wall.solid); }
+      }
+      if (gap) put(enc.doorway.node, cx, cd, ang, enc.doorway.scale, 0);
+    });
+  }
+  return out;
+}
+
+/** The zone-row parts a dungeon compiles to: what a zone row would otherwise carry as `place`, `spawns` and `look` (and `kit`, when the theme encloses its rooms). */
+export function compileDungeon(d: Dungeon, theme: DungeonTheme): { place: unknown; spawns: unknown; look: unknown; band: readonly [number, number]; kit?: unknown } {
   const layout = Object.fromEntries(d.rooms.map((r) => [r.id, r.at])), m = d.mount ?? {};
   const world = { zoneSize: d.size, layout, ...(m.connections !== undefined ? { connections: m.connections } : {}), ...(m.density !== undefined ? { density: m.density } : {}), ...(m.ambience !== undefined ? { ambience: m.ambience } : {}) };
   const place = { zones: { [d.world]: world }, ...(m.joins !== undefined ? { joins: m.joins } : {}), waypoints: [...(m.waypointsBefore ?? []), ...d.rooms.map((r) => r.id)], spawns: d.encounters.map((e) => ({ id: e.id, at: e.room, characters: [e.creature] })) };
-  return { place, spawns: { openers: d.openers ?? {}, rows: d.creatures }, look: theme.look, band: d.level };
+  const enc = theme.enclosure;
+  return { place, spawns: { openers: d.openers ?? {}, rows: d.creatures }, look: theme.look, band: d.level, ...(enc ? { kit: { url: enc.kit.url, nodes: enc.kit.nodes, landmarks: [], kinds: [], fixed: encloseRooms(d, enc) } } : {}) };
 }
 
 export const DUNGEONS: readonly Dungeon[] = loadDungeons(DEFS);

@@ -22,6 +22,30 @@
         "nave": "landmark_camp",
         "vault": "landmark_stone_circle"
       }
+    },
+    {
+      "id": "nightborn-halls",
+      "look": {
+        "arena": "3",
+        "sky": "dusk",
+        "props": { "kit": "goblin-camp", "density": 0 },
+        "fog": { "colour": "#0e1220", "density": 0.05 },
+        "sun": { "colour": "#9fb4e8", "intensity": 1.6, "pos": [-20, 18, 12] },
+        "ambient": { "sky": "#4a5a86", "ground": "#10121c", "intensity": 0.7 },
+        "exposure": 0.9,
+        "ground": { "tint": [0.35, 0.36, 0.42] }
+      },
+      "pieces": {
+        "door": "cave_doorway",
+        "nave": "cave_wall",
+        "vault": "bone_pile"
+      },
+      "enclosure": {
+        "kit": { "url": "/world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile", "lantern"] },
+        "wall": { "node": "cave_wall", "scale": 1.6, "length": 6.4, "solid": 2 },
+        "doorway": { "node": "cave_doorway", "scale": 1, "gap": 6 },
+        "room": { "w": 14, "d": 14 }
+      }
     }
   ]
 }

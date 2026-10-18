@@ -16,7 +16,7 @@ import type { ExitRow } from './exits.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
-export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none)
+export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; frame?: 'zone' };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none). frame 'zone' (a dungeon theme's enclosure): dx = across, dz = deep in the ZONE's own frame, rotDeg from the zone's +x axis, so the piece follows the zone's mount
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
