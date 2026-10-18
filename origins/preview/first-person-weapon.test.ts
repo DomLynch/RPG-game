@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import * as THREE from 'three';
 import { createViewmodel, viewmodelMatrix } from './first-person-weapon.ts';
 
-const LOOK = { metal: 0.7, rough: 0.4, skin: 0x6a4a36, bracer: 0x3a2a1f, forearm: 0.045, fist: 0.055, length: 0.9, armRight: 0.5, armUp: -0.8, armBack: -0.3, swordX: 0, swordY: 0, swordZ: 0 };
+const LOOK = { metal: 0.7, rough: 0.4, skin: 0x6a4a36, bracer: 0x3a2a1f, forearm: 0.045, fist: 0.055, length: 0.9, armRight: 0.5, armUp: -0.8, armBack: -0.3, swordX: 0, swordY: 0, swordZ: 0, swordScale: 1 };
 const frame = (x: number, y: number, z: number, yaw: number) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
 const posOf = (m: THREE.Matrix4) => new THREE.Vector3().setFromMatrixPosition(m);
 

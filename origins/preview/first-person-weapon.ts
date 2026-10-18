@@ -9,17 +9,18 @@
 import * as THREE from 'three';
 
 /** World matrix of the viewmodel: E (the eye frame: the head, yaw only) times a lift in that frame times the weapon's pose relative to the eye. */
-export function viewmodelMatrix(eye: THREE.Matrix4, weaponWorld: THREE.Matrix4, lift: { x: number; y: number; z: number }, turn?: { x: number; y: number; z: number }): THREE.Matrix4 {
+export function viewmodelMatrix(eye: THREE.Matrix4, weaponWorld: THREE.Matrix4, lift: { x: number; y: number; z: number }, turn?: { x: number; y: number; z: number }, scale = 1): THREE.Matrix4 {
   const rel = new THREE.Matrix4().copy(eye).invert().multiply(weaponWorld);   // the weapon in the eye's frame
   const out = new THREE.Matrix4().copy(eye).multiply(new THREE.Matrix4().makeTranslation(lift.x, lift.y, lift.z)).multiply(rel);
   if (turn) out.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(turn.x, turn.y, turn.z)));   // the sword turned about its own grip (the rig holds it point-down at the hip; a first-person hero holds it up and forward)
+  if (scale !== 1) out.multiply(new THREE.Matrix4().makeScale(scale, scale, scale));   // a shorter blade in view: a sword held at arm's length from a head is not a 1 m blade at the lens
   return out;
 }
 
 /** Where the weapon rests in view, in the eye frame (modern first-person games, Oblivion Remastered, Avowed, KCD2, show the weapon held low at the lower right ALL the time): metres right of, above (negative = below) and ahead of the eye. */
 export type Rest = { right: number; up: number; forward: number };
 /** How the clone looks (rows fp.*): the blade metalness and roughness it is eased to, and the skin tone and radii of the forearm and fist. */
-export type Look = { metal: number; rough: number; skin: number; bracer: number; forearm: number; fist: number; length: number; armRight: number; armUp: number; armBack: number; swordX: number; swordY: number; swordZ: number };   // swordX/Y/Z: degrees the sword is turned about its own grip (row fp.sword-rx/ry/rz)   // armRight/armUp/armBack: the forearm's direction from the grip in the eye frame (right, up, ahead; negative = left, down, towards the lens)
+export type Look = { metal: number; rough: number; skin: number; bracer: number; forearm: number; fist: number; length: number; armRight: number; armUp: number; armBack: number; swordX: number; swordY: number; swordZ: number; swordScale: number };   // swordX/Y/Z: degrees the sword is turned about its own grip (row fp.sword-rx/ry/rz)   // armRight/armUp/armBack: the forearm's direction from the grip in the eye frame (right, up, ahead; negative = left, down, towards the lens)
 
 export function createViewmodel(scene: THREE.Scene) {
   const hidden: THREE.Object3D[] = [];   // the hero's skinned meshes hidden while first person is on
@@ -56,7 +57,7 @@ export function createViewmodel(scene: THREE.Scene) {
         const skin = new THREE.MeshStandardMaterial({ color: look.skin, roughness: 1, metalness: 0, depthTest: false, transparent: true }), leather = new THREE.MeshStandardMaterial({ color: look.bracer, roughness: 0.85, metalness: 0.05, depthTest: false, transparent: true });
         limb = new THREE.Group();
         forearm = new THREE.Mesh(new THREE.CapsuleGeometry(look.forearm, 1, 6, 14), skin); sleeve = new THREE.Mesh(new THREE.CylinderGeometry(look.forearm * 1.18, look.forearm * 1.28, 1, 16), leather);
-        const knuckles = new THREE.Mesh(new THREE.SphereGeometry(look.fist, 16, 12), skin); limb.add(forearm, sleeve, knuckles);
+        const knuckles = new THREE.Mesh(new THREE.SphereGeometry(look.fist, 16, 12), skin); limb.add(sleeve, knuckles);   // the hand and a short cuff only (Dom: the long arm looked like a punching bag); the forearm mesh is kept but not drawn
         limb.traverse((o) => { o.renderOrder = 4999; o.frustumCulled = false; }); sleeve.renderOrder = 5001; knuckles.renderOrder = 5002; limb.matrixAutoUpdate = true; limb.visible = false; scene.add(limb);   // no depth test, so the draw order is the layering: arm, then cuff, then fist; all after the painted horizon dome
       }
       weapon.updateWorldMatrix(true, false); source!.visible = false;
@@ -65,7 +66,7 @@ export function createViewmodel(scene: THREE.Scene) {
       else if (ready) restAt.lerp(here, 0.25);   // between swings the hand's pose is the rest pose
       lift.set(-rest.right - restAt.x, rest.up - restAt.y, rest.forward - restAt.z);   // right of a heading-yaw frame looking along +z is -x
       const deg = Math.PI / 180;
-      vm!.matrix.copy(viewmodelMatrix(eye, weapon.matrixWorld, lift, { x: look.swordX * deg, y: look.swordY * deg, z: look.swordZ * deg })); vm!.matrixWorldNeedsUpdate = true; vm!.visible = true;
+      vm!.matrix.copy(viewmodelMatrix(eye, weapon.matrixWorld, lift, { x: look.swordX * deg, y: look.swordY * deg, z: look.swordZ * deg }, look.swordScale)); vm!.matrixWorldNeedsUpdate = true; vm!.visible = true;
       // The forearm: from the grip (the clone's origin, where its hand is) off to the bottom right corner of the view, along a direction fixed in the eye frame (modern first-person games draw the arm coming up from the
       // corner, not wherever the third-person elbow happens to be); it moves with the grip, so it follows every swing and the head bob.
       if (limb && forearm && sleeve) {   // one-bone IK: the arm runs from a shoulder fixed at the bottom right of the view to the grip, so a swing stretches and turns it instead of throwing it across the screen
