@@ -11,7 +11,7 @@ export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';
 // An in-memory stand-in for the 202610080002 functions, with the same rules the SQL has: one open fight per account and per instance, token consumed once, expiry, settle applies the batch.
 type Row = { token: string; character: string; seed: number; enemy: string; level: number; start_tick: number; last_tick: number; bar: number | null; flags: unknown[]; layer: string | null; instance: string | null; expires: number; used: boolean; settled: boolean; result: string | null };
 let clock = { t: 0 };   // the fake database's clock, also what the handler's expiry pre-check reads
-export function fakeDb(now: { t: number }) {
+export function fakeDb(now: { t: number }, opts: { qa?: boolean } = {}) {
   clock = now;
   const rows = new Map<string, Row>(), events: Record<string, unknown>[] = [];
   const world: { career: unknown; build: unknown } = { career: null, build: null }, xp = new Map<string, number>(), paid = new Set<string>(), focus = new Set<string>(), grimoire = new Map<string, unknown>();   // xp / focus keyed `<skill>`; the pool mirrors origins_encounter_settle's practice loop
@@ -19,6 +19,7 @@ export function fakeDb(now: { t: number }) {
   const json = (r: Row) => JSON.stringify({ token: r.token, character: r.character, seed: r.seed, enemy: r.enemy, level: r.level, expires_at: new Date(r.expires).toISOString(), used: r.used, start_tick: r.start_tick, last_tick: r.last_tick, bar: r.bar, flags: r.flags, layer: r.layer, instance: r.instance, grace_s: 120, settled: r.settled, result: r.result });
   const db: Db = {
     async run(sql, v = {}) {
+      if (/origins_account_is_test\(/.test(sql)) return String(opts.qa === true);   // the QA mark (fighter_profiles.is_test), false unless a test says so
       if (/origins_open\(/.test(sql)) return JSON.stringify({ marks: 0, career: world.career, characters: [], items: [], quests: [], journal: [], talk: [] });
       if (/origins_event\(/.test(sql)) return JSON.stringify(events.find((e) => e.event_id === v.e) ?? null);   // store.event: one stored event of the account, or null
       if (/origins_get_build\(/.test(sql)) return world.build === null ? 'null' : JSON.stringify(world.build);

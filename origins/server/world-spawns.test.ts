@@ -30,6 +30,7 @@ const wolf = [...spawns.values()].find((s) => s.spec.character === 'character:as
 function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {}) {
   const kills: { m: string; r: string; b: Json[]; g: Json }[] = [];
   const db: Db = { async run(sql, v = {}) {
+    if (/origins_account_is_test/.test(sql)) { const a = answers.origins_account_is_test; if (a instanceof Error) throw a; return a === 'absent' ? 'absent' : String(a === true); }   // the QA mark (fighter_profiles.is_test)
     if (/origins_spawn_/.test(sql) && opts.absent) return 'absent';
     const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)?.[1];   // after the psql guard; the bare call once the probe is cached (store.ts gated)
     if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!), g: JSON.parse(v.g!) }); }
@@ -153,6 +154,34 @@ test('kill_report 409 (launch gate V5): a paid token reads back as paid with its
   const kinds = logs.filter((l) => / 409 /.test(l)).map((l) => /409 (\w+)/.exec(l)![1]);
   assert.deepEqual(kinds, ['paid', 'expired', 'unknown', 'paid', 'unread', 'unread', 'unread', 'paid'], 'the log line names the 409 kind for the soak');
   assert.ok(logs.every((l) => !l.includes(TOKEN)), 'only the token tail is logged');
+});
+
+test('kill_report for the QA account (fighter_profiles.is_test): every check and every soak tally counts it, but it persists nothing (event only, qa marked, answered with zero payout); the QA state is logged and a blind lookup pays as normal', async () => {
+  const logs: string[] = [], tally = createVerdictTally(), reachTally = createVerdictTally();
+  const ops = worldSpawnOps({ content, spawns, tally, reachTally, log: (l: string) => logs.push(l) });
+  const run = async (qa: unknown) => {
+    const s = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: qa });
+    const out = await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }) as { result: string; cp: number; bronze: number; loot: number };
+    return { s, out, opsOf: s.kills[0]!.b.map((l) => l.op), payload: s.kills[0]!.b[0]!.payload as Record<string, unknown> };
+  };
+  const no = await run(false), yes = await run(true), blind = await run(new Error('db down')), absent = await run('absent');
+  assert.ok(no.opsOf.length > 1, 'an ordinary kill pays (more than the event)');
+  assert.deepEqual(yes.opsOf, ['event'], 'QA: the event only: no CP, no minted item, no bronze, no wear');
+  assert.deepEqual([yes.payload.qa, yes.payload.paid, yes.payload.cpReason, yes.payload.cp], [true, false, 'qa', 0]);
+  assert.deepEqual([yes.out.result, yes.out.cp, yes.out.bronze, yes.out.loot], ['killed', 0, 0, 0], 'the answer says killed and pays nothing');
+  assert.equal('qa' in no.payload, false, 'only a QA event is marked');
+  for (const normal of [blind, absent]) assert.deepEqual(normal.opsOf, no.opsOf, 'a blind or absent lookup pays exactly as an ordinary kill');
+  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4 }, 'the soak counters count the QA kill like the others');
+  assert.deepEqual(reachTally.snapshot().outcomes, { checked: 4 }, 'and so does the reach tally');
+  assert.deepEqual(logs.filter((l) => /^kill_report .* qa=/.test(l)).map((l) => /qa=(\S+)/.exec(l)![1]), ['no', 'yes', '?', '?'], 'the log names the QA state; ? = the lookup was blind');
+  // the checks apply to QA exactly as to anyone: too far is refused, and the strict flag refuses an unchecked QA kill
+  const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + (wolf.spec.home.x + 50) * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
+  const qaStub = () => stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: true });
+  const away = qaStub();
+  await assert.rejects(async () => ops.kill_report!(ctx(away.db, far), { token: TOKEN, hits: 50 }), status(422, 'away'));
+  const strictOps = worldSpawnOps({ content, spawns, refuseUnchecked: true, log: () => {} }), unchecked = qaStub();
+  await assert.rejects(async () => strictOps.kill_report!(ctx(unchecked.db, null), { token: TOKEN, hits: 50 }), status(422, 'unchecked'));
+  assert.equal(away.kills.length + unchecked.kills.length, 0, 'a refused QA kill writes nothing');
 });
 
 test('kill_report: the database\'s refusals map to the contract (dead 409, too-fast 422, cap 429, used 409); reach via presence', async () => {
