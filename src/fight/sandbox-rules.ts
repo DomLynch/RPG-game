@@ -265,6 +265,20 @@ export const shardRows = (): number => ((DEFS as unknown as { specialShards?: Sh
 // `on`: 'start' plays when the special is committed (the swing's whoosh, `delay` seconds in), 'land' (default) when it lands on the foe.
 export type SpecialSoundRow = { id: string; cue: string; gain: number; room: number; delay: number; on?: 'start' | 'land' };
 export const specialSoundOf = (skill: string): SpecialSoundRow[] => ((DEFS as unknown as { specialSound?: SpecialSoundRow[] }).specialSound ?? []).filter((r) => r.id === skill);
+// bowSpecial (Dom 2026-10-18: four bow specials, no new Mixamo; Strategy approved the design and the unlock order): a caster whose weapon has a `bow` missile row and who stands beyond the missile gap resolves the picker special `skill` as
+// arrows through the one missile model instead of the melee special (inside the gap, or out of arrows, the melee special stays). One row per picker skill { skill, label, unlockAfterBossKills, arrows (the quiver cost), lanes (one
+// arrow each: -1 left, 0 forward, 1 right), mult (per-mille of the special's damage per arrow), windup (ticks, replaces specialMeleeWindup), speed (cm/s), react (1 = a landed arrow shoves and staggers like a melee special),
+// pin (ticks of a `pinShot` crowd-control stun through the cc ladder; 0 = none), tint }. No rows (trunk) = a bow has no specials.
+export type BowSpecialRow = { skill: string; label: string; unlockAfterBossKills: number; arrows: number; lanes: number[]; mult: number; windup: number; speed: number; react?: number; pin?: number; tint?: string };
+const BOW_SPECIALS = ((DEFS as unknown as { bowSpecial?: BowSpecialRow[] }).bowSpecial ?? []);
+for (const r of BOW_SPECIALS) if (!r.skill || !(r.arrows >= 1) || !r.lanes?.length || !(r.mult >= 1) || !(r.windup >= 1) || !(r.speed >= 1)) throw Error(`bowSpecial "${String(r.skill)}": skill, arrows (>= 1), lanes, mult, windup and speed are required`);
+export const bowSpecialRows = (): readonly BowSpecialRow[] => BOW_SPECIALS;
+/** The bow special a caster of `weapon` casts for picker skill `skill` from `gap` metres with `ammo` arrows left, or undefined (melee special instead). */
+export const bowSpecialOf = (weapon: string, skill: string | null | undefined, gap: number, ammo: number | undefined): BowSpecialRow | undefined => {
+  if (!skill || !BOW_SPECIALS.length || missileOf(weapon)?.kind !== 'bow') return undefined;
+  const r = BOW_SPECIALS.find((x) => x.skill === skill);
+  return r && gap >= missileMinGap() && (ammo === undefined || ammo >= r.arrows) ? r : undefined;
+};
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);

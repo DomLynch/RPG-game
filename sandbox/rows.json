@@ -122,6 +122,11 @@
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"specialPick":[
 {"id":"cleave","role":"heavy","label":"Skull Crack","unlockAfterBossKills":0,"slot2Default":1},{"id":"reaping","role":"sweep","label":"Whirlwind","unlockAfterBossKills":0,"slot2Alt":1},{"id":"stomp","role":"posture break","label":"Ground Slam","unlockAfterBossKills":1},{"id":"lunge","role":"opener","label":"Lunge","unlockAfterBossKills":2}
+],"bowSpecial":[
+{"skill":"cleave","label":"Power Shot","unlockAfterBossKills":0,"arrows":2,"lanes":[0],"mult":2000,"windup":40,"speed":700,"react":1,"tint":"#fff2c0"},
+{"skill":"reaping","label":"Fan Volley","unlockAfterBossKills":1,"arrows":3,"lanes":[-1,0,1],"mult":600,"windup":36,"speed":900,"tint":"#e8d9a8"},
+{"skill":"stomp","label":"Pinning Shot","unlockAfterBossKills":2,"arrows":1,"lanes":[0],"mult":1000,"windup":36,"speed":900,"pin":90,"tint":"#d8c8ff"},
+{"skill":"lunge","label":"Quick Shot","unlockAfterBossKills":0,"arrows":1,"lanes":[0],"mult":1200,"windup":14,"speed":1400,"tint":"#ffffff"}
 ],"specialReactFloor":[
 {"id":"lunge","stagger":36}
 ],"specialLook":[

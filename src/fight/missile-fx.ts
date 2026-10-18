@@ -15,19 +15,20 @@ export function createMissileFx(scene: THREE.Scene) {
   const bolts = [0, 1].map(() => ({ core: sprite(0.2, '#e8f3ff', 1), halo: sprite(0.65, '#6aa8ff', 0.55), trail: Array.from({ length: TRAIL }, (_, k) => sprite(0.4 - k * 0.08, '#6aa8ff', 0.4 - k * 0.1)) }));
   // Bow arrow / crossbow bolt: a simple shaft + head + fins mesh (staff keeps the white orb). One per fighter, pointing along the flight line; shapes are rows-free presentation only.
   const SHAPE = { bow: { len: 0.95, r: 0.011, shaft: '#8a6a43', head: '#8d9399', fin: '#c9c0a8' }, crossbow: { len: 0.42, r: 0.014, shaft: '#4a3a2c', head: '#8d9399', fin: '#3a2e24' } } as const;
-  const shafts = [0, 1].map(() => {
+  const makeShaft = () => {
     const g = new THREE.Group(), mat = (c: string) => new THREE.MeshBasicMaterial({ color: c });
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6), mat('#fff')), head = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 6), mat('#fff')), fins = [0, 1].map(() => new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })));
     fins[1]!.rotation.x = Math.PI / 2;   // two crossed fins at the tail
     g.add(shaft, head, ...fins); g.visible = false; scene.add(g); return { g, shaft, head, fins };
-  });
+  };
+  const shafts = [0, 1].map(makeShaft), sides = [0, 1].map(() => [makeShaft(), makeShaft()]);   // sides: the two outer arrows of a bow volley (sandbox bowSpecial lanes), hidden unless one flies
   const dress = (s: (typeof shafts)[number], kind: 'bow' | 'crossbow') => {
     const k = SHAPE[kind], headLen = k.r * 6;
     s.shaft.scale.set(k.r, k.len, k.r); s.shaft.rotation.z = Math.PI / 2; (s.shaft.material as THREE.MeshBasicMaterial).color.set(k.shaft);   // lies along +x
     s.head.scale.set(k.r * 2, headLen, k.r * 2); s.head.rotation.z = -Math.PI / 2; s.head.position.x = k.len / 2 + headLen / 2; (s.head.material as THREE.MeshBasicMaterial).color.set(k.head);
     s.fins.forEach((f) => { f.scale.set(k.r * 9, k.r * 9, 1); f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });
   };
-  const dressed = [undefined, undefined] as (string | undefined)[];
+  const dressed = [undefined, undefined] as (string | undefined)[], VOLLEY_SPREAD = 0.7;   // metres the outer arrows of a volley bow out from the line at mid-flight
   // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
   const bursts = Array.from({ length: 6 }, () => ({ core: sprite(1, '#ffffff', 1), halo: sprite(1, '#b070ff', 0.8), at: -1, x: 0, z: 0, big: 1, life: 42 })); let next = 0;   // life: ticks the burst lasts (a spellLook row's pulse; 42 without one)
   const BURST_TICKS = 42;
@@ -62,13 +63,17 @@ export function createMissileFx(scene: THREE.Scene) {
         const b = bolts[i]!, m = f.missile, live = !!m && tick < m.arrives;
         const kind = missileOf(f.weapon)?.kind, arrow = kind === 'bow' || kind === 'crossbow' ? kind : undefined, sh = shafts[i]!;
         b.core.visible = live && !arrow; b.halo.visible = live && !arrow; for (const t of b.trail) t.visible = live && !arrow; sh.g.visible = live && !!arrow;   // an arrow or bolt is plain wood and iron: no glow, no trail (the staff keeps its white orb)
+        const outer = (m?.lanes ?? []).filter((l) => l !== 0);
+        sides[i]!.forEach((s, k) => { s.g.visible = live && !!arrow && k < outer.length; });
         if (!m || !live) return;
-        if (arrow && dressed[i] !== arrow) { dress(sh, arrow); dressed[i] = arrow; }
+        if (arrow && dressed[i] !== arrow) { dress(sh, arrow); for (const s of sides[i]!) dress(s, arrow); dressed[i] = arrow; }
         const tint = m.tint ?? missileOf(f.weapon)?.tint;   // a spell's own colour, else the row's colour for this weapon's bolt (staff blue, arrow tan, crossbow bolt amber)
         if (tint) { (b.halo.material as THREE.SpriteMaterial).color.set(tint); for (const t of b.trail) (t.material as THREE.SpriteMaterial).color.set(tint); }
         const along = m.range * Math.min(1, Math.max(0, (tick - m.launched) / Math.max(1, m.arrives - m.launched)));
         b.core.position.set(m.x + m.dx * along, HEIGHT, m.z + m.dz * along); b.halo.position.copy(b.core.position);
         sh.g.position.set(b.core.position.x, HEIGHT, b.core.position.z); sh.g.rotation.y = Math.atan2(-m.dz, m.dx);
+        const frac = (tick - m.launched) / Math.max(1, m.arrives - m.launched), bow = VOLLEY_SPREAD * Math.sin(Math.PI * Math.min(1, Math.max(0, frac)));
+        outer.forEach((l, k) => { const s = sides[i]![k]!; s.g.position.set(sh.g.position.x + m.dz * l * bow, HEIGHT, sh.g.position.z - m.dx * l * bow); s.g.rotation.y = sh.g.rotation.y; });
         if (arrow) b.halo.scale.setScalar(0.3);
         b.trail.forEach((t, k) => { const back = Math.max(0, along - (k + 1) * TRAIL_GAP); t.position.set(m.x + m.dx * back, HEIGHT, m.z + m.dz * back); });
       });

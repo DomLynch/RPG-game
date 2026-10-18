@@ -12,7 +12,7 @@ import CC_MANIFEST from './cc-defs.manifest.json' with { type: 'json' };
 export type CcFamily = string;   // a cc-defs.json kind id (stun, knockdown, root as shipped); ids stay strings, checked against the loaded rows
 // Where each engine state lands (the duel's call sites; a kind row lists the sources it owns). Ordinary hit stagger (duel.ts stagger()) is a hit
 // reaction, not crowd control: it is deliberately in no kind.
-export type CcSource = 'postureBreak' | 'parryStun' | 'gambitFail' | 'exhaustedHeavy' | 'wallSlam' | 'legWound';
+export type CcSource = 'postureBreak' | 'parryStun' | 'gambitFail' | 'exhaustedHeavy' | 'wallSlam' | 'legWound' | 'pinShot';
 export type CcKind = {
   readonly id: CcFamily;
   readonly sources: readonly CcSource[];
