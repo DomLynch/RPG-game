@@ -103,6 +103,35 @@ try {
   eq([r1, r2].map(r => r.code === 0 ? 'won' : /O0002/.test(r.err) ? 'stale' : r.err.trim().slice(0, 120)).sort(), ['stale', 'won'], 'race: exactly one of two concurrent takes wins, the other is stale');
   eq(psql(`select count(*) from public.origins_items where mint_key = '${keyOf(I2, A, 1)}'`), '1', 'race: the key was minted once');
 
+  // ---- 20261018100000 the QA mark: fighter_profiles.is_test makes a ground take claim-and-event with NO mint ---------------------------------------------------------------
+  const QA_UP = '20261018100000_origins_qa_no_loot.sql', QA_DOWN = '20261018100000_origins_qa_no_loot_down.sql', I3 = 'ground:zone1.qa-1', I4 = 'ground:zone1.qa-2', I5 = 'ground:zone1.qa-3';
+  if (!files.includes(QA_UP)) fail(`${QA_UP} is missing from ${dir}`);
+  psql(`insert into public.fighter_profiles (user_id, display_name, is_test) values ('${B}', 'QA Smoke', true);`);
+  const IS = acct => `select public.origins_account_is_test('${acct}')::text;`;
+  const qaIs = async (role, acct) => (await val(role, IS(acct))) === true;
+  eq([await qaIs(O, B), await qaIs(O, A), await qaIs(V, B), await qaIs(V, A)], [true, false, true, false], 'qa: is_test reads true for the marked account and false for anyone else (no profile row = false), through BOTH writer roles');
+  eq(await code('anon', IS(B)), '42501', 'qa: anon cannot read the mark');
+  eq(await code('authenticated', IS(B)), '42501', 'qa: an authenticated client cannot read the mark');
+  const eventOnly = (acct, pc, inst, n) => JSON.stringify([JSON.parse(batch(acct, pc, inst, n))[0]]);
+  const eventsOf = (inst, acct, n) => psql(`select count(*) from public.origins_events where event_id = 'ground:${keyOf(inst, acct, n)}'`);
+  eq(await code(O, TAKE(A, I3, 1, 3600, eventOnly(A, pcA, I3, 1))), 'O0002', 'qa: an UNMARKED account still needs exactly one mint (event-only is refused)');
+  const before = minted(pcB);
+  const q1 = await val(O, TAKE(B, I3, 1, 3600, eventOnly(B, pcB, I3, 1)));
+  eq([q1.result, q1.n], ['taken', 1], 'qa: the marked account\'s event-only take is accepted as claim 1');
+  eq([minted(pcB), psql(`select n from public.origins_ground_takes where account = '${B}' and instance = '${I3}'`), eventsOf(I3, B, 1)], [before, '1', '1'], 'qa: the claim and the event are recorded and NOTHING is minted');
+  eq((await val(O, TAKE(B, I3, 2, 3600, eventOnly(B, pcB, I3, 2)))).refused, 'taken', 'qa: the respawn window applies to the marked account like anyone');
+  eq(await code(O, TAKE(B, I4, 1, 3600, JSON.stringify([...JSON.parse(eventOnly(B, pcB, I4, 1)), JSON.parse(batch(B, pcB, I4, 1))[1], JSON.parse(batch(B, pcB, I4, 1))[1]]))), 'O0002', 'qa: two mints are still refused');
+  eq(await code(O, TAKE(B, I4, 1, 3600, batch(B, pcB, I4, 1, 0, 'loot:ground.wrongkey000:0'))), 'O0002', 'qa: a mint under another key is still refused');
+  eq(await code(O, TAKE(B, I4, 1, 3600, JSON.stringify([{ op: 'metal', account: B, delta_bronze: 5, reason: 'award', event_id: 'x' }]))), 'O0002', 'qa: only event and mint ops, even for the marked account');
+  const q2 = await val(O, TAKE(B, I5, 1, 3600, batch(B, pcB, I5, 1)));
+  eq([q2.result, minted(pcB)], ['taken', String(Number(before) + 1)], 'qa: a marked account sent a normal one-mint batch (the writer\'s lookup was blind) is paid as normal: accepted');
+  psql(readFileSync(join(dir, '..', 'down', QA_DOWN), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_account_is_test(uuid)') is null)::text`), 'true', 'qa down: the mark function is gone');
+  eq(await code(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, eventOnly(B, pcB, 'ground:zone1.qa-4', 1))), 'O0002', 'qa down: the previous body is back: exactly one mint for everyone');
+  eq((await val(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, batch(B, pcB, 'ground:zone1.qa-4', 1)))).result, 'taken', 'qa down: a normal one-mint take still works');
+  psql(readFileSync(join(dir, QA_UP), 'utf8'));
+  eq(await qaIs(O, B), true, 'qa up again after down');
+
   // down: the new objects go, nothing else
   psql(readFileSync(join(dir, '..', 'down', '20261015151218_origins_ground_takes_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_ground_take(uuid,text,integer,integer,jsonb)') is null and to_regprocedure('public.origins_ground_state(uuid,text[])') is null and to_regclass('public.origins_ground_takes') is null)::text`), 'true', 'down: the functions and the table are gone');
