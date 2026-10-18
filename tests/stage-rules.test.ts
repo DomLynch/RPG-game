@@ -18,12 +18,13 @@ test('every stage rule equals the literal it replaced', () => {
   assert.deepEqual(['sootWidthMax', 'sootHeightMax', 'sootCenterMax', 'reliefPadMin'].map((id) => stageRule(id as never)), [1.6, 2.4, 1.2, 0.5]);   // the inline clamps the as-data ratchet retired in frontier-plan.ts / frontier-relief.ts (Web 2026-10-17): the literals they replaced
   assert.deepEqual(['campDoorReach', 'campTries', 'campFill', 'roadChance', 'openerTries', 'openerPad', 'openerSlack'].map((id) => stageRule(id as never)), [0.3, 40, 40, 0.3, 60, 4, 12]);   // the zone generator's and populate's placement numbers (audit TUNABLE-GAMEPLAY)
   assert.deepEqual(['campSpread', 'openerRetries', 'fillGuard'].map((id) => stageRule(id as never)), [6, 6, 8]);   // populate.ts's camp scatter default, opener redraws and fill-loop guard
-  assert.equal(STAGE_RULES.length, 51);   // 44 + the four clamp rows (soot width/height/centre, relief pad) + the three populate rows, deliberate
+  assert.deepEqual(['mobScaleMin', 'mobScaleMax'].map((id) => stageRule(id as never)), [0.3, 6]);   // the zone loader's mob-look scale bound (Test Zone's salamander is 6; was 0.3-3 literals)
+  assert.equal(STAGE_RULES.length, 53);   // 44 + the four clamp rows (soot width/height/centre, relief pad) + the three populate rows, deliberate
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadStageRules({ rules: rows.filter((r) => r.id !== 'crowdHold') }), /"crowdHold" rule by name/);
   assert.throws(() => loadStageRules({ rules: rows.map((r) => (r.id === 'edgeFade' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadStageRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadStageRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 52);
+  assert.equal(loadStageRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 54);
 });
