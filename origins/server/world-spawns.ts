@@ -11,6 +11,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { worldMetres } from '../presence/zones.ts';
+import { reachOf } from '../presence/where.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
@@ -159,15 +160,16 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
-    // Reach: a fresh placed pose in the zone is checked (too far = refused). A v2 presence client is placed in the Frontier too (frontier-presence.md); a v1 client, or none, has no Frontier pose: that kill is
-    // recorded as 'unchecked' and pays scorecard counts only (Strategy 2026-10-13). `refuseUnchecked` (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422; the flip waits for Web's v2 client.
-    const w = where ? await where(account).catch(() => null) : null;
+    // Reach: a fresh placed pose in the spawn's zone is checked (too far = refused). Anything else is 'unchecked', and an unchecked kill PAYS IN FULL unless `refuseUnchecked`
+    // (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422; the ledger row only records which it was. The v2 presence client is shipped and on by default (presence-client.ts), so the flip waits on the
+    // measured checked rate (Auditor 2026-10-18: 0 of the first live kills were checked), not on a client. The why is in the log line.
+    const seen = await reachOf(where, account, spawn.spec.zone, POSE_AGE_MS);
     let reach: 'checked' | 'unchecked' = 'unchecked';
-    if (w && w.online && w.placed && w.ageMs <= POSE_AGE_MS && w.zone === spawn.spec.zone) {
-      if (!withinReach(spawn.spec, worldMetres(w.x, w.z))) return refuse('away');
+    if (seen.pose) {
+      if (!withinReach(spawn.spec, worldMetres(seen.pose.x, seen.pose.z))) return refuse('away');
       reach = 'checked';
     }
-    if (reach === 'unchecked' && deps.refuseUnchecked) return refuse('unchecked');
+    if (reach === 'unchecked' && deps.refuseUnchecked) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
     const setup = fightSetup(spawn.fight, content, { level: spawn.spec.level });   // the spawn's own level (mobSpecs, by distance), never the form's: a level-1 wolf pays level-1 CP and loot
     if (!setup.ok) throw new Refused(503, `the server cannot price ${spawn.fight}`);
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
@@ -204,7 +206,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

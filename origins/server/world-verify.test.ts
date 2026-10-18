@@ -114,6 +114,17 @@ test('kill_report with scorecardOnlyUnverified: no record or a bad one books the
   await assert.rejects(async () => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'x'.repeat(60_001) }), /record/);
 });
 
+test('kill_report with scorecardOnlyUnverified: an honest record of ANOTHER creature (a wolf fight claimed on a different spawn kind) books the event only (audit 2026-10-18, case 3 of 4)', async () => {
+  const { text } = await honest(), other = [...all.values()].find((s) => s.spec.character !== wolf.spec.character && s.fight !== wolf.fight) as Spawn;
+  assert.ok(other, 'Zone 1 has a second kind');
+  const posed: Spawn = { ...other, spec: { ...other.spec, id: wolf.spec.id } };   // the token's instance now resolves to the other kind; the record still fights a wolf
+  const s = stub();
+  await mk({ scorecardOnlyUnverified: true, spawns: new Map([[wolf.spec.id, posed]]) }).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'nothing spendable');
+  assert.equal((s.kills[0]!.b[0]!.payload as { cp: number }).cp, 0);
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /^refused: /);
+});
+
 test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified', async () => {
   const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 0 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
