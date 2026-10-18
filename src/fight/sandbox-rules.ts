@@ -265,6 +265,10 @@ export const shardRows = (): number => ((DEFS as unknown as { specialShards?: Sh
 // `on`: 'start' plays when the special is committed (the swing's whoosh, `delay` seconds in), 'land' (default) when it lands on the foe.
 export type SpecialSoundRow = { id: string; cue: string; gain: number; room: number; delay: number; on?: 'start' | 'land' };
 export const specialSoundOf = (skill: string): SpecialSoundRow[] => ((DEFS as unknown as { specialSound?: SpecialSoundRow[] }).specialSound ?? []).filter((r) => r.id === skill);
+// missileAnswer (Strategy 2026-10-18, after the bow battery: the warden AI had no answer to an arrow and lost 16/16 to a plain archer): one row { dodge, guard, run } for the AI. When the foe has a bolt in flight at it, it decides ONCE per bolt
+// (seeded): roll in the arrival window with `dodge` percent, else raise its guard with `guard` percent, else take it; `run` = 1 sends it running at an archer who stands beyond the missile gap. No row (trunk) = no answer, as before.
+export type MissileAnswerRow = { dodge: number; guard: number; run?: number };
+export const MISSILE_ANSWER: MissileAnswerRow | undefined = ((DEFS as unknown as { missileAnswer?: MissileAnswerRow[] }).missileAnswer ?? [])[0];
 // bowSpecial (Dom 2026-10-18: four bow specials, no new Mixamo; Strategy approved the design and the unlock order): a caster whose weapon has a `bow` missile row and who stands beyond the missile gap resolves the picker special `skill` as
 // arrows through the one missile model instead of the melee special (inside the gap, or out of arrows, the melee special stays). One row per picker skill { skill, label, unlockAfterBossKills, arrows (the quiver cost), lanes (one
 // arrow each: -1 left, 0 forward, 1 right), mult (per-mille of the special's damage per arrow), windup (ticks, replaces specialMeleeWindup), speed (cm/s), react (1 = a landed arrow shoves and staggers like a melee special),

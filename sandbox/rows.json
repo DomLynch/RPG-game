@@ -122,6 +122,8 @@
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"specialPick":[
 {"id":"cleave","role":"heavy","label":"Skull Crack","unlockAfterBossKills":0,"slot2Default":1},{"id":"reaping","role":"sweep","label":"Whirlwind","unlockAfterBossKills":0,"slot2Alt":1},{"id":"stomp","role":"posture break","label":"Ground Slam","unlockAfterBossKills":1},{"id":"lunge","role":"opener","label":"Lunge","unlockAfterBossKills":2}
+],"missileAnswer":[
+{"dodge":40,"guard":35,"run":1}
 ],"bowSpecial":[
 {"skill":"cleave","label":"Power Shot","unlockAfterBossKills":0,"arrows":2,"lanes":[0],"mult":2000,"windup":40,"speed":700,"react":1,"tint":"#fff2c0"},
 {"skill":"reaping","label":"Fan Volley","unlockAfterBossKills":1,"arrows":3,"lanes":[-1,0,1],"mult":600,"windup":36,"speed":900,"tint":"#e8d9a8"},
