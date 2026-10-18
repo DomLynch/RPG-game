@@ -96,11 +96,12 @@ function panel(opponents: string[]) {
   // Weapon lists: the real weapons plus Staff / Bow / Crossbow (stand-ins: an existing weapon fires instead of striking, see the missile rows).
   const MISSILES: Record<string, string> = { staff: 'trident', bow: 'knife', crossbow: 'warhammer' };
   const weaponPick = (label: string, mine: boolean) => {
-    const sel = el('select'), mineNow = mine ? (() => { try { return JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}').weapon as string | undefined; } catch { return undefined; } })() : params.get('foeWeapon');
+    const sel = el('select'), mineNow = mine ? params.has('spar') ? params.get('weapon') ?? undefined : (() => { try { return JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}').weapon as string | undefined; } catch { return undefined; } })() : params.get('foeWeapon');
     const asKind = Object.keys(MISSILES).find((k) => params.get(k) === mineNow && mineNow);
     sel.append(el('option', { value: '', textContent: '(auto)' }));
     for (const v of [...WEAPON_IDS, ...Object.keys(MISSILES).map((k) => k.toUpperCase())]) { const id = v.toLowerCase(), isKind = id in MISSILES; sel.append(el('option', { value: id, textContent: isKind ? `${v[0]}${v.slice(1).toLowerCase()} (ranged)` : v, selected: isKind ? asKind === id : !asKind && mineNow === id })); }
     sel.onchange = () => { const v = sel.value, w = MISSILES[v] ?? v; stage(mine ? '#myWeapon' : 'foeWeapon', w); if (MISSILES[v]) stage(v, w); };
+    if (mine) void import('../src/fight/scene.ts').then(({ CARRIED_WEAPONS }) => { for (const o of [...sel.options]) if (o.value && !(o.value in MISSILES) && !(CARRIED_WEAPONS as readonly string[]).includes(o.value)) o.remove(); });   // a weapon the hero cannot carry (reaper, bite) silently fell back to the longsword: do not offer it
     return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
   };
   const spellSel = el('select'), cast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
@@ -135,7 +136,7 @@ function panel(opponents: string[]) {
     const u = new URL(location.href);
     for (const [k, v] of staged) {
       if (SPELL_KEYS.includes(k)) { try { const sv = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; if (v) sv[k] = v; else delete sv[k]; localStorage.setItem(LOADOUT_KEY, JSON.stringify(sv)); } catch { /* none */ } }
-      if (k === '#myWeapon') { try { const kit = JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}') ?? {}; if (v) kit.weapon = v; else delete kit.weapon; sessionStorage.setItem('frankendom.dev-kit', JSON.stringify(kit)); } catch { /* none */ } }
+      if (k === '#myWeapon') { try { const kit = JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}') ?? {}; if (v) kit.weapon = v; else delete kit.weapon; sessionStorage.setItem('frankendom.dev-kit', JSON.stringify(kit)); } catch { /* none */ } if (v && u.searchParams.has('spar')) u.searchParams.set('weapon', v); }   // a sparring link takes its weapon from ?weapon=, not from the dev kit: set both
       else if (v) u.searchParams.set(k, v); else u.searchParams.delete(k);
     }
     location.assign(u.href);
