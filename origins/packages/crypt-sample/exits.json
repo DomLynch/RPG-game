@@ -1,0 +1,28 @@
+{
+  "owned": [
+    {
+      "id": "crypt-door",
+      "zone": "crypt-sample",
+      "landmark": "crypt-door",
+      "to": "1",
+      "arrive": "crypt-mouth",
+      "warp": "zone1-crypt-mouth",
+      "radiusM": 2.5,
+      "arriveM": 3,
+      "label": "The Cinder Fields"
+    }
+  ],
+  "inbound": [
+    {
+      "id": "crypt-mouth",
+      "zone": "cinder-fields",
+      "landmark": "crypt-mouth",
+      "to": "6",
+      "arrive": "crypt-door",
+      "warp": "zone6-gate",
+      "radiusM": 2.5,
+      "arriveM": 3,
+      "label": "The Sample Crypt"
+    }
+  ]
+}

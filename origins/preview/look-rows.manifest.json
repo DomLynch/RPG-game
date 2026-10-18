@@ -1,0 +1,16 @@
+{
+  "tables": [
+    {
+      "table": "lookPreset",
+      "file": "look-rows.json",
+      "at": "lookPreset",
+      "key": "id",
+      "required": {
+        "fog": "string", "fogDensity": "number",
+        "hemiSky": "string", "hemiGround": "string", "hemiIntensity": "number",
+        "sunColor": "string", "sunIntensity": "number", "sunPos": "array",
+        "exposure": "number", "ground": "array"
+      }
+    }
+  ]
+}

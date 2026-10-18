@@ -21,9 +21,10 @@ const status = (s: number, code: string) => (e: unknown) => e instanceof Refused
 const NOW = '2026-10-15T12:00:00.000Z', at = { account: UID, character: PC, instance: INSTANCE, n: 1, row, content, at: NOW, reach: 'unchecked' as const };
 
 // A stub database: ground_state answers `claims`, ground_take answers `take` (or throws), origins_open an empty pack; records the take call.
-function stub(o: { claims?: { instance: string; n: number; takenAt: string }[]; take?: unknown; absent?: boolean; packItems?: unknown[] } = {}) {
+function stub(o: { claims?: { instance: string; n: number; takenAt: string }[]; take?: unknown; absent?: boolean; packItems?: unknown[]; qa?: boolean | Error | 'absent' } = {}) {
   const takes: { i: string; n: string; r: string; b: Json[] }[] = [];
   const db: Db = { async run(sql, v = {}) {
+    if (/origins_account_is_test/.test(sql)) { if (o.qa instanceof Error) throw o.qa; return o.qa === 'absent' ? 'absent' : String(o.qa === true); }   // the QA mark (fighter_profiles.is_test)
     if (/origins_ground_/.test(sql) && o.absent) return 'absent';
     if (/origins_ground_state/.test(sql)) return JSON.stringify({ now: NOW, takes: o.claims ?? [] });
     if (/origins_ground_take/.test(sql)) { takes.push({ i: v.i!, n: v.n!, r: v.r!, b: JSON.parse(v.b!) }); if (o.take instanceof Error) throw o.take; return JSON.stringify(o.take ?? { result: 'taken', instance: v.i, n: Number(v.n) }); }
@@ -50,6 +51,27 @@ test('the take is pure and deterministic: the batch is the event then ONE mint, 
   assert.notEqual(groundKillId(INSTANCE, UID, 1), groundKillId(INSTANCE, 'other', 1), 'a different account is a different key');
   assert.match(mint.item.mint_key, /^[a-z0-9][a-z0-9:._-]{7,127}$/, 'fits the mint key pattern');
   assert.equal((t.batch[0] as { kind: string }).kind, 'mint', 'the event kind is one the ledger already allows');
+});
+
+test('the QA account (fighter_profiles.is_test): the take is claimed and checked as for anyone but the batch is the event ONLY (no mint), marked qa; the pure core and the handler agree', async () => {
+  const t = groundTakeBatch({ ...at, inventory: pack(), qa: true });
+  assert.ok('batch' in t, JSON.stringify(t));
+  if (!('batch' in t)) return;
+  assert.deepEqual(t.batch.map((l) => l.op), ['event'], 'no mint: nothing is persisted');
+  assert.deepEqual((t.batch[0] as { payload: { qa?: boolean; ground: { item: string } } }).payload.qa, true);
+  assert.equal(t.item, row.item, 'the answer still names the item');
+  const logs: string[] = [], quiet = ops({ log: (l: string) => logs.push(l) });
+  const mark = async (qa: boolean | Error | 'absent') => { const s = stub({ qa }); const got = await quiet.ground_take!(ctx(s.db, poseAt(0)), { character: PC, instance: INSTANCE }) as { result: string }; return { s, got }; };
+  const yes = await mark(true), no = await mark(false), blind = await mark(new Error('db down')), absent = await mark('absent');
+  assert.deepEqual(yes.s.takes[0]!.b.map((l) => l.op), ['event'], 'QA: the claim is sent with the event and no mint');
+  assert.equal(yes.got.result, 'taken');
+  for (const normal of [no, blind, absent]) assert.deepEqual(normal.s.takes[0]!.b.map((l) => l.op), ['event', 'mint'], 'not marked, or the lookup was blind: paid as normal');
+  assert.deepEqual(logs.filter((l) => /^ground_take .* qa=/.test(l)).map((l) => /qa=(\S+)/.exec(l)![1]), ['yes', 'no', '?', '?'], 'the log names the QA state, ? when the lookup was blind');
+  const far = stub({ qa: true });
+  await assert.rejects(() => quiet.ground_take!(ctx(far.db, poseAt(radiusOf(row, GROUND_LIMITS) + 50)), { character: PC, instance: INSTANCE }), status(422, 'away'));
+  assert.equal(far.takes.length, 0, 'QA is held to the same reach check and writes nothing when away');
+  const strict = stub({ qa: true });
+  await assert.rejects(() => ops({ refuseUnchecked: true }).ground_take!(ctx(strict.db), { character: PC, instance: INSTANCE }), status(422, 'unchecked'));
 });
 
 test('one of each and pack room: a second sword is refused as have-it, a full pack as full, and nothing is minted in either case', () => {

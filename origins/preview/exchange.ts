@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { ZoneMaterials } from './zone-scenery.ts';
+import { previewRule } from './preview-rules.ts';
 import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
@@ -102,9 +103,10 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
 
 // Where the walker may stand: the Pit's sand, the passage, the plaza (not through the stone or up the bank's steps).
 export function walkable(x: number, z: number): boolean {
-  if (Math.hypot(x, z) < 8.3) return true;
-  if (Math.abs(x) < PASSAGE.halfWidth - 0.35 && z < -6 && z > PASSAGE.to - 0.5) return true;
-  if (Math.abs(x - FORGE.x) < FORGE.halfX + 0.3 && Math.abs(z - FORGE.z) < FORGE.halfZ + 0.3) return x > FORGE.x - FORGE.halfX + 2;   // inside the smithy, short of the hearth
-  if (Math.abs(x) < PLAZA.halfWidth + 2.5 && z <= PLAZA.near && z > BANK_STEP_Z + 0.6) return Math.hypot(x - STONE_CENTRE.x, z - STONE_CENTRE.z) > STONE_CENTRE.radius + 0.4;
+  const R = previewRule;   // the walk limits are preview-rules rows (walk*, metres): where the player may stand is gameplay, not massing
+  if (Math.hypot(x, z) < R('walkSand')) return true;
+  if (Math.abs(x) < PASSAGE.halfWidth - R('walkPassageMargin') && z < -R('walkPassageNear') && z > PASSAGE.to - R('walkPassageEnd')) return true;
+  if (Math.abs(x - FORGE.x) < FORGE.halfX + R('walkSmithyMargin') && Math.abs(z - FORGE.z) < FORGE.halfZ + R('walkSmithyMargin')) return x > FORGE.x - FORGE.halfX + R('walkHearthStop');   // inside the smithy, short of the hearth
+  if (Math.abs(x) < PLAZA.halfWidth + R('walkPlazaMargin') && z <= PLAZA.near && z > BANK_STEP_Z + R('walkStepMargin')) return Math.hypot(x - STONE_CENTRE.x, z - STONE_CENTRE.z) > STONE_CENTRE.radius + R('walkStoneMargin');
   return false;
 }

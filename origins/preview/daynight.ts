@@ -4,7 +4,8 @@ import { blendLook, type Look } from './look.ts';
 import { previewRule } from './preview-rules.ts';
 
 export const GAME_DAY_MINUTES = previewRule('gameDayMinutes');
-export const DAY_NIGHT_SPEED = (24 * 60) / GAME_DAY_MINUTES;   // 14.4 game minutes per real minute
+const MINUTES_PER_DAY = 1440;   // a unit fact (24 h x 60 min), not a tuning: a named exempt in scripts/as-data/allow/origins-preview.json; the day's real length is the gameDayMinutes row
+export const DAY_NIGHT_SPEED = MINUTES_PER_DAY / GAME_DAY_MINUTES;   // 14.4 game minutes per real minute
 export const DUSK = previewRule('duskHour'), DAWN = previewRule('dawnHour'), DUSK_SPAN = previewRule('duskSpan');            // dusk blends 19 to 20.5 h, night holds to 3.5 h, dawn blends 3.5 to 5 h
 
 // The game hour (0 to 24) after `realMs` of play, starting at `startHour`; speed 0 freezes it at the start.
