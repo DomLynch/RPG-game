@@ -39,13 +39,14 @@ test('a light stands at each placement of its sconce, turned and scaled with it'
 test('the pool lends the page\'s lights to the nearest sconces within the camp lights\' reach, with the row\'s colour and reach, and returns them', () => {
   const lights = kitLights(sconceScene(), [{ node: 'wall_sconce', x: 0, z: 0, rotY: 0, scale: 1 }, { node: 'wall_sconce', x: 4, z: 0, rotY: 0, scale: 1 }, { node: 'wall_sconce', x: 500, z: 0, rotY: 0, scale: 1 }])!, pool = sconcePool(lights);
   const a = new THREE.PointLight('#ff8a3a', 9, 9, 1.8), b = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); a.position.set(-50, 1.9, 0); b.position.set(-51, 1.9, 0);
-  pool.update(1, { x: 1, z: 0 }, [a, b]);
+  pool.update({ x: 1, z: 0 }, [a, b]);
   assert.ok(pool.lends(a) && pool.lends(b));
   assert.equal(a.position.x, 0); assert.equal(b.position.x, 4);   // the nearest first
   assert.equal(a.distance, 9); assert.equal(a.color.getHexString(), 'ff9a47');
-  assert.ok(a.intensity > 0 && a.intensity <= 1.2 * 9 + 1e-9, 'the row is a multiple of the lent light\'s own strength (9), dimmed by the flicker');
-  a.userData.base = 20; pool.update(1, { x: 1, z: 0 }, [a, b]); assert.ok(a.intensity <= 1.2 * 20 + 1e-9 && a.intensity > 1.2 * 20 * 0.8, 'a light that names its own base is scaled from that');
-  pool.update(2, { x: 1000, z: 0 }, [a, b]);   // out of everyone's reach: home again
+  pool.glow(a, 0); assert.ok(Math.abs(a.intensity - 1.2 * 9) < 1e-9, 'the row is a multiple of the lent light\'s own strength (9)');
+  pool.glow(a, 1); assert.ok(Math.abs(a.intensity - 1.2 * 9 * 1.15) < 1e-9, 'the flicker deepens it by the row\'s depth'); pool.glow(a, -1); assert.ok(Math.abs(a.intensity - 1.2 * 9 * 0.85) < 1e-9);
+  a.userData.base = 20; pool.glow(a, 0); assert.ok(Math.abs(a.intensity - 1.2 * 20) < 1e-9, 'a light that names its own base is scaled from that');
+  pool.update({ x: 1000, z: 0 }, [a, b]);   // out of everyone's reach: home again
   assert.ok(!pool.lends(a) && a.position.x === -50 && a.color.getHexString() === 'ff8a3a' && a.distance === 9);
   assert.ok(previewRule('campLightReach') > 0);
 });

@@ -603,8 +603,8 @@ const walkLoop = () => {
   step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
-  torches?.update(time, state, warm);   // the kit's sconces borrow the braziers' lights while the walker is among them (kit-light.ts); a borrowed light is not flickered as a brazier
-  warm.forEach((l, i) => { if (torches?.lends(l)) return; l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
+  torches?.update(state, warm);   // the kit's sconces borrow the braziers' lights while the walker is among them (kit-light.ts)
+  warm.forEach((l, i) => { const wave = Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i); if (torches?.lends(l)) torches.glow(l, wave); else l.intensity = 9 * (0.85 + 0.15 * wave); });   // one flicker wave: a brazier's, or the borrowed sconce's own depth
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
@@ -949,7 +949,7 @@ function programOwners(): Record<string, string[]> {
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
-  torchesLent: () => warm.filter((l) => torches?.lends(l)).map((l) => ({ x: Math.round(l.position.x * 10) / 10, y: Math.round(l.position.y * 10) / 10, z: Math.round(l.position.z * 10) / 10, intensity: Math.round(l.intensity * 10) / 10, distance: l.distance })),   // the braziers' lights now lent to the kit's sconces (kit-light.ts), for the browser checks
+  torchesLent: () => warm.filter((l) => torches?.lends(l)).map((l) => ({ x: l.position.x, y: l.position.y, z: l.position.z, intensity: l.intensity, distance: l.distance })),   // the braziers' lights now lent to the kit's sconces (kit-light.ts), for the browser checks
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
