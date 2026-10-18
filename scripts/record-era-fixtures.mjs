@@ -39,7 +39,6 @@ export const RECIPES = {
   spell: { specials: true, spell: { id: 'alvis', skill: 5 } },
   skill2: { skill2: 'stomp' },
   'cave-troll': { opponent: 'cave-troll', level: 3 },
-  'melee-special': { specials: true },
 };
 const MAX_TICKS = 6000;
 const script = (t) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });

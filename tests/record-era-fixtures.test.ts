@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { checkEraFixtures, currentStamp, FIXTURE, RECIPES } from '../scripts/record-era-fixtures.mjs';
-import { decodeRecord, encodeRecord, RECORD_VERSION } from '../src/fight/record.ts';
+import { decodeRecord, encodeRecord, REACH, RECORD_VERSION } from '../src/fight/record.ts';
 
 type Entry = { name: string; encoded: string; expect: { v: number; ticks: number; outcome: string; hits: number[] } };
 const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as { records: Entry[] };
@@ -15,7 +15,10 @@ test('every stored era record replays to its pin (or is retired by a REACH bump 
   const { problems, results } = await checkEraFixtures(fixture);
   assert.deepEqual(problems, []);
   assert.ok(results.length >= Object.keys(RECIPES).length);
-  assert.ok(fixture.records.some((e) => e.expect.v === RECORD_VERSION), 'the newest era (RECORD_VERSION) has a stored record');
+  // A digest-only bump (rows shipped off, no fight stamped at it, REACH[RECORD_VERSION] empty: RV77) has no record of its own: the newest stamp any recipe writes must have one, and a bump that DOES stamp a recipe needs its entry.
+  const stampedAtCeiling = Object.keys(RECIPES).some((n) => currentStamp(n) === RECORD_VERSION);
+  assert.ok(!stampedAtCeiling || fixture.records.some((e) => e.expect.v === RECORD_VERSION), 'the newest era (RECORD_VERSION) has a stored record');
+  assert.ok(stampedAtCeiling || (REACH[RECORD_VERSION] ?? []).length === 0, 'a bump that reaches a fight stamps it, and its recipe has a record');
 });
 
 test('the eras are distinct stamps of the live recorder: plain, patron, gambit, stances, pose, sheet, spell, SPECIAL 2 and the v76 cave troll', () => {

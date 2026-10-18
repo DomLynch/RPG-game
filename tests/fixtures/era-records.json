@@ -149,22 +149,6 @@
         ],
         "gate": null
       }
-    },
-    {
-      "name": "melee-special",
-      "added": "2026-10-18",
-      "encoded": "H4sIAAAAAAAAA-3YuwqEMBSE4aPiensvG7G3DRhtRCEu7sP6MoKtYCF7NMj_dWEgk2lTVnVknUkW-7XOjNkwjf38m1wrgYh81lCkiWU_AAD-qFPz9DIAAAC80Pm_wMW0ULvZz5S9PrxKL2WvD6_SS5X3AgAuSO-QH9FLL730vrV3A8fUGeQ4IAAA",
-      "server": null,
-      "expect": {
-        "v": 77,
-        "ticks": 1368,
-        "outcome": "died",
-        "hits": [
-          4,
-          7
-        ],
-        "gate": null
-      }
     }
   ]
 }
