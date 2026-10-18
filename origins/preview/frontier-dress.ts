@@ -4,6 +4,7 @@
 // Presentation only: it adds pieces and walk-blocking circles to a Build, never touches the layout or the world data. Placement keeps clear of every landmark, the
 // west road, the way-on roads it lays itself and the buildings frontierBuild already stands.
 import { stageRule } from '../world/stage-rules.ts';
+import { previewRule } from './preview-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { inFirstView, inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
@@ -24,7 +25,7 @@ export const rng = (seed: string) => {   // mulberry32 over a string hash
 };
 
 // Ground decals sit at fixed heights per kind so overlapping ones never fight: ash pale, then the worn road, its ruts, the scorch.
-const SLAB = stageRule('dressSlab'), TOP = { ash: 0.06, road: 0.075, rut: 0.085, scorch: 0.1 };
+const SLAB = stageRule('dressSlab'), TOP = { ash: previewRule('decalTopAsh'), road: previewRule('decalTopRoad'), rut: previewRule('decalTopRut'), scorch: previewRule('decalTopScorch') };   // m: preview-rules rows
 const ASHPALE: Tint = [1.45, 1.42, 1.38], SCORCH: Tint = [0.38, 0.34, 0.32], ROAD: Tint = [1.2, 1.12, 1.02], RUT: Tint = [0.7, 0.64, 0.58];
 const BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.88, 0.8, 0.7], [0.56, 0.54, 0.54]], WALL: Tint = [0.95, 0.84, 0.7];
 

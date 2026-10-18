@@ -14,7 +14,9 @@ const LIMITS = SHOP_RULES.shopLimits[0]!;   // the shopLimits row of shop-rules.
 export const SHOP_LIST_VERSION = 1;
 export const PRICE_MAX = LIMITS.priceMax;          // bronze
 export const STOCK_MAX = LIMITS.stockMax;
-export const RESTOCK_RANGE: readonly [number, number] = [10, 86_400];   // s
+export const RESTOCK_RANGE: readonly [number, number] = [LIMITS.restockMin, LIMITS.restockMax];   // s
+export const REVISION_MAX = LIMITS.revisionMax;
+export const LEVEL_MAX = LIMITS.levelMax;                 // the highest level gate a row may name
 export const BUY_MAX = LIMITS.buyMax;                  // per request
 
 // `class` (vendor-economy.json: gear, material, cosmetic) switches a row to the stock-elastic price; `zone` (zone1..zone4) names the list's buy tax (default zone1).
@@ -26,7 +28,7 @@ export type ShopIssue = { path: string; message: string };
 export function validateShopList(list: ShopList, item: (id: string) => boolean): ShopIssue[] {
   const out: ShopIssue[] = [], int = (v: unknown, lo: number, hi: number) => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
   if (!/^shoplist:[a-z0-9-]+$/.test(list.id)) out.push({ path: 'id', message: 'a shop list id is shoplist:<kebab>' });
-  if (!int(list.revision, 1, 1_000_000)) out.push({ path: 'revision', message: 'revision is a whole number from 1' });
+  if (!int(list.revision, 1, REVISION_MAX)) out.push({ path: 'revision', message: 'revision is a whole number from 1' });
   if (list.currency !== 'bronze') out.push({ path: 'currency', message: 'shops sell for bronze' });
   if (!list.rows.length) out.push({ path: 'rows', message: 'a shop sells at least one item' });
   const seen = new Set<string>();
@@ -38,7 +40,7 @@ export function validateShopList(list: ShopList, item: (id: string) => boolean):
     if (!int(r.price, 1, PRICE_MAX)) out.push({ path: `${p}.price`, message: `price is 1..${PRICE_MAX} bronze` });
     if (!int(r.max, 1, STOCK_MAX)) out.push({ path: `${p}.max`, message: `max stock is 1..${STOCK_MAX}` });
     if (!int(r.restockSeconds, RESTOCK_RANGE[0], RESTOCK_RANGE[1])) out.push({ path: `${p}.restockSeconds`, message: `restock is ${RESTOCK_RANGE[0]}..${RESTOCK_RANGE[1]} s` });
-    if (r.minLevel !== undefined && !int(r.minLevel, 1, 100)) out.push({ path: `${p}.minLevel`, message: 'the level gate is 1..100' });
+    if (r.minLevel !== undefined && !int(r.minLevel, 1, LEVEL_MAX)) out.push({ path: `${p}.minLevel`, message: `the level gate is 1..${LEVEL_MAX}` });
     if (r.class !== undefined && !vendorClass(r.class)) out.push({ path: `${p}.class`, message: `${r.class} is not a vendor class` });
   });
   if (list.zone !== undefined && !zoneTax(list.zone)) out.push({ path: 'zone', message: `${list.zone} is not a tax zone` });

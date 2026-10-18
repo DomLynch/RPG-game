@@ -5,17 +5,8 @@
  "origins/presence/interest.ts": {
   "TOWN_HALF_CM": 1
  },
- "origins/preview/daynight.ts": {
-  "DAY_NIGHT_SPEED": 1
- },
- "origins/preview/mobs-view.ts": {
-  "FETCH_RANGE": 1
- },
  "origins/preview/presence-client.ts": {
   "LEGACY_EDGE_M": 1
- },
- "origins/preview/remote-track.ts": {
-  "TAU": 1
  },
  "origins/server/encounter-verify.ts": {
   "SPECIALS_FROM": 1
@@ -29,14 +20,8 @@
  "origins/server/world-spawns.ts": {
   "STACK": 1
  },
- "origins/world/derive.ts": {
-  "RAD": 1
- },
  "origins/world/relief.ts": {
   "NORM": 1
- },
- "src/arena.ts": {
-  "TAU": 1
  },
  "src/audio/bell.ts": {
   "TAPER": 1
@@ -58,10 +43,6 @@
   "THIN": 1,
   "LONG": 1
  },
- "src/fight/detmath.ts": {
-  "PI_O_2": 1,
-  "PI_O_4": 1
- },
  "src/fight/match.ts": {
   "CLASS_B_FROM": 1
  },
@@ -79,9 +60,6 @@
   "COMBAT_LEVEL": 1,
   "FINISH_LEVEL": 1
  },
- "src/fight/special-fx-dwarf-shield.ts": {
-  "TAU": 1
- },
  "src/fight/special-timing.ts": {
   "LAND_AT": 1
  },
@@ -98,14 +76,7 @@
  "src/fight/world.ts": {
   "TICK": 1,
   "EVADE_HEAL_TO_FULL": 1,
-  "TAU": 1,
   "RETARGET_CONE": 1
- },
- "src/lorarii.ts": {
-  "TICK": 1
- },
- "src/net/lobby.ts": {
-  "RETIRE_MS": 1
  },
  "src/pvp-hold.ts": {
   "TICK_MS": 1

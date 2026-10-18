@@ -21,8 +21,9 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent } from './fight/duel.ts';
 import type { SimView } from './arena.ts';
 import { retryTransient } from './fight/characters.ts';
+import { STEP } from './fight/sim.ts';
 
-const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
+const TICK = STEP;   // the sim's fixed step (src/fight/sim.ts STEP, 60 Hz)
 
 // Every number is a row (present-rows.json, `lorarii.*`); only the sixth is derived. Notes from the old literal:
 // radius: mid-walkway: LAYOUT.wall.inner 11.7 .. outer 12.5 (arena.ts); CAMERA_CLAMP is 11.5, so never in the fight camera's clear zone

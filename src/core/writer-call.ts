@@ -20,6 +20,15 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
   } catch { return null; }
 }
 
+// Whose stored session it is (the persisted session's user id), expired or not: what a page keys per-account state by (the kill outbox, origins/preview/outbox-store.ts). It authorises nothing; a
+// request still needs storedToken. null when no session is stored or it has no well-formed id.
+export function storedAccount(storage: { getItem(key: string): string | null } | null): string | null {
+  try {
+    const id = (JSON.parse(storage?.getItem(AUTH_KEY) ?? 'null') as { user?: { id?: unknown } } | null)?.user?.id;
+    return typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id) ? id.toLowerCase() : null;
+  } catch { return null; }
+}
+
 export type Offline = { offline: string; code?: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'; `code` is the writer's own refusal code when its answer carried one (a 409 / 422 body { ok: false, error, code }, origins/server/server.ts)
 export type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 // The writer's refusal code, if its error body carries one: a short kebab id, never free text. A body that is not that shape is no code.

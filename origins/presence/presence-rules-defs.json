@@ -40,6 +40,17 @@
     { "id": "maxLayers", "value": 8, "unit": "layers" },
     { "id": "internalBodyMax", "value": 1024, "unit": "bytes" },
     { "id": "tokenMaxChars", "value": 4096, "unit": "chars" },
-    { "id": "tickChecksPerTick", "value": 4, "unit": "checks" }
+    { "id": "tickChecksPerTick", "value": 4, "unit": "checks" },
+    { "id": "writerWornTimeoutMs", "value": 1500, "unit": "ms" },
+    { "id": "writerSavedTimeoutMs", "value": 500, "unit": "ms" },
+    { "id": "writerSaveTimeoutMs", "value": 1500, "unit": "ms" },
+    { "id": "whereTimeoutMs", "value": 1500, "unit": "ms" },
+    { "id": "wornPokeTimeoutMs", "value": 1000, "unit": "ms" },
+    { "id": "presencePort", "value": 8793, "unit": "port" },
+    { "id": "logEveryMs", "value": 60000, "unit": "ms" },
+    { "id": "testIpSockets", "value": 1000, "unit": "sockets" },
+    { "id": "testIpJoinsPerMinute", "value": 100000, "unit": "joins" },
+    { "id": "roadBehindM", "value": 2.5, "unit": "m" },
+    { "id": "roadPastM", "value": 0.5, "unit": "m" }
   ]
 }

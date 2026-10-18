@@ -1,0 +1,10 @@
+{
+  "rules": [
+    { "id": "maxFiles", "value": 8, "unit": "files" },
+    { "id": "maxFileBytes", "value": 262144, "unit": "bytes" },
+    { "id": "maxExits", "value": 64, "unit": "rows" },
+    { "id": "maxWarps", "value": 64, "unit": "rows" },
+    { "id": "maxCreatures", "value": 64, "unit": "rows" },
+    { "id": "maxRooms", "value": 64, "unit": "rows" }
+  ]
+}

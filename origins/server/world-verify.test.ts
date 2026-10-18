@@ -7,7 +7,7 @@ import type { SpecialsCut } from '../../src/core/server.ts';
 const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
-import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
+import { verifyWorldRecord, createVerdictTally, flipReadiness, strictRevert, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../../src/core/server.ts';
@@ -97,7 +97,9 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   await new Promise((r) => setTimeout(r, 200));
   assert.ok(logs.some((l) => /world record verified/.test(l)), 'the verdict is logged');
   assert.ok(logs.some((l) => /world record not verified \(undecodable\)/.test(l)), 'the reason is logged');
-  assert.deepEqual(tally.snapshot(), { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
+  const { cohorts, ...top } = tally.snapshot();
+  assert.deepEqual(top, { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
+  assert.deepEqual([cohorts.organic.total, cohorts.qa.total], [3, 0], 'a caller that names no cohort counts as organic');
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
@@ -112,6 +114,28 @@ test('kill_report with scorecardOnlyUnverified: no record or a bad one books the
   assert.equal(good.kills.length, 1, 'one batch, one token: paid once');
   await assert.rejects(async () => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 5 }), (e: unknown) => !(e instanceof Refused) && /record/.test(String(e)));
   await assert.rejects(async () => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'x'.repeat(60_001) }), /record/);
+});
+
+test('flipReadiness: a strict flag is ready only with at least minKills kills AND at least minRate of them good (checked reach / a verified record), from the strictFlip row', () => {
+  const rule = { minKills: 50, minRate: 0.95 };
+  assert.deepEqual(flipReadiness({}, {}, rule), { refuseUnchecked: { kills: 0, rate: null, ready: false }, scorecardOnly: { kills: 0, rate: null, ready: false } }, 'no kills: never ready');
+  assert.equal(flipReadiness({ checked: 49 }, {}, rule).refuseUnchecked.ready, false, 'all checked but too few kills');
+  assert.equal(flipReadiness({ checked: 48, offline: 2 }, {}, rule).refuseUnchecked.ready, true, 'exactly 50 at 96 %');
+  assert.equal(flipReadiness({ checked: 47, offline: 2, 'other-zone': 1 }, {}, rule).refuseUnchecked.ready, false, '94 %');
+  const live = flipReadiness({ offline: 5 }, { 'no record': 4, sheet: 1 }, rule);   // the first five live kills (2026-10-18)
+  assert.deepEqual([live.refuseUnchecked.rate, live.scorecardOnly.rate, live.refuseUnchecked.ready, live.scorecardOnly.ready], [0, 0, false, false]);
+  assert.equal(flipReadiness({}, { verified: 95, 'no record': 5 }).scorecardOnly.ready, true, 'the row itself: 100 kills at 95 %');
+});
+
+test('kill_report with scorecardOnlyUnverified: an honest record of ANOTHER creature (a wolf fight claimed on a different spawn kind) books the event only (audit 2026-10-18, case 3 of 4)', async () => {
+  const { text } = await honest(), other = [...all.values()].find((s) => s.spec.character !== wolf.spec.character && s.fight !== wolf.fight) as Spawn;
+  assert.ok(other, 'Zone 1 has a second kind');
+  const posed: Spawn = { ...other, spec: { ...other.spec, id: wolf.spec.id } };   // the token's instance now resolves to the other kind; the record still fights a wolf
+  const s = stub();
+  await mk({ scorecardOnlyUnverified: true, spawns: new Map([[wolf.spec.id, posed]]) }).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'nothing spendable');
+  assert.equal((s.kills[0]!.b[0]!.payload as { cp: number }).cp, 0);
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /^refused: /);
 });
 
 test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified', async () => {
@@ -190,18 +214,48 @@ test('the pool: a real worker thread verifies an honest record and refuses junk'
 
 test('the tally: empty has no rate; outcomes accumulate', () => {
   const t = createVerdictTally(() => new Date('2026-10-13T00:00:00Z'));
-  assert.deepEqual(t.snapshot(), { since: '2026-10-13T00:00:00.000Z', total: 0, verified: 0, rate: null, outcomes: {} });
+  const empty = { total: 0, outcomes: {}, first: { kills: 0, good: 0 }, run: 0, maxRun: 0 };
+  assert.deepEqual(t.snapshot(), { since: '2026-10-13T00:00:00.000Z', total: 0, verified: 0, rate: null, outcomes: {}, cohorts: { organic: empty, qa: empty } });
   t.add('timeout'); t.add('timeout'); t.add('verified');
   assert.deepEqual(t.snapshot().outcomes, { timeout: 2, verified: 1 });
+});
+
+test('cohorts (Strategy 2026-10-18): QA kills count in the totals the flip reads, and apart from organic ones; each cohort keeps its first-N outcomes and its longest run of not-good kills', () => {
+  const t = createVerdictTally(undefined, 'checked', 4);
+  for (const o of ['checked', 'offline', 'offline', 'checked', 'offline', 'offline', 'offline']) t.add(o);
+  t.add('offline', 'qa'); t.add('checked', 'qa');
+  const s = t.snapshot();
+  assert.deepEqual(s.outcomes, { checked: 3, offline: 6 }, 'the totals hold both cohorts (QA-driven kills count for the matrix, Strategy)');
+  assert.deepEqual(s.cohorts.organic, { total: 7, outcomes: { checked: 2, offline: 5 }, first: { kills: 4, good: 2 }, run: 3, maxRun: 3 }, 'first 4 only; the run resets on a good kill');
+  assert.deepEqual(s.cohorts.qa, { total: 2, outcomes: { checked: 1, offline: 1 }, first: { kills: 2, good: 1 }, run: 0, maxRun: 1 });
+  s.cohorts.organic.outcomes.checked = 99; assert.equal(t.snapshot().cohorts.organic.outcomes.checked, 2, 'a snapshot is a copy');
+});
+
+test('strictRevert (Strategy 2026-10-18): organic only; revert on the first-N rate under minRate once N are in, or at once on a run of maxUncheckedRun unchecked', () => {
+  const rule = { firstKills: 50, minRate: 0.95, maxUncheckedRun: 10 };
+  const of = (kills: number, good: number, maxRun = 0) => strictRevert({ first: { kills, good }, maxRun }, rule);
+  assert.deepEqual(of(0, 0), { kills: 0, rate: null, maxRun: 0, revert: false, why: null }, 'nothing yet: no revert');
+  assert.equal(of(49, 40).revert, false, 'under the first 50: the rate is not judged yet');
+  assert.equal(of(50, 48).revert, false, '48 of 50 = 96 %: holds');
+  assert.deepEqual(of(50, 47), { kills: 50, rate: 0.94, maxRun: 0, revert: true, why: 'first 50 organic kills: 47 checked' }, '47 of 50 = 94 %: revert');
+  assert.equal(of(12, 2, 10).why, '10 organic kills in a row unchecked', 'a run of 10 reverts at once, before 50');
+  assert.equal(of(12, 3, 9).revert, false);
+  const t = createVerdictTally(undefined, 'checked');
+  for (let i = 0; i < 10; i++) t.add('offline', 'qa');
+  assert.equal(strictRevert(t.snapshot().cohorts.organic).revert, false, 'QA kills never trip the revert');
+  for (let i = 0; i < 10; i++) t.add('offline');
+  assert.equal(strictRevert(t.snapshot().cohorts.organic).revert, true, 'the production row: 10 organic unchecked in a row');
 });
 
 test('the soak counters are wired in the production entry and answer GET /internal/world-records behind the key', async () => {
   const { readFileSync } = await import('node:fs'), { createServer } = await import('node:http'), { internalRoute } = await import('./location.ts');
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
-  assert.match(entry, /const tally = createVerdictTally\(\)/);
-  assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
+  assert.match(entry, /const tally = createVerdictTally\(\), reachTally = createVerdictTally\(undefined, 'checked'\)/, 'the reach tally\'s good outcome is checked (its runs feed strictRevert)');
+  assert.match(entry, /revert: strictRevert\(r\.cohorts\.organic\)/, 'the readout carries the revert rule on organic reach (Strategy 2026-10-18)');
+  assert.match(entry, /verifyRecord: [^}]*, tally, reachTally[,} ]/, 'the spawn deps count every verdict and every reach');
+  assert.match(entry, /flip: flipReadiness\(r\.outcomes, t\.outcomes\)/, 'the readout judges both against the strictFlip row (audit 2026-10-18)');
   assert.match(entry, /heroOf: \(account, character, version\) => heroLimitOf\(db, account, character, version\)/, 'and bound the hero claim by the held worn set, read at the claim\'s own record version');
-  assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
+  assert.match(entry, /flusher, worldRecords, liveOps/, 'the internal route reads the readout');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });
   const srv = createServer((req, res) => void route(req, res));

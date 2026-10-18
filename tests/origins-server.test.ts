@@ -109,6 +109,18 @@ test('a Refused answers its status, with its code in the body only when it has o
   } finally { close(); }
 });
 
+test('a Refused with detail adds its fields to the body (the V5 kill receipt) and can never override ok, error or code', async () => {
+  const { db } = script({ open: () => [snap(row())] });
+  const { call, close } = await serve(db, {
+    smith: async () => { throw new Refused(409, 'engage token unknown, used or expired', 'used', { kind: 'paid', receipt: { cp: 12 }, ok: true, code: 'forged', error: 'forged' }); },
+  });
+  try {
+    const res = await call('smith', { body: '{}' });
+    assert.equal(res.status, 409);
+    assert.deepEqual(JSON.parse(res.text), { kind: 'paid', receipt: { cp: 12 }, ok: false, error: 'engage token unknown, used or expired', code: 'used' });
+  } finally { close(); }
+});
+
 test('create_character name rules', async () => {
   const ctx: Ctx = { db: script({ open: () => [snap(row())] }).db, account: A };
   for (const name of ['', ' x', 'x ', 'x'.repeat(33), 'a\nb', 'a\u007fb', 7, undefined, null]) await assert.rejects(handlers.create_character(ctx, { name }), BadRequest, JSON.stringify(name));
