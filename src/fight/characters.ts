@@ -48,16 +48,14 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // The beta specials' own motion (Dom 2026-10-17, scripts/build-special-clips.mjs; rows in src/assets/special-clips.json): one clip per move, adopted on demand by the actor the
 // first time a special that names it (skill row `specialClip`) is cast on a weapon the row lists, and played in place of the weapon's Heavy / Attack / Thrust, which a weapon
 // the row does not list keeps (the fallback).
-export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge', 'Special_SkullCrack_2H'] as const;   // a `_2H` row names `variantOf` and its own weapons (maul, warhammer, scythe, trident): that weapon plays it in place of the base clip (specialMove)
+export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge'] as const;
 export type SpecialRole = (typeof SPECIAL_ROLES)[number];
 export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES] as const;
 const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> = {
   Special_SkullCrack: () => import('../assets/special-skullcrack.json'), Special_Whirlwind: () => import('../assets/special-whirlwind.json'),
   Special_GroundSlam: () => import('../assets/special-groundslam.json'), Special_Lunge: () => import('../assets/special-lunge.json'),
-  Special_SkullCrack_2H: () => import('../assets/special-skullcrack-2h.json'),
 };
 export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
-export const specialVariant = (role: SpecialRole, weapon: string): SpecialRole => (SPECIAL_CLIP_ROWS.clips.find((c) => (c as { variantOf?: string }).variantOf === role && (c.weapons as readonly string[]).includes(weapon))?.role as SpecialRole | undefined) ?? role;
 // The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
 export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare'>): SpecialRole | null => {
   const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
@@ -492,6 +490,29 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let aimedRotation: Quaternion | undefined;
     const offHand = ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => root.getObjectByName(n)), swordHand = root.getObjectByName('hand_r');
     let aimedOffHand: [Quaternion, Quaternion] | undefined;
+    // A two-handed weapon in a special's one-handed clip (special-clips.json `twoHanded`, the grip gap in metres per weapon): re-solve the left arm onto the haft `gap` behind the sword hand, keeping the clip's own elbow bend
+    // (two-bone reach, the finishers' grip below). The left-arm bones are put back by the restore at the start of the next update (aimedOffHand).
+    const holdHaft = (gap: number) => {
+      const [upperL, lowerL, handL] = offHand;
+      if (!upperL?.parent || !lowerL || !handL || !swordHand || shieldArm) return;
+      root.updateWorldMatrix(true, true);
+      const s = upperL.getWorldPosition(new Vector3()), e = lowerL.getWorldPosition(new Vector3()), h = handL.getWorldPosition(new Vector3());
+      const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
+      const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, gap);
+      const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
+      const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+      const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
+      bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
+      const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
+      aimedOffHand ??= [upperL.quaternion.clone(), lowerL.quaternion.clone()];
+      for (const [bone, child, dest] of [[upperL, lowerL, elbow], [lowerL, handL, goal]] as const) {
+        root.updateWorldMatrix(true, true);
+        const origin = bone.getWorldPosition(new Vector3());
+        const delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dest.clone().sub(origin).normalize());
+        bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(delta).multiply(bone.getWorldQuaternion(new Quaternion())));
+      }
+      root.updateWorldMatrix(true, true);
+    };
     // The shield carry's state: whether he holds a shield on the off hand, the carry's, the guard lift's and the strike's eased weights, and the three
     // left-arm bones as the mixer left them (restored before every update, as the guard tilt is: a held clip does not rewrite them).
     let shieldArm = false, carry = 0, raise = 0, strike = 0, carried = false, faceLocal: Vector3 | undefined;
@@ -730,8 +751,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       slam(weight: number) { slam = weight; },
       specialTrail(t: { samples: number; opacity: number; color: string } | null) { special = t; },
       // The special clip to play while a special's swing runs (specialRoleOf; null clears it). Fetched on the first ask, and only for a weapon the row lists: until it lands, or on any other weapon, the swing plays the weapon's own clip.
-      specialMove(asked: SpecialRole | null) {
-        const role = asked && specialVariant(asked, weapon);   // a two-handed weapon plays its own variant of the move's clip
+      specialMove(role: SpecialRole | null) {
         specialRole = role;
         if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
           specialLoading.add(role);
@@ -852,6 +872,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
         if (carry < .001) carry = 0;
         carryShield(carry, raise, strike);
+        const haftGap = specialPlay ? (SPECIAL_CLIP_ROWS as { twoHanded?: Record<string, number> }).twoHanded?.[weapon] : undefined;
+        if (haftGap) holdHaft(haftGap);   // a two-handed weapon's special plays a one-handed clip: the left hand stays on the haft
         spectralLife = spectral?.(step, dead, progress, fell && (tmpl === 'bisect' || staged), fell && tmpl === 'hamstring' ? HAMSTRUNG_BEATS.duration + .6 : fell && tmpl === 'execute' ? EXECUTION_BEATS.duration / EXECUTION_BEATS.speed + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
         droppedWeapon?.apply(fell && tmpl === 'hamstring' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : fell && tmpl === 'execute' ? (progress - EXECUTION_BEATS.drop) * EXECUTION_BEATS.duration / EXECUTION_BEATS.speed : -1);   // seconds since the knee blow; negative keeps it in his hand
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
