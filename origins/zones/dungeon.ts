@@ -137,7 +137,7 @@ function encloseHall(d: Dungeon, room: DungeonRoom, enc: Enclosure & { readonly 
     for (const s of touched) {
       const idx = runIndex(s, i, j); if (isDoor(s, idx)) continue;
       const side = sides[s]!; put(h.wall, p, faceDeg(side.n), 0); block(p, side);
-      if (idx % h.sconceEvery === 0) put(h.sconce, { x: p.x + side.n.x * h.wallFace, d: p.d + side.n.d * h.wallFace }, faceDeg(side.n), 0);
+      if ((idx - 1) % h.sconceEvery === 0) put(h.sconce, { x: p.x + side.n.x * h.wallFace, d: p.d + side.n.d * h.wallFace }, faceDeg(side.n), 0);
     }
   }
   return out;
