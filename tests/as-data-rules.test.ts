@@ -16,7 +16,11 @@ const CONSTS = [
   'export const SAVE_EVERY_MS = 5 * 60_000;',            // (f) counted: arithmetic with a number
   'export const PLAIN = 7;',                              // not (f): a plain number is rule (c)'s (allow-listed in the real tree)
   'export const ALIAS = SAVE_EVERY_MS;',                  // not (f): no number in the value
-  'const local = 3 * 4;',                                 // not (f): not an UPPER const
+  'export const TAU = Math.PI * 2;',                      // not (f): a math constant with integer multipliers is geometry (Lead 2026-10-18)
+  'export const QUARTER = Math.PI / 2;',                  // not (f): same
+  'export const TURN = 2 * Math.PI;',                     // not (f): same, multiplier first
+  'export const SPAN = Math.PI * 2 * WIDTH_PX;',          // (f) counted: a math constant times a non-integer operand is still arithmetic
+  'const local = 3 * 4;',                               // not (f): not an UPPER const
   'export const CAPS = { attack: 1.15, res: 0.80 };',     // (g) counted: single-digit decimals
   'export const FLAGS = { a: 0, b: 1 };',                 // not (g): only 0 and 1
   'export const SIZES = { a: 2 } as const;',              // (g) counted: a small integer, as const
@@ -41,7 +45,7 @@ function tree() {
   const args = [
     '--allow', f('allow.json', { allow: [] }), '--inline-scope', f('scope.json', { files: [], dirs: ['**/inl-fixture/*.ts'] }),
     '--clamp-baseline', f('clamp.json', { [gk]: { '0.5': 1 } }), '--map-baseline', f('map.json', {}),
-    '--const-expr-baseline', f('expr.json', { [ck]: { SAVE_EVERY_MS: 1 } }), '--const-object-baseline', f('obj.json', { [ck]: { CAPS: 1, SIZES: 1 } }),
+    '--const-expr-baseline', f('expr.json', { [ck]: { SAVE_EVERY_MS: 1, SPAN: 1 } }), '--const-object-baseline', f('obj.json', { [ck]: { CAPS: 1, SIZES: 1 } }),
     '--inline-number-baseline', f('inl.json', { [gk]: { '0.85': 1, '2.5': 1, '4': 1, '7': 1, '9': 1 } }),
   ];
   const run = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', join(dir, 'src'), ...args, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
@@ -56,7 +60,7 @@ test('(f) lists an UPPER const whose value is arithmetic with a number, (g) an U
     const r = t.run('--gate');
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const rep = t.report(r);
-    assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS']);
+    assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS', 'SPAN']);   // TAU, QUARTER and TURN (math constant x integer) are exempt
     assert.deepEqual(t.texts(rep.constObjectSites), ['CAPS', 'SIZES']);
     assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.85', '2.5', '4', '7', '9']);
     assert.deepEqual([rep.newConstExprSites, rep.newConstObjectSites, rep.newInlineNumberSites].map((l) => l.length), [0, 0, 0]);
