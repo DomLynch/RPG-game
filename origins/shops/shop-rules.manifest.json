@@ -9,6 +9,10 @@
         "priceMax": "integer",
         "stockMax": "integer",
         "buyMax": "integer",
+        "restockMin": { "type": "integer", "min": 1 },
+        "restockMax": "integer",
+        "revisionMax": { "type": "integer", "min": 1 },
+        "levelMax": { "type": "integer", "min": 1 },
         "note": "string"
       }
     }

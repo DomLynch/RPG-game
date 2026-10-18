@@ -12,8 +12,10 @@ import type { CombatEvent, Intent } from '../src/fight/duel.ts';
 const event = (type: CombatEvent['type'], extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, type, actor: 0, target: 1, move: 'light_right', ...extra });
 const FRAME = 1000 / 60, near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
 
-test('tier per move kind: heavy, charged, guard break and skills are full; stab, slash, kick and every other landed hit are half', () => {
-  for (const move of ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical', 'skill_pommel', 'skill_witchfire'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'full', move);
+test('tier per move kind: a skill is special; heavy, charged and guard break are full; stab, slash, kick and every other landed hit are half', () => {
+  for (const move of ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'full', move);
+  for (const move of ['skill_pommel', 'skill_witchfire'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'special', move);   // slice 1 of the weapon specials: a skill's contact is its own, heavier beat
+  assert.ok(IMPACT.special.frames > IMPACT.full.frames, 'a special out-weighs the heavy');
   assert.equal(impactTier(event('Hit', { move: 'light_left', charged: true })), 'full', 'a charged blow');
   assert.equal(impactTier(event('GuardBroken', { move: 'light_right' })), 'full', 'a guard break');
   for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'slash_riposte', 'kick'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'half', move);
@@ -43,7 +45,7 @@ test('knock: away from the side the blow arrives from, on every side, full 4 cm 
   assert.equal(impactShove(event('GuardBroken', { actor: 1, target: 0, move: 'light_left', charged: true }), 'left')!.screen, -IMPACT.full.knock);
   assert.equal(impactShove(event('Hit', { move: 'light_right', charged: true }), 'right')!.screen, -IMPACT.full.knock);
   // Overhead, thrust, low, a kick, a sideless skill: from above or in front, the camera drops by the knock instead.
-  for (const [move, direction, knock] of [['heavy_overhead', 'overhead', IMPACT.full.knock], ['thrust', 'thrust', IMPACT.half.knock], ['skill_pommel', undefined, IMPACT.full.knock]] as const) {
+  for (const [move, direction, knock] of [['heavy_overhead', 'overhead', IMPACT.full.knock], ['thrust', 'thrust', IMPACT.half.knock], ['skill_pommel', undefined, IMPACT.special.knock]] as const) {
     for (const side of [{ actor: 0, target: 1 }, { actor: 1, target: 0 }] as const) {
       const e = event('Hit', { move, ...side }), s = impactShove(e, direction)!;
       assert.equal(Math.abs(s.screen ?? 0), 0, `${move} does not knock sideways`);

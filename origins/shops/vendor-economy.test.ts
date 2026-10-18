@@ -75,7 +75,14 @@ test('vendor economy: relation typos are refused at load', () => {
   const edit = (f: (c: Record<string, number>) => void) => { const b = structuredClone(DATA) as unknown as { classes: Record<string, number>[] }; f(b.classes[0]!); return b; };
   assert.throws(() => loadVendorEconomy(edit((c) => { c.sellPct = c.priceFloor!; })), /arbitrage/);
   assert.throws(() => loadVendorEconomy(edit((c) => { c.priceCeil = c.priceFloor! - 1; })), /priceCeil/);
-  assert.throws(() => loadVendorEconomy(edit((c) => { c.restockSeconds = 0; })), /above 0/);
-  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesRecoverySeconds = 0; })), /above 0/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.restockSeconds = 0; })), /restockSeconds/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesRecoverySeconds = 0; })), /salesRecoverySeconds/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.stockCap = 0; })), /stockCap/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesSlope = -1; })), /salesSlope/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesFloor = 101; })), /salesFloor/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesFloor = 0; })), /salesFloor/);
+  const tax = structuredClone(DATA) as unknown as { zoneTax: Record<string, number>[] };
+  tax.zoneTax[0]!.buyTaxPct = 100;
+  assert.throws(() => loadVendorEconomy(tax), /buyTaxPct/);
   assert.doesNotThrow(() => loadVendorEconomy());
 });

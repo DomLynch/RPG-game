@@ -5,9 +5,6 @@
  "origins/presence/interest.ts": {
   "TOWN_HALF_CM": 1
  },
- "origins/preview/daynight.ts": {
-  "DAY_NIGHT_SPEED": 1
- },
  "origins/preview/presence-client.ts": {
   "LEGACY_EDGE_M": 1
  },

@@ -22,6 +22,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
+import { qaOf } from './qa-account.ts';
 import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
@@ -211,12 +212,13 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       if (deps.scorecardOnlyUnverified) { const v = await run(); record = v.ok ? 'verified' : `refused: ${v.reason}`; }
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
-    const pays = record === 'verified' || deps.scorecardOnlyUnverified !== true;
+    const qaState = await qaOf(db, account), qa = qaState === 'yes';   // the QA account (fighter_profiles.is_test): it counts above (checks, tallies) but persists nothing
+    const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa;
     const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level })
-      : { batch: [] as store.Json[], summary: { cp: 0, cpReason: 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
+      : { batch: [] as store.Json[], summary: { cp: 0, cpReason: qa ? 'qa' : 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
-      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
+      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true, ...(qa ? { qa: true } : {}) },
     };
     const commit = (wear: store.Json[]) => store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
     const got = pays
@@ -224,7 +226,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record} qa=${qaState}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

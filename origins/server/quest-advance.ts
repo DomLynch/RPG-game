@@ -8,6 +8,7 @@ import { Refused } from './errors.ts';
 import { career, factsOf, field, journalOf, must, ownCharacter, questBatch, type Clock, type StoryContent } from './story.ts';
 import { openAccount, type Handler } from './handlers.ts';
 import * as store from './store.ts';
+import { qaOf } from './qa-account.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
@@ -23,7 +24,8 @@ export function questAdvance(content: StoryContent | null, now: Clock = () => ne
     const { journal, stored } = journalOf(snap, character, content.quests);
     const at = now();
     const adv = must(advance(journal, quest, stage, { ...factsOf(snap, character, journal), quests: content.quests, at: at.toISOString(), choice }));
-    const { batch, cp } = questBatch(ctx.account, character, quest, journal, stored, adv, career(snap), at);
+    const qa = (await qaOf(ctx.db, ctx.account)) === 'yes';   // the QA account (fighter_profiles.is_test) advances but books no CP; a blind lookup pays as normal
+    const { batch, cp } = questBatch(ctx.account, character, quest, journal, stored, adv, career(snap), at, qa);
     if (batch.length) await store.commit(ctx.db, ctx.account, batch);
     const state = adv.journal.quests.get(quest)!;
     return { quest, stage: state.stage, status: state.status, cp, replay: batch.length === 0 };

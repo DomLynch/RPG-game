@@ -5,7 +5,11 @@
       "priceMax": 1000000,
       "stockMax": 1000,
       "buyMax": 100,
-      "note": "a shop list's bounds: the most one item may cost (bronze), the most of one item a shelf may hold, and the most a single buy request may take"
+      "restockMin": 10,
+      "restockMax": 86400,
+      "revisionMax": 1000000,
+      "levelMax": 100,
+      "note": "a shop list's bounds: the most one item may cost (bronze), the most of one item a shelf may hold, the most a single buy request may take, the shortest and longest restock (seconds), the highest list revision and the highest level gate"
     }
   ]
 }
