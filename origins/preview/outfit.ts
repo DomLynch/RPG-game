@@ -3,7 +3,7 @@
 // no set tier (gear-stats.ts kit). Donor: UO/ModernUO corpse (everything it wore is on the body, take what you want).
 import { droppedPiece } from '../world/loadouts-rules.ts';
 import type { Loadout } from '../world/loadouts-rules.ts';
-import { isWeaponLoot, paperdollOf, slotOf, type LootId } from '../../src/core/loot.ts';
+import { isWeaponLoot, paperdollOf, slotOf, type LootId } from '../../src/core/index.ts';
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
