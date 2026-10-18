@@ -765,7 +765,7 @@ const warBand = createWarBand({ hornRunSpeed: fxNum('warband.horn-run-speed'), h
 let warBandRoles = false; const rallyAggro = new Map<string, number>(), rallyHanded = new Set<string>();
 function warBandTick(dt: number) {
   if (!mobs || !(zoneRow ?? loadZone()).unlisted) return;
-  const list = (mobs.debug() as { mobs: { id: string; body: string; x: number; z: number; loadout?: string; drawn: boolean }[] }).mobs.filter((m) => m.body === 'goblin');
+  const list = (mobs.debug() as { mobs: { id: string; body: string; x: number; z: number; loadout?: string; drawn: boolean }[] }).mobs.filter((m) => !!loadoutRow(m.loadout));   // the war band is the creatures that wear a loadout row (the goblins)
   if (!warBandRoles && list.length >= 2) {
     const centre = goblinKit?.centre ?? { x: state.x, z: state.z };
     warBand.assign(pickRoles(list.map((m) => ({ id: m.id, loadout: m.loadout, x: m.x, z: m.z })), (l) => loadoutRow(l)?.pieces.length ?? 0), { x: centre.x + fxNum('warband.horn-dx'), z: centre.z + fxNum('warband.horn-dz') }); warBandRoles = true;
@@ -773,7 +773,7 @@ function warBandTick(dt: number) {
   const at = (id: string) => { const m = mobs!.find(id); return m ? { x: m.x, z: m.z } : null; };
   const near = (x: number, z: number, n: number) => list.filter((m) => mobs!.find(m.id)).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)).slice(0, n).map((m) => m.id);
   const step = warBand.update(dt, at, near), blower = warBand.blower();
-  if (step.walk && blower && wc.target()?.id !== blower) mobs.drive(blower, { x: step.walk.x, z: step.walk.z, facing: step.walk.facing, moving: true });
+  if (step.walk && blower && lockOn?.spec?.id !== blower) mobs.drive(blower, { x: step.walk.x, z: step.walk.z, facing: step.walk.facing, moving: true });
   if (step.rally) {
     if (blower) mobs.drive(blower, null);
     for (const id of new Set([...step.rally, ...(warBand.captain() ? [warBand.captain()!] : [])])) { const was = mobs.setAggro(id, fxNum('warband.rally-aggro')); if (was !== null && !rallyAggro.has(id)) rallyAggro.set(id, was); }
@@ -790,9 +790,10 @@ function warBandTick(dt: number) {
   }
 }
 let warBandAlarmed = false;
-function warBandHit(spec: MobSpec) { if (spec.body !== 'goblin') return; warBand.hit(spec.id); if (!warBandAlarmed && warBand.phase() === 'alarm') { warBandAlarmed = true; worldToast('A goblin runs for the horn!'); } }
+const inWarBand = (spec: MobSpec): boolean => !!loadoutRow(mobVariant(spec.character, spec.id)?.loadout);
+function warBandHit(spec: MobSpec) { if (!inWarBand(spec)) return; warBand.hit(spec.id); if (!warBandAlarmed && warBand.phase() === 'alarm') { warBandAlarmed = true; worldToast('A goblin runs for the horn!'); } }
 function creatureFell(spec: MobSpec) {
-  if (spec.body === 'goblin') { warBand.fell(spec.id); if (warBand.phase() === 'silenced' && spec.id === warBand.blower()) worldToast('The horn-blower is down: no horn!'); }
+  if (inWarBand(spec)) { warBand.fell(spec.id); if (warBand.phase() === 'silenced' && spec.id === warBand.blower()) worldToast('The horn-blower is down: no horn!'); }
   const fellAt = (mobs?.debug() as { mobs: { id: string; x: number; z: number }[] } | undefined)?.mobs.find((m) => m.id === spec.id);   // where it stands now, before it is released
   mobs?.fell(spec.id);
   const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
