@@ -786,64 +786,15 @@
   "600": 1,
   "999": 1
  },
- "origins/world/clock.ts": {
-  "8": 1,
-  "7919": 1,
-  "16777619": 1
- },
- "origins/world/derive.ts": {
-  "100": 1,
-  "0.5": 1
- },
- "origins/world/generate.ts": {
-  "2": 1,
-  "4": 1,
-  "32": 1,
-  "90": 1,
-  "180": 1,
-  "0xffffffff": 1,
-  "0.5": 1,
-  "0.01": 1,
-  "0.0001": 2,
-  "10_000": 1,
-  "-90": 1
- },
- "origins/world/goblin-field-rules.ts": {
-  "2": 2,
-  "3": 2
- },
  "origins/world/ground-point.ts": {
   "2": 1
  },
- "origins/world/instances.ts": {
-  "256": 1
- },
  "origins/world/relief.ts": {
-  "2": 4,
-  "3": 1,
-  "6": 1,
-  "7": 1,
-  "10": 1,
-  "13": 1,
-  "15": 1,
-  "32": 1,
-  "101": 1,
-  "4294967296": 1,
-  "0.5": 7,
-  "17.3": 1,
-  "31.7": 1
- },
- "origins/world/town-kit.ts": {
-  "2": 2,
-  "5": 1
+  "2": 2
  },
  "origins/world/town.ts": {
   "2": 1,
   "180": 1
- },
- "origins/world/variants.ts": {
-  "4": 1,
-  "16777619": 1
  },
  "origins/world/zone-rules.ts": {
   "2": 2
