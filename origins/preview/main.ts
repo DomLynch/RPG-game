@@ -174,7 +174,7 @@ function environment(sky?: THREE.Texture) {
 let skyReady = false;   // the scene's environment map is final (programs are keyed on it): warm-up waits for this
 environment(); void arena.ready.then(() => environment(arena.sky)).finally(() => { skyReady = true; });
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
-const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
+const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.userData.base = l.intensity; /* the light's own strength, which a sconce row's `intensity` scales while it is lent (kit-light.ts) */ l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 
 // The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
@@ -949,6 +949,7 @@ function programOwners(): Record<string, string[]> {
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
+  torchesLent: () => warm.filter((l) => torches?.lends(l)).map((l) => ({ x: Math.round(l.position.x * 10) / 10, y: Math.round(l.position.y * 10) / 10, z: Math.round(l.position.z * 10) / 10, intensity: Math.round(l.intensity * 10) / 10, distance: l.distance })),   // the braziers' lights now lent to the kit's sconces (kit-light.ts), for the browser checks
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,

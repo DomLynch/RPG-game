@@ -43,7 +43,8 @@ test('the pool lends the page\'s lights to the nearest sconces within the camp l
   assert.ok(pool.lends(a) && pool.lends(b));
   assert.equal(a.position.x, 0); assert.equal(b.position.x, 4);   // the nearest first
   assert.equal(a.distance, 9); assert.equal(a.color.getHexString(), 'ff9a47');
-  assert.ok(a.intensity > 0 && a.intensity <= 1.2);
+  assert.ok(a.intensity > 0 && a.intensity <= 1.2 * 9 + 1e-9, 'the row is a multiple of the lent light\'s own strength (9), dimmed by the flicker');
+  a.userData.base = 20; pool.update(1, { x: 1, z: 0 }, [a, b]); assert.ok(a.intensity <= 1.2 * 20 + 1e-9 && a.intensity > 1.2 * 20 * 0.8, 'a light that names its own base is scaled from that');
   pool.update(2, { x: 1000, z: 0 }, [a, b]);   // out of everyone's reach: home again
   assert.ok(!pool.lends(a) && a.position.x === -50 && a.color.getHexString() === 'ff8a3a' && a.distance === 9);
   assert.ok(previewRule('campLightReach') > 0);

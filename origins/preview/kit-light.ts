@@ -43,20 +43,21 @@ export function kitLights(root: THREE.Object3D, placed: readonly Placed[], groun
 }
 
 export type SconceLights = { update(time: number, hero: { x: number; z: number }, lights: readonly THREE.PointLight[]): void; lends(l: THREE.PointLight): boolean };
-/** Lend the page's own lights to the nearest sconces within the camp lights' reach of the walker; a light with no sconce to hold goes home. The row sets colour, reach and the flicker's depth; nothing here is a default. */
+/** Lend the page's own lights to the nearest sconces within the camp lights' reach of the walker; a light with no sconce to hold goes home. The row sets colour, reach and the flicker's depth, and its `intensity` is a multiple of the lent light's
+ *  own base strength (`userData.base`, a brazier light's): the row's unit is that light, not a number of this page's. Nothing here is a default. */
 export function sconcePool(lights: KitLights): SconceLights {
-  const home = new Map<THREE.PointLight, { pos: THREE.Vector3; color: THREE.Color; distance: number }>(), lent = new Set<THREE.PointLight>(), reachFrom = previewRule('campLightReach');
+  const home = new Map<THREE.PointLight, { pos: THREE.Vector3; color: THREE.Color; distance: number; base: number }>(), lent = new Set<THREE.PointLight>(), reachFrom = previewRule('campLightReach');
   const color = new THREE.Color(lights.row.color);
   return {
     lends: (l) => lent.has(l),
     update(time, hero, pool) {
       const near = lights.points.map((p) => ({ p, d: Math.hypot(p.x - hero.x, p.z - hero.z) })).filter((q) => q.d < reachFrom).sort((a, b) => a.d - b.d);
       pool.forEach((l, i) => {
-        if (!home.has(l)) home.set(l, { pos: l.position.clone(), color: l.color.clone(), distance: l.distance });
+        if (!home.has(l)) home.set(l, { pos: l.position.clone(), color: l.color.clone(), distance: l.distance, base: l.intensity });
         const q = near[i];
         if (!q) { if (lent.delete(l)) { const h = home.get(l)!; l.position.copy(h.pos); l.color.copy(h.color); l.distance = h.distance; } return; }
         lent.add(l); l.position.set(q.p.x, q.p.y, q.p.z); l.color.copy(color); l.distance = lights.row.reach;
-        l.intensity = lights.row.intensity * (1 - lights.row.flicker * (0.5 + 0.5 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)));
+        l.intensity = lights.row.intensity * ((l.userData.base as number | undefined) ?? home.get(l)!.base) * (1 -lights.row.flicker * (0.5 + 0.5 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)));
       });
     },
   };
