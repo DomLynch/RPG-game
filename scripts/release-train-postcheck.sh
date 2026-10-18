@@ -30,6 +30,7 @@ close_marker() {
   late=""
   if [ -e "$marker" ]; then mv "$marker" "$marker.final" 2>/dev/null && { late="$(scan_late "$marker.final")"; rm -f "$marker.final"; }; fi
   if [ "$marker" != "$marker_open" ] && [ -e "$marker_open" ]; then late="$late$(scan_late "$marker_open")"; rm -f "$marker_open"; fi
+  late=$(printf '%s' "$late" | tr ' ' '\n' | grep -E '^[0-9a-f]+$' | sort -u | paste -sd' ' -)   # each late rev once, no padding
   rm -f "$marker.told" "$marker_open.told"
 }
 decided() { close_marker; }
