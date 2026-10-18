@@ -277,7 +277,6 @@ const measureHud = () => {
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
 const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag and the info card style this page's zone asks for
-const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
