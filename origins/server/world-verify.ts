@@ -18,10 +18,38 @@ export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string 
 
 /** What a replay needs, all plain data (it crosses to the worker thread). */
 // Soak counters: kills by outcome ('verified', 'no record', or the refusal reason), so the verified rate is one read once the records are live.
-export type VerdictTally = { add(outcome: string): void; snapshot(): { since: string; total: number; verified: number; rate: number | null; outcomes: Record<string, number> } };
-export function createVerdictTally(now: () => Date = () => new Date()): VerdictTally {
+// Each kill also counts in its cohort: 'qa' for the marked QA account (Strategy 2026-10-18: QA-driven kills count for the matrix soak), 'organic' for everyone else. Per cohort the tally keeps the
+// outcomes of its first `firstKills` kills and the longest run of kills that were not `good` ('verified' for records, 'checked' for reach), which the strictRevert row reads. Memory stays bounded:
+// the outcome keys are bounded by their callers (#3155), the first-kills list by the row.
+export type Cohort = 'organic' | 'qa';
+export type CohortCounts = { total: number; outcomes: Record<string, number>; first: { kills: number; good: number }; run: number; maxRun: number };
+export type TallySnapshot = { since: string; total: number; verified: number; rate: number | null; outcomes: Record<string, number>; cohorts: Record<Cohort, CohortCounts> };
+export type VerdictTally = { add(outcome: string, cohort?: Cohort): void; snapshot(): TallySnapshot };
+export function createVerdictTally(now: () => Date = () => new Date(), good = 'verified', firstKills: number = SERVER_RULES.strictRevert[0]!.firstKills): VerdictTally {
   const since = now().toISOString(), outcomes: Record<string, number> = {};
-  return { add: (o) => { outcomes[o] = (outcomes[o] ?? 0) + 1; }, snapshot: () => { const total = Object.values(outcomes).reduce((a, b) => a + b, 0), verified = outcomes.verified ?? 0; return { since, total, verified, rate: total ? verified / total : null, outcomes: { ...outcomes } }; } };
+  const fresh = (): CohortCounts => ({ total: 0, outcomes: {}, first: { kills: 0, good: 0 }, run: 0, maxRun: 0 }), cohorts: Record<Cohort, CohortCounts> = { organic: fresh(), qa: fresh() };
+  return {
+    add: (o, cohort = 'organic') => {
+      outcomes[o] = (outcomes[o] ?? 0) + 1;
+      const c = cohorts[cohort], ok = o === good;
+      c.total++; c.outcomes[o] = (c.outcomes[o] ?? 0) + 1;
+      if (c.first.kills < firstKills) { c.first.kills++; if (ok) c.first.good++; }
+      c.run = ok ? 0 : c.run + 1; c.maxRun = Math.max(c.maxRun, c.run);
+    },
+    snapshot: () => {
+      const total = Object.values(outcomes).reduce((a, b) => a + b, 0), verified = outcomes.verified ?? 0, copy = (c: CohortCounts): CohortCounts => ({ ...c, outcomes: { ...c.outcomes }, first: { ...c.first } });
+      return { since, total, verified, rate: total ? verified / total : null, outcomes: { ...outcomes }, cohorts: { organic: copy(cohorts.organic), qa: copy(cohorts.qa) } };
+    },
+  };
+}
+// The revert rule after the strict flip (Strategy 2026-10-18, row strictRevert): judged on ORGANIC kills only, from the reach tally. Revert (Deploy flips both flags OFF, with a readout line on the
+// thread) when the first `firstKills` organic kills are complete and fewer than `minRate` of them were checked, or as soon as `maxUncheckedRun` organic kills in a row were not checked. The counters
+// start at the writer's restart, so after the flip-restart "the first 50" are the first 50 under the flags. Pure.
+export type RevertCheck = { kills: number; rate: number | null; maxRun: number; revert: boolean; why: string | null };
+export function strictRevert(organic: Pick<CohortCounts, 'first' | 'maxRun'>, rule: { firstKills: number; minRate: number; maxUncheckedRun: number } = SERVER_RULES.strictRevert[0]!): RevertCheck {
+  const { kills, good } = organic.first, rate = kills ? good / kills : null;
+  const why = organic.maxRun >= rule.maxUncheckedRun ? `${organic.maxRun} organic kills in a row unchecked` : kills >= rule.firstKills && rate !== null && rate < rule.minRate ? `first ${kills} organic kills: ${good} checked` : null;
+  return { kills, rate, maxRun: organic.maxRun, revert: why !== null, why };
 }
 // The strict-flip readout (audit 2026-10-18; Strategy: both flags ON is a beta-opening gate): may ORIGINS_SPAWN_REFUSE_UNCHECKED go on (enough kills, enough of them reach-checked) and may
 // ORIGINS_WORLD_RECORD_SCORECARD_ONLY (enough kills, enough of them with a record that verified)? Judged on the counts since the writer started, against the strictFlip row. Pure.

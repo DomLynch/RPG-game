@@ -8,6 +8,7 @@ import { pick } from '../talk/talk.ts';
 import { BadRequest, Refused } from './errors.ts';
 import { openAccount, type Handler } from './handlers.ts';
 import * as store from './store.ts';
+import { qaOf } from './qa-account.ts';
 import { career, eventId, factsOf, field, journalOf, must, ownCharacter, questBatch, talkOf, type Clock, type StoryContent } from './story.ts';
 import type { Json } from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
@@ -40,9 +41,10 @@ export function talkPick(content: StoryContent | null, now: Clock = () => new Da
     }
     if (line.once) batch.push({ op: 'event', event_id: eventId(`talk:${character}:${npc}:${line.id}`), kind: 'talk', account: ctx.account, character, payload: { npc, line: line.id } });
     let cp = 0, row = career(snap);
+    const qa = steps.length > 0 && (await qaOf(ctx.db, ctx.account)) === 'yes';   // the QA account (fighter_profiles.is_test) advances but books no CP; asked only when a quest step is taken
     for (const { quest, adv } of steps) {
       if (!adv.ok) continue;   // unreachable: pick() refuses the whole line when its step is refused
-      const q = questBatch(ctx.account, character, quest, journal, stored, adv.value, row, at);
+      const q = questBatch(ctx.account, character, quest, journal, stored, adv.value, row, at, qa);
       batch.push(...q.batch);
       cp += q.cp;
       row = q.row;   // a second paying step books on the career the first one left (its version, credit and story list)

@@ -49,6 +49,8 @@
     { "id": "presencePort", "value": 8793, "unit": "port" },
     { "id": "logEveryMs", "value": 60000, "unit": "ms" },
     { "id": "testIpSockets", "value": 1000, "unit": "sockets" },
-    { "id": "testIpJoinsPerMinute", "value": 100000, "unit": "joins" }
+    { "id": "testIpJoinsPerMinute", "value": 100000, "unit": "joins" },
+    { "id": "roadBehindM", "value": 2.5, "unit": "m" },
+    { "id": "roadPastM", "value": 0.5, "unit": "m" }
   ]
 }

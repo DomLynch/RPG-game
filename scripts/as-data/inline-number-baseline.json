@@ -1,7 +1,6 @@
 {
  "origins/board/board-screen.ts": {
-  "2": 1,
-  "30_000": 1
+  "2": 1
  },
  "origins/board/board-view.ts": {
   "60": 2,
@@ -47,17 +46,14 @@
   "0.5": 2
  },
  "origins/encounters/encounters.ts": {
-  "30": 1,
-  "99": 1,
-  "100": 7,
-  "120": 1
+  "100": 4
  },
  "origins/feuds/feuds.ts": {
   "-1": 1
  },
  "origins/gear/wear-repair.ts": {
   "10": 1,
-  "100": 13
+  "100": 12
  },
  "origins/mobs/populate.ts": {
   "2": 1,
@@ -125,10 +121,7 @@
   "8": 1
  },
  "origins/presence/zones.ts": {
-  "2": 9,
-  "100": 4,
-  "2.5": 2,
-  "0.5": 2
+  "2": 9
  },
  "origins/preview/bounty.ts": {
   "10": 1,
@@ -757,19 +750,7 @@
   "2": 1
  },
  "origins/region1/load.ts": {
-  "4": 1,
-  "8": 2,
-  "10": 1,
-  "24": 2,
-  "30": 1,
-  "50": 2,
-  "60": 3,
-  "99": 1,
-  "100": 2,
-  "120": 1,
-  "1000": 2,
-  "86_400": 2,
-  "604_800": 1
+  "86_400": 1
  },
  "origins/server/consume.ts": {
   "120": 1
@@ -1333,8 +1314,8 @@
   "127": 1
  },
  "src/core/registry.ts": {
-  "-2": 1,
-  "-1": 2
+  "-1": 1,
+  "-2": 1
  },
  "src/core/rename.ts": {
   "2": 1

@@ -18,6 +18,7 @@ import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mintOp } from './mob-rewards.ts';
 import * as store from './store.ts';
+import { qaOf } from './qa-account.ts';
 import { POSE_AGE_MS, REACH_SLACK } from './world-spawns.ts';
 
 const CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^ground:[a-z0-9._-]{1,60}$/;
@@ -37,7 +38,7 @@ export const groundKillId = (instance: string, account: string, n: number): stri
 
 export type GroundTaken = { batch: store.Json[]; item: string; instanceId: string };
 /** The pure core of a take: refuse a second copy (one-of-each) or a full pack, else the batch the transaction commits (the event, then the one mint). */
-export function groundTakeBatch(a: { account: string; character: string; instance: string; n: number; row: GroundItem; inventory: Inventory; content: EncounterContent; at: string; reach: 'checked' | 'unchecked' }): GroundTaken | { refused: 'have-it' | 'full' } {
+export function groundTakeBatch(a: { account: string; character: string; instance: string; n: number; row: GroundItem; inventory: Inventory; content: EncounterContent; at: string; reach: 'checked' | 'unchecked'; qa?: boolean }): GroundTaken | { refused: 'have-it' | 'full' } {
   const lookup = lookupOf(a.content);
   if (a.inventory.items.some((i) => i.item === a.row.item)) return { refused: 'have-it' };
   const killId = groundKillId(a.instance, a.account, a.n);
@@ -46,8 +47,9 @@ export function groundTakeBatch(a: { account: string; character: string; instanc
   const got = intoBackpack(a.inventory, { table: `loottable:${a.instance.slice('ground:'.length)}` as never, items: [{ item: a.row.item, quantity: a.row.qty }] as never, metal: 0 }, { wonBy: a.character as CharacterInstanceId, killId, encounter: null as EncounterId | null, at: a.at, level }, a.content);
   if (!got.ok) return { refused: 'full' };
   const inst = got.value.inventory.items.find((i) => i.id === got.value.received[0])!;
-  const event: store.Json = { op: 'event', event_id: `ground:${killId}`, kind: 'mint', account: a.account, character: a.character, payload: { ground: { instance: a.instance, n: a.n, item: a.row.item, qty: a.row.qty, reach: a.reach } } };
-  return { batch: [event, mintOp(inst, lookup(inst.item)?.stack === 1)], item: a.row.item, instanceId: inst.id };
+  const event: store.Json = { op: 'event', event_id: `ground:${killId}`, kind: 'mint', account: a.account, character: a.character, payload: { ground: { instance: a.instance, n: a.n, item: a.row.item, qty: a.row.qty, reach: a.reach }, ...(a.qa ? { qa: true } : {}) } };
+  // The QA account (fighter_profiles.is_test) is checked like anyone and its claim is recorded, but nothing is minted: the take persists no item.
+  return { batch: a.qa ? [event] : [event, mintOp(inst, lookup(inst.item)?.stack === 1)], item: a.row.item, instanceId: inst.id };
 }
 
 export type GroundDeps = { content: EncounterContent; items?: GroundItems; limits?: GroundLimits; now?: () => Date; refuseUnchecked?: boolean; log?: (line: string) => void };
@@ -97,12 +99,13 @@ export function groundOps(deps: GroundDeps | null): Record<string, Handler> {
     if (reach === 'unchecked' && deps.refuseUnchecked) { log(`ground_take ${instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
     const n = (claim?.n ?? 0) + 1, lookup = lookupOf(deps.content);
     const { inventory } = await openHoldingsWith(db, account, character, { lookup });
-    const taken = groundTakeBatch({ account, character, instance, n, row, inventory, content: deps.content, at: now().toISOString(), reach });
+    const qaState = await qaOf(db, account);   // the QA mark: the take is claimed and checked as for anyone, but mints nothing
+    const taken = groundTakeBatch({ account, character, instance, n, row, inventory, content: deps.content, at: now().toISOString(), reach, qa: qaState === 'yes' });
     if ('refused' in taken) return refuse(taken.refused);
     const got = await store.groundTake(db, account, instance, n, row.respawnSec, taken.batch).catch((e: unknown) => { if (e instanceof Error && 'code' in e && (e as { code?: string }).code === 'O0002') return refuse('stale'); throw e; });
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`ground_take ${instance} n=${n} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} item=${taken.item}`);
+    log(`ground_take ${instance} n=${n} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} item=${taken.item} qa=${qaState}`);
     return { result: 'taken', instance, item: taken.item, qty: row.qty, availableAt: new Date(now().getTime() + row.respawnSec * 1000).toISOString() };
   };
 

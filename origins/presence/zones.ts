@@ -12,6 +12,8 @@ import TOWN_MANIFEST from './town-zones.manifest.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
 
+const CM_PER_M = 100;   // a unit fact (the frame is u16 centimetres, the world is metres), not a tuning
+
 // The frame (docs/specs/origins/frontier-presence.md §2): u16 centimetres, world (0,0) at CENTRE_CM, so the town square (+-150 m) AND the Ash Frontier (x -334..25 m, z -205..150 m) fit.
 // v1 clients and the saved-location columns speak the old frame (centre 15000, town square only): LEGACY_SHIFT_CM converts. East of +255 m, or wider than 655 m, needs a v3 frame.
 export { CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM };   // defined in ./frame.ts, the one copy the page bundle shares
@@ -59,7 +61,8 @@ export const PORTALS: readonly PortalRow[] = [...frontier.values()].flatMap(q =>
 // The west road: the Exchange's passage to the first Frontier zone, walkable though it belongs to no zone row.
 const roadCorners: Pt[] = (() => {
   const r = plans[0]!.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing), len = Math.hypot(r.to.x - r.from.x, r.to.z - r.from.z), h = r.width / 2;
-  const a = { x: r.from.x - ux * 2.5, z: r.from.z - uz * 2.5 }, e = { x: r.from.x + ux * (len + 0.5), z: r.from.z + uz * (len + 0.5) };
+  const behind = presenceRule('roadBehindM'), past = presenceRule('roadPastM');   // how far the walkable road runs behind its start and past its end (metres)
+  const a = { x: r.from.x - ux * behind, z: r.from.z - uz * behind }, e = { x: r.from.x + ux * (len + past), z: r.from.z + uz * (len + past) };
   return [{ x: a.x - uz * h, z: a.z + ux * h }, { x: e.x - uz * h, z: e.z + ux * h }, { x: e.x + uz * h, z: e.z - ux * h }, { x: a.x + uz * h, z: a.z - ux * h }];
 })();
 
@@ -75,7 +78,7 @@ const inside = (corners: readonly Pt[], p: Pt): boolean => {   // a convex quad,
   return true;
 };
 
-export const worldMetres = (xCm: number, zCm: number): Pt => ({ x: (xCm - CENTRE_CM) / 100, z: (zCm - CENTRE_CM) / 100 });
+export const worldMetres = (xCm: number, zCm: number): Pt => ({ x: (xCm - CENTRE_CM) / CM_PER_M, z: (zCm - CENTRE_CM) / CM_PER_M });
 export const zoneRowAt = (xCm: number, zCm: number): ZoneRow | null => {
   const p = worldMetres(xCm, zCm);
   return rows.find(z => inside(z.corners, p)) ?? null;
@@ -99,7 +102,7 @@ export function landmarkCm(zone: 'pit-yard' | 'exchange', name: string): Pt {
   const l = params.ok ? toMetres(params.value).landmarks[name] : undefined;
   if (!l) throw new Error(`presence: no landmark ${zone}/${name}`);
   const w = toWorld({ x: l.x, d: l.d }, mountOf(zone));
-  return { x: Math.round(CENTRE_CM + w.x * 100), z: Math.round(CENTRE_CM + w.z * 100) };
+  return { x: Math.round(CENTRE_CM + w.x * CM_PER_M), z: Math.round(CENTRE_CM + w.z * CM_PER_M) };
 }
 
 // The trade area IS the whole `exchange` zone (Expansion's rule for launch gate X1, adopted: bank, smith and trade are Exchange-wide, so a smaller box would let a rejoin land

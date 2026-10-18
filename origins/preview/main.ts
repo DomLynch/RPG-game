@@ -57,7 +57,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { wideCombatCam } from './combat-cam.ts';
@@ -88,6 +88,7 @@ import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
+import { createCover } from './load-cover.ts';
 import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -150,9 +151,13 @@ if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids)
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 let frontierGroup: THREE.Group | null = null;
+// The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
+const settled = { hero: false, kit: !zoneKit };
+const coverEl = document.getElementById('cover');
+const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
@@ -215,7 +220,7 @@ function syncRigWeapon() {
     hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
   }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
 }
-loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); }).finally(() => { settled.hero = true; });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -518,13 +523,25 @@ async function kitSlice(until: number) {
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
 let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
-// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after [zone ready]. The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
+// the threshold used to answer differently from the next. Storage may be blocked: then it is the per-load measure, as before.
+const SLOW_KEY = 'origins-preview-slow-device';
 let deviceSlow: boolean | undefined;
 async function slowDevice(): Promise<boolean> {
   if (deviceSlow !== undefined) return deviceSlow;
+  let kept: boolean | undefined;
+  try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs')); } catch { /* storage blocked: measure */ }
+  if (kept !== undefined) return (deviceSlow = kept);
+  // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).
+  const visibleAtStart = document.visibilityState === 'visible'; let hiddenSeen = false;
+  const onVisibility = () => { if (document.visibilityState !== 'visible') hiddenSeen = true; };
+  document.addEventListener('visibilitychange', onVisibility);
   const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
   for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
-  return (deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')));
+  document.removeEventListener('visibilitychange', onVisibility);
+  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs'));
+  if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now())); } catch { /* storage blocked: not kept */ }
+  return deviceSlow;
 }
 // On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
 // On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
@@ -609,6 +626,7 @@ const walkLoop = () => {
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
+  if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 renderer.setAnimationLoop(walkLoop);
 
@@ -952,6 +970,7 @@ function programOwners(): Record<string, string[]> {
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
+  cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
