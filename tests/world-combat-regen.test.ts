@@ -24,7 +24,7 @@ const hurtAndEscape = (regen: boolean) => {
   w.step(40, () => w.wc.hero().health < max);   // stand still until the goblin lands a blow
   const hurt = w.wc.hero().health;
   w.hero.x = 900; w.hero.z = 900;   // far away: the creature gives up and goes home, nothing hunts him
-  w.step(90, () => !w.wc.inCombat() && w.driven.size === 0);
+  w.step(60, () => !w.wc.inCombat());   // the first frame nothing is hunting him: the out-of-combat window starts here
   return { w, max, hurt };
 };
 
@@ -32,13 +32,12 @@ test('with the hook ON: no health comes back while a fight is live; none inside 
   const { w, max, hurt } = hurtAndEscape(true);
   assert.ok(hurt < max, `the goblin landed a blow (${hurt}/${max})`);
   assert.equal(w.rises(), 0, 'health never rose while a creature was hunting him');
-  const quietBefore = w.wc.hero().health;
-  w.step(OUT_OF_COMBAT_S - 1);
+  const quietBefore = w.wc.hero().health, rows = regenRules(), perSecond = max / rows.healthFullS;
+  w.step(OUT_OF_COMBAT_S - 1.5);
   assert.equal(w.wc.hero().health, quietBefore, 'nothing comes back inside the out-of-combat window');
-  w.step(10);
-  const rows = regenRules(), expected = (max / rows.healthFullS) * 9;
-  assert.ok(w.wc.hero().health > quietBefore, 'it refills once the window has passed');
-  assert.ok(Math.abs(w.wc.hero().health - quietBefore - expected) < expected * 0.5, `about max / healthFullS per second (${(w.wc.hero().health - quietBefore).toFixed(1)} vs ${expected.toFixed(1)})`);
+  w.step(1.5 + 1.5);   // the window ends, then about a second and a half of regeneration at the standing-still rate
+  const gained = w.wc.hero().health - quietBefore;
+  assert.ok(gained > perSecond * 0.5 && gained <= perSecond * 2, `it refills at max / healthFullS = ${perSecond.toFixed(2)} per second once the window has passed (gained ${gained.toFixed(2)})`);
   w.step(rows.healthFullS * 2);
   assert.equal(w.wc.hero().health, max, 'never above the max');
 });
