@@ -6,6 +6,7 @@
       "at": "shapes",
       "key": "id",
       "required": {
+        "name": "string",
         "args": "number"
       }
     },

@@ -1,9 +1,9 @@
 {
   "shapes": [
-    {"id": "box", "args": 3},
-    {"id": "cylinder", "args": 4},
-    {"id": "cone", "args": 3},
-    {"id": "sphere", "args": 3}
+    {"id": "shape.box", "name": "box", "args": 3},
+    {"id": "shape.cylinder", "name": "cylinder", "args": 4},
+    {"id": "shape.cone", "name": "cone", "args": 3},
+    {"id": "shape.sphere", "name": "sphere", "args": 3}
   ],
   "tints": [
     {"id": "wood", "r": 0.46, "g": 0.36, "b": 0.26},

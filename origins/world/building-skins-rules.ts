@@ -5,7 +5,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './building-skins.json' with { type: 'json' };
 import MANIFEST from './building-skins.manifest.json' with { type: 'json' };
-import { propTint, shapeArgs } from './props-rules.ts';
+import { propTint, shapeArgs, shapeNames } from './props-rules.ts';
 
 export type SkinShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type SkinPart = { readonly id: string; readonly skin: string; readonly kind: string; readonly shape: SkinShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'plain' };
@@ -24,7 +24,7 @@ export function loadSkins(raw: Raw) {
     if (!(f.w > 0 && f.d > 0 && f.min > 0 && f.max >= f.min)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0 and 0 < min <= max`);
   }
   for (const p of parts) {
-    if (shapeArgs(p.shape) === undefined) throw Error(`building skin part "${p.id}": shape is one of the props shape rows`);
+    if (shapeArgs(p.shape) === undefined) throw Error(`building skin part "${p.id}": shape is ${shapeNames()}`);
     if (p.size.length !== shapeArgs(p.shape) || !p.size.every((n) => typeof n === 'number' && n > 0)) throw Error(`building skin part "${p.id}": a ${p.shape} has ${shapeArgs(p.shape)} sizes, all > 0`);
     if (p.at.length !== VEC3 || !p.at.every((n) => typeof n === 'number' && Number.isFinite(n))) throw Error(`building skin part "${p.id}": at is three numbers`);
     if (p.layer !== undefined && p.layer !== 'stone' && p.layer !== 'plain') throw Error(`building skin part "${p.id}": layer is stone or plain`);
