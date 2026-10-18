@@ -746,8 +746,13 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (open.length === 0) {
       const cost = Math.max(1, Math.round((lanes.length * m.damage) / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
       shake(j, (m.posture ?? MISSILE_GUARD_POSTURE) * lanes.length);   // a wall of guard wears down: guarded arrows take posture, and a break opens it
-      const through = Math.round((m.damage * (missileOf(A.weapon)?.pierce ?? 0)) / 1000); if (through) D.health = Math.max(1, D.health - through);   // a crossbow bolt is hard to guard: part of it goes through
+      const mrow = missileOf(A.weapon), through = Math.round((m.damage * lanes.length * (mrow?.pierce ?? 0)) / 1000); if (through) D.health = Math.max(mrow?.chipKills ? 0 : 1, D.health - through);   // a crossbow bolt is hard to guard: part of it goes through (a row with chipKills can finish a man hiding behind his guard: no wall of guard ends a fight in a stall)
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material, ...(through ? { damage: through } : {}) });
+      if (!D.health) {
+        D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+        finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move: m.move, heading: A.body.heading };
+        events.push({ tick, type: 'Killed', actor: i, target: j, move: m.move, location: 'torso', heading: A.body.heading });
+      }
       continue;
     }
     const dealt = m.damage * open.length;   // a bow volley: every arrow no guard covered
