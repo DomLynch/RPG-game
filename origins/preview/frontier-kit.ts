@@ -52,7 +52,7 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
       const h = f.zones.find((q) => q.landmarks[p.at])!.mount.heading, s = Math.sin(h), c = Math.cos(h);
       at = { x: a.x - p.dx * c + p.dz * s, z: a.z + p.dx * s + p.dz * c }; rotY += h + Math.PI;
     }
-    placements.push({ node: p.node, x: at.x, z: at.z, rotY, scale: p.scale, fixed: true });
+    if (!p.blockOnly) placements.push({ node: p.node, x: at.x, z: at.z, rotY, scale: p.scale, fixed: true });   // blockOnly: a wall's invisible walk-blocking circle, nothing drawn
     if (p.solid > 0) solids.push({ x: at.x, z: at.z, r: p.solid * p.scale });
   }
   // The four landmarks stand along the west road just OUTSIDE the walker's first view (frontier-plan.ts inFirstView keeps tall things 10 m + their radius off the road's line), alternating sides:

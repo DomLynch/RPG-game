@@ -41,7 +41,8 @@
         "vault": "bone_pile"
       },
       "enclosure": {
-        "kit": { "url": "/world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile", "lantern"] },
+        "kit": { "url": "/world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile", "lantern", "hall_floor", "hall_ceiling", "hall_wall", "hall_corner", "wall_sconce"] },
+        "hall": { "cell": 4, "floor": "hall_floor", "ceiling": "hall_ceiling", "wall": "hall_wall", "corner": "hall_corner", "sconce": "wall_sconce", "sconceEvery": 2, "wallFace": 1.1, "doorCells": 1, "block": { "r": 1.1, "along": 1 } },
         "wall": { "node": "cave_wall", "scale": 1.6, "length": 6.4, "solid": 2 },
         "doorway": { "node": "cave_doorway", "scale": 1, "gap": 6 },
         "room": { "w": 14, "d": 14 }

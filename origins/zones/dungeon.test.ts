@@ -97,8 +97,9 @@ test('a theme with an enclosure walls every room: pieces stay inside the zone, a
   assert.equal(parts.kit!.url, '/world/kit/dungeon-kit.glb');
   assert.ok(fixed.every((p) => p.inZoneFrame && parts.kit!.nodes.includes(p.node)));
   const doors = (room: string) => fixed.filter((p) => p.at === room && p.node === 'cave_doorway').length;
-  assert.deepEqual(['crypt-door', 'crypt-nave', 'crypt-vault'].map(doors), [2, 2, 1], 'the entrance room has its way out and its link; the nave one each way; the vault one');
-  for (const r of sample.rooms) assert.ok(fixed.filter((p) => p.at === r.id && p.node === 'cave_wall').length >= 8, `${r.id} is walled`);
+  assert.deepEqual(['crypt-door', 'crypt-nave', 'crypt-vault'].map(doors), [2, 0, 0], 'the open entrance room has its way out and its link; the closed halls leave cells open instead');
+  assert.ok(fixed.filter((p) => p.at === 'crypt-door' && p.node === 'cave_wall').length >= 8, 'the open room is walled with the cave wall');
+  for (const r of sample.rooms.filter((x) => x.roof === 'closed')) assert.equal(fixed.filter((p) => p.at === r.id && p.node === 'cave_wall' && !p.blockOnly).length, 0, `${r.id} is a hall, not cave wall`);
   const local = new Map(sample.rooms.map((r) => [r.id, { x: (r.at.u - 0.5) * sample.size.width, d: r.at.v * sample.size.depth }]));
   for (const p of fixed) { const c = local.get(p.at)!; assert.ok(Math.abs(c.x + p.dx) <= sample.size.width / 2 && c.d + p.dz >= 0 && c.d + p.dz <= sample.size.depth, `${p.at} ${p.node} inside the zone`); }
   assert.equal((dungeonParts('bone-hollow') as { kit?: unknown }).kit, undefined, 'the Bone Hollow carries its own kit rows');
@@ -109,6 +110,32 @@ test('a room whose walls would leave the zone is refused, and a zone row may not
   assert.throws(() => compileDungeon(wide, theme), /outside the 60 x 40 zone/);
 });
 
+test('a closed room is a hall: a floor and a ceiling per cell, joined walls facing in, four corners, doorway cells open, sconces on the walls, solid walls', () => {
+  type P = { node: string; at: string; dx: number; dz: number; rotDeg: number; solid: number; blockOnly?: boolean };
+  const theme = (THEMES.themes as DungeonTheme[]).find((t) => t.id === sample.theme)!, hall = theme.enclosure!.hall!;
+  const fixed = (dungeonParts('crypt-sample') as { kit: { fixed: P[] } }).kit.fixed;
+  const lookup = new Map(sample.rooms.map((r) => [r.id, r]));
+  for (const id of ['crypt-nave', 'crypt-vault']) {
+    const r = lookup.get(id)!, nx = r.size!.w / hall.cell, nd = r.size!.d / hall.cell, mine = fixed.filter((p) => p.at === id), of = (node: string) => mine.filter((p) => p.node === node && !p.blockOnly);
+    assert.equal(of(hall.floor).length, nx * nd, `${id} floor`); assert.equal(of(hall.ceiling).length, nx * nd, `${id} ceiling`); assert.equal(of(hall.corner).length, 4, `${id} corners`);
+    const doorCells = (n: number) => ((n - hall.doorCells) % 2 === 0 ? hall.doorCells : hall.doorCells + 1), links = r.links.length;
+    const perimeter = 2 * (nx + nd) - 4, doors = links * doorCells(nx);   // both rooms are square: one doorway on each side that faces a link
+    assert.equal(of(hall.wall).length, perimeter - 4 - doors, `${id} has a wall on every perimeter cell but the corners and the doorway cells`);
+    // every wall and corner stands on the perimeter with its inner face (local +z = (sin t, -cos t) in the zone's frame) toward the room's middle
+    for (const p of [...of(hall.wall), ...of(hall.corner), ...of(hall.sconce)]) {
+      const t = (p.rotDeg * Math.PI) / 180, inner = { x: Math.sin(t), d: -Math.cos(t) }; assert.ok(inner.x * -p.dx + inner.d * -p.dz > 0, `${id} ${p.node} faces into the room`);
+    }
+    assert.ok(mine.filter((p) => p.blockOnly).every((p) => p.solid === hall.block.r) && mine.some((p) => p.blockOnly), `${id} walls are solid`);
+    assert.ok(of(hall.sconce).length > 0, `${id} has torches`);
+  }
+});
+test('a closed room needs a theme hall and whole cells; a hall theme row is data', () => {
+  const closed = (id: string, size: { w: number; d: number }): unknown => ({ dungeons: [{ ...clone(sample), rooms: sample.rooms.map((r) => (r.id === id ? { ...r, size } : r)) }] });
+  assert.throws(() => loadDungeons(closed('crypt-nave', { w: 14, d: 16 }) as never), /whole number of 4 m cells/);
+  assert.throws(() => loadDungeons(closed('crypt-nave', { w: 8, d: 16 }) as never), /at least 3 a side/);
+  const bare = { themes: (THEMES.themes as DungeonTheme[]).map((t) => ({ ...t, enclosure: t.enclosure && { ...t.enclosure, hall: undefined } })) };
+  assert.throws(() => loadDungeons({ dungeons: [clone(sample)] }, bare as never), /has no enclosure.hall/);
+});
 test('a room roof is open or closed: the entrance stays open, the sample crypt closes its inner halls, a bad value is refused', () => {
   const roofs = Object.fromEntries(sample.rooms.map((r) => [r.id, r.roof]));
   assert.deepEqual(roofs, { 'crypt-door': 'open', 'crypt-nave': 'closed', 'crypt-vault': 'closed' });

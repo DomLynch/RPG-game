@@ -13,6 +13,7 @@ import LOOT from '../region1/loot-tables.json' with { type: 'json' };
 /** A room's roof (Dom 2026-10-18): `open` is the stone approach under the sky, `closed` an underground hall with ceiling, floor, joined walls and torchlight. The entrance room is always open; a room with no `roof` is open. */
 export type Roof = 'open' | 'closed';
 export const ROOFS: readonly Roof[] = ['open', 'closed'];
+const MIN_CELLS = 3;   // a closed room's fewest cells a side: a wall is left standing each side of a doorway (the wall's structure, not a tuning value)
 type At = { readonly u: number; readonly v: number; readonly facing: number };
 export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[]; readonly size?: { readonly w: number; readonly d: number }; readonly roof?: Roof };   // size (m): the room's walled footprint across (w) and deep (d), centred on its landmark; absent = the theme's default room
 export type DungeonCreature = { readonly id: string; readonly level: readonly [number, number]; readonly loot: string; readonly named?: boolean; readonly [k: string]: unknown };
@@ -31,7 +32,13 @@ export type Enclosure = {
   readonly doorway: { readonly node: string; readonly scale: number; readonly gap: number };
   readonly room: { readonly w: number; readonly d: number };
 };
-export type DungeonTheme = { readonly id: string; readonly look: Readonly<Record<string, unknown>>; readonly pieces: Readonly<Record<string, string>>; readonly enclosure?: Enclosure };
+/** How a theme builds a CLOSED room (`enclosure.hall`, Characters' halls kit): a grid of `cell` m cells, each with a floor and a ceiling piece, a wall piece on every perimeter edge (`corner` where two meet), `doorCells` cells left open
+ *  where a link leaves, a `sconce` on every `sconceEvery`th wall cell at `wallFace` m from the cell centre (the wall's inner face), and two invisible walk-blocking circles (`block.r` m, `block.along` m either side of the cell's middle) on each wall's outer edge. */
+export type Hall = {
+  readonly cell: number; readonly floor: string; readonly ceiling: string; readonly wall: string; readonly corner: string; readonly sconce: string; readonly sconceEvery: number; readonly wallFace: number; readonly doorCells: number;
+  readonly block: { readonly r: number; readonly along: number };
+};
+export type DungeonTheme = { readonly id: string; readonly look: Readonly<Record<string, unknown>>; readonly pieces: Readonly<Record<string, string>>; readonly enclosure?: Enclosure & { readonly hall?: Hall } };
 
 type ExitLite = { readonly id: string; readonly landmark: string };
 
@@ -56,6 +63,11 @@ function checkDungeon(d: Dungeon, theme: DungeonTheme, exits: readonly ExitLite[
     if (!Object.hasOwn(theme.pieces, r.piece)) fail(d, `room "${r.id}": piece "${r.piece}" is not in theme "${theme.id}"`);
     if (r.roof !== undefined && !ROOFS.includes(r.roof)) fail(d, `room "${r.id}": roof "${String(r.roof)}" is not one of ${ROOFS.join(', ')}`);
     if (r.roof === 'closed' && r.id === d.entrance.room) fail(d, `entrance room "${r.id}" must be open (the approach stays under the sky)`);
+    if (r.roof === 'closed') {
+      const enc = theme.enclosure;
+      if (!enc?.hall) fail(d, `room "${r.id}" is closed but theme "${theme.id}" has no enclosure.hall`);
+      else { const { nx, nd } = hallCells(r, enc); if (!Number.isInteger(nx) || !Number.isInteger(nd) || nx < MIN_CELLS || nd < MIN_CELLS) fail(d, `room "${r.id}": a closed room is a whole number of ${enc.hall.cell} m cells, at least ${MIN_CELLS} a side (it is ${nx} x ${nd})`); }
+    }
     for (const l of r.links) { const o = rooms.get(l); if (!o) fail(d, `room "${r.id}" links to "${l}", which is not a room`); else if (!o.links.includes(r.id)) fail(d, `room "${r.id}" links to "${l}" but "${l}" does not link back`); }
   }
   if (!rooms.has(d.entrance.room)) fail(d, `entrance room "${d.entrance.room}" is not a room`);
@@ -88,15 +100,55 @@ export function walkRoute(d: Dungeon): { readonly in: readonly string[]; readonl
   return { in: path, out: [...path].reverse() };
 }
 
-export type FixedPiece = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame: true };
+export type FixedPiece = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame: true; blockOnly?: true };   // blockOnly: nothing is drawn, only the walk-blocking circle (a hall's wall)
 const HALF = 0.5, MILLI = 1000, EPS = 1e-9, HALF_TURN_DEG = 180;   // one half; metres to millimetres (the pieces' offsets are rounded to a millimetre); a float guard on a ceiling; degrees in half a turn (exempt: scripts/as-data/allow/origins-zones.json)
 export const radians = (deg: number): number => (deg * Math.PI) / HALF_TURN_DEG, degrees = (rad: number): number => (rad * HALF_TURN_DEG) / Math.PI, r3 = (n: number): number => Math.round(n * MILLI) / MILLI;
+/** A closed room's cell counts (across, deep): its footprint over the hall's cell. A footprint that is not a whole number of cells, or under three cells a side (no wall left beside a doorway), is refused by checkDungeon. */
+export function hallCells(room: DungeonRoom, enc: Enclosure & { readonly hall?: Hall }): { readonly nx: number; readonly nd: number } {
+  const cell = enc.hall!.cell;
+  return { nx: (room.size?.w ?? enc.room.w) / cell, nd: (room.size?.d ?? enc.room.d) / cell };
+}
+type V2 = { readonly x: number; readonly d: number };
+/** One CLOSED room (theme `enclosure.hall`): a floor and a ceiling piece in every cell of its grid, a wall piece on every perimeter edge facing in (a corner piece where two walls meet), the doorway cells left open on the sides
+ *  that face a linked room, sconces along the walls, and the invisible circles that make the walls solid. Frames as encloseRooms: the zone's, offsets from the room's landmark. A piece's local +z (its inner face) points into the room:
+ *  rotDeg = atan2(-n.x, n.d) for a wall whose outward normal is n; a corner's second wall is its local -x. Pure. */
+function encloseHall(d: Dungeon, room: DungeonRoom, enc: Enclosure & { readonly hall?: Hall }, local: ReadonlyMap<string, V2>): FixedPiece[] {
+  const h = enc.hall!, { nx, nd } = hallCells(room, enc), w = nx * h.cell, depth = nd * h.cell, th = radians(room.at.facing), c = local.get(room.id)!, out: FixedPiece[] = [];
+  const fwd: V2 = { x: -Math.sin(th), d: Math.cos(th) }, rgt: V2 = { x: Math.cos(th), d: Math.sin(th) }, neg = (v: V2): V2 => ({ x: -v.x, d: -v.d });
+  const sides = [{ n: fwd, run: rgt, len: nx }, { n: neg(fwd), run: rgt, len: nx }, { n: rgt, run: fwd, len: nd }, { n: neg(rgt), run: fwd, len: nd }];
+  const onEdge = (s: number, i: number, j: number): boolean => (s === 0 ? j === nd - 1 : s === 1 ? j === 0 : s === 2 ? i === nx - 1 : i === 0), runIndex = (s: number, i: number, j: number): number => (s < 2 ? i : j);
+  const pos = (i: number, j: number): V2 => { const a = (i + HALF) * h.cell - w * HALF, b = (j + HALF) * h.cell - depth * HALF; return { x: rgt.x * a + fwd.x * b, d: rgt.d * a + fwd.d * b }; };
+  const doorSides = new Set<number>();
+  for (const l of room.links) { const to = local.get(l)!, dx = to.x - c.x, dd = to.d - c.d; let best = 0, bestDot = -Infinity; sides.forEach((s, i) => { const dot = s.n.x * dx + s.n.d * dd; if (dot > bestDot) { bestDot = dot; best = i; } }); doorSides.add(best); }
+  const isDoor = (s: number, idx: number): boolean => { const n = sides[s]!.len, k = (n - h.doorCells) % 2 === 0 ? h.doorCells : h.doorCells + 1, from = (n - k) * HALF; return doorSides.has(s) && idx >= from && idx < from + k; };
+  const put = (node: string, p: V2, ang: number, solid: number, blockOnly = false): void => {
+    if (Math.abs(c.x + p.x) > d.size.width * HALF || c.d + p.d < 0 || c.d + p.d > d.size.depth) throw new Error(`dungeon "${d.id}": room "${room.id}" has a ${node} at (${r3(c.x + p.x)}, ${r3(c.d + p.d)}) outside the ${d.size.width} x ${d.size.depth} zone: shrink the room or move it in`);
+    out.push({ node, at: room.id, dx: r3(p.x), dz: r3(p.d), rotDeg: r3(ang), scale: 1, solid, inZoneFrame: true, ...(blockOnly ? { blockOnly: true as const } : {}) });
+  };
+  const faceDeg = (n: V2): number => degrees(Math.atan2(-n.x, n.d));
+  const block = (p: V2, s: { n: V2; run: V2 }): void => { for (const sign of [-1, 1]) put(h.wall, { x: p.x + s.n.x * h.cell * HALF + s.run.x * h.block.along * sign, d: p.d + s.n.d * h.cell * HALF + s.run.d * h.block.along * sign }, 0, h.block.r, true); };
+  for (let j = 0; j < nd; j++) for (let i = 0; i < nx; i++) {
+    const p = pos(i, j); put(h.floor, p, room.at.facing, 0); put(h.ceiling, p, room.at.facing, 0);
+    const touched = [0, 1, 2, 3].filter((s) => onEdge(s, i, j));
+    if (touched.length === 2) {   // a corner: back wall plus its left (local -x) wall
+      const [a, b] = [sides[touched[0]!]!, sides[touched[1]!]!], thA = faceDeg(a.n), rad = radians(thA), leftIsB = -Math.cos(rad) * b.n.x - Math.sin(rad) * b.n.d > HALF;
+      put(h.corner, p, leftIsB ? thA : faceDeg(b.n), 0); block(p, a); block(p, b); continue;
+    }
+    for (const s of touched) {
+      const idx = runIndex(s, i, j); if (isDoor(s, idx)) continue;
+      const side = sides[s]!; put(h.wall, p, faceDeg(side.n), 0); block(p, side);
+      if (idx % h.sconceEvery === 0) put(h.sconce, { x: p.x + side.n.x * h.wallFace, d: p.d + side.n.d * h.wallFace }, faceDeg(side.n), 0);
+    }
+  }
+  return out;
+}
 /** The pieces that ENCLOSE every room of a dungeon (theme `enclosure`): four walls round the room's footprint, and a doorway set into the wall that faces each linked room (and, on the entrance room, the way out). Offsets are in the ZONE's frame
  *  (`inZoneFrame`: x across, d deep, relative to the room's landmark; rotDeg from the zone's +x axis), so they follow the zone's mount in the world. A room whose walls would leave the zone is refused. Pure. */
 export function encloseRooms(d: Dungeon, enc: Enclosure): readonly FixedPiece[] {
   const local = new Map(d.rooms.map((r) => [r.id, { x: (r.at.u - HALF) * d.size.width, d: r.at.v * d.size.depth }]));
   const out: FixedPiece[] = [];
   for (const room of d.rooms) {
+    if (room.roof === 'closed') { out.push(...encloseHall(d, room, enc, local)); continue; }
     const w = room.size?.w ?? enc.room.w, depth = room.size?.d ?? enc.room.d, th = radians(room.at.facing), c = local.get(room.id)!;
     const fwd = { x: -Math.sin(th), d: Math.cos(th) }, rgt = { x: Math.cos(th), d: Math.sin(th) };
     // side i: its outward normal, its direction of run and its length: +forward, -forward, +right, -right
