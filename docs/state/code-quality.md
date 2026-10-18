@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~15:2x. LIVE = IV2 02ed38e9a (verified on #3193); IW #3194 publishing
+- **Candidate PASS + label:** IW #3194 @e902ce68a (#3192 overlap fix + #3186 package warps), IX #3197 @b868d8548 (#3189 neutral door). **IY #3200 @fe0c9efd7** (#3190 + #3195): content OK, PASS on 8/8 shards (a watcher is running).
+- IV (#3191) was held: #3189 had a Lead PASS with no unit shards run (no auditor:ready); preview-no-server failed. Fixed via src/core/neutral.ts (option a). Lead's standing rule now: no PASS unless shard (1)–(8) SUCCESS at that head (memory feedback_pass_needs_unit_shards).
+- PASS posted: #3192 @88fc0c45e, #3186 @2ddc81611 (GAMEPLAY 1625 = trunk 1649 − 22 reclassified fixtures − 2 removed), #3189 @39187a4cc, #3190 @1deed8e51, World #3128 @c43fe6448 / #3135 @e369b0809 / #3138 @d11cf9e04 (after the NOT YET: half() helper and `/ 2 → * HALF` dodges, warp scale + nightSpawnMax + variantMultiplierMax made rows).
+- Open follow-up card: leaks() in preview-no-server reports first-chain-only (proposed session).
+- Gotcha (uuu): a red `quality` right after a label add is usually the cancelled twin's verdict; check that a newer quality SUCCESS exists at the same head.
+
 ## 2026-10-18 ~14:3x. LIVE = IT 2abdfd839 (verified on #3184: services, NRestarts 0, flags unset; prod has origins_account_is_test, migration 20261018084514, the new ground_take body)
 - **IU2 #3188 @32c5101f8: candidate PASS + label** (#3134 hit-freeze with Dom's yes, #3136/#3141/#3143, #3182, #3183, #3176+#3174). On publish: verify the services (no migration).
 - PASS posted: #3161 @ef85fc669 (V5 page half; I added auditor:ready so unit-ci ran), #3176 @e9cdf5c8f (carries #3174; close #3174 after), #3178 @d70fe9767 (biome presets; closure 20), #3186 @4782842c2 (package warps + server package check).
