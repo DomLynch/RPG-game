@@ -16,6 +16,8 @@
     { "id": "spellsOff", "value": 0 },
     { "id": "healOff", "value": 0 },
     { "id": "specialMeleeWindup", "value": 0 },
+    { "id": "specialMeleeReach", "value": 0 },
+    { "id": "specialMeleeSlack", "value": 0 },
     { "id": "specialReact", "value": 0 },
     { "id": "specialReactStagger", "value": 100 },
     { "id": "specialReactKnock", "value": 100 },

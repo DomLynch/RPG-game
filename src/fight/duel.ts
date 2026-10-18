@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } fro
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, specialReactFloorOf, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, bowSpecialOf, MISSILE_GUARD_POSTURE, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, specialReactFloorOf, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, meleeSpecialReach, SPECIAL_MELEE_REACH, SPECIAL_MELEE_SLACK, laneOf, bowSpecialOf, MISSILE_GUARD_POSTURE, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -351,9 +351,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const picked = action === 'skill2' ? me.spell2 : me.spell, root = picked && spellRoot(picked.id), gap = distance(me.body, foe.body);
       const bowRow = picked ? undefined : bowSpecialOf(me.weapon, action === 'skill2' ? me.skill2 : me.skill, gap, me.ammo);   // sandbox bowSpecial: beyond the missile gap a bow's special is arrows
       const heal = healOf(picked?.id);   // sandbox spellHeal: needs no range, windup from its row
-      const cue = root && !heal ? spellRangeCue(root, gap) : undefined;   // sandbox spellRange: a spell with a range row is cast only in its band (it replaces the special's reach); out of band nothing is spent and a cue is shown
+      const cue = root && !heal ? spellRangeCue(root, gap) : !picked && !bowRow && SPECIAL_MELEE_REACH && gap > meleeSpecialReach(R.special.reach) ? 'far' as const : undefined;   // sandbox spellRange: a spell with a range row is cast only in its band (it replaces the special's reach); out of band nothing is spent and a cue is shown
       if (cue) events.push({ tick, type: 'SpellRefused', actor: i, cue, ...(picked ? { spell: picked.id } : {}) });
-      else if (gap <= R.special.reach || heal || (root && spellRangeOf(root)) || bowRow) {
+      else if (gap <= meleeSpecialReach(R.special.reach) || heal || (root && spellRangeOf(root)) || bowRow) {
         const chosen = picked;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
         if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; if (!me.spell2) { next.skillHome = me.skill ?? null; next.skill = me.skill2!; } }   // a melee special in slot 2 casts no spell: the slot-1 spell is parked and the skill swapped
         if (bowRow) { next.bowSpecial = bowRow.skill; if (next.ammo !== undefined) next.ammo -= bowRow.arrows; } else delete next.bowSpecial;   // the arrows are spent at the commit, like a spell's cost
@@ -641,6 +641,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move, lane: 0 });
       continue;
     }
+    if (SPECIAL_MELEE_REACH && !A.spell && distance(A.body, D.body) * 100 > SPECIAL_MELEE_REACH + SPECIAL_MELEE_SLACK) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // sandbox specialMeleeReach: the foe stepped out of reach during the windup, the swing finds nothing
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
     const cone = CONE_ON && !A.spell ? coneOf(A.specialName) : undefined;
     if (cone) { A.breath = { k: 0, wait: 0, heading: aim(A.body, D.body) }; A.specialRecover = R.special.recovery + breathTicks(cone); breathed[i] = true; continue; }

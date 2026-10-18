@@ -99,6 +99,9 @@ export const BAND_OFF = num('bandOff', 'value');
 export const CAST_TELL_OFF = num('castTellOff', 'value');
 //   specialMeleeWindup (Dom 2026-10-17: "it takes like two seconds, it is not a long-distance spell, same speed as the stab, slash or heavy"): ticks a MELEE special (no spell) is committed before it lands; 0 = trunk, the special's own windup rule.
 export const SPECIAL_MELEE_WINDUP = num('specialMeleeWindup', 'value');
+//   specialMeleeReach / specialMeleeSlack (Dom 2026-10-18: "short-mid distance, a tad more than a normal attack, nothing crazy"): cm. A MELEE special (no spell, no bow) is pressed only inside the reach (else a "too far" cue, nothing spent) and still lands at release only inside reach + slack (the foe may step); 0 = trunk, the special's own reach and no release check.
+export const SPECIAL_MELEE_REACH = num('specialMeleeReach', 'value'), SPECIAL_MELEE_SLACK = num('specialMeleeSlack', 'value');
+export const meleeSpecialReach = (trunk: number): number => (SPECIAL_MELEE_REACH ? SPECIAL_MELEE_REACH / 100 : trunk);   // metres
 //   specialReact (Strategy 2026-10-17: the victim's stagger is a sim reaction from the move's row, not a canned animation): 1 = a landed melee special applies its move row's stagger, knockback and posture to the victim like a landed blow; 0 = trunk, damage only.
 export const SPECIAL_REACT = num('specialReact', 'value');
 //   specialReactStagger / specialReactKnock / specialReactPosture (percent of the move row's own stagger, knockback and posture; 100 = as the row says): how hard a landed melee special hits the victim. Dom 2026-10-17: "there's no reaction".
