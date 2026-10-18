@@ -73,11 +73,11 @@ function reliefMesh(rz: ReliefZone, material: THREE.MeshStandardMaterial): THREE
   const mesh = new THREE.Mesh(geo, material); mesh.receiveShadow = true; mesh.name = `frontier-relief:${z.zone}`; return mesh;
 }
 
-export function buildFrontier(scene: THREE.Scene, m: ZoneMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = []): THREE.Group {
+export function buildFrontier(scene: THREE.Scene, m: ZoneMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = [], dirt: () => THREE.MeshStandardMaterial = dirtMaterial): THREE.Group {   // dirt: the ground a look asks for (goblin-ground.ts); absent = the Frontier's own
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
-  if (relief.length) { const mat = dirtMaterial().clone(); mat.vertexColors = true; mat.color.set(0xffffff); for (const rz of relief) group.add(reliefMesh(rz, mat)); }
+  if (relief.length) { const mat = dirt(); mat.vertexColors = true; mat.color.set(0xffffff); for (const rz of relief) group.add(reliefMesh(rz, mat)); }
   meshPieces(group, b.pieces, m, 'frontier');
-  if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial() }); meshPieces(group, dress.pieces, m, 'frontier-dress'); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
+  if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirt() }); meshPieces(group, dress.pieces, m, 'frontier-dress'); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
   if (camps.length) { meshPieces(group, camps.flatMap((c) => c.pieces), m, 'camp'); for (const c of camps) group.add(campGlow(c)); }   // frontier-camp.ts: fire, seats, bedrolls, crates and the soft ground glow
   for (const f of b.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));

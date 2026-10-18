@@ -12,12 +12,13 @@ test('every camera rule equals the literal it replaced', () => {
   assert.equal(cameraRule('arenaClamp'), 11.5);   // the four camera clamps (lock, follow pose, finisher, tours) read this one row
   assert.deepEqual(['worldGapFloor', 'worldSideMax', 'worldSideBase', 'worldSideLow', 'worldSideRef'].map((id) => cameraRule(id as 'lowSide')), [0.8, 1.1, 0.7, 0.4, 4], 'the world fight camera side step');
   assert.deepEqual(['lockBackFloor', 'lockLiftFloor', 'lockGapFloor'].map((id) => cameraRule(id as 'lowSide')), [4.2, 3.2, 0.8], 'the lock camera floors');
-  assert.equal(CAMERA_RULES.length, 42);
+  assert.equal(cameraRule('fightBackDefault'), 1, 'the combat camera is unscaled unless a zone asks (camera.fightBack)');
+  assert.equal(CAMERA_RULES.length, 43);   // re-pinned 2026-10-16: +fightBackDefault (a zone's camera.fightBack scales the lock camera back and up)
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadCameraRules({ rules: rows.filter((r) => r.id !== 'shoulder') }), /"shoulder" rule by name/);
   assert.throws(() => loadCameraRules({ rules: rows.map((r) => (r.id === 'tourLap' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadCameraRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadCameraRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 43);
+  assert.equal(loadCameraRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 44);
 });
