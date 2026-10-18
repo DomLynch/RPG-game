@@ -804,12 +804,8 @@
   "60": 6,
   "3600": 3
  },
- "origins/shops/shop.ts": {
-  "100": 1,
-  "1_000_000": 1
- },
  "origins/shops/vendor-economy.ts": {
-  "100": 7,
+  "100": 4,
   "10_000": 1
  },
  "origins/talk/talk.ts": {
