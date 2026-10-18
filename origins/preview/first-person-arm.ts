@@ -47,7 +47,7 @@ export function createFirstPersonArm() {
         const blade = new THREE.Vector3(0, 1, 0).transformDirection(sword.matrixWorld), want = new THREE.Vector3(-pose.bladeRight, pose.bladeUp, pose.bladeForward).applyQuaternion(eq).normalize();
         aimBone(hand, blade, want);
       }
-      [root, mid, hand].forEach((b, i) => { b.quaternion.copy(saved[i]!).slerp(b.quaternion.clone(), w); });   // ease between the animation and the pose
+      [root, mid, hand].forEach((b, i) => { const ik = b.quaternion.clone(); b.quaternion.copy(saved[i]!).slerp(ik, w); });   // ease between the animation and the pose
       root.updateWorldMatrix(false, true);
     },
   };
