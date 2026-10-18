@@ -38,6 +38,18 @@ test('mana regenerates when idle after the delay: 6 a second', () => {
   for (let i = 0; i < 60; i++) d = stepDuel(d as never, [idle(), idle()]) as never;
   assert.ok(Math.abs(d.fighters[0]!.mana - 46) < 0.2, `about 46, got ${d.fighters[0]!.mana}`);
 });
+// Ported from the retired tests/sandbox-slot2.test.ts (BULK-CS): the sandbox swapped the second spell into slot 1 (spellHome / slot2Active); trunk's castSlot machinery replaced that, so the part that still matters is asserted here on it:
+// SPELL 2 is paid in mana at its own cost, stamina untouched, and the cast is the second spell (the slot swap and cooldowns are tests/spell-slots.test.ts, specials-slot-b.test.ts and sandbox-slot2-sparring.test.ts).
+test('SPELL 2 is paid in mana at its own cost (35 x 1.5 = 53), refused short of it, and casts the second spell through castSlot', () => {
+  const c = { ...caster(100), spell2: { id: 'two', cost: 35, school: 'fire', skill: 40 } as never, skillCooldown2: 0 };
+  assert.equal(legal({ ...c, mana: 52 } as never, 'skill2'), false, 'short of the mana');
+  assert.equal(legal({ ...c, mana: 53 } as never, 'skill2'), true, 'at the cost');
+  let d = duelOf(c as never); const stamina = d.fighters[0]!.stamina;
+  d = stepDuel(d as never, [{ ...idle(), action: 'skill2' }, idle()]) as never;
+  assert.equal(d.fighters[0]!.mana, 47, 'the second spell is paid in mana');
+  assert.equal(d.fighters[0]!.stamina, stamina, 'stamina untouched');
+  assert.equal((d.events as { type: string; spell?: string }[]).find((e) => e.type === 'SpecialStarted')?.spell, 'two', 'the cast is the second spell');
+});
 test('heavy armour slows the regen by the casting penalty, not the cost', () => {
   const plain = manaRegenPerTick(undefined), plate = manaRegenPerTick({ armour: 25 } as never);
   assert.ok(Math.abs(plain - 0.1) < 1e-9);
