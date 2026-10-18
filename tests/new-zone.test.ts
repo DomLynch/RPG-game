@@ -77,7 +77,7 @@ test('a bad row is refused BEFORE anything is written: a level key, unknown key,
   const scratch = scratchDir('rowbad'), d = `${scratch}/`;
   try {
     const ok = rowOf('2');
-    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /unknown key "level"/, 'the zone number IS its level: a row cannot set another');
+    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /"level" is only for an unlisted sandbox zone/, 'the zone number IS its level: only an unlisted zone row may set another (A0)');
     assert.throws(() => newZone({ n: 2, row: { ...ok, hp: 9 }, dir: d }), /unknown key "hp"/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, id: '3' }, dir: d }), /id 3 is not zone 2/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, name: '' }, dir: d }), /name is empty/);

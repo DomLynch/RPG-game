@@ -12,9 +12,10 @@ export type Placed = Point & { facing: number }; // facing in radians
 export type Mount = { x: number; z: number; heading: number };
 
 const RAD = Math.PI / 180;
+const HALF = 0.5, PER = 100;   // one half; the density unit: a row's counts are per 100 m2 (exempt: scripts/as-data/allow/origins-world.json)
 const at = (p: Params, l: { u: number; v: number; facing: number }): Placed => {
   const s = p.scale.metresPerUnit;
-  return { x: (l.u - 0.5) * p.zoneSize.width * s, d: l.v * p.zoneSize.depth * s, facing: l.facing * RAD };
+  return { x: (l.u - HALF) * p.zoneSize.width * s, d: l.v * p.zoneSize.depth * s, facing: l.facing * RAD };
 };
 
 export function place(p: Params, landmark: string): Result<Placed> {
@@ -30,7 +31,7 @@ export function toMetres(p: Params) {
     const from = landmarks[x.from]!, length = x.length * s;
     return [k, { width: x.width * s, length, from: { x: from.x, d: from.d }, to: { x: from.x - Math.sin(from.facing) * length, d: from.d + Math.cos(from.facing) * length } }];
   }));
-  const count = (per100: number) => Math.round((per100 * area) / 100);
+  const count = (per100: number) => Math.round((per100 * area) / PER);
   return { width, depth, area, landmarks, passages, counts: { npcs: count(p.density.npcs), props: count(p.density.props), creatures: count(p.density.creatures) } };
 }
 

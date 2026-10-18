@@ -793,3 +793,26 @@ creature donors, so any rebuild regressed the hold. `scripts/character/sync-hold
 channels into the donor in place (done for `source/backups/executioner-v5.glb` and `source/backups/veteran-v1.glb`; the Dwarf
 donor postdates the patch); rebuilds now reproduce trunk's hold keys exactly. A relit-mask source was tried and rejected: the
 mask sits recessed under the hood, so TRELLIS bakes it dark regardless of source lighting, and that bake shifted his skin red.
+
+## Special-move clips (combat-sandbox, 2026-10-17)
+
+`special-skullcrack.json`, `special-whirlwind.json`, `special-groundslam.json`, `special-lunge.json`: plain clip JSON beside `warrior.glb` (the
+Hamstrung pattern: adopted on demand by `characters.ts`, `warrior.glb` untouched), rows in `special-clips.json`, baked by
+`scripts/build-special-clips.mjs`. Only our baked output is committed; the Mixamo FBX never enters the repo (Adobe forbids redistributing the raw files).
+Dom's go-ahead: "yes get them on now" / "yes.." (Lead chat, 2026-10-18) and "yes do it.." (Combat chat, 2026-10-18).
+
+| clip | source | licence | downloaded |
+|---|---|---|---|
+| `Special_SkullCrack` | Adobe Mixamo "Standing Melee Attack Downward" (FBX binary, 30 fps, no skin, no keyframe reduction) | Mixamo terms (royalty-free in games; no raw redistribution, no ML training) | 2026-10-17 (Dom's Adobe ID) |
+| `Special_Whirlwind` | Adobe Mixamo "Standing Melee Attack 360 High" (same settings) | same | 2026-10-17 |
+| `Special_GroundSlam` | Adobe Mixamo "Standing Melee Run Jump Attack" (the file carries root motion; the horizontal hip travel, 3.4 m, is dropped) | same | 2026-10-17 |
+| `Special_BowQuick` / `Special_BowFan` / `Special_BowPin` / `Special_BowPower` | Adobe Mixamo "Standing Draw Arrow" (draw, from frame 22 / 16 / 8 / 0 to the held full draw at frame 31) followed by "Standing Aim Recoil" (the loose at frame 6, follow-through to 14 / 21 / 21 / 21), FBX binary, 30 fps, no skin, root motion stripped (`mixamo-seq` rows in `special-clips.json`; the "-2" downloads are exact duplicates and unused; "Standing React Small From Front 02" / "React Large" are victim reactions, unused so far) | same | 2026-10-18 |
+| `Special_Lunge` | Adobe Mixamo "Standing Torch Melee Attack Stab" (FBX binary, 30 fps, no skin; the front foot steps ~1 m, root motion stripped; 2026-10-18 replaces the UAL2 `Sword_Dash`, whose held-high sword read as a cast pose, not a thrust) | same | 2026-10-18 (Dom's Adobe ID) |
+
+Two-handed weapons (maul, warhammer, scythe, trident) play all four clips above: their rows list those weapons, and `characters.ts holdHaft` keeps the left hand on the haft (grip gap per weapon in `special-clips.json twoHanded`) because the clips swing a free off arm. Checked 2026-10-18 from the dumps: Mixamo "Run Jump Attack-3" and "360 High-2" are exact duplicates of the Run Jump Attack and 360 High already used (max joint difference 0.000 m); "360 Low" (two-handed raise, then a spin), "Combo Attack Ver. 3" and "Attack Backhand" are in the private drop folder and not used.
+
+Not used: Mixamo "Sword And Shield Attack" / "-2" (a looping slash, not a stab: the hand sweeps 0.7 m sideways; and a jump), "Sword And Shield
+Slash", "Mutant Swiping" (kept in the private drop folder for the Side Head-Smash and Reaping Sweep). Retarget: `scripts/character/mixamo_dump.py`
+(Blender, headless) writes each FBX's world bone poses to a private JSON; the build aims each of OUR 52 bones along the source bone's direction with the
+source twist, so the T-pose vs A-pose rest difference never matters; the UAL2 clip shares our skeleton and takes the build-warrior.mjs rest correction.
+No Mixamo clip was fed to any ML tool.

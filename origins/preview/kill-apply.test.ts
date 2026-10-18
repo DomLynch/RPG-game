@@ -34,3 +34,15 @@ test('a guest keeps no loot and is told to sign in; a signed-in page the server 
   assert.equal(killToast({ offline: 'timeout' }, name, 'Wolf'), `Wolf is down. ${NOT_SAVED}`);
   assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', true), `Wolf is down. ${SIGN_IN_TO_KEEP} Bounty done.`);
 });
+
+import { reportsKills } from './kill-apply.ts';
+import { allZoneIds, loadZone } from '../zones/loader.ts';
+test('an UNLISTED zone (the Test Zone) sends no kill_report and its kill line says nothing was saved; a listed zone reports as before', () => {
+  assert.equal(reportsKills(loadZone('1')), true, 'Zone 1 reports its kills');
+  const unlisted = allZoneIds().filter((id) => loadZone(id, true).unlisted);
+  assert.ok(unlisted.length > 0, 'the registry has an unlisted zone');
+  for (const id of unlisted) assert.equal(reportsKills(loadZone(id, true)), false, `zone ${id} is unlisted: no kill_report`);
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Wolf', false, null, true), 'Wolf is down. Not saved in the Test Zone.');
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Wolf', true, null, true), 'Wolf is down. Not saved in the Test Zone. Bounty done.');
+  assert.equal(killToast(withLoot, name, 'Wolf', false, null, false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'sandbox false changes nothing for a listed zone');
+});

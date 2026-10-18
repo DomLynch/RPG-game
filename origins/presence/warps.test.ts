@@ -8,7 +8,7 @@ import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
 import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
-import { exitWarps, loadWarps, warpIds, warpPlace } from './warps.ts';
+import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } from './warps.ts';
 import { openExits } from '../zones/exits.ts';
 const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
@@ -78,4 +78,16 @@ test('the server: a warp moves the player to the landmark; a forged id, a plain 
     const bad = await joinBot(p.port(), 'c'); bad.warp('../../etc'); await until(() => bad.closeCode() !== null); assert.equal(bad.closeCode(), 1003);
     const coords = await joinBot(p.port(), 'd'); coords.raw(JSON.stringify({ t: 'warp', x: 0, z: 0 })); await until(() => coords.closeCode() !== null); assert.equal(coords.closeCode(), 1003);
   } finally { await p.close(); }
+});
+
+// Zone package gap 2: a zone row may carry its own `warps` (the rows of warp-landmarks.json), merged after the table's like a package's exits.
+test('a package\'s warps are merged after the table\'s: open packages only, a repeated id or a place outside every zone row refuses to load', () => {
+  const pkg = { '1': { warps: [{ id: 'pkg-camp', x: 0, z: 3, unit: 'm' }] }, '90': { warps: [{ id: 'sandbox-spot', x: 9e5, z: 9e5, unit: 'm' }] } };
+  assert.deepEqual(packageWarps(pkg).map((r) => r.id), ['pkg-camp'], 'zone 90 is unlisted: its warps are not read on a normal build');
+  assert.deepEqual(packageWarps(pkg, true).map((r) => r.id), ['pkg-camp', 'sandbox-spot'], 'with the opt-in both are');
+  assert.deepEqual([...loadWarps({ landmarks: [...DEFS.landmarks, ...packageWarps(pkg)] }).keys()].sort(), [...DEFS.landmarks.map((r) => r.id), 'pkg-camp'].sort());
+  assert.throws(() => loadWarps({ landmarks: [...DEFS.landmarks, { ...DEFS.landmarks[0]! }] }), /duplicate|twice|unique/i, 'a package cannot reuse a table id');
+  assert.throws(() => loadWarps({ landmarks: [...packageWarps(pkg, true)] }), /not inside any zone row/);
+  assert.equal(placeProblem(0, 3), null); assert.equal(placeProblem(9e5, 9e5), 'not inside any zone row');
+  assert.deepEqual(packageWarps(), [], 'no shipped zone row carries warps yet');
 });
