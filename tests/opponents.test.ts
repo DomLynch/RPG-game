@@ -37,16 +37,16 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
 
 // The goblin (opponent 4, character lane): his data entry and the knife slot are in; his fight identity (feints, no guard, darting) waits on the
 // AI knobs the combat lane owns (artifacts/goblin/REQUESTS.md), so this pins the seam only — no fairness battery is asserted for him yet.
-test('the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 120 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
+test('the goblin is set up from his data: the knife (live, slice X), 0.975× scale (RV77: 0.78 × the 1.25 he is drawn at), 120 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
   const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
-  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 120); assert.equal(goblin.maxHealth, 120); assert.equal(goblin.poise, 0);
+  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .975); assert.equal(goblin.reachScale, 1.25); assert.equal(goblin.health, 120); assert.equal(goblin.maxHealth, 120); assert.equal(goblin.poise, 0);
   assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePathsByRig.goblin.knife, bladePathsByRig.hero.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
-  // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
-  bladePathsByRig.hero.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
+  // The capsule follows his height: a blade level at 1.70 m passes over the goblin; at 1.41 m (1.45 × 0.975) it finds his head.
+  bladePathsByRig.hero.probe = { flat: [[-.5, 1.7, 0, .5, 1.7, 0], [-.5, 1.7, 0, .5, 1.7, 0]], low: [[-.5, 1.41, 0, .5, 1.41, 0], [-.5, 1.41, 0, .5, 1.41, 0]] };
   const o: State = { x: 0, z: 0, heading: 0, distance: 0 };
-  try { assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o), 'torso'); }
+  try { assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); }
   finally { delete bladePathsByRig.hero.probe; }
   // 9000 ticks (150 s), not 7200: the reach fix (2026-09-21) holds a guardless Goblin a hand inside a read poker's/kicker's reach rather
   // than on its edge, so a couple of seeds now resolve slightly later — genuinely, not stalled (verified past 7200).
@@ -72,10 +72,23 @@ const patient = (d: Duel): Intent => { const w = d.fighters[1], p = d.fighters[0
   if (w.phase === 'attack' && w.move && !w.landed && w.age >= movesOf(w)[w.move].windup + movesOf(w)[w.move].active && gap(d) <= 1.7) return act('light');
   if (w.exhausted && gap(d) <= 1.7) return act('heavy'); return offTheWall(d) ?? idle(); };
 
-test('the goblin is set up as the brief asks: knobs on every level (feints, guard 0, disengage, circle, step, interrupt, kick, dash), regen 1.5 and pace 1.2, the knife live', () => {
+// RV77 (Dom 2026-10-18: goblins are 1.25 scale everywhere): ONE number, the catalogue row's render.scale, drives how big he is drawn; the sim body follows it through two archetype rows that this test holds to it, so a retune of the
+// draw scale cannot leave the capsule and the reach behind (render.scale moves, the sim rows move with it and RECORD_VERSION with them).
+test('the goblin\'s sim body follows his draw scale: reachScale is render.scale, and the capsule is the rig ratio (0.78) times it', async () => {
+  const rows = (await import('../src/fight/catalogue-data.ts')).default as readonly { id: string; render: { scale: number } }[];
+  const drawn = rows.find((r) => r.id === 'goblin')!.render.scale, G = OPPONENTS.goblin;
+  assert.equal(drawn, 1.25); assert.equal(G.reachScale, drawn, 'the reach follows the draw scale');
+  assert.ok(Math.abs(G.scale - .78 * drawn) < 1e-9, 'the capsule is the built rig ratio (0.78) times the draw scale');
+  for (const id of Object.keys(OPPONENTS)) if (id !== 'goblin') assert.equal(OPPONENTS[id as keyof typeof OPPONENTS].reachScale, undefined, `${id} carries no reach scale: only the goblin is drawn bigger than its rig's baked size`);
+  const k = G.reachScale!, base = WEAPONS.knife.moves, mine = movesOf({ weapon: 'knife', reachScale: k });
+  assert.equal(mine.light_right.reach, base.light_right.reach * k, 'a move reaches that much further');
+  assert.equal(movesOf({ weapon: 'knife' }), base, 'no reach scale hands back the weapon\'s own table untouched');
+});
+
+test('the goblin is set up as the brief asks: knobs on every level (feints, guard 0, disengage, circle, step, interrupt, kick, dash), regen 1.5 and pace 0.8 (RV77: the 1.25 body paces slower, which holds the L1 first-timer bar at the bigger reach), the knife live', () => {
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.guard, 0, `${level}: never guards`); assert.equal(p.parry, 0); for (const k of ['feint', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'] as const) assert.ok((p[k] ?? 0) > 0, `${level}: ${k}`); }
-  assert.equal(G.regen, 1.5); assert.equal(G.speed, 1.2); assert.equal(G.weapon, 'knife'); assert.equal(WEAPONS.knife.placeholder, undefined);
-  const [, him] = initialDuel(G).fighters; assert.equal(him.regen, 1.5); assert.equal(him.speed, 1.2);
+  assert.equal(G.regen, 1.5); assert.equal(G.speed, .8); assert.equal(G.weapon, 'knife'); assert.equal(WEAPONS.knife.placeholder, undefined);
+  const [, him] = initialDuel(G).fighters; assert.equal(him.regen, 1.5); assert.equal(him.speed, .8);
 });
 
 test('fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched [slow]', () => {
