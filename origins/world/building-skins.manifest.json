@@ -1,0 +1,16 @@
+{
+  "tables": [
+    { "table": "building-skin", "file": "building-skins.json", "at": "skins", "key": "id", "required": { "label": "string" } },
+    { "table": "building-skin-model", "file": "building-skins.json", "at": "models", "key": "id", "required": { "url": "string", "nodes": "array" } },
+    { "table": "building-skin-fit", "file": "building-skins.json", "at": "fits", "key": "id", "required": { "skin": "string", "kind": "string", "model": "string", "node": "string", "w": "number", "d": "number", "min": "number", "max": "number" }, "refs": { "skin": "building-skin", "model": "building-skin-model" } },
+    {
+      "table": "building-skin-part",
+      "file": "building-skins.json",
+      "at": "parts",
+      "key": "id",
+      "required": { "skin": "string", "kind": "string", "shape": "string", "size": "array", "at": "array", "tint": "string", "yaw": "number" },
+      "optional": { "layer": "string" },
+      "refs": { "skin": "building-skin" }
+    }
+  ]
+}
