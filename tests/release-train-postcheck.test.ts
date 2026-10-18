@@ -96,7 +96,7 @@ test('postcheck: a TERM (what a Mac shutdown sends first) writes deploy_hold "in
 test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the CI wait and the stamp promote only on that path, and prints the line the publisher reads', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
   assert.match(deploy, /if \[\[ "\$\{POST_PUBLISH_DETACH:-0\}" == 1 && -n "\$pp_open" \]\]; then/);
-  assert.match(deploy, /echo "post-publish CI tail: rows \$pp_open for \$revision \(detached/);
+  assert.match(deploy, /echo "post-publish CI tail: rows \$detach_rows for \$revision \(detached/);
   assert.equal((deploy.match(/post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/g) ?? []).length, 2, 'the default path (flag off) and the nothing-to-detach path still wait for CI');
   // The Mac group (which can roll back) runs BEFORE the branch, inside the hold.
   assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('POST_PUBLISH_DETACH'));
