@@ -26,7 +26,7 @@ const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2
 const slot2Default = (skill: string | null): string | undefined => { const rows = (RULES as unknown as { specialPick?: { id: string; slot2Default?: number; slot2Alt?: number }[] }).specialPick ?? [], first = rows.find((r) => r.slot2Default)?.id; return first && first === skill ? rows.find((r) => r.slot2Alt)?.id ?? first : first; };
 // Beta (Dom 2026-10-17): the two slots are SPECIAL 1 / SPECIAL 2, filled from the existing class skills (skill-defs rows, their own clips). The `spellsOff` row hides the spell pickers and drops every spell pick from the link except the heal rows (the utility pick); ?spells=1 brings the spells back for the look work.
 const spellsOff = (): boolean => (RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'spellsOff' && r.value) && new URLSearchParams(location.search).get('spells') !== '1';
-const healIds = (): string[] => ((RULES as unknown as { spellHeal?: { id: string }[] }).spellHeal ?? []).map((r) => r.id);
+const healIds = (): string[] => (RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'healOff' && r.value) ? [] : ((RULES as unknown as { spellHeal?: { id: string }[] }).spellHeal ?? []).map((r) => r.id);   // healOff row (Dom 2026-10-18, alpha/beta: only the four specials): no heal pick, and a heal in the link is dropped like any spell
 {
   const u = new URL(location.href); let saved: Record<string, string> = {}; let changed = false;
   try { saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; } catch { /* none */ }

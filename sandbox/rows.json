@@ -84,7 +84,7 @@
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18},
 {"id":"bandOff","value":400},
-{"id":"castTellOff","value":1},{"id":"spellsOff","value":1},{"id":"specialMeleeWindup","value":32},{"id":"specialReact","value":1},{"id":"specialReactStagger","value":160},{"id":"specialReactKnock","value":450},{"id":"specialReactPosture","value":150},
+{"id":"castTellOff","value":1},{"id":"healOff","value":1},{"id":"spellsOff","value":1},{"id":"specialMeleeWindup","value":32},{"id":"specialReact","value":1},{"id":"specialReactStagger","value":160},{"id":"specialReactKnock","value":450},{"id":"specialReactPosture","value":150},
 {"id":"spellBuffer","value":350},
 {"id":"spellReach","value":2500},
 {"id":"spellSkillFloor","value":100},

@@ -14,6 +14,7 @@
     { "id": "bandOff", "value": 0 },
     { "id": "castTellOff", "value": 0 },
     { "id": "spellsOff", "value": 0 },
+    { "id": "healOff", "value": 0 },
     { "id": "specialMeleeWindup", "value": 0 },
     { "id": "specialReact", "value": 0 },
     { "id": "specialReactStagger", "value": 100 },
