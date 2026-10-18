@@ -17,6 +17,7 @@ import { createPresence, PROTOCOL_V2 } from '../presence/server.ts';
 import { encodeUp } from '../presence/wire.ts';
 import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, defaultZoneSpawns, zoneSpawns, type Spawn } from './world-spawns.ts';
 import { createVerdictTally } from './world-verify.ts';
+import { allZoneIds, loadZone } from '../zones/loader.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -106,6 +107,23 @@ test('engage: the server names the kind, level and HP; unknown instances are ref
   await assert.rejects(async () => ops.engage!(ctx(stub({}).db), { character: PC, instance: 'nowhere-1' }), BadRequest);
   await assert.rejects(async () => ops.engage!(ctx(stub({ origins_spawn_engage: { refused: 'dead', respawnAt: 'R' } }).db), { character: PC, instance: wolf.spec.id }), status(409, 'dead'));
   await assert.rejects(async () => ops.engage!(ctx(stub({ origins_spawn_engage: { refused: 'too-many' } }).db), { character: PC, instance: wolf.spec.id }), status(429, 'too-many'));
+});
+
+// The server half of "kill_report is silent in an unlisted zone" (#3204): the page sends none, and a crafted client gets nothing either. The writer sees only LISTED zones (zoneOf: listedZoneIds), a token exists only
+// after engage (the one place a spawn is priced), and a kill_report with a token the writer never issued is a 409 that writes nothing.
+test('an UNLISTED zone cannot be engaged, and a crafted kill_report pays and writes nothing', async () => {
+  const ops = worldSpawnOps({ content, spawns }), unlisted = allZoneIds().filter((id) => loadZone(id, true).unlisted);
+  assert.ok(unlisted.length > 0, 'the registry has an unlisted zone');
+  for (const zoneId of unlisted) {
+    const s = stub({});
+    await assert.rejects(async () => ops.engage!(ctx(s.db), { character: PC, instance: `z${zoneId}:wolf-1`, zoneId }), BadRequest, `zone ${zoneId}: engage is refused`);
+    await assert.rejects(async () => ops.spawn_state!(ctx(s.db), { zoneId }), BadRequest, `zone ${zoneId}: no spawn list`);
+    await assert.rejects(async () => ops.engage!(ctx(s.db), { character: PC, instance: wolf.spec.id, zoneId }), BadRequest, 'a listed instance under an unlisted zoneId is refused too');
+    assert.deepEqual(s.kills, [], `zone ${zoneId}: nothing written`);
+  }
+  const forged = stub({});   // a kill_report naming an unlisted zone with a token engage never issued
+  await assert.rejects(async () => ops.kill_report!(ctx(forged.db), { token: TOKEN, hits: 50, zoneId: unlisted[0] }), status(409, 'used'));
+  assert.deepEqual(forged.kills, [], 'nothing paid, nothing written');
 });
 
 test('kill_report: too few hits is refused before anything is written; a valid report sends the TTK floor, the respawn and ONE batch (event + rewards)', async () => {
