@@ -279,6 +279,40 @@ test('publisher (Lead cap): with MAX_PENDING_TAILS=2 a third publish waits while
   } finally { rmSync(fromEnvFile.dir, { recursive: true, force: true }); }
 });
 
+test('publisher (window): the first release of a window owns the one tail (marker carries window=N); a release inside the open window JOINS it (member line, no tail, no marker of its own); an expired window opens a new one', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const setup = (existing: string | null) => {
+    const p = publisher();
+    const deploy = join(p.dir, 'bin', 'deploy-tail'), postcheck = join(p.dir, 'bin', 'postcheck');
+    writeFileSync(deploy, `#!/usr/bin/env bash\nprintf 'Published %s\\npost-publish CI tail: rows 9,46,3 for %s (detached)\\n' "$CAND" "$CAND"\n`); chmodSync(deploy, 0o755);
+    writeFileSync(postcheck, `#!/usr/bin/env bash\necho "tail $1 $2" >> "${p.dir}/postcheck.out"\n`); chmodSync(postcheck, 0o755);
+    if (existing !== null) writeFileSync(join(p.state, 'post-publish-pending-aaaaaaaa'), existing);
+    const run = () => p.run({ RELEASE_TRAIN_DEPLOY: deploy, RELEASE_TRAIN_POSTCHECK: postcheck, CAND: p.cand, TAIL_MIN_INTERVAL_S: '720', MAX_PENDING_TAILS: '99' });
+    const tailRan = () => { for (let i = 0; i < 20 && !existsSync(join(p.dir, 'postcheck.out')); i++) spawnSync('sleep', ['0.1']); return existsSync(join(p.dir, 'postcheck.out')); };
+    return { p, run, tailRan };
+  };
+  const first = setup(null);
+  try {
+    const r = first.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(readFileSync(join(first.p.state, `post-publish-pending-${first.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/);
+    assert.ok(first.tailRan(), 'the opener starts the tail');
+  } finally { rmSync(first.p.dir, { recursive: true, force: true }); }
+  const open = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    const r = open.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /joined the open window of a{40} \(rows 9,46,3\): no tail or CI run of its own/);
+    assert.match(readFileSync(join(open.p.state, 'post-publish-pending-aaaaaaaa'), 'utf8'), new RegExp(`\nmember=${open.p.cand} 9,46,3\n`));
+    assert.equal(existsSync(join(open.p.state, `post-publish-pending-${open.p.cand.slice(0, 8)}`)), false, 'a joiner has no marker of its own');
+    assert.equal(open.tailRan(), false, 'and starts no tail');
+  } finally { rmSync(open.p.dir, { recursive: true, force: true }); }
+  const expired = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 1000}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    expired.run();
+    assert.match(readFileSync(join(expired.p.state, `post-publish-pending-${expired.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the old window closed: this release opens a new one');
+    assert.ok(expired.tailRan());
+  } finally { rmSync(expired.p.dir, { recursive: true, force: true }); }
+});
+
 test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {
   const p = publisher();
   try {

@@ -102,6 +102,35 @@ test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the 
   assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('POST_PUBLISH_DETACH'));
 });
 
+test('postcheck (window): at the window close it dispatches ONE CI run for the NEWEST member, with the union of the rows, and names every member on green and on red', () => {
+  for (const trusted of ['3,9,10,46', '3,9']) {
+    const state = mkdtempSync(join(tmpdir(), 'postcheck-window-'));
+    const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40);
+    const marker = join(state, `post-publish-pending-${A.slice(0, 8)}`);
+    const now = Math.floor(Date.now() / 1000);
+    writeFileSync(marker, `rev=${A}\nrows=3,9\nat=${now - 5}\nwindow=1\nmember=${B} 9,10\nmember=${C} 3,46\n`);
+    const trust = join(state, 'trust.sh'); writeFileSync(trust, `#!/bin/sh\necho "$1" > "${state}/trusted-for"\necho "${trusted}"\n`, { mode: 0o755 });
+    const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, `#!/bin/sh\necho "$@" >> "${state}/dispatched"\n`, { mode: 0o755 });
+    const comments = join(state, 'comments.txt'); const commenter = join(state, 'comment.sh'); writeFileSync(commenter, `#!/bin/sh\necho "$1" >> "${comments}"\n`, { mode: 0o755 });
+    const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', A, '3,9', '3175'], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POSTCHECK_COMMENT: commenter, POST_PUBLISH_CI_SETTLE_S: '0', POSTCHECK_WINDOW_TICK_S: '0.1', RELEASE_TRAIN_NOTIFY: '' } });
+    assert.equal(readFileSync(join(state, 'dispatched'), 'utf8').trim().split('\n').length, 1, 'exactly ONE dispatch');
+    assert.match(readFileSync(join(state, 'dispatched'), 'utf8'), new RegExp(C), 'against the newest member');
+    assert.equal(readFileSync(join(state, 'trusted-for'), 'utf8').trim(), C, 'and the trust lookup is for it too');
+    assert.match(r.stdout, new RegExp(`members ${A}, ${B}, ${C}`));
+    assert.match(readFileSync(comments, 'utf8'), new RegExp(`window members: ${A} ${B} ${C}`), 'every member named');
+    if (trusted === '3,9,10,46') { assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, /rows 3,9,10,46 for c{40}: all CI-trusted/, 'rows are the union'); assert.equal(existsSync(join(state, 'deploy_hold')), false); }
+    else { assert.equal(r.status, 1); assert.match(readFileSync(join(state, 'deploy_hold'), 'utf8'), new RegExp(`rows 10,46 not green on CI for the tree.*window members: ${A} ${B} ${C}`)); }
+    assert.equal(existsSync(marker), false, 'decided either way: marker cleared');
+    rmSync(state, { recursive: true, force: true });
+  }
+});
+
+test('deploy.sh (window): with detach AND a TAIL_MIN_INTERVAL_S window the release dispatches no CI run of its own (the window tail does)', () => {
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(deploy, /POST_PUBLISH_DETACH:-0\}" == 1 && "\$\{TAIL_MIN_INTERVAL_S:-0\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]; then export POST_PUBLISH_DISPATCH=true; fi/);
+  assert.ok(deploy.indexOf('export POST_PUBLISH_DISPATCH=true') < deploy.indexOf('pp_open=$(post_publish_ci_start'), 'set before the CI step looks');
+});
+
 test('deploy.sh (IT fix): rows CI never proves (POST_PUBLISH_MAC_ROWS, default 9) run on the Mac inside the hold, only the rest is detached; nothing left to detach takes the old path', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
   assert.match(deploy, /detach_rows=\$\(_pp_left "\$pp_open" "\$\{POST_PUBLISH_MAC_ROWS:-9\}"\)/);

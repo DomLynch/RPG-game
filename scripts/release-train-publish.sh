@@ -165,9 +165,29 @@ grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Publishe
 # released; the tail runs from THIS checkout, detached, and re-holds the next publish only if CI does not prove the rows (scripts/release-train-postcheck.sh).
 tail_rows=$(sed -n -E "s/^post-publish CI tail: rows ([0-9,]+) for $rev .*/\1/p" "$logf" | head -n 1)
 marker="$state/post-publish-pending-${rev:0:8}"
-[ -z "$tail_rows" ] || printf 'rev=%s\nrows=%s\nat=%s\n' "$rev" "$tail_rows" "$(date +%s)" > "$marker"
+# COALESCED WINDOW (Lead + Strategy 2026-10-18; TAIL_MIN_INTERVAL_S in release-train.env, 0 or absent = one tail per release): a release published inside an open window JOINS it (a member line in the
+# window's marker, no tail of its own, no CI run of its own); the first release of a window owns the one tail, which runs ONE CI run against the newest member when the window closes.
+win=${TAIL_MIN_INTERVAL_S:-$(sed -n 's/^export TAIL_MIN_INTERVAL_S=\([0-9][0-9]*\).*/\1/p' "${RELEASE_TRAIN_ENV:-$state/release-train.env}" 2>/dev/null | head -n 1)}
+case "${win:-}" in ''|*[!0-9]*) win=0;; esac
+joined=""
+if [ -n "$tail_rows" ] && [ "$win" -gt 0 ]; then
+  for m in "$state"/post-publish-pending-*; do
+    [ -e "$m" ] || continue
+    case "$m" in *.told|*.new) continue;; esac
+    mw=$(sed -n 's/^window=//p' "$m" | head -n 1); mat=$(sed -n 's/^at=//p' "$m" | head -n 1); mp=$(sed -n 's/^pid=//p' "$m" | head -n 1)
+    [ "${mw:-0}" -gt 0 ] 2>/dev/null && [ $(( $(date +%s) - ${mat:-0} )) -lt "$mw" ] || continue
+    if [ -n "$mp" ] && ! kill -0 "$mp" 2>/dev/null; then continue; fi
+    printf 'member=%s %s\n' "$rev" "$tail_rows" >> "$m"; joined=$m
+    log "post-publish CI tail for $rev joined the open window of $(sed -n 's/^rev=//p' "$m" | head -n 1) (rows $tail_rows): no tail or CI run of its own"
+    break
+  done
+fi
+if [ -z "$joined" ] && [ -n "$tail_rows" ]; then
+  printf 'rev=%s\nrows=%s\nat=%s\n' "$rev" "$tail_rows" "$(date +%s)" > "$marker"
+  [ "$win" -le 0 ] || printf 'window=%s\n' "$win" >> "$marker"
+fi
 rm -f "$hold" "$hold.stale-told"
-if [ -n "$tail_rows" ]; then
+if [ -z "$joined" ] && [ -n "$tail_rows" ]; then
   log "post-publish CI tail for $rev: rows $tail_rows (postcheck log $state/release-train-postcheck-${rev:0:8}.log)"
   # Its own session (perl setsid; macOS has no setsid binary): the first detached cycle (IT, 2026-10-18) lost its tail to a SIGTERM when launchd ended the tick and killed the job's process group.
   ( nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"} "$rev" "$tail_rows" "$pr" > "$state/release-train-postcheck-${rev:0:8}.log" 2>&1 & )
