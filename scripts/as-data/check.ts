@@ -151,6 +151,7 @@ try {
   // a compare, a + / - or a % is never excluded: that is where a tuning hides.
   const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
   const TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
+  const PERCENT_SCALE = new Set(['100', '10_000', '10000']), ROLL_LINE = /\b(?:chance|probability|roll|draw|rand\w*|permille)\b/i;
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -173,6 +174,9 @@ try {
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
+    // The one named scale class (Strategy 2026-10-18): 100 or 10_000 as the UNIT of a roll (`draw() * 100 < chance`, a percent chance read against a draw), only beside * or / on a line that names a roll. A compare (`< 100`),
+    // a + / - (`100 - tax`) and any other number (a 250 beside a roll) stay counted: that is where a tuning hides, and plain price or tax maths is not a roll.
+    if (beside && PERCENT_SCALE.has(text) && ROLL_LINE.test(line)) return 'percent/permille scale on a roll (100, 10_000 beside * or / on a chance/roll/draw line)';
     return null;
   };
   const excludedInline: Record<string, number> = {};
