@@ -8,7 +8,8 @@ export class BadRequest extends Error {}
 export class Refused extends Error {
   status: 409 | 422 | 429 | 501 | 503;   // 409/429 with a code: the world spawn ops' 'dead', 'used', 'too-many', 'cap' (world-spawns.ts)
   code?: string;
-  constructor(status: 409 | 422 | 429 | 501 | 503, message: string, code?: string) { super(message); this.status = status; if (code !== undefined) this.code = code; }
+  detail?: Record<string, unknown>;   // extra body fields next to `code` (409 'used': the V5 `kind` and the paid `receipt`); never overrides ok, error or code
+  constructor(status: 409 | 422 | 429 | 501 | 503, message: string, code?: string, detail?: Record<string, unknown>) { super(message); this.status = status; if (code !== undefined) this.code = code; if (detail !== undefined) this.detail = detail; }
 }
 
 // The same op id already stands for a different request (Strategy, 2026-10-06): never applied, answered 409.

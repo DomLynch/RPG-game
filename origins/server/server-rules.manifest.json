@@ -125,6 +125,23 @@
       }
     },
     {
+      "table": "recordLimits",
+      "file": "server-rules.json",
+      "at": "recordLimits",
+      "key": "id",
+      "required": {
+        "maxTicks": "integer",
+        "minRecordChars": "integer",
+        "maxRecordChars": "integer",
+        "seedBound": "integer",
+        "reasonChars": "integer",
+        "psqlErrorChars": "integer",
+        "psqlStderrKeepChars": "integer",
+        "nonceBytes": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "strictFlip",
       "file": "server-rules.json",
       "at": "strictFlip",
