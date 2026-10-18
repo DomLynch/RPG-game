@@ -1,5 +1,11 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~12:4x (after /clear). LIVE still IP 7a03aaf40 (a deploy is in flight; IQ #3175 @ae51499ac is green and candidate-PASSed)
+- **Posted:** `Auditor: PASS @53e8bc240` on #3171 (the delta reads OK: the lookup only runs when mints = 0, it fails closed, and is_test coalesces so it can't go null) and `Auditor: PASS @bc1d48a4e` on #3177.
+- **IR #3179 @204b557c4** (release-IQ + #3123 @5b6e4ecf4, #3167 @f744d0f8f, #3172 @13ea70b4c): the content reads OK, and each merge's diff equals its PR's own diff (sorted ± line hash). **Candidate PASS + label on green**; a watcher is on it.
+- **Rebased onto trunk:** #3155 → d071894ee (4 files, the #3151 merge dropped) and #3168 → c9c82db6a (same 6 files). Worktree ~/Developer/frankendom-cq-3155 (branches cq/3155-rebase, cq/3168-rebase); never push from frankendom-cq-audit.
+- #3173 and #3176 still wait on their bases (#3157 and #3174 are open). After IQ publishes, verify the services as in the entry below.
+
 ## 2026-10-18 ~13:0x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IP 7a03aaf40 (carries IO; verified on #3169: all 3 services, NRestarts 0, WSV 54, V5 migration 20261018081137 applied in prod, flags OFF; readout line 1 = 0 kills)
 
 **Now, in order.**
