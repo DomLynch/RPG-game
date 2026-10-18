@@ -21,7 +21,8 @@ export async function loadSkinModels(models: readonly ModelPlacement[], groundAt
   await Promise.all([...placementsByFile(models)].map(async ([url, list]) => {
     try {
       const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`/${url}`);   // public/world is served from the site root, like the kit (frontier-kit-view.ts KIT_URL), not under the preview's base
-      group.add(kitGroup(gltf.scene, { placements: list as unknown as KitPlacement[], landmarks: [] }, groundAt));
+      gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.position.set(0, 0, 0); });   // the kit files lay their nodes in a row to look at (x offsets): a placement stands the node where the plan says, from its own origin
+      group.add(kitGroup(gltf.scene,{ placements: list as unknown as KitPlacement[], landmarks: [] }, groundAt));
     } catch { /* this file only: its buildings stay undrawn */ }
   }));
   return group;
