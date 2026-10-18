@@ -69,9 +69,9 @@
       "size": { "width": 60, "depth": 40 },
       "entrance": { "room": "crypt-door", "exit": "crypt-door" },
       "rooms": [
-        { "id": "crypt-door", "at": { "u": 0.2, "v": 0.5, "facing": 90 }, "piece": "door", "size": { "w": 12, "d": 10 }, "links": ["crypt-nave"] },
-        { "id": "crypt-nave", "at": { "u": 0.5, "v": 0.5, "facing": 0 }, "piece": "nave", "size": { "w": 14, "d": 14 }, "links": ["crypt-door", "crypt-vault"] },
-        { "id": "crypt-vault", "at": { "u": 0.85, "v": 0.5, "facing": 180 }, "piece": "vault", "size": { "w": 12, "d": 10 }, "links": ["crypt-nave"] }
+        { "id": "crypt-door", "at": { "u": 0.2, "v": 0.5, "facing": 90 }, "piece": "door", "size": { "w": 12, "d": 10 }, "roof": "open", "links": ["crypt-nave"] },
+        { "id": "crypt-nave", "at": { "u": 0.5, "v": 0.5, "facing": 0 }, "piece": "nave", "size": { "w": 14, "d": 14 }, "roof": "closed", "links": ["crypt-door", "crypt-vault"] },
+        { "id": "crypt-vault", "at": { "u": 0.85, "v": 0.5, "facing": 180 }, "piece": "vault", "size": { "w": 12, "d": 10 }, "roof": "closed", "links": ["crypt-nave"] }
       ],
       "creatures": [
         {

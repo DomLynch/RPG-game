@@ -10,8 +10,11 @@ import THEMES_MANIFEST from './dungeon-themes.manifest.json' with { type: 'json'
 import EXITS_DEFS from './exit-rows.json' with { type: 'json' };
 import LOOT from '../region1/loot-tables.json' with { type: 'json' };
 
+/** A room's roof (Dom 2026-10-18): `open` is the stone approach under the sky, `closed` an underground hall with ceiling, floor, joined walls and torchlight. The entrance room is always open; a room with no `roof` is open. */
+export type Roof = 'open' | 'closed';
+export const ROOFS: readonly Roof[] = ['open', 'closed'];
 type At = { readonly u: number; readonly v: number; readonly facing: number };
-export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[]; readonly size?: { readonly w: number; readonly d: number } };   // size (m): the room's walled footprint across (w) and deep (d), centred on its landmark; absent = the theme's default room
+export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[]; readonly size?: { readonly w: number; readonly d: number }; readonly roof?: Roof };   // size (m): the room's walled footprint across (w) and deep (d), centred on its landmark; absent = the theme's default room
 export type DungeonCreature = { readonly id: string; readonly level: readonly [number, number]; readonly loot: string; readonly named?: boolean; readonly [k: string]: unknown };
 export type DungeonEncounter = { readonly id: string; readonly room: string; readonly creature: string };
 export type Dungeon = {
@@ -51,6 +54,8 @@ function checkDungeon(d: Dungeon, theme: DungeonTheme, exits: readonly ExitLite[
   for (const r of d.rooms) {
     if (!(r.at.u >= 0 && r.at.u <= 1 && r.at.v >= 0 && r.at.v <= 1)) fail(d, `room "${r.id}" lies outside the zone (u, v must be 0..1)`);
     if (!Object.hasOwn(theme.pieces, r.piece)) fail(d, `room "${r.id}": piece "${r.piece}" is not in theme "${theme.id}"`);
+    if (r.roof !== undefined && !ROOFS.includes(r.roof)) fail(d, `room "${r.id}": roof "${String(r.roof)}" is not one of ${ROOFS.join(', ')}`);
+    if (r.roof === 'closed' && r.id === d.entrance.room) fail(d, `entrance room "${r.id}" must be open (the approach stays under the sky)`);
     for (const l of r.links) { const o = rooms.get(l); if (!o) fail(d, `room "${r.id}" links to "${l}", which is not a room`); else if (!o.links.includes(r.id)) fail(d, `room "${r.id}" links to "${l}" but "${l}" does not link back`); }
   }
   if (!rooms.has(d.entrance.room)) fail(d, `entrance room "${d.entrance.room}" is not a room`);

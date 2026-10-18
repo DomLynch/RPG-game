@@ -109,6 +109,14 @@ test('a room whose walls would leave the zone is refused, and a zone row may not
   assert.throws(() => compileDungeon(wide, theme), /outside the 60 x 40 zone/);
 });
 
+test('a room roof is open or closed: the entrance stays open, the sample crypt closes its inner halls, a bad value is refused', () => {
+  const roofs = Object.fromEntries(sample.rooms.map((r) => [r.id, r.roof]));
+  assert.deepEqual(roofs, { 'crypt-door': 'open', 'crypt-nave': 'closed', 'crypt-vault': 'closed' });
+  const withRoof = (id: string, roof: unknown): unknown => ({ dungeons: [{ ...clone(sample), rooms: sample.rooms.map((r) => (r.id === id ? { ...r, roof } : r)) }] });
+  assert.throws(() => loadDungeons(withRoof('crypt-nave', 'vaulted') as never), /roof "vaulted" is not one of open, closed/);
+  assert.throws(() => loadDungeons(withRoof('crypt-door', 'closed') as never), /entrance room "crypt-door" must be open/);
+  assert.equal(loadDungeons(withRoof('crypt-nave', undefined) as never).length, 1, 'no roof reads as open');
+});
 test('a dungeon entrance exit must stand on the entrance room', () => {
   assert.throws(() => loadDungeons({ dungeons: [{ ...clone(bone), entrance: { room: 'hollow-hall', exit: 'hollow-gate' } }] }), /stands on landmark "hollow-gate", not on the entrance room/);
 });
