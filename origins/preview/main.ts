@@ -903,6 +903,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
+  hurt: (amount: number) => wc.debugHurt(amount),   // the browser checks: a known hurt, to time the regeneration without a fight
   fell: (id: string) => { const m = mobs?.find(id); if (!m) return false; creatureFell(m.spec); return true; },   // the browser checks: the creature falls through the real fall path (drops, toast), without a fight
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.

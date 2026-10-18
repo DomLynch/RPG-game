@@ -105,6 +105,8 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
       if (k?.type === 'Killed' && kind && bout) { f.finisher = finishOf(kind, { victim: k.target ?? 1, location: k.location ?? 'torso', move: k.move ?? 'light_right', heading: k.heading ?? 0 }, [bout.fighters[0].weapon, bout.fighters[1].weapon], d.canPlay); if (f.finisher !== PLAIN_DEATH) f.fallS = finisherSeconds(f.finisher).seconds; } } }
   }
   return {
+    /** Browser checks only: take `amount` of the hero's health (never below 1), so a check can time the regeneration from a known hurt without a fight. */
+    debugHurt(amount: number) { const m = me(); m.health = Math.max(1, m.health - amount); },
     /** An attack press (STAB / SLASH / a tap on a creature): the cut starts on the next step if he is free. */
     press(kind: 'light' | 'heavy' | 'thrust' | 'kick' = 'light') { pendingAttack = kind; },
     /** A roll / dodge pressed: the world-axis direction (zero = where he faces). */
