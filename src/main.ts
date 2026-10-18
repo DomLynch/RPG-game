@@ -1635,7 +1635,7 @@ function frame(now: number) {
       let stop = quiet || match.mode === 'pvp' ? 0 : stopFor(practice.events);
       if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
         const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
-        stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'full' || tier === 'half' ? tier : null);
+        stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'special' ? 'full' : tier === 'full' || tier === 'half' ? tier : null);   // the weapon's own hold treats a skill as the heavy it always was
       }
       if (stop) {
         hitStop = stop;
