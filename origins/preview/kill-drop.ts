@@ -1,22 +1,19 @@
 // A kill drops what the creature wore, on the ground, to pick up (zone sandbox, Dom 2026-10-17: "real item drops per kill"). SANDBOX ONLY: the Test Zone is invisible to the server, so nothing here is an
-// account item; the pieces go in a local "Found" list on this device (localStorage, survives a reload) until the backend loot-table rows exist (the loadout rows already name the loot piece ids, so a loot table per
+// account item; the pieces go in a "Found" list in PAGE MEMORY only (no localStorage, nothing sent) until the backend loot-table rows exist (the loadout rows already name the loot piece ids, so a loot table per
 // loadout maps one to one). Donors: UO / ModernUO (the corpse holds what the creature wore) and EQEmu ground spawns (an item at a place, taken by walking onto it). Pure logic plus a small glowing marker; no assets.
 import * as THREE from 'three';
 import type { Tier } from '../../src/core/index.ts';
 
 export type FoundItem = { piece: string; label: string; from: string; n: number };
-const KEY = 'origins-preview.found.v1';
 
-/** The Found list: counts per piece, kept in `storage`. A broken or missing store is an empty list, never an error. */
-export function createFound(storage: Pick<Storage, 'getItem' | 'setItem'> | null) {
-  const read = (): FoundItem[] => { try { const v = JSON.parse(storage?.getItem(KEY) ?? '[]'); return Array.isArray(v) ? v.filter((x) => x && typeof x.piece === 'string' && typeof x.n === 'number') : []; } catch { return []; } };
-  let items = read();
-  const save = () => { try { storage?.setItem(KEY, JSON.stringify(items)); } catch { /* private mode: the list lives for this page only */ } };
+/** The Found list: counts per piece, PAGE MEMORY ONLY (nothing is stored or sent; a reload empties it). */
+export function createFound() {
+  let items: FoundItem[] = [];
   return {
     list: (): readonly FoundItem[] => items,
     count: (): number => items.reduce((s, i) => s + i.n, 0),
-    add(piece: string, label: string, from: string): void { const i = items.find((x) => x.piece === piece); if (i) i.n++; else items = [...items, { piece, label, from, n: 1 }]; save(); },
-    clear(): void { items = []; save(); },
+    add(piece: string, label: string, from: string): void { const i = items.find((x) => x.piece === piece); if (i) i.n++; else items = [...items, { piece, label, from, n: 1 }]; },
+    clear(): void { items = []; },
   };
 }
 

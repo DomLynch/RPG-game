@@ -16,7 +16,11 @@ import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
-import { groundLook } from './ground-looks.ts';
+import { groundLook, dropLook } from './ground-looks.ts';
+import { createOutfit, dressedSet, dropSet, groundItemOf } from './outfit.ts';
+import { createFound, createKillDrops } from './kill-drop.ts';
+import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
+import { fxNum } from '../../src/fight/index.ts';
 import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
@@ -149,6 +153,8 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
   return p;
 };
 const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: sceneOf });
+// A creature's dropped loot piece (unlisted zones only, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: (item) => { const { asset } = dropLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -381,6 +387,7 @@ function step(dt: number) {
   const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
   followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
   applyCombatView();
+  killDrops.update(dt, state);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -500,9 +507,14 @@ const secondActor = () => { if (!warriors) throw new Error('the hero rig has not
 // at the next frame. ONE dressing path (dress-remote.ts); self keeps the full rig (hero.glb), the near/far LODs are for remotes only. A newer set supersedes an older one still being built.
 let selfWorn: { ids: readonly string[]; tiers: Record<string, Tier> } | null = null, selfSeq = 0, selfBusy = 0;
 const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [id, id]));
+// What the hero took off the bodies of creatures: PAGE MEMORY ONLY, local to this tab (Lead 2026-10-18: nothing stored, nothing sent to an account or the DB). In an UNLISTED zone each taken piece replaces the
+// account's piece in its paperdoll slot (dressedSet); a listed zone ignores it, and a reload or leaving the zone brings the account gear back.
+const outfit = createOutfit();
+const NO_GEAR = { ids: [] as readonly string[], tiers: {} as Record<string, Tier> };
 async function applySelf() {
-  if (!warriors || !selfWorn) return;
-  const mine = selfWorn, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  const unlisted = !!loadZone().unlisted;
+  if (!warriors || !(selfWorn ?? (unlisted ? NO_GEAR : null))) return;
+  const dressed = dressedSet(selfWorn ?? NO_GEAR, outfit, unlisted), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
     const pieces = await sharedLoot();
@@ -857,9 +869,20 @@ function heroDeathSequence() {
   document.body.append(veil);
   setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
+// A creature of an UNLISTED zone drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
+const killDrops = createKillDrops({
+  scene, view: dropItems, itemOf: groundItemOf, groundAt: groundY, found: createFound(), reach: fxNum('drop.reach'),
+  onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
+});
+function dropLoot(spec: MobSpec, at: { x: number; z: number }) {
+  const row = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), pieces = dropSet(row, spec.id, fxNum('zoneloot.take-limit'));
+  pieces.forEach((piece, i) => { const a = (i / pieces.length) * fxNum('zoneloot.turn'); killDrops.drop(piece, pieceLabel(piece), spec.name, at.x + Math.cos(a) * fxNum('zoneloot.ring-m'), at.z + Math.sin(a) * fxNum('zoneloot.ring-m'), row?.rung); });
+}
 function creatureFell(spec: MobSpec) {
+  const fellAt = mobs?.find(spec.id);
   mobs?.fell(spec.id);
   const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved
+  if (sandbox && fellAt) dropLoot(spec, fellAt);
   const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record(), wc.recordDrop())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
