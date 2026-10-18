@@ -107,6 +107,14 @@ import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
 import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
 
+// The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins). It is made FIRST, before the renderer
+// and the zone are touched: its max hold is a wall-clock timer, so a device with no WebGL or a throw anywhere below still fades the cover at the hold (and says why) instead of leaving it up for good.
+const settled = { hero: false, kit: false };
+const coverEl = document.getElementById('cover');
+let playableNow!: () => void;
+const lookFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };   // the deferred look files wait this many frames (rows deferredLookFrames, deferredLookGapFrames) so none of their parse and upload lands on the player's first frames or taps
+const playable = new Promise<void>((resolve) => { playableNow = resolve; });   // resolves when the cover lifts (first playable): the zone's heavy LOOK files (dome pictures, camp-kit and building models) start downloading only then, so they never share the phone's bandwidth with the bodies the player needs first (Z1b)
+const cover = createCover({ fade: (ms) => { playableNow(); if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
 const theme = ARENA_THEMES[zoneArena(loadZone(), ARENA_THEMES) as keyof typeof ARENA_THEMES], PHONE = phoneTier();   // the zone's own Pit theme (look.arena in its row); Zone 1 and any zone that sets none keep the Ash Pit's
@@ -177,13 +185,7 @@ const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), fr
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
 let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
-// The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
-const settled = { hero: false, kit: !zoneKit };
-const coverEl = document.getElementById('cover');
-let playableNow!: () => void;
-const lookFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };   // the deferred look files wait this many frames (rows deferredLookFrames, deferredLookGapFrames) so none of their parse and upload lands on the player's first frames or taps
-const playable = new Promise<void>((resolve) => { playableNow = resolve; });   // resolves when the cover lifts (first playable): the zone's heavy LOOK files (dome pictures, camp-kit and building models) start downloading only then, so they never share the phone's bandwidth with the bodies the player needs first (Z1b)
-const cover = createCover({ fade: (ms) => { playableNow(); if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
+settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
 if (frontier && frontierParts) {
   const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
