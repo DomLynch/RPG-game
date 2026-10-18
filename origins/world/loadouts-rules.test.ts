@@ -6,6 +6,7 @@ import { TIERS, droppedPiece, loadLoadouts, loadoutIds, loadoutRow, pickLoadout,
 import { creatureHash, variantIndex } from './creature-hash.ts';
 import { MOB_LOOKS, VARIANTS, mobVariant, variantLook } from '../preview/mob-looks.ts';
 import { WEAPONS } from '../../src/fight/moves.ts';
+import { loadZone } from '../zones/loader.ts';
 
 const edit = (f: (d: { pieces: Record<string, unknown>[]; loadouts: Record<string, unknown>[] }) => void) => { const d = structuredClone(DEFS) as unknown as { pieces: Record<string, unknown>[]; loadouts: Record<string, unknown>[] }; f(d); return d; };
 
@@ -72,9 +73,9 @@ test('pickLoadout: no spread list means the look\'s own loadout; variant 0 is th
 });
 
 test('page/server parity: the page\'s look pick (mobVariant) and the loadout pick start from the one variantIndex, so a creature is the same look and the same loadout on both sides', () => {
-  const kinds = Object.keys(MOB_LOOKS);
-  assert.ok(kinds.length > 0);
-  for (const kind of kinds) for (const id of IDS) assert.equal(mobVariant(kind, id), variantLook(kind, variantIndex(kind, id)), `${kind} ${id}`);
+  const zone = loadZone(), kinds = [...Object.keys(zone.mobLooks?.looks ?? {}), ...Object.keys(MOB_LOOKS)];   // the central table is empty on trunk: the looks live in the zone row
+  assert.ok(kinds.length > 0, 'the zone has mob looks to compare');
+  for (const kind of kinds) for (const id of IDS) assert.equal(mobVariant(kind, id, zone), variantLook(kind, variantIndex(kind, id), zone), `${kind} ${id}`);
   // and the spread pick the page makes (the sandbox's variantLook formula, [base, ...spread][v % (n + 1)] with v already reduced mod VARIANTS) is exactly pickLoadout
   const spread = ['goblin.cutter', 'goblin.guard'];
   for (const id of IDS) { const v = variantIndex(id, 'goblin'); assert.equal(pickLoadout(id, 'goblin', 'goblin.scrapper', spread), ['goblin.scrapper', ...spread][v % (spread.length + 1)], id); }
