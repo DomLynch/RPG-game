@@ -87,6 +87,20 @@
         "dayMs": "integer",
         "note": "string"
       }
+    },
+    {
+      "table": "timing",
+      "file": "net-rules.json",
+      "at": "timing",
+      "key": "id",
+      "required": {
+        "delayStepDownFrames": "integer",
+        "delayRttQuantile": "number",
+        "retireGraceMs": "integer",
+        "idlePumpMs": "integer",
+        "lobbyPollMs": "integer",
+        "note": "string"
+      }
     }
   ]
 }

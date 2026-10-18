@@ -11,7 +11,7 @@ import { sheetFor } from '../../src/fight/gear-numbers.ts';
 import type { Loot } from '../../src/core/loot.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
-function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
+function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number; hunting?: boolean }>) {
   const driven = new Map<string, MobDrive>(), fell: string[] = [], played: string[] = [];
   const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id), play: (id: string, role: string) => { played.push(`${id}:${role}`); return role === 'death' ? 2.4 : 0.5; } } as unknown as Mobs;
   return { mobs, driven, fell, played };
@@ -28,6 +28,15 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
   run(wc, { x: 0, z: 0, facing: 0 }, 6);
   assert.ok(f.driven.has('wolf-1'), 'driven by the loop'); assert.ok(tell >= 1 && hit >= 1, `tell ${tell} before hit ${hit}`); assert.ok(wc.hero().health < wc.hero().max); assert.equal(died, 0);
   assert.equal(wc.target()?.name, 'wolf-1'); assert.equal(wc.target()?.id, 'wolf-1', 'the target carries its creature id (the creature card follows the fight by it)'); assert.ok(wc.inCombat());
+});
+
+test('P0-b: a passive wanderer inside the join ring never joins the loop; a hunting one does, and a host that cannot tell (hunting absent) keeps today\'s rule', () => {
+  const run1 = (list: Array<{ spec: MobSpec; x: number; z: number; hunting?: boolean }>) => { const f = fakeMobs(list), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {} }); run(wc, { x: 0, z: 0, facing: 0 }, 0.5); return f.driven; };
+  const passive = run1([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8, hunting: false }]);
+  assert.ok(!passive.has('wolf-1'), 'a creature that has not noticed him is not pulled into the fight');
+  const mixed = run1([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8, hunting: false }, { spec: spec('wolf-2', 'wolf'), x: 2, z: 8, hunting: true }]);
+  assert.ok(!mixed.has('wolf-1') && mixed.has('wolf-2'), 'only the one that noticed him joins');
+  assert.ok(run1([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8 }]).has('wolf-1'), 'no hunting flag: joins as before');
 });
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {

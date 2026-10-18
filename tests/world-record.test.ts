@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
-import { ME, MAX_HERO_MPS, MAX_WORLD_TICKS, STEP, heroClean, ccQuiet, WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { ME, MAX_HERO_MPS, MAX_WORLD_TICKS, STEP, heroClean, hurtOf, ccQuiet, WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
 import { CC_LADDER, ccApply, type CcLadder, type CcSource } from '../src/fight/cc-ladder.ts';
 
@@ -87,9 +87,20 @@ test('a hero who is not at rest and clean opens no window (the header cannot car
   const w = newWorld([player(ME, 0, 0, 0, 1)]);
   assert.ok(heroClean(w), 'a fresh hero is clean');
   const dirty = (patch: Record<string, unknown>) => ({ ...w, fighters: [{ ...w.fighters[0]!, ...patch }] }) as typeof w;
-  assert.ok(!heroClean(dirty({ phase: 'recover' })) && !heroClean(dirty({ maxStamina: 40 })) && !heroClean(dirty({ cc: [{ family: 'stun', count: 1, last: 5 }] })) && !heroClean(dirty({ stance: 'aggressive' })));
-  const duel = { fighters: [{ wound: 3, legWound: false, maxStamina: 100, skillCooldown: 0, move: null, phase: 'ready' }] };
-  assert.ok(!heroClean({ ...w, streams: { [ME]: { duel } } } as unknown as typeof w), 'a blade wound');
+  assert.ok(!heroClean(dirty({ phase: 'recover' })) && !heroClean(dirty({ cc: [{ family: 'stun', count: 1, last: 5 }] })) && !heroClean(dirty({ stance: 'aggressive' })));
+  const duel = { fighters: [{ wound: 3, woundSite: 'legs', legWound: true, maxStamina: 80, skillCooldown: 0, move: 'light_right', phase: 'ready' }] }, hurt = { ...w, streams: { [ME]: { duel } } } as unknown as typeof w;
+  assert.ok(heroClean(hurt), 'a wound, a leg wound, a lowered ceiling and a leftover move are carried by the header (P0-b), so they do not keep a window shut');
+  assert.deepEqual(hurtOf(hurt), { wound: 3, site: 'legs', leg: true, cap: 80 }, 'and the window opens with them');
+  assert.equal(hurtOf(w), undefined, 'an unhurt hero carries nothing: the header is byte for byte as before');
+  const cooling = { fighters: [{ wound: 0, woundSite: 'torso', legWound: false, maxStamina: 100, skillCooldown: 30, move: null, phase: 'ready' }] };
+  assert.ok(!heroClean({ ...w, streams: { [ME]: { duel: cooling } } } as unknown as typeof w), 'a skill cooldown is still not carried');
+});
+
+test('a hurt hero\'s record replays: the header carries the wound state, a bad one is refused, and an unhurt record has no hurt key', () => {
+  const base: WorldRecord = { rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { level: 1, weapon: 'longsword', health: 100, stamina: 50, posture: 0, exhausted: false }, joins: [], releases: [], steps: [{ pose: { x: 0, z: 0, f: 0 } }] as never };
+  assert.ok(!('hurt' in base.hero));
+  for (const hurt of [{ wound: 3, site: 'legs', leg: true, cap: 80 }, { wound: 0, site: 'torso', leg: false, cap: 60 }]) assert.ok(replayWorldRecord({ ...base, hero: { ...base.hero, hurt: hurt as never } }).ok, JSON.stringify(hurt));
+  for (const hurt of [{ wound: -1, site: 'legs', leg: true, cap: 80 }, { wound: 3, site: 7, leg: true, cap: 80 }, { wound: 3, site: 'legs', leg: true, cap: 999 }, { wound: 3, site: 'legs', leg: true, cap: 40 }, null]) assert.ok(!replayWorldRecord({ ...base, hero: { ...base.hero, hurt: hurt as never } }).ok, JSON.stringify(hurt));
 });
 
 test('the world loop feeds a special only when the step carries a cast, and never a skill: the live input is {attack, guard, roll} plus the gated cast', async () => {

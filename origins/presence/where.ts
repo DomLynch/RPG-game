@@ -1,6 +1,8 @@
 // Asking the presence service where an account stands (docs/specs/origins/one-shard.md; Lead's launch gate: the writer derives a player's place from presence, never from a request
 // body). The server side is GET /internal/where in server.ts. Everything here fails closed: a presence service that cannot be reached, or answers anything but a well-formed 200, is an
 // error the caller must turn into a refusal, never into "not at the Exchange" quietly passing or "at the Exchange" assumed.
+import { presenceRule } from './presence-rules.ts';
+
 export type Where =
   | { online: false }
   | { online: true; layer: number; placed: false }   // in the world, but no first pose yet: its position is unknown
@@ -19,7 +21,7 @@ export function parseWhere(v: unknown): Where {
 }
 
 // The writer's client. `baseUrl` is the presence service on loopback (e.g. http://127.0.0.1:8793); `key` is the shared PRESENCE internal key.
-export function presenceWhere(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): WhereFn {
+export function presenceWhere(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): WhereFn {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/where?account=${encodeURIComponent(account)}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);
@@ -30,7 +32,7 @@ export function presenceWhere(baseUrl: string, key: string, timeoutMs = 1500, fe
 // The writer tells presence "this account's worn set may have changed" after a gear op succeeded (POST /internal/worn, the server's wornRoute). Fire and forget: the caller ignores any failure, because
 // presence also re-reads every account's worn set on its own timer, so a lost poke only delays what other players see.
 export type WornPokeFn = (account: string) => Promise<void>;
-export function presenceWornPoke(baseUrl: string, key: string, timeoutMs = 1000, fetchImpl: typeof fetch = fetch): WornPokeFn {
+export function presenceWornPoke(baseUrl: string, key: string, timeoutMs = presenceRule('wornPokeTimeoutMs'), fetchImpl: typeof fetch = fetch): WornPokeFn {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/worn`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ account }), signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);

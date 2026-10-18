@@ -58,6 +58,18 @@ deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-
   done
   return 1
 }
+# Pending post-publish CI tails (Lead 2026-10-18, #3177): the publisher writes $state/post-publish-pending-<rev8> (rev, rows, at) before it releases the hold, the tail records its pid in it and
+# removes it when it finishes. A tail that is still alive is the overlap Lead allowed; a marker whose tail is DEAD (Mac sleep, reboot) or never started within the grace holds the next publish:
+# nobody proved those rows, and "trust silently" is the one thing this never does. Remove the marker after looking at that release's CI.
+for m in "$state"/post-publish-pending-*; do
+  [ -e "$m" ] || continue
+  case "$m" in *.told) continue;; esac
+  mp=$(sed -n 's/^pid=//p' "$m" | head -n 1); mat=$(sed -n 's/^at=//p' "$m" | head -n 1)
+  if [ -n "$mp" ] && kill -0 "$mp" 2>/dev/null; then continue; fi
+  if [ -z "$mp" ] && [ $(( $(date +%s) - ${mat:-0} )) -lt "${POSTCHECK_START_GRACE_S:-300}" ]; then continue; fi
+  [ -n "$dry" ] || [ -e "$m.told" ] || { touch "$m.told"; [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI tail for $(sed -n 's/^rev=//p' "$m" | head -n 1) died before it finished" || true; }
+  skip "post-publish CI tail marker $m is stale (tail pid ${mp:-never started} is not running; rows $(sed -n 's/^rows=//p' "$m" | head -n 1) for $(sed -n 's/^rev=//p' "$m" | head -n 1) were never proved on CI): holding; look at that release's CI, then remove the marker"
+done
 if [ -e "$hold" ]; then   # held by a person (no pid), by a live publisher, or STALE: a publisher killed mid-publish (its pid is dead, no stopped file)
   hp=$(head -n 1 "$hold" 2>/dev/null | tr -cd '0-9')
   if [ -n "$hp" ] && ! kill -0 "$hp" 2>/dev/null; then
@@ -138,7 +150,23 @@ log "deploy.sh $rev in $dir (log $logf)"
 rc=$?
 [ "$rc" -eq 0 ] || stop "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"
 grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Published $rev line; log $logf"
+# POST_PUBLISH_DETACH=1 in the env file: deploy.sh left the CI-routed post-publish rows to a tail (one "post-publish CI tail: rows <csv> for <rev>" line). The marker is written BEFORE the hold is
+# released; the tail runs from THIS checkout, detached, and re-holds the next publish only if CI does not prove the rows (scripts/release-train-postcheck.sh).
+tail_rows=$(sed -n -E "s/^post-publish CI tail: rows ([0-9,]+) for $rev .*/\1/p" "$logf" | head -n 1)
+marker="$state/post-publish-pending-${rev:0:8}"
+[ -z "$tail_rows" ] || printf 'rev=%s\nrows=%s\nat=%s\n' "$rev" "$tail_rows" "$(date +%s)" > "$marker"
 rm -f "$hold" "$hold.stale-told"
+if [ -n "$tail_rows" ]; then
+  log "post-publish CI tail for $rev: rows $tail_rows (postcheck log $state/release-train-postcheck-${rev:0:8}.log)"
+  ( nohup ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"} "$rev" "$tail_rows" "$pr" > "$state/release-train-postcheck-${rev:0:8}.log" 2>&1 & )
+fi
+# Publish-to-publish minutes (Lead 2026-10-18, target <= 15), one line per cycle.
+last="$state/release-train-last-publish"; now=$(date +%s)
+if [ -r "$last" ]; then
+  prev_at=$(sed -n 's/^at=//p' "$last" | head -n 1); prev_rev=$(sed -n 's/^rev=//p' "$last" | head -n 1)
+  [ -z "$prev_at" ] || log "publish-to-publish $(( (now - prev_at + 30) / 60 )) min (${prev_rev:0:8} -> ${rev:0:8})"
+fi
+printf 'rev=%s\nat=%s\n' "$rev" "$now" > "$last"
 summary=$(sed -n "/^Published $rev/,\$p" "$logf" | head -n 40)
 net_gh 30 pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
 # Every open PR whose head live now contains is done (forward-only publish; DI 2026-10-13 left its stacked members #2430/#2442/#2444/#2447/#2426 open): close it with a pointer.

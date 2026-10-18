@@ -25,5 +25,5 @@ export function mountBoard(dialog: HTMLDialogElement, view: (nowMs: number) => B
   };
   const stop = () => { if (timer !== undefined) { clearInterval(timer); timer = undefined; } };
   close.addEventListener('click', () => dialog.close()); dialog.addEventListener('close', stop);
-  return { open(): void { draw(); if (!dialog.open) dialog.showModal(); stop(); timer = setInterval(draw, 30_000); } };
+  return { open(): void { draw(); if (!dialog.open) dialog.showModal(); stop(); const every = view(now())?.redrawMs; if (every !== undefined) timer = setInterval(draw, every); } };   // the redraw period is the board rule's redrawMs
 }
