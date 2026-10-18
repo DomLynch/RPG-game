@@ -504,7 +504,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
       const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, gap);
       const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
-      const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+      if (!(dir.length() > 0)) return;   // the goal on the shoulder: no direction to reach along
+      const d = Math.min(dir.length(), a2 + b2 - .001); dir.normalize();
       const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
       bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
       const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
