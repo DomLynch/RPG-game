@@ -85,7 +85,9 @@ test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the 
 test('release-train-publish.sh: releases the hold, THEN starts the tail from its own checkout, only when deploy.sh printed the tail line', () => {
   const pub = readFileSync('scripts/release-train-publish.sh', 'utf8');
   const release = pub.indexOf('rm -f "$hold" "$hold.stale-told"');
-  const spawn = pub.indexOf('release-train-postcheck.sh');
+  const marker = pub.indexOf('> "$marker"');
+  const spawn = pub.indexOf('nohup ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"}');
+  assert.ok(marker > 0 && marker < release, 'the pending marker is written BEFORE the hold is released');
   assert.ok(release > 0 && spawn > release, 'the tail starts after the hold is released');
   assert.match(pub, /\^post-publish CI tail: rows/);
   assert.match(pub, /if \[ -n "\$tail_rows" \]; then/);
