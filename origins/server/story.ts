@@ -82,7 +82,7 @@ export const eventId = (id: string): string => { if (id.length > MAX_EVENT_ID) t
 // for either yet, and QuestState.rewarded is one entry per stage (it also answers 'stage-reached'), so a stage cannot be marked paid for
 // its CP and unpaid for the rest. Refusing writes nothing, so the stage pays in full once the writes exist.
 export function questBatch(
-  account: string, character: CharacterInstanceId, quest: QuestId, journal: Journal, stored: Stored, adv: Advanced, row: CareerRow, now: Date,
+  account: string, character: CharacterInstanceId, quest: QuestId, journal: Journal, stored: Stored, adv: Advanced, row: CareerRow, now: Date, qa = false,
 ): { batch: Json[]; cp: number; row: CareerRow } {
   if (adv.journal === journal) return { batch: [], cp: 0, row };
   const unpayable = adv.rewards ? [...(adv.rewards.loot ? ['loot'] : []), ...(adv.rewards.standing.length ? ['faction standing'] : [])] : [];
@@ -97,6 +97,10 @@ export function questBatch(
   let cp = 0;
   if (adv.event) {
     const id = eventId(`story:${character}:${adv.event.id}`);
+    if (qa) {   // the QA account (fighter_profiles.is_test): the quest advances and the step is recorded, but no CP is booked (it persists no credit)
+      batch.push({ op: 'event', event_id: id, kind: 'story-step', account, character, payload: { cp: 0, step: adv.event.id, type: adv.event.type, reason: 'qa', qa: true } });
+      return { batch, cp: 0, row };
+    }
     const won = award(careerState(row), { kind: 'story', id, at: Math.floor(now.getTime() / 1000), step: adv.event.id, type: adv.event.type });
     batch.push({ op: 'event', event_id: id, kind: 'story-step', account, character, payload: { cp: won.cp, step: adv.event.id, type: adv.event.type, reason: won.reason } });
     if (won.reason === 'ok') {

@@ -10,7 +10,9 @@
         "claimsCap": "integer",
         "claimWaitMs": "integer",
         "keepaliveBytes": "integer",
-        "tapGuardMs": "integer"
+        "tapGuardMs": "integer",
+        "packOpen": "integer",
+        "packTotal": "integer"
       }
     },
     {

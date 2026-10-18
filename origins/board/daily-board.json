@@ -50,6 +50,6 @@
     { "id": "kill-ember-wolves", "kind": "kill", "target": "character:ember-wolf", "count": 3, "reward": "day-iron", "weight": 1 }
   ],
   "boards": [
-    { "id": "daily", "slots": 3, "distinctKinds": true, "noRepeatDays": 1, "anchorEvery": 16, "seedSalt": 7919, "completionCap": 25, "resetHourUtc": 0 }
+    { "id": "daily", "slots": 3, "distinctKinds": true, "noRepeatDays": 1, "anchorEvery": 16, "seedSalt": 7919, "completionCap": 25, "resetHourUtc": 0, "redrawMs": 30000 }
   ]
 }

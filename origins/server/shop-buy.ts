@@ -25,6 +25,9 @@ import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
 
 export type Shops = NonNullable<Content['shops']>;   // service id (service:<kebab>) -> its list
 export type ShopReceipt = { shop: string; item: string; quantity: number; cost: number; revision: number; received: string[] };
@@ -35,7 +38,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     if (!shops.size) throw new Refused(501, 'there is no shop in this content', 'not-implemented');
     const { character, op, shop, item, quantity, revision } = body;
     if (typeof op !== 'string' || !OP.test(op)) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');
-    if (typeof character !== 'string' || character.length > 80) throw new BadRequest('character: a character id');
+    if (typeof character !== 'string' || character.length > INPUT.characterIdChars) throw new BadRequest('character: a character id');
     if (typeof shop !== 'string' || typeof item !== 'string') throw new BadRequest('shop, item: ids');
     const list = shops.get(shop);
     if (!list) throw new BadRequest(`shop: ${shop} is not a shop`);

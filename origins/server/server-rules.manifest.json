@@ -10,6 +10,7 @@
         "markGap": "number",
         "edge": "number",
         "scaleFloor": "number",
+        "maxCoordM": "number",
         "note": "string"
       }
     },
@@ -34,6 +35,9 @@
         "slack": "number",
         "reachSlack": "number",
         "poseAgeMs": "integer",
+        "maxHits": "integer",
+        "engageTokenBytes": "integer",
+        "windowSlackTicks": "integer",
         "note": "string"
       }
     },
@@ -86,6 +90,77 @@
         "maxPending": "integer",
         "queueMax": "integer",
         "presenceFreshMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "inputLimits",
+      "file": "server-rules.json",
+      "at": "inputLimits",
+      "key": "id",
+      "required": {
+        "characterIdChars": "integer",
+        "pieceIdChars": "integer",
+        "instanceIdChars": "integer",
+        "lootIdChars": "integer",
+        "questIdChars": "integer",
+        "npcIdChars": "integer",
+        "stageIdChars": "integer",
+        "choiceIdChars": "integer",
+        "lineIdChars": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "callTimeouts",
+      "file": "server-rules.json",
+      "at": "callTimeouts",
+      "key": "id",
+      "required": {
+        "authFetchMs": "integer",
+        "psqlMs": "integer",
+        "verifyQueueMax": "integer",
+        "verifyJobMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "recordLimits",
+      "file": "server-rules.json",
+      "at": "recordLimits",
+      "key": "id",
+      "required": {
+        "maxTicks": "integer",
+        "minRecordChars": "integer",
+        "maxRecordChars": "integer",
+        "seedBound": "integer",
+        "reasonChars": "integer",
+        "psqlErrorChars": "integer",
+        "psqlStderrKeepChars": "integer",
+        "nonceBytes": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "strictFlip",
+      "file": "server-rules.json",
+      "at": "strictFlip",
+      "key": "id",
+      "required": {
+        "minKills": "integer",
+        "minRate": "number",
+        "note": "string"
+      }
+    },
+    {
+      "table": "strictRevert",
+      "file": "server-rules.json",
+      "at": "strictRevert",
+      "key": "id",
+      "required": {
+        "firstKills": "integer",
+        "minRate": "number",
+        "maxUncheckedRun": "integer",
         "note": "string"
       }
     }

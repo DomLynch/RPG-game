@@ -193,6 +193,19 @@ export const spawnEngageGet = async (db: Db, account: string, token: string): Pr
   const out = await spawnCall(db, `coalesce(public.origins_spawn_engage_get(:'a'::uuid, :'t'), 'null'::jsonb)`, { a: acct(account), t: token });
   return out === null ? null : out === 'null' ? 'none' : JSON.parse(out);
 };
+// The QA mark (migration 20261018084514; fighter_profiles.is_test, 202610110021): true for the one service-role-created QA account. `null` = the migration is not applied.
+const HAS_QA = `select to_regprocedure('public.origins_account_is_test(uuid)') is not null as qa \\gset\n`;
+export const accountIsTest = async (db: Db, account: string): Promise<boolean | null> => {
+  const out = await gated(db, 'qa mark', HAS_QA, 'qa', `select public.origins_account_is_test(:'a'::uuid)::text;`, { a: acct(account) });
+  return out === 'absent' ? null : out === 'true';
+};
+const HAS_RECEIPT = `select to_regprocedure('public.origins_spawn_receipt(uuid,text)') is not null as receipt \\gset\n`;
+// Launch gate V5: what happened to a token that is not open any more, from the stored rows only (migration 20261018081137; null when the token is not this account's, or the migration is not applied).
+export type SpawnReceipt = { kind: 'paid'; instance: string; killedAt: string; cp: number; bronze: number; loot: number } | { kind: 'expired' } | { kind: 'open' };
+export const spawnReceipt = async (db: Db, account: string, token: string): Promise<SpawnReceipt | 'unknown' | null> => {
+  const out = await gated(db, 'spawn receipt', HAS_RECEIPT, 'receipt', `select coalesce(public.origins_spawn_receipt(:'a'::uuid, :'t'), 'null'::jsonb)::text;`, { a: acct(account), t: token });
+  return out === 'absent' ? null : out === 'null' ? 'unknown' : JSON.parse(out);
+};
 export const spawnTouch = async (db: Db, account: string, token: string): Promise<{ token: string; expiresAt: string } | null> => {
   const out = await spawnCall(db, `public.origins_spawn_touch(:'a'::uuid, :'t')`, { a: acct(account), t: token });
   return out === null ? null : JSON.parse(out);

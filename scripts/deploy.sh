@@ -396,8 +396,16 @@ if [[ -n "$mac_deferred" ]]; then
   POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
 fi
 if (( mac_rc == 0 )); then   # a rolled-back or failed Mac group: no CI wait, post_publish_rows skips or fails as before
-  post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
-  [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"   # every row was CI-trusted: nothing left to run, the stamp still counts
+  if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && -n "$pp_open" ]]; then
+    # Overlapping publishes (Lead GO 2026-10-18, Dom): the live read-backs and the rollback-capable Mac group are done, so the hold may release now. The rows CI has not finished are NOT
+    # waited for here: the train publisher starts scripts/release-train-postcheck.sh on this line, which waits for CI and holds the NEXT publish on a red or unproved row. The pending
+    # full-run stamp is not promoted on this path (the tail cannot reach this checkout's artifacts: the next publish rewrites the slot).
+    echo "post-publish CI tail: rows $pp_open for $revision (detached: the Mac group is done, the hold is released, release-train-postcheck.sh waits for CI)"
+    post_publish=""
+  else
+    post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
+    [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"   # every row was CI-trusted: nothing left to run, the stamp still counts
+  fi
 fi
 POST_PUBLISH_PROMOTE=$(( 1 - mac_rc )) post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then

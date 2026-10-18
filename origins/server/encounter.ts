@@ -18,6 +18,7 @@ import { expectedSpell, type SpellClaim } from './spell-check.ts';
 import { careerState, levelOfCredit } from '../../src/core/server.ts';
 import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
+import { qaOf } from './qa-account.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
@@ -68,9 +69,10 @@ const GONE = (e: unknown): never => {
   throw e;
 };
 const notInstalled = (): never => { throw new Refused(503, 'encounter verify not installed'); };
+const RECORD_RULE = SERVER_RULES.recordLimits[0]!;   // a row of the recordLimits table
 const tick = (v: unknown, name: string): number => {
   if (v === undefined) return 0;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 1e9) throw new BadRequest(`${name}: a whole tick count`);
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > RECORD_RULE.maxTicks) throw new BadRequest(`${name}: a whole tick count`);
   return v;
 };
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an encounter token'); return v; };
@@ -92,7 +94,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (fight.layer !== null && !knownLayer(fight.layer)) throw new Refused(503, `encounter verify does not know the mob layer ${fight.layer}`);   // fail closed: it could never verify
     const pose = issuePose(fight.enemy, body.pose);   // undefined: no pose asked, the pit-mark fight as before
     if (pose && encounter.length > POSED_FIGHT_MAX) throw new BadRequest(`encounter: a posed fight id is at most ${POSED_FIGHT_MAX} characters`);
-    const token = tokenFor(encounter, pose), seed = randomInt(1, 2 ** 31);
+    const token = tokenFor(encounter, pose), seed = randomInt(1, RECORD_RULE.seedBound);
     let run: store.EncounterRun | null;
     try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance }); }
     catch (e) { if (e instanceof DbError && e.code === 'O0014') throw new Conflict(e.message); throw e; }
@@ -108,7 +110,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
 
   const settle: Handler = async ({ db, account }, body) => {
     const token = tokenOf(body.token);
-    if (typeof body.record !== 'string' || body.record.length < 8 || body.record.length > 60_000) throw new BadRequest('record: a packed duel record');
+    if (typeof body.record !== 'string' || body.record.length < RECORD_RULE.minRecordChars || body.record.length > RECORD_RULE.maxRecordChars) throw new BadRequest('record: a packed duel record');
     if (body.swaps !== undefined && !(Array.isArray(body.swaps) && body.swaps.length === 0)) throw new Refused(501, 'camp swaps are not installed yet', 'not-implemented');   // validated, never applied (Combat ships the hook)
     const run = await store.encounterGet(db, account, token);
     if (run === null) throw new Refused(503, 'encounters are not installed yet');
@@ -129,10 +131,11 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
     const eventId = `enc:${token}`;
     const fight = fightOfToken(token);
-    const rewards = verdict.ok && result === 'won' && deps.rewards ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
+    const qaState = await qaOf(db, account);   // the QA account (fighter_profiles.is_test): the fight is checked and settled as for anyone, but its rewards are not persisted
+    const rewards = verdict.ok && result === 'won' && deps.rewards && qaState !== 'yes' ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
     // `fight` and `paid` are what origins_last_paid_kill (202610080006) reads back: the respawn window is the time since this account's last PAID kill of this fight,
     // and it commits in this same transaction, so a settle that aborts leaves no window behind.
-    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) } }, ...rewards];
+    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(qaState === 'yes' ? { qa: true } : {}), ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) } }, ...rewards];
     // Practice (migration 0026): only a VERIFIED win practises the weapon's skill; the lines ride this one settle, so a retry pays once (key practice:enc:<token>:<skill>).
     let practice: store.Json[] = [];
     if (verdict.ok && result === 'won') {
@@ -146,7 +149,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
       ? await settleWithWear({ db, account, ownEventId: eventId, wear: () => deps.wear!({ account, character: run.character, token, hits: verdict.ok ? hitsTaken(verdict.heroHits) : 0 }, db), commit })
       : await commit([]);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
-    return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
+    return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) };
   };
 
   return { encounter_start: start, encounter_touch: touch, encounter_settle: settle };

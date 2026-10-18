@@ -15,7 +15,7 @@ import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' }
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
-import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
+import { HAZARDS, TWISTS, loadRegion1, span, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
 import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { BETA_MAX_LOOT_RUNG, TIERS, type Tier } from '../../src/core/server.ts';
@@ -41,6 +41,7 @@ export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => c
 // level-to-rung mapping) + the base offset (mintRule) + the item's rarity shift (rarityShift; the row marked `fallback` serves an item with no rarity or an unknown one), kept within the first rung and
 // the beta cap (betaCut.maxLootRung in career-rules.json, which lifts with the cut). The level is the creature's for a drop, the zone band's midpoint for a mint with no creature (origins/zones/band.ts).
 // There is NO default rung: a mint with neither a creature nor a zone level is refused.
+// Item rarity (common, fine, rare, relic: a rung shift) is NOT the wildlife spawn rarity (common, uncommon, rare: a spawn weight, src/core/world/wildlife-rules.ts): same word, different table and scale, kept apart on purpose.
 loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
 export type RungRules = { readonly shifts: ReadonlyMap<string, number>; readonly fallback: number; readonly base: number; readonly cap: number };
 const SHIFT_ROWS = LOOT_TIER_ROWS.rarityShift as readonly { id: string; shift: number; fallback?: boolean }[];
@@ -147,8 +148,8 @@ function readOverlay(issues: Issues, raw: readonly unknown[], base: readonly Twi
       if (!Object.hasOwn(o, k)) { if (required) issues.add('missing-field', `${p}.${k}`, `${kind} needs ${k}`); return; }
       if (!Number.isInteger(o[k]) || (o[k] as number) < lo || (o[k] as number) > hi) issues.add('out-of-range', `${p}.${k}`, `${k} is a whole number in ${lo}..${hi}`);
     };
-    if (kind === 'flee-at') { int('percent', 1, 99, true); int('catchSeconds', 1, 120, false); }
-    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', 1, 30, true); }
+    if (kind === 'flee-at') { int('percent', ...span('flee-at.percent'), true); int('catchSeconds', ...span('flee-at.catchSeconds'), false); }
+    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', ...span('hazard.stillSeconds'), true); }
     if ([...base, ...out].some((b) => b.kind === kind)) issues.add('duplicate-id', p, `a ${kind} twist is set twice on one fight`);
     out.push(o as Twist);
   });
