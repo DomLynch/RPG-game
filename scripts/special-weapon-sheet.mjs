@@ -29,6 +29,7 @@ for (const special of SPECIALS) {
   await page.waitForTimeout(2500); await run(17); await page.waitForTimeout(500);   // the special's clip is fetched on the first draw, in real time: let it land first
   if (ORBIT) { await page.evaluate((dx) => globalThis.__view?.orbit?.(dx, 0), ORBIT); for (let n = 0; n < 60; n++) await run(n % 3 === 2 ? 16 : 17); }   // --orbit <dx>: turn the camera (yaw -= dx * 0.005 rad; -314 is a quarter turn, the character seen from the side), then let it settle
   if (BOW) await page.evaluate((gap) => { const d = globalThis.__sandboxMatch?.practice?.duel, f = d?.fighters; if (f) f[0].body = { ...f[0].body, z: f[1].body.z + gap, heading: Math.PI }; }, 3.5);   // --bow 1: stand the archer 3.5 m from the foe (past the missile gap), facing him, so the special flies as arrows
+  { const id = special === 'lunge' ? 'skill-button' : 'sbx-spell2'; for (let n = 0; n < 400 && (await page.evaluate((i) => document.getElementById(i)?.getAttribute('aria-disabled'), id)) !== 'false'; n++) await run(n % 3 === 2 ? 16 : 17); }   // wait until the button is lit (cooldown over, controls ready) before the press
   await page.locator(special === 'lunge' ? '#skill-button' : '#sbx-spell2').tap();
   await skipDraws(page, true);
   const state = () => page.evaluate(() => { const f = globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]; return { special: f?.special ?? 0, recover: f?.specialRecover ?? 0, clip: (globalThis.__view?.playing?.() ?? '').split(' ')[0] }; });
