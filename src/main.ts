@@ -20,6 +20,7 @@ import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flush
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import { pickSpell } from './fight/spell-pick.ts';
+import { slot2Pick } from './fight/spell-slot2.ts';
 import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
@@ -404,7 +405,7 @@ function nameOpponent() {
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 // A local build (the release gates and the bot serve dist on localhost): the one place ?debug acts on its own.
-const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '');
+const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') || (globalThis as { __SANDBOX__?: boolean }).__SANDBOX__ === true;   // the Combat Sandbox build (sandbox/entry.ts) counts as a local build: the admin test tools and the Sparring tab show; undefined on every other build
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
@@ -426,12 +427,13 @@ const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.lev
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
 try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
-const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), spell2: slot2Pick, ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
+if ((globalThis as { __SANDBOX_SPECIALS_FROM__?: number }).__SANDBOX_SPECIALS_FROM__ !== undefined) { (globalThis as { __sandboxMatch?: unknown }).__sandboxMatch = match; (globalThis as { __sandboxSpellDbg?: unknown }).__sandboxSpellDbg = () => ({ eq: equippedSpell(), owned: ownedSpells(), pick: pickSpell(equippedSpell(), ownedSpells(), skills.values()), ls: (() => { try { return localStorage.getItem('frankendom.spell.equipped.v1'); } catch { return 'err'; } })() }); }   // sandbox debug handle
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
@@ -1588,6 +1590,7 @@ function frame(now: number) {
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
       }
       if (!quiet) hud.floatDamage(practice.events, practice.duel.fighters, view.project, damageNumbersOn);
+      if (!quiet) hud.floatSpell(practice.events, practice.duel.fighters, view.project);   // sandbox spellRange: the refused-cast cue and a landed spell's number; nothing without a spell event
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
