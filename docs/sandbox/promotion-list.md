@@ -14,7 +14,7 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | `origins/world/loadouts.json` + manifest (goblin rank loadouts t4-t7 with `look`, troll kit `troll.pit.*` = the pitborn kit, Dom's choice 2026-10-18 because the executioner's hood covers the face, pieces) | row | Characters | no (new table) |
 | `origins/preview/ground-looks.json` (`loot:*` rows: a dropped piece lies as itself) | row | Characters | extends the existing ground-looks table |
 | `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no |
-| `src/fight/fx-rows.json` rows: `regen.*`, `zoneloot.*`, `start.clear-m`, `fp.*`, `warband.*`, `drop.reach`, `gfx.*`, `mob-view.*`, `reach.dir-tau`, `reach.full-scale`, `zone1feel.*` | row | Combat (regen, reach, mob-view), World (gfx), Web (fp) | none of these ids exist on trunk |
+| `src/fight/fx-rows.json` rows: `regen.*`, `zoneloot.*`, `start.clear-m`, `fp.*`, `warband.*`, `drop.reach`, `gfx.*`, `mob-view.*` (incl. `mob-view.wear-max-scale`: hero-sized pieces are worn only by bodies up to that scale; the troll shows its weapon only until carriers-troll exists), `reach.dir-tau`, `reach.full-scale`, `zone1feel.*` | row | Combat (regen, reach, mob-view), World (gfx), Web (fp) | none of these ids exist on trunk |
 | `origins/world/building-skins.json`, `props-defs.json`, `goblin-field-defs.json` + manifests | row | World | partly (World's biomes.json, #3067) |
 | `origins/preview/preview-rules-defs.json` | row | Web | extends trunk's table |
 | `src/fight/creature-motion-defs.json` + manifest | row | Combat | **#3056 supersedes my copy: drop mine** |
