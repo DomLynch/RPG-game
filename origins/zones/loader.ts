@@ -92,7 +92,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
     if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
     if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
-    if (l.scale !== undefined && !(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
+    const lo = stageRule('mobScaleMin'), hi = stageRule('mobScaleMax');   // the bound is stage rows (the Test Zone's salamander is 6, Dom's reference look)
+    if (l.scale !== undefined && !(l.scale >= lo && l.scale <= hi)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (${lo}-${hi})`);
     if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
   }
   if (known) for (const id of [...Object.keys(z.mobLooks?.looks ?? {}), ...Object.keys(z.mobLooks?.spread ?? {})]) if (!known.has(id)) bad.push(`mob look ${id}: no such character (not a spawn row or a region foe)`);
