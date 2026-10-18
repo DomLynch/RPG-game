@@ -300,6 +300,7 @@ test('acceptance (audit 2026-10-18, Strategy: the guest path): a signed-out page
 // The durable outbox (audit 2026-10-18 F3). A store in memory stands in for localStorage; `settle` lets the test await the tracker's own sends.
 const memStore = (): OutboxStore & { saved: Map<string, OutboxEntry[]> } => { const saved = new Map<string, OutboxEntry[]>(); return { saved, load: (a) => [...(saved.get(a) ?? [])], save: (a, e) => { if (e.length) saved.set(a, [...e]); else saved.delete(a); } }; };
 const settle = () => new Promise((r) => setTimeout(r, 200));
+const memStoreShared = (s: ReturnType<typeof memStore>): OutboxStore => ({ load: (a) => s.load(a), save: (a, e) => s.save(a, e) });   // a second tab's handle on the same storage
 const OTHER = '9f1e2d3c-4b5a-4968-8776-655443322110';
 async function killedOn(clock: { ms: number }, t: ReturnType<typeof spawnTracker>) {
   await t.engaged(ids[0]!);
@@ -373,6 +374,45 @@ test('outbox is bound to its account: after an account switch the old report is 
     back.tick(); await settle();
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'its own account\'s page pays it once');
   } finally { await w.close(); }
+});
+
+test('outbox (Web\'s review): an account switch BETWEEN engage and kill keeps the report with the engaging account, saved under it and never sent with the new session', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    let who = ACCOUNT, reports = 0;
+    const counting: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) reports++; return fetch(url, init); };
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: counting, account: () => who, store });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t.hit(ids[0]!);
+    who = OTHER;   // another account signs in mid-fight
+    clock.ms += 60_000;
+    assert.deepEqual(await t.killed(ids[0]!), { offline: 'other-account' });
+    clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await settle();
+    assert.equal(reports, 0, 'never sent with the other session');
+    assert.deepEqual(store.saved.get(ACCOUNT)?.map((e) => e.instance), [ids[0]!], 'saved under the engaging account'); assert.equal(store.saved.has(OTHER), false);
+    who = ACCOUNT; clock.ms += OUTBOX_RETRY_MS; t.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid once its own account is back');
+  } finally { await w.close(); }
+});
+
+test('outbox restore: a saved nextAt from a clock that went back is held at most one max backoff; two tabs of one account keep each other\'s saved reports', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, store = memStore();
+  let reports = 0;
+  const down: typeof fetch = async () => { reports++; return new Response('{}', { status: 503 }); };
+  const far: OutboxEntry = { instance: ids[0]!, token: 'F'.repeat(32), hits: 3, record: null, tries: 1, nextAt: clock.ms + 30 * 24 * 3600_000 };   // a month ahead
+  store.save(ACCOUNT, [far]);
+  const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store });
+  t.tick(); await settle();
+  assert.equal(reports, 0, 'restored, inside the clamp');
+  clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await settle();
+  assert.equal(reports, 1, 'sent once the clamp (one max backoff) passed, not a month later');
+  // two tabs: each saves a report; neither save drops the other's
+  const tabA = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store: memStoreShared(store) });
+  const tabB = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store: memStoreShared(store) });
+  tabA.tick(); tabB.tick(); await settle();   // both read the store before either adds
+  store.saved.set(ACCOUNT, [...(store.saved.get(ACCOUNT) ?? []), { ...far, token: 'A'.repeat(32), nextAt: clock.ms + OUTBOX_RETRY_MAX_MS }]);   // tab A's new report lands in the store
+  clock.ms += OUTBOX_RETRY_MAX_MS; tabB.tick(); await settle();   // tab B saves after its own send
+  assert.ok(store.saved.get(ACCOUNT)?.some((e) => e.token === 'A'.repeat(32)), 'tab B\'s save kept tab A\'s report (re-read before save)');
 });
 
 test('outbox with an expired sign-in: nothing is sent and no try is spent; once a session is back the report goes', async () => {
