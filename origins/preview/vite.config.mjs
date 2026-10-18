@@ -34,6 +34,11 @@ export default defineConfig({
       return `export default import.meta.ROLLUP_FILE_URL_${ref};`;
     },
   }, {
+    name: 'zone-kits-public', apply: 'build',   // the zone kits (public/world/kit/*.glb, ~1.6 MB) ride in the build under world/kit/, read against the build's base (frontier-kit-view.ts loadKit): a /preview/<x>/ build carries its own kits and never needs the site root's /world/
+    async generateBundle() {
+      for (const name of await readdir(`${repo}public/world/kit`)) this.emitFile({ type: 'asset', fileName: `world/kit/${name}`, source: await readFile(`${repo}public/world/kit/${name}`) });
+    },
+  }, {
     name: 'pit-arena-public', apply: 'build',
     async generateBundle() {
       for (const name of await readdir(`${repo}public/arena`)) this.emitFile({ type: 'asset', fileName: `arena/${name}`, source: await readFile(`${repo}public/arena/${name}`) });

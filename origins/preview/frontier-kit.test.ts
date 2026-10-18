@@ -54,6 +54,13 @@ test('Zone 5 (the Bone Hollow): its kit is the dungeon kit, every piece a `fixed
   assert.equal(K5.solids.length, fixed.filter((p) => p.solid > 0).length);
 });
 
+test('the kit is read against the build base, so a /preview/<x>/ build uses its own copy', async () => {
+  const { kitUrlAt } = await import('./frontier-kit-view.ts');
+  assert.equal(kitUrlAt('/world/kit/dungeon-kit.glb', '/preview/dungeon-3101/'), '/preview/dungeon-3101/world/kit/dungeon-kit.glb');
+  assert.equal(kitUrlAt('/world/kit/zone1-kit.glb', '/preview/origins'), '/preview/origins/world/kit/zone1-kit.glb', 'a base without its trailing slash');
+  assert.equal(kitUrlAt('/world/kit/zone1-kit.glb'), '/world/kit/zone1-kit.glb', 'no base (a test, the site root)');
+});
+
 test('the gate arches at the Zone 1 dungeon doors are drawn only on a build that opens unlisted zones (a normal build keeps Zone 1 as it was)', () => {
   const was = process.env.VITE_UNLISTED_ZONES, arches = () => { const f = frontierPlan(), b = frontierBuild(f); return frontierKit(f, b, frontierDress(f, b)).placements.filter((p) => p.node === 'landmark_ruin_arch'); };
   try {

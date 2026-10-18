@@ -7,6 +7,8 @@ import type { Kit, KitPlacement } from './frontier-kit.ts';
 import { loadZone } from '../zones/loader.ts';
 
 export const KIT_URL = loadZone().kit.url;   // public/world: served by URL, never bundled
+/** The kit's address against the build's base: the zone row names it from the site root (`/world/kit/...`); a build served under /preview/<x>/ carries its own copy (vite.config.mjs zone-kits-public) and reads it there. Pure. */
+export const kitUrlAt = (url: string, base: string | undefined = '/'): string => `${base.endsWith('/') ? base : `${base}/`}${url.replace(/^\//, '')}`;
 const NO_SHADOW = /^(bush_|tuft_)/;
 
 export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'landmarks'>, groundAt: (x: number, z: number) => number = () => 0): THREE.Group {
@@ -31,6 +33,6 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
 }
 
 export async function loadKit(kit: Pick<Kit, 'placements' | 'landmarks'>, url = KIT_URL, groundAt?: (x: number, z: number) => number): Promise<THREE.Group> {
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(kitUrlAt(url, import.meta.env?.BASE_URL));
   return kitGroup(gltf.scene, kit, groundAt);
 }
