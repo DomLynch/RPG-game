@@ -6,6 +6,7 @@
 // without it, bronze is reported unpaid). Not paid yet, so it can never overpay: Bounty metal and weekly boss rolls (both need "wins today / rolls this week",
 // which needs an events read). Those caps are passed as reached.
 import { createHash } from 'node:crypto';
+import { KILL_ID_HEX, LOG_TAG_CHARS, MS_PER_SECOND } from './units.ts';
 import type { CharacterInstanceId, EncounterId } from '../../src/core/server.ts';
 import type { ItemInstance } from '../../src/core/server.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
@@ -40,7 +41,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   const res = resolveFight({ fight: kill.fight, result: 'won', twistOutcome: kill.twist as TwistOutcome | null, firstWin, bountyWinsToday: CAP_REACHED, bossRollsThisWeek: CAP_REACHED }, content);
   if (!res.ok || !res.value.kill) return none(res.ok ? 'no-kill' : 'unresolved');
   const { payout } = res.value, batch: Json[] = [], unpaid: string[] = [];
-  const eventId = `enc:${kill.token}`, secs = Math.floor(Date.parse(at) / 1000);
+  const eventId = `enc:${kill.token}`, secs = Math.floor(Date.parse(at) / MS_PER_SECOND);
 
   // The kill's CP, priced by award() and booked with career_set (the row's version guards it: a stale row aborts the whole settle).
   let cp = 0, cpReason = 'no-career';
@@ -88,7 +89,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
 
 // The kill's key inside mint keys: mint keys are lowercase (/^[a-z0-9][a-z0-9:._-]{7,127}$/) and the token is base64url, so the key is a digest of
 // the token, one per kill: loot:enc.<32 hex>:<n>.
-export const killIdOf = (token: string): string => `enc.${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
+export const killIdOf = (token: string): string => `enc.${createHash('sha256').update(token).digest('hex').slice(0, KILL_ID_HEX)}`;
 
 // One placed instance as origins_apply's `mint` (202610060001): its pack place, its mint key (loot:<killIdOf(token)>:<n>, unique, so a replay cannot mint twice).
 export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
@@ -108,7 +109,7 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = worldRule('respawnDefault') * 1000;   // the respawnDefault row (src/fight/world-rules-defs.json, 300 s)
 type RespawnRow = { id: string; respawnSeconds?: number };
-export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => listedZoneIds().flatMap((id) => listedZone(id).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => listedZoneIds().flatMap((id) => listedZone(id).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * MS_PER_SECOND] as const] : [])));
 const ROW_RESPAWN = respawnRows();
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);
@@ -119,17 +120,17 @@ export function respawnMsOf(fight: string, content: EncounterContent, rows: Read
 export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
-    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-6)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }
+    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }
     const since = await store.lastPaidKill(db, kill.account, kill.fight), window = respawnMsOf(kill.fight, content);
-    if (since === 'absent') { log(`encounter rewards ${kill.token.slice(-6)}: the respawn read (202610080006) is not applied, recorded, pays nothing`); return []; }
+    if (since === 'absent') { log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: the respawn read (202610080006) is not applied, recorded, pays nothing`); return []; }
     if (since !== null && since < window) {
-      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((window - since) / 1000)} s left), the fight is recorded and pays nothing`);
+      log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: respawning (${Math.ceil((window - since) / MS_PER_SECOND)} s left), the fight is recorded and pays nothing`);
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
-    log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
+    log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;
   };
 }

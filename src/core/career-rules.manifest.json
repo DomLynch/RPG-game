@@ -14,7 +14,18 @@
         "restedCapCp": "integer",
         "partyGapFloor": "integer",
         "topTier": "integer",
-        "boardMax": "integer"
+        "boardMax": "integer",
+        "partyStep": "integer"
+      }
+    },
+    {
+      "table": "falloff",
+      "file": "career-rules.json",
+      "at": "falloff",
+      "key": "id",
+      "required": {
+        "minDiff": "integer",
+        "permille": "integer"
       }
     },
     {

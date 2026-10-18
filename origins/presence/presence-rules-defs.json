@@ -40,6 +40,9 @@
     { "id": "maxLayers", "value": 8, "unit": "layers" },
     { "id": "internalBodyMax", "value": 1024, "unit": "bytes" },
     { "id": "tokenMaxChars", "value": 4096, "unit": "chars" },
-    { "id": "tickChecksPerTick", "value": 4, "unit": "checks" }
+    { "id": "tickChecksPerTick", "value": 4, "unit": "checks" },
+    { "id": "writerWornTimeoutMs", "value": 1500, "unit": "ms" },
+    { "id": "writerSavedTimeoutMs", "value": 500, "unit": "ms" },
+    { "id": "writerSaveTimeoutMs", "value": 1500, "unit": "ms" }
   ]
 }

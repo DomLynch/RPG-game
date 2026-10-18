@@ -2,12 +2,6 @@
  "origins/feuds/feuds.ts": {
   "BAND_RANK": 1
  },
- "origins/preview/exchange-plan.ts": {
-  "FORGE_HALF": 1
- },
- "origins/preview/frontier-camp.ts": {
-  "CAMP_KIT": 1
- },
  "origins/preview/frontier-dress.ts": {
   "TOP": 1
  },
@@ -23,11 +17,6 @@
  "src/audio/bell.ts": {
   "STRIKE": 1,
   "VIBRATO": 1
- },
- "src/coach.ts": {
-  "COACH_BRAINS": 1,
-  "FOE_LAPSE": 1,
-  "FOE_LAPSE_SCALE": 1
  },
  "src/core/grades.ts": {
   "GRADES": 1

@@ -40,6 +40,21 @@ export function presenceWornPoke(baseUrl: string, key: string, timeoutMs = 1000,
 // X1's test in one place: true only for a placed player whose last pose is at most `maxAgeMs` old and whose zone presence computed as `zone` (x and z alone are never enough).
 export const inZone = (w: Where, zone: string, maxAgeMs: number): boolean => w.online && w.placed && w.zone === zone && w.ageMs <= maxAgeMs;
 
+// The writer's reach read for a rewarding op (kill_report, ground_take): the placed pose when `inZone` holds, else null with WHY it does not, the first failing condition in inZone's order
+// (Auditor 2026-10-18: every live kill and take was 'unchecked' with no way to tell which; the why goes in the op's log line). A presence that cannot be asked is an answer here, never a throw.
+export type Reach = { pose: Extract<Where, { placed: true }> | null; why: string };
+export async function reachOf(where: WhereFn | undefined, account: string, zone: string, maxAgeMs: number): Promise<Reach> {
+  if (!where) return { pose: null, why: 'no-presence' };
+  let w: Where | null;
+  try { w = await where(account); } catch (e) { return { pose: null, why: `presence-error: ${e instanceof Error ? e.message : String(e)}` }; }
+  if (!w) return { pose: null, why: 'presence-error: no answer' };
+  if (!w.online) return { pose: null, why: 'offline' };
+  if (!w.placed) return { pose: null, why: 'unplaced' };
+  if (w.zone !== zone) return { pose: null, why: `other-zone: ${w.zone ?? 'none'} not ${zone}` };
+  if (w.ageMs > maxAgeMs) return { pose: null, why: `stale: ${Math.round(w.ageMs)} ms` };
+  return { pose: w, why: 'checked' };
+}
+
 // True only for a placed player whose last pose is at most `maxAgeMs` old and who stands within `radiusCm` of (x, z). Offline, unplaced or stale is false: the caller refuses. This is the radius test only; a rule that also needs a zone uses `inZone` too.
 export function standsWithin(w: Where, area: { x: number; z: number; radiusCm: number }, maxAgeMs: number): boolean {
   return w.online && w.placed && w.ageMs <= maxAgeMs && Math.hypot(w.x - area.x, w.z - area.z) <= area.radiusCm;

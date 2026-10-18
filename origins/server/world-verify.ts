@@ -5,11 +5,13 @@ import { DEFAULT_WEAPON, MAX_WORLD_TICKS, decodeWorldRecord, hash32, replayWorld
 import type { Sheet } from '../../src/fight/server.ts';
 import { withinReach, type Spawn } from './world-spawns.ts';
 import { checkSpell, type SpellHeld } from './spell-check.ts';
+import { CM_PER_M, TICKS_PER_SECOND } from './units.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import { specialsRefusal, type SpecialsCut } from '../../src/core/server.ts';   // the beta cut on specials (career-ladder.ts), through the core's server door
 
 export const MAX_RECORD_CHARS = 60_000;   // under the writer's 64 KB body limit
 /** The most steps an engagement of this age (s) can hold, plus two seconds for the window that opened just before the token. */
-export const ticksFor = (ageS: number): number => Math.floor(60 * (Number.isFinite(ageS) ? Math.max(0, ageS) : 0)) + 120;
+export const ticksFor = (ageS: number): number => Math.floor(TICKS_PER_SECOND * (Number.isFinite(ageS) ? Math.max(0, ageS) : 0)) + SERVER_RULES.worldKill[0]!.windowSlackTicks;   // windowSlackTicks: a row of the worldKill table
 export type HeroLimit = { level?: number; sheet?: Sheet; weapon?: string; spells?: SpellHeld; refuse?: string; cut?: SpecialsCut };   // cut: the beta cut on specials (src/awards.ts specialsRefusal); absent = the betaCut row, a test may pass a lifted one   // `sheet` present (even undefined) = the record's sheet must EQUAL it (heroLimitOf, the Pit's rule); `refuse` = the books could not give one; attack/res: the older Loadout bound   // what the server's own books allow him: a claim above it is refused (a limit with no level binds the gear only: the worn Loadout the ledger holds)
 const sameSheet = (a: Sheet | undefined, b: Sheet | undefined): boolean => { const x = Object.entries(a ?? {}), y = b ?? {}; return x.length === Object.keys(y).length && x.every(([k, v]) => y[k] === v); };
 export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string };
@@ -20,6 +22,16 @@ export type VerdictTally = { add(outcome: string): void; snapshot(): { since: st
 export function createVerdictTally(now: () => Date = () => new Date()): VerdictTally {
   const since = now().toISOString(), outcomes: Record<string, number> = {};
   return { add: (o) => { outcomes[o] = (outcomes[o] ?? 0) + 1; }, snapshot: () => { const total = Object.values(outcomes).reduce((a, b) => a + b, 0), verified = outcomes.verified ?? 0; return { since, total, verified, rate: total ? verified / total : null, outcomes: { ...outcomes } }; } };
+}
+// The strict-flip readout (audit 2026-10-18; Strategy: both flags ON is a beta-opening gate): may ORIGINS_SPAWN_REFUSE_UNCHECKED go on (enough kills, enough of them reach-checked) and may
+// ORIGINS_WORLD_RECORD_SCORECARD_ONLY (enough kills, enough of them with a record that verified)? Judged on the counts since the writer started, against the strictFlip row. Pure.
+export type FlipGate = { kills: number; rate: number | null; ready: boolean };
+export function flipReadiness(reach: Record<string, number>, records: Record<string, number>, rule: { minKills: number; minRate: number } = SERVER_RULES.strictFlip[0]!): { refuseUnchecked: FlipGate; scorecardOnly: FlipGate } {
+  const gate = (outcomes: Record<string, number>, good: string): FlipGate => {
+    const kills = Object.values(outcomes).reduce((a, b) => a + b, 0), rate = kills ? (outcomes[good] ?? 0) / kills : null;
+    return { kills, rate, ready: kills >= rule.minKills && rate !== null && rate >= rule.minRate };
+  };
+  return { refuseUnchecked: gate(reach, 'checked'), scorecardOnly: gate(records, 'verified') };
 }
 export type VerifyJob = { text: string; spawn: Pick<Spawn, 'spec'>; kind: string; limit?: HeroLimit | null; maxTicks?: number; token?: string };
 export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>, kind: string, limit?: HeroLimit | null, maxTicks: number = MAX_WORLD_TICKS, token?: string): Promise<Verdict> {
@@ -41,6 +53,6 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   if (!j || j.kind !== kind || j.level !== spawn.spec.level) return { ok: false, reason: 'wrong creature' };
   // The bout's roll seed (bout-seed.ts): the kill's own creature may carry one only if it is hash32(the kill's engage token, its join step). Nothing the client sent is trusted; no seed = no roll (today's fight).
   if (j.seed !== undefined && (token === undefined || j.seed !== hash32(token, j.s))) return { ok: false, reason: 'seed' };
-  if (!withinReach(spawn.spec, { x: j.x / 100, z: j.z / 100 })) return { ok: false, reason: 'creature out of its roam' };
+  if (!withinReach(spawn.spec, { x: j.x / CM_PER_M, z: j.z / CM_PER_M })) return { ok: false, reason: 'creature out of its roam' };
   return { ok: true, ticks: r.ticks };
 }
