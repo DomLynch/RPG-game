@@ -1,5 +1,12 @@
 # Character — project state
 
+## 2026-10-18 (night) — STOOD DOWN on Dom's word (token budget). Pick up from here.
+
+- **#3261 (draft, char/wrap-fallback @943b071c8):** troll's white pitborn leg wraps fixed (shared mapped Wrap, `sharedmapped` rows, registers at rig build, waiting pieces settled). VPS 80/80, tsc clean, gate exit 0. OWED: 375 before/after of the troll's legs + cold-load check (helper was stopped mid-task; scratch recipe: S3 + temporary zone 90 package row `troll.pit.t5.maul` + `VITE_UNLISTED_ZONES=1`, build on VPS, Chromium on the Mac). Post the after-shot on #3242, #3258 and #3261. Combat (0f404b) was told the characters.ts hunks.
+- **#3247 (draft, char/clip-packs @c2a6ef99c):** re-based on trunk's troll bodies (#3224 weights kept; decoded mesh+skin identical, only clips added). In-game idles: troll maul head fine, goblin trident carried low but acceptable, left-hand grip unresolved. OWED: the gate with the six two-handed ids in a zone row, CI load-time row.
+- **#3242 (draft, S3 @59967d74d)** and **#3228** (ready, label auditor:ready, CI running, may ride JG). BULK-TZ (World, #3258) is the one bulk PR; I am on call for clashing files in mobs-view, piece-fit, loadouts, kit GLBs.
+- `char/pack-beast-bodies` @e332f60e2 stays untouched (2 failing tests, no PR).
+
 ## 2026-10-18 (late evening) — UPDATE to HANDOFF #4: JE live, #3228 sent to the Auditor, S3 and C05 are draft PRs
 
 - **JE live (b40785691)** with #3216, #3227, #3226. #3224 was in JE's list (#3236); confirm it merged.
