@@ -5,7 +5,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './warp-landmarks.json' with { type: 'json' };
 import MANIFEST from './warp-landmarks.manifest.json' with { type: 'json' };
-import { CENTRE_CM } from './frame.ts';
+import { CENTRE_CM, CM_PER_M } from './frame.ts';
 import { clearOfTradeAreas, zoneAt } from './zones.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { REGISTRY } from '../zones/registry.ts';
@@ -24,7 +24,7 @@ export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<
   return out;
 }
 // A place in Concord metres as presence centimetres, held to the one rule every warp keeps: inside a zone row and clear of the trade areas.
-const cmOf = (mx: number, mz: number): { x: number; z: number } => ({ x: Math.round(CENTRE_CM + mx * 100), z: Math.round(CENTRE_CM + mz * 100) });
+const cmOf = (mx: number, mz: number): { x: number; z: number } => ({ x: Math.round(CENTRE_CM + mx * CM_PER_M), z: Math.round(CENTRE_CM + mz * CM_PER_M) });
 function placeOf(who: string, mx: number, mz: number): { x: number; z: number } {
   const bad = placeProblem(mx, mz);
   if (bad) throw Error(`${who}: ${bad}`);
