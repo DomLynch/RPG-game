@@ -14,7 +14,7 @@ const MELEE = ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', '
 const SPECIALS = ['cleave', 'reaping', 'stomp', 'lunge'];
 
 for (const weapon of MELEE) for (const skill of SPECIALS) test(`${skill} lands and staggers with the ${weapon}`, () => {
-  let d = { tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready', weapon as never), specialShare: 0.1, skillCooldown: 0, skill: skill as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null } as never as { fighters: { health: number; stun: number; phase: string }[]; events: { type: string }[] };
+  let d = { tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready', weapon as never), specialShare: 0.1, skillCooldown: 0, skill: skill as never, picked: true as const }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null } as never as { fighters: { health: number; stun: number; phase: string }[]; events: { type: string }[] };
   const hp0 = d.fighters[1]!.health;
   d = stepDuel(d as never, [{ ...idle(), action: 'skill' }, idle()]) as never;
   for (let i = 0; i < 90 && !d.events.some((e) => e.type === 'SpecialLanded'); i++) d = stepDuel(d as never, [idle(), idle()]) as never;
