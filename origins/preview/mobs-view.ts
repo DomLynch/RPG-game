@@ -14,6 +14,7 @@ import type { Tier } from '../../src/core/grades.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
 import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/characters.ts';
 import { shapeFor } from '../../src/fight/weapon-shapes.ts';
+import { fitPieces } from './piece-fit.ts';
 import { TITLES } from '../../src/core/server.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
@@ -122,7 +123,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const putOn = (v: View) => {
     const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
-    try { v.actor.wear(pieces.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
+    const rig = (() => { let s: THREE.Skeleton | undefined; v.actor!.anchor.traverse((o) => { if (!s && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') s = (o as THREE.SkinnedMesh).skeleton; }); return s; })();   // the body's own skeleton: the pieces are fitted to ITS proportions (piece-fit.ts)
+    try { v.actor.wear((rig ? fitPieces(pieces, rig) : pieces).filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
   };
   const loadCarriers = (kind: string) => {
