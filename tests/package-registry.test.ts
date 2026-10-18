@@ -97,9 +97,9 @@ test('the build CHECKS the generated files and never writes them: a hand edit is
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('the packages here are bone-hollow (zone 5) and crypt-sample (zone 6); a theme two dungeons share is carried once', () => {
+test('the packages here are bone-hollow (zone 5), crypt-sample (zone 6) and zone90 (the Test Zone, unlisted, imported from its branch); a theme two dungeons share is carried once', () => {
   const pkgs = readPackages() as { id: string; files: Record<string, string> }[];
-  assert.deepEqual(pkgs.map((p) => p.id), ['bone-hollow', 'crypt-sample']);
+  assert.deepEqual(pkgs.map((p) => p.id), ['bone-hollow', 'crypt-sample', 'zone90']);
   const carried = pkgs.flatMap((p) => (p.files['theme.row.json'] ? [(JSON.parse(p.files['theme.row.json']) as { id: string }).id] : []));
   assert.deepEqual(carried, [...new Set(carried)], 'no theme row is carried twice');
 });
