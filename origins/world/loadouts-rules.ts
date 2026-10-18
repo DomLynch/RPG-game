@@ -42,9 +42,13 @@ export const loadoutIds = (): readonly string[] => LOADED.loadouts.map((l) => l.
  * `base` is the zone look's own `loadout`, `spread` the camp's `spread.loadouts`; either may be absent (undefined = the body as it is).
  */
 export function pickLoadout(id: string, creature: string, base: string | undefined, spread: readonly string[] | undefined): string | undefined {
+  return loadoutAt(variantIndex(id, creature), base, spread);
+}
+/** The loadout of variant `v` (the look code, which already holds the variant, and pickLoadout, which derives it from the creature, share this one formula): `[base, ...spread][v % length]`; no spread = the base. */
+export function loadoutAt(v: number, base: string | undefined, spread: readonly string[] | undefined): string | undefined {
   if (!spread?.length) return base;
   const list = [base, ...spread];
-  return list[variantIndex(id, creature) % list.length];
+  return list[v % list.length];
 }
 
 /** The one worn piece a kill drops, chosen from the creature's own id so the same goblin always drops the same piece (Dom: one worn item per kill). undefined for a loadout that wears nothing. */
