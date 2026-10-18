@@ -9,9 +9,9 @@ import type { CombatEvent } from '../src/fight/combat.ts';
 
 const ev = (e: object) => e as CombatEvent;
 
-test('no contact row ships a flash or ring, and no roar ships: the picture and the crowd are as they were', () => {
+test('no contact row ships a flash or ring; the four sandbox roars ship ON (BULK-CS, Dom 2026-10-18: kill, parry, guard break, heavy)', () => {
   for (const [id, row] of Object.entries(CONTACTS)) assert.ok(row.flash === undefined && row.ring === undefined && row.tint === undefined, `${id} has no impact columns`);
-  assert.deepEqual(ROARS, []);
+  assert.deepEqual(ROARS.map((r: { on: string }) => r.on).sort(), ['guardBreak', 'heavy', 'kill', 'parry']);
 });
 
 test('the impact fx draws nothing without columns, and a row with a flash and a ring draws both at the struck body', () => {

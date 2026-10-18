@@ -16,7 +16,7 @@ const damageFrom = (attacker: number | undefined): number => {
   return start - d.fighters[0].health;
 };
 
-test('trunk ships no attackers rows', () => assert.equal(shipped, 0));
+test('the four sandbox attacker rows ship ON (BULK-CS: 100 / 50 / 30 / 30 percent), read behind the era', () => assert.equal(shipped, 4));
 test('the nth attacker hits for its row\'s share', () => {
   const first = damageFrom(1), second = damageFrom(2), third = damageFrom(3), none = damageFrom(undefined);
   assert.ok(first > 0, 'the light lands');

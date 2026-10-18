@@ -5,7 +5,7 @@ import CROWD from '../src/audio/crowd-defs.json' with { type: 'json' };
 import { momentsOf } from '../src/audio/crowd-rows.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
-test('trunk ships no roars', () => assert.deepEqual(CROWD.roars, []));
+test('the four sandbox roars ship ON (BULK-CS, Dom 2026-10-18)', () => assert.deepEqual(CROWD.roars.map((r: { on: string }) => r.on).sort(), ['guardBreak', 'heavy', 'kill', 'parry']));
 test('kill, parry, guard break and heavy hits are the roar moments; a light hit is none', () => {
   const ev = (e: object) => e as CombatEvent;
   assert.deepEqual([...momentsOf([ev({ type: 'Killed', actor: 0 }), ev({ type: 'Parried', actor: 1, target: 0 })])], ['kill', 'parry']);

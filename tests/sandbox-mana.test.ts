@@ -48,7 +48,7 @@ test('SPELL 2 is paid in mana at its own cost (35 x 1.5 = 53), refused short of 
   d = stepDuel(d as never, [{ ...idle(), action: 'skill2' }, idle()]) as never;
   assert.equal(d.fighters[0]!.mana, 47, 'the second spell is paid in mana');
   assert.equal(d.fighters[0]!.stamina, stamina, 'stamina untouched');
-  assert.equal((d.events as { type: string; spell?: string }[]).find((e) => e.type === 'SpecialStarted')?.spell, 'two', 'the cast is the second spell');
+  assert.equal(((d as unknown as { events: { type: string; spell?: string }[] }).events).find((e) => e.type === 'SpecialStarted')?.spell, 'two', 'the cast is the second spell');
 });
 test('heavy armour slows the regen by the casting penalty, not the cost', () => {
   const plain = manaRegenPerTick(undefined), plate = manaRegenPerTick({ armour: 25 } as never);
