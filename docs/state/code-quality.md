@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~14:3x. LIVE = IT 2abdfd839 (verified on #3184: services, NRestarts 0, flags unset; prod has origins_account_is_test, migration 20261018084514, the new ground_take body)
+- **IU2 #3188 @32c5101f8: candidate PASS + label** (#3134 hit-freeze with Dom's yes, #3136/#3141/#3143, #3182, #3183, #3176+#3174). On publish: verify the services (no migration).
+- PASS posted: #3161 @ef85fc669 (V5 page half; I added auditor:ready so unit-ci ran), #3176 @e9cdf5c8f (carries #3174; close #3174 after), #3178 @d70fe9767 (biome presets; closure 20), #3186 @4782842c2 (package warps + server package check).
+- **My #3155 @265a132f0 is green** (rebased onto IT; union conflicts with qa= and strictRevert). It waits on Lead's PASS.
+- Strategy's world-tests question is answered on #3184: unit-ci runs both stubs, with 42/42 titles ok on IS and IT. node --test prints titles, not file names.
+- Gotchas: (sss) read a stacked PR's own delta with \`git merge-tree --write-tree trunk <base>\` vs \`... trunk <head>\` (three-way); a two-dot diff of a pre-release branch shows newer trunk files as deleted. (ttt) No auditor:ready = no unit shards: check the success list includes shard (1..8) before posting a PASS.
+
 ## 2026-10-18 ~13:1x. LIVE = IQ ae51499ac (verified on #3175: writer/presence/verifier, NRestarts 0, flags unset)
 - **IR2 #3180 @33a3b00ac: candidate PASS + label** (#3177, #3123, #3167, #3172; IR #3179 closed). On publish: no migration; verify the services; the overlap flag goes on after (Lead).
 - **#3171: PASS @d19bbaa22** (frozen; renamed migration 20261018084514, already applied in prod). IS = #3171 + my #3168 @c9c82db6a (green; needs Lead's PASS).
