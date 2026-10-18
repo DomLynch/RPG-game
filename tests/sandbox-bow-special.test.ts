@@ -3,18 +3,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 
-const d = DEFS as unknown as { rules: { id: string; value: number }[]; bands: unknown[]; missile: unknown[]; missileLanes: unknown[]; bowSpecial: object[]; specialReactFloor: object[] };
+const d = DEFS as unknown as { rules: { id: string; value: number }[]; bands: unknown[]; missile: unknown[]; missileLanes: unknown[]; bowSpecial?: object[] };
 const rule = (id: string) => d.rules.find((r) => r.id === id)!;
 rule('quiver').value = 1; rule('missileRadius').value = 70; rule('missileFan').value = 22; rule('missileStun').value = 16; rule('missileHoming').value = 1;
 rule('specialMeleeWindup').value = 32; rule('specialReact').value = 1; rule('specialReactStagger').value = 160; rule('specialReactKnock').value = 450; rule('specialReactPosture').value = 150;
 d.bands.push({ id: 'inner', upTo: 135 }, { id: 'mid', upTo: 180 }, { id: 'outer', upTo: 100000 });
 d.missile.push({ kind: 'bow', weapon: 'knife', speed: 900, share: 1000, mana: 0, windup: 20, recovery: 0, ammo: 20, pierce: 0 });
 d.missileLanes.push({ move: 'thrust', lane: 0 });
-d.bowSpecial.push(
+d.bowSpecial = [
   { skill: 'cleave', label: 'Power Shot', unlockAfterBossKills: 0, arrows: 2, lanes: [0], mult: 2000, windup: 40, speed: 700, react: 1 },
   { skill: 'reaping', label: 'Fan Volley', unlockAfterBossKills: 1, arrows: 3, lanes: [-1, 0, 1], mult: 600, windup: 36, speed: 900 },
   { skill: 'stomp', label: 'Pinning Shot', unlockAfterBossKills: 2, arrows: 1, lanes: [0], mult: 1000, windup: 36, speed: 900, pin: 90 },
-  { skill: 'lunge', label: 'Quick Shot', unlockAfterBossKills: 0, arrows: 1, lanes: [0], mult: 1200, windup: 14, speed: 1400 });
+  { skill: 'lunge', label: 'Quick Shot', unlockAfterBossKills: 0, arrows: 1, lanes: [0], mult: 1200, windup: 14, speed: 1400 }];
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
 type F = { health: number; maxHealth: number; ammo?: number; stun: number; phase: string; special: number };
