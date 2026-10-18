@@ -96,7 +96,7 @@ function panel(opponents: string[]) {
     return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
   };
   // Weapon lists: the real weapons plus Staff / Bow / Crossbow (stand-ins: an existing weapon fires instead of striking, see the missile rows).
-  const MISSILES: Record<string, string> = { staff: 'trident', bow: 'knife', crossbow: 'warhammer' };
+  const MISSILES: Record<string, string> = { staff: 'trident', bow: 'knife' };
   const weaponPick = (label: string, mine: boolean) => {
     const sel = el('select'), mineNow = mine ? params.has('spar') ? params.get('weapon') ?? undefined : (() => { try { return JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}').weapon as string | undefined; } catch { return undefined; } })() : params.get('foeWeapon');
     const asKind = Object.keys(MISSILES).find((k) => params.get(k) === mineNow && mineNow);
@@ -228,10 +228,10 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
   // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
   {
     const rows = RULES as unknown as { missile?: { kind?: string; weapon: string }[]; bandBest?: { weapon: string; band: string }[] };
-    // ?me=staff|bow|crossbow: one tappable link for the whole setup (the stand-in weapon you carry, set as the Dev kit weapon and as that kind's missile weapon).
-    const STAND: Record<string, string> = { staff: 'trident', bow: 'knife', crossbow: 'warhammer' }, me = q.get('me');
+    // ?me=staff|bow: one tappable link for the whole setup (the stand-in weapon you carry, set as the Dev kit weapon and as that kind's missile weapon). The crossbow is out for beta (Dom, 2026-10-18).
+    const STAND: Record<string, string> = { staff: 'trident', bow: 'knife' }, me = q.get('me');
     if (me && STAND[me]) { try { sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ ...JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}'), weapon: STAND[me] })); } catch { /* none */ } q.set(me, STAND[me]!); }
-    for (const kind of ['staff', 'bow', 'crossbow']) {
+    for (const kind of ['staff', 'bow']) {
       const w = q.get(kind);
       if (w && WEAPON_IDS.includes(w)) { for (const r of rows.missile ?? []) if (r.kind === kind) r.weapon = w; (rows.bandBest ??= []).push({ weapon: w, band: 'outer' }); }
     }
@@ -239,14 +239,14 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
     // Painted bow / crossbow (Characters & Art 3febe084b, from Dom's picks bow-concept-s71 / crossbow-concept-top-s71): loaded once before the fight; a failed load keeps the procedural v1.2 model.
     const painted: Record<string, { clone(r?: boolean): unknown } | undefined> = {};
     try {
-      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js'), { default: bowUrl } = await import('./painted/bow-v1.glb?url'), { default: xbowUrl } = await import('./painted/crossbow-v1.glb?url');
-      for (const [kind, url] of [['bow', bowUrl], ['crossbow', xbowUrl]] as const) { try { painted[kind] = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene.getObjectByName('WeaponDrawn') ?? undefined; } catch (e) { (globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ = [...((globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ ?? []), `${kind}: ${String(e)}`]; /* keep the procedural one */ } }
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js'), { default: bowUrl } = await import('./painted/bow-v1.glb?url');
+      for (const [kind, url] of [['bow', bowUrl]] as const) { try { painted[kind] = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene.getObjectByName('WeaponDrawn') ?? undefined; } catch (e) { (globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ = [...((globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ ?? []), `${kind}: ${String(e)}`]; /* keep the procedural one */ } }
     } catch (e) { (globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ = [`import: ${String(e)}`]; /* keep the procedural ones */ }
-    { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1', crossbow: 'crossbow-v1' } as const;
+    { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1' } as const;
       (globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__ = (weapon: string) => {
-        const kind = (['staff', 'bow', 'crossbow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
+        const kind = (['staff', 'bow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
         // Holds from Characters & Art (scripts/weapon-stage/holds.json, 2026-10-15): ABSOLUTE local transforms under the hand bone (the part names its hand), Euler XYZ degrees, metres; they replace SwordDrawn's.
-        const HOLD: Record<string, [number, number, number]> = { staff: [90, 0, 0], bow: [-1.9, 34.6, 114.3], crossbow: [92.8, 60.3, 96.2] };
+        const HOLD: Record<string, [number, number, number]> = { staff: [90, 0, 0], bow: [-1.9, 34.6, 114.3] };
         const paintedPart = painted[kind]?.clone(true) as { userData: Record<string, unknown>; rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } } | undefined;
         if (paintedPart) {
           paintedPart.userData.hand = kind === 'bow' ? 'hand_l' : 'hand_r';
