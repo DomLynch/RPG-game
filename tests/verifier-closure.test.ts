@@ -83,3 +83,14 @@ test('deploy.sh installs the verifier from the closure and gates the flip on the
   assert.ok(at('(cd "$1" && find src') < at('ln -sfn "$1" /opt/frankendom-verifier/current'), 'the dry import runs before the flip');
   assert.doesNotMatch(deploy.slice(at('(cd "$1" && find src'), at('ln -sfn "$1" /opt/frankendom-verifier/current')), /NODE_PIN/, 'the box\'s own node');
 });
+
+// Auditor 2026-10-18: the verifier used to install after the switch, so verify-daily ran JD's rules against JE for two minutes. It flips with the site, like the writer.
+test('deploy.sh flips the verifier before the site switch and puts it back while the site has not moved', () => {
+  const at = (needle: string) => { const i = deploy.indexOf(needle); assert.ok(i >= 0, `missing: ${needle}`); return i; };
+  const flip = at('ln -sfn "$1" /opt/frankendom-verifier/current'), sw = at('mv -Tf next current');
+  assert.ok(at('deploy_step "verifier install"') < flip && flip < sw, 'the verifier flips before the switch');
+  assert.ok(at('deploy_step "verifier"\n') > sw, 'the timers step stays after the switch and the previews');
+  assert.equal(deploy.split('ln -sfn "$1" /opt/frankendom-verifier/current').length, 2, 'one flip only');
+  assert.match(deploy.slice(flip, sw), /\|\| \{ writer_back; presence_back; verifier_back; exit 1; \}/, 'a failed switch puts the verifier back');
+  assert.match(deploy, /verifier_back\(\) \{[\s\S]{0,400}?readlink -f \/var\/www\/frankendom\/current[\s\S]{0,120}?\|\| ln -sfn '\$verifier_prev'/, 'only while the site has not moved');
+});
