@@ -2,12 +2,13 @@
 import { frontierPlan } from '../preview/frontier-plan.ts';
 import { toWorld } from './derive.ts';
 import type { GroundItem } from './ground-items.ts';
+const HALF = 0.5;   // the middle of the place's depth (exempt: scripts/as-data/allow/origins-world.json)
 
 /** The centre of the row's place (a zone of the zone package) plus the row's offset. null = the row names a zone or place this build does not have. */
 export function groundPointOf(row: Pick<GroundItem, 'zone' | 'place' | 'offsetX' | 'offsetZ'>): { x: number; z: number } | null {
   const zone = /^zone([1-9][0-9]*)$/.exec(row.zone)?.[1];
   const plan = zone ? frontierPlan(true, zone).zones.find((z) => z.zone === row.place) : undefined;
   if (!plan) return null;
-  const c = toWorld({ x: 0, d: plan.depth / 2 }, plan.mount);
+  const c = toWorld({ x: 0, d: plan.depth * HALF }, plan.mount);
   return { x: c.x + (row.offsetX ?? 0), z: c.z + (row.offsetZ ?? 0) };
 }
