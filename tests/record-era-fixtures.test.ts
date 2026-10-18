@@ -44,6 +44,14 @@ test('negative control: a stored record that now replays to a different fight fa
   assert.ok(problems.some((p) => p.startsWith('plain ')), problems.join(' | '));
 });
 
+test('the replay checks a record the way the paying sweeps do: its sheet against the entry\'s STORED server view, its spell through the one spell gate', async () => {
+  const f = clone(), sheet = f.records.find((e) => e.name === 'sheet')! as Entry & { server: { sheet: Record<string, number> } };
+  sheet.server.sheet = { ...sheet.server.sheet, health: 71 };   // the stored build no longer gives the record's sheet
+  assert.ok((await checkEraFixtures(f)).problems.some((p) => /^sheet v\d+: no longer replays: .*stored build/.test(p)), 'the record\'s own sheet is never trusted');
+  const spell = fixture.records.find((e) => e.name === 'spell')! as Entry & { expect: { gate: string | null } };
+  assert.match(String(spell.expect.gate), /names no stored build/, 'a spell record with no stored build is pinned as refused by the gate (never paid)');
+});
+
 test('a refusal not backed by a REACH bump fails; a record reached by a later bump counts as retired, not as a pass or a failure', async () => {
   const junk = clone(); junk.records.push({ ...junk.records[0]!, encoded: 'not-a-record' });
   assert.ok((await checkEraFixtures(junk)).problems.some((p) => /refused without a REACH bump/.test(p)));
