@@ -94,7 +94,15 @@ World kills and ground pickups pay today without a verified record or a checked 
 | V5 | A kill whose report got a 409 (`used`) is never silently lost: the page can ask the server whether that token was already paid (a receipt lookup) and tell the player what happened | Backend (the lookup), Web (the page) | A test: a paid kill whose response was lost reads back as paid, and an expired token reads back as not paid; neither is paid twice | **open** (tracked, not a blocker for the controlled rollout; external audit recheck, 2026-10-18) |
 | V6 | Strict mode is proven live, not just ready: valid kills pay, invalid ones earn no valuables, and an interrupted report recovers with no duplicate or lost reward | Auditor (the proof), Deploy (the build) | Strict mode is proven live on the QA account BEFORE any flag flips for everyone: a timestamped receipt on that build with the readout and its `since`, every row of the rollout matrix below, one refused forged report, and one lost-response kill recovered through the outbox (#3146) without paying twice | **open** |
 
-**The beta-opening gate (Strategy, 2026-10-18):** NO-GO on public persistent rewards until V1, V2 and V6 close. **Flip order:** V1 (`REFUSE_UNCHECKED`) first, then V2 (`SCORECARD_ONLY`). Each flips only when its `strictFlip` row thresholds are met, and each gets a readout line on its thread (checked %, record %, gear-change drops, `since`, build sha). **Baseline:** IM's receipt carries the first readout line after its restart, as the soak baseline (Auditor).
+**The beta-opening gate (Strategy, 2026-10-18):** NO-GO on public persistent rewards until V1, V2 and V6 close. **Baseline:** IM's receipt carries the first readout line after its restart, as the soak baseline (Auditor). It read 0 kills: there is no organic traffic, so the soak is driven.
+
+**QA-driven kills count (Strategy, 2026-10-18), under these conditions:**
+- **The ≥50 kills are the matrix below, not happy paths.** Each scenario is named in the readout with its checked and record result. The QA script logs `<scenario> <token tail>`, and the Auditor joins it to the writer's `kill_report <tail>` lines.
+- The ≥95% is measured over the whole matrix, and **any single scenario at 0% checked or 0% verified blocks the flip**.
+- QA kills are on the **QA account only**, which is excluded from the ladder and from persisting loot. Backend marks the account.
+- **The flip is one Deploy step** (both flags), taken after the Auditor's matrix readout and the V6 line.
+- **Revert rule (row `strictRevert`):** after the flip, the readout counts ORGANIC kills apart from QA ones. If organic checked % is under 95% over the first 50 organic kills, or any 10 consecutive organic kills are unchecked, Deploy flips both flags OFF, with a readout line on the thread, and Lead reopens the item.
+- **The gate closes** when the first 50 organic kills after the flip are at ≥95%.
 
 **Controlled-rollout matrix (Auditor owns it; V6 and every flip receipt name each row with its result):**
 
@@ -106,7 +114,7 @@ World kills and ground pickups pay today without a verified record or a checked 
 | M4 | Reconnect mid-fight inside the 120 s token TTL | the report lands on the same token and is paid once |
 | M5 | Zone change mid-fight or before the report | refused or unchecked as the zone rule says, never paid as the wrong zone |
 | M6 | Repeat report (the same token twice, the lost-reply resend) | 409 `used`, paid once (V5 tracks telling the player) |
-| M7 | The acceptance matrix: several gear loadouts, more than one creature kind, a long fight, a pack in sequence, spell use | each checked and verified at the row thresholds |
+| M7 | The acceptance matrix: ≥3 gear loadouts, ≥2 creature kinds, a pack in sequence, spell use, a hidden tab / app switch mid-fight, phone Safari on a real device, the slow-device verdict on, and a long fight past the 5-minute / 256-event caps | each checked and verified at the row thresholds; past the caps, whatever the cap rule says (verified, or dropped with a reason), never a stale verify |
 
 **Reading the readout (Backend's review of #3145):**
 - The diagnostics code and the `strictFlip` row take effect only after a writer restart: a release, or a restart by Deploy.
