@@ -4,11 +4,12 @@
 //                      joiners included, so three creatures on one player hold three tokens. The token's time-to-kill floor runs from this call: engaging late (at the kill) answers too-fast.
 //   hit(instance)      the player's blow landed on THIS creature (hits are per creature, never the fight total); touches the token at most every TOUCH_EVERY_MS (the writer's grace is 120 s).
 //   tick()             touches every open token not touched for TOUCH_EVERY_MS (a long fight with few hits).
-//   killed(instance, record?)   the creature fell: POST /kill_report {token, hits, record?} (record = the world fight's packed inputs, src/fight/world-record.ts; the server replays it, and a kill without one pays scorecard counts only); the creature is spent whatever the answer. A report that did not get a settled answer (the socket dropped, a timeout,
-//                      a 5xx, a refusal that leaves the token open such as 422 'position not checked') waits in the OUTBOX and tick() re-sends it with the SAME token: the server pays a token once (its
-//                      second report is 409 used), so a kill whose reply was lost is paid exactly once. 409 means settled (paid by the lost attempt, or dead/expired): the report is dropped.
+//   killed(instance, record?)   the creature fell: POST /kill_report {token, hits, record?} (record = the world fight's packed inputs, src/fight/world-record.ts; the server replays it; with ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1 a kill without a verified one pays scorecard counts only, otherwise it pays as usual); the creature is spent whatever the answer. A report that did not get a settled answer (the socket dropped, a timeout,
+//                      a 5xx, a refusal that leaves the token open such as 422 'position not checked') waits in the OUTBOX and tick() re-sends it with the SAME token once its backoff (retryDelay) has passed: the server pays a token once (its
+//                      second report is 409 used), so a kill whose reply was lost is paid exactly once. 409 means settled (paid by the lost attempt, or dead/expired): the report is dropped. With a `store`
+//                      the outbox outlives the page (saved per account on every change, read back by the next page's first tick()).
 //   evaded(instance)   the creature gave up and walked home: drop its token, no report (it expires on the server).
-// Same contract as encounter-net.ts: no DOM, storage or clock read here; every failure (no session, a refusal, 503 off, the network) is an answer ({ offline }), never a throw. The page's own loot,
+// Same contract as encounter-net.ts: no DOM, storage or clock read here (the store and the clock are handed in); every failure (no session, a refusal, 503 off, the network) is an answer ({ offline }), never a throw. The page's own loot,
 // toast and respawn path runs exactly as today whatever the server says; the server's answer is the beta-ledger truth.
 import { call } from './encounter-net.ts';
 import { DEFAULT_ZONE } from '../zones/loader.ts';
@@ -24,6 +25,15 @@ export const MAX_RECORD_CHARS = previewRule('maxRecordChars');   // the writer's
 export const SPENT_MS = previewRule('spentWindow');
 const isOffline = (r: object): r is Offline => 'offline' in r;
 export const OUTBOX_TRIES = previewRule('outboxTries');
+// The outbox's time-based backoff (audit 2026-10-18 F3: the retry ran on every frame, so a fast 503 spent all OUTBOX_TRIES in about a second): a failed send waits outboxRetry ms, times outboxRetryGrowth
+// each further try, at most outboxRetryMax. With 2 s, x2 and 60 s the tries land within the writer's engage grace (engageTtl, 120 s) first and then spread out, so a short outage is ridden out instead of exhausted.
+export const OUTBOX_RETRY_MS = previewRule('outboxRetry'), OUTBOX_RETRY_MAX_MS = previewRule('outboxRetryMax'), OUTBOX_RETRY_GROWTH = previewRule('outboxRetryGrowth');
+export const retryDelay = (tries: number): number => Math.min(OUTBOX_RETRY_MS * OUTBOX_RETRY_GROWTH ** Math.max(0, tries - 1), OUTBOX_RETRY_MAX_MS);
+// One pending kill report as the outbox keeps it, and the durable store a page may give it (outbox-store.ts: localStorage): the outbox is saved under the account whose session engaged the kill
+// and read back on the next page of that account, so a reload, a crash or a closed tab inside the engage grace still reports the kill on its own token (the writer pays a token once). Never sent with
+// another account's session: an account switch leaves the old account's reports saved for it.
+export type OutboxEntry = { instance: string; token: string; hits: number; record: string | null; tries: number; nextAt: number };
+export type OutboxStore = { load(account: string): OutboxEntry[]; save(account: string, entries: readonly OutboxEntry[]): void };
 const settledOffline = (r: Offline): boolean => r.offline === 'http-409' || r.offline === 'http-400' || r.offline === 'http-404';   // the server answered and will not change its mind
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -39,7 +49,8 @@ export function killedOf(r: unknown): Killed | null {
 }
 const touchedOf = (r: unknown): { expiresAt: string } | null => (r && typeof r === 'object' && typeof (r as { expiresAt?: unknown }).expiresAt === 'string' ? { expiresAt: (r as { expiresAt: string }).expiresAt } : null);
 
-type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; encode?: (r: WorldRecord) => Promise<string>; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void };
+type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; encode?: (r: WorldRecord) => Promise<string>; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void;
+  account?: () => string | null; store?: OutboxStore };   // account: the signed-in account the session belongs to (writer-call.ts storedAccount); with `store`, the outbox is durable per account
 type Open = { engage: Promise<Engaged | Offline>; hits: number; touchedAt: number };
 export type SpawnTracker = {
   engaged(instance: string): Promise<Engaged | Offline>;
@@ -53,7 +64,22 @@ export type SpawnTracker = {
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  type Pending = OutboxEntry & { account: string | null; busy: boolean };
+  const pending = new Map<string, Pending>(), loaded = new Set<string>();   // pending: by engage TOKEN (a respawned creature's next kill is a new token, never this one); loaded: accounts whose saved outbox this page has read
+  const accountNow = (): string | null => d.account?.() ?? null;
+  const persist = (account: string | null): void => {   // the store's copy of one account's outbox; a store that throws (quota, private mode) leaves the in-memory outbox as it is
+    if (!d.store || !account) return;
+    restore(account);   // never overwrite reports an earlier page saved and this one has not read yet
+    try { d.store.save(account, [...pending.values()].filter((p) => p.account === account).map(({ instance, token, hits, record, tries, nextAt }) => ({ instance, token, hits, record, tries, nextAt }))); } catch { /* kept in memory */ }
+  };
+  const restore = (account: string): void => {   // once per account per page: the reports an earlier page of this account left unsent
+    if (!d.store || loaded.has(account)) return;
+    loaded.add(account);
+    let saved: OutboxEntry[] = [];
+    try { saved = d.store.load(account); } catch { /* nothing to restore */ }
+    for (const s of saved) if (!pending.has(s.token)) pending.set(s.token, { ...s, account, busy: false });
+  };
   const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
@@ -72,15 +98,18 @@ export function spawnTracker(d: Deps): SpawnTracker {
     void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
     return engage;
   };
-  const send = async (instance: string): Promise<Killed | Offline> => {
-    const p = pending.get(instance);
+  const send = async (token: string): Promise<Killed | Offline> => {
+    const p = pending.get(token);
     if (!p) return { offline: 'settled' };
     if (p.busy) return { offline: 'busy' };
-    p.busy = true; p.tries++;
+    if (d.account && p.account !== accountNow()) return { offline: 'other-account' };   // never sent with another account's session: it waits, saved, for its own account
+    p.busy = true;
     const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : {}) }, d.token(), killedOf, opts);
     p.busy = false;
-    if (!isOffline(r)) { pending.delete(instance); d.onSettled?.(r); }
-    else if (settledOffline(r) || p.tries >= OUTBOX_TRIES) pending.delete(instance);
+    if (!isOffline(r)) { pending.delete(token); d.onSettled?.(r); }
+    else if (r.offline === 'no-session') p.nextAt = d.now() + OUTBOX_RETRY_MS;   // nothing was sent (the sign-in expired): not a try, asked again once a session is back
+    else { p.tries++; if (settledOffline(r) || p.tries >= OUTBOX_TRIES) pending.delete(token); else p.nextAt = d.now() + retryDelay(p.tries); }
+    persist(p.account);
     return r;
   };
   return {
@@ -95,7 +124,12 @@ export function spawnTracker(d: Deps): SpawnTracker {
       o.hits++;
       if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
     },
-    tick() { for (const o of live.values()) if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o); for (const instance of pending.keys()) void send(instance); },
+    tick() {
+      for (const o of live.values()) if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
+      const account = accountNow();
+      if (account) restore(account);
+      for (const p of [...pending.values()]) if (!p.busy && d.now() >= p.nextAt) void send(p.token);   // only once its backoff has passed: never a send per frame
+    },
     async killed(instance, record) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
@@ -103,12 +137,14 @@ export function spawnTracker(d: Deps): SpawnTracker {
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
       const packed = record && d.encode ? await d.encode(record).catch(() => null) : null;   // gzip failing or a record past the limit: the kill is still reported, without it
-      pending.set(instance, { token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, busy: false });
-      return send(instance);
+      const account = accountNow();
+      pending.set(e.token, { instance, token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, nextAt: d.now(), account, busy: false });
+      persist(account);   // saved BEFORE the first send: a page closed mid-request still has it
+      return send(e.token);
     },
     evaded(instance) { live.delete(instance); tokens.delete(instance); retried.delete(instance); },
     open: () => [...live.keys()],
-    outbox: () => [...pending.keys()],
+    outbox: () => [...pending.values()].map((p) => p.instance),
   };
 }
 
