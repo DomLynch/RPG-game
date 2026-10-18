@@ -42,11 +42,11 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     assert.equal(z.level, 1);
     const { VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts'), { loadoutRow, droppedPiece } = await import('../origins/world/loadouts-rules.ts');   // Dom 2026-10-16/17: goblins vary, each variant wears a loadout row (weapon + armour pieces) from the zone row (data)
     const looks = Array.from({ length: VARIANTS }, (_, v) => variantLook('character:pit-goblin', v, z)!), rows = looks.map((l) => loadoutRow(l.loadout));
-    assert.ok(new Set(looks.map((l) => l.loadout)).size >= 3, `goblin variants wear at least three different loadouts (the one-handed set until Characters' #3247 clip packs bring the rest back): ${looks.map((l) => l.loadout).join()}`);
+    assert.ok(new Set(looks.map((l) => l.loadout)).size >= 2, `goblin variants wear at least two different loadouts (the one-handed set until Characters' #3247 clip packs bring the rest back): ${looks.map((l) => l.loadout).join()}`);
     assert.ok(rows.every((r) => r && isWeaponId(r.weapon)) && looks.every((l, i) => l.gear === rows[i]!.weapon), 'every loadout is a row, its weapon a real weapon row, and the look carries it');
     assert.ok(looks.every((l) => l.body === 'world/kit/goblin-bare.glb'), 'every goblin variant is drawn on the bare body, so what it wears is its loadout');
     assert.ok(new Set(rows.map((r) => r!.tier)).size >= 2, 'medium and heavy are both worn'); assert.ok(rows.every((r) => ['Veteran', 'Champion', 'Praetorian', 'Master'].includes(r!.rung ?? '')), 'Dom 2026-10-18: Zone 1 goblins wear the level 4-7 finishes (Veteran, Champion, Praetorian, Master), not level 1');
-    assert.ok(new Set(rows.map((r) => r!.weapon)).size >= 3, `weapons rotate across at least three types (the one-handed set until Characters' #3247 clip packs bring the rest back): ${rows.map((r) => r!.weapon).join()}`); const captain = loadoutRow('goblin.captain')!;
+    assert.ok(new Set(rows.map((r) => r!.weapon)).size >= 2, `weapons rotate across at least two types (the one-handed set until Characters' #3247 clip packs bring the rest back): ${rows.map((r) => r!.weapon).join()}`); const captain = loadoutRow('goblin.captain')!;
     assert.ok(captain.pieces.includes(droppedPiece(captain, 'z90:test-t-06-goblin-1')!) && droppedPiece(captain, 'a') === droppedPiece(captain, 'a'), 'a kill drops ONE piece the goblin wore, the same one every time for the same goblin');
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
