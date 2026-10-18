@@ -38,8 +38,8 @@
   },
   "files": {
     "zone.row.json": {
-      "bytes": 13786,
-      "sha256": "a4af8fe91e27f31924ac4bb45a03ddb01d6b8fb4007ad6ea7f424920ed247906"
+      "bytes": 13660,
+      "sha256": "e1798814e4debf61737550b7ff188676f0f55acc2d93807ca495ab1dff3fba83"
     },
     "biome.row.json": {
       "bytes": 7294,
