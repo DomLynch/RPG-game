@@ -169,7 +169,7 @@
 {"move":"thrust","lane":0},{"move":"light_left","lane":-1},{"move":"light_right","lane":1},{"move":"heavy_overhead","lane":0,"mult":1500}
 ],"missile":[
 {"kind":"staff","weapon":"none","speed":700,"share":1000,"mana":12,"tint":"#6aa8ff"},
-{"kind":"bow","weapon":"none","speed":900,"share":1000,"mana":0,"windup":20,"recovery":0,"ammo":20,"pierce":150,"chipKills":1,"tint":"#e8d9a8"},
+{"kind":"bow","weapon":"none","speed":900,"share":1000,"mana":0,"windup":20,"recovery":0,"ammo":20,"pierce":350,"chipKills":1,"tint":"#e8d9a8"},
 {"kind":"crossbow","weapon":"none","speed":1100,"share":1700,"mana":0,"windup":120,"recovery":60,"ammo":12,"pierce":500,"tint":"#ffb066"}
 ],"ward":[
 {"opponent":"witch","down":240,"reflect":800}

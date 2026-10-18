@@ -26,7 +26,7 @@ export function createMissileFx(scene: THREE.Scene) {
     const k = SHAPE[kind], headLen = k.r * 6;
     s.shaft.scale.set(k.r, k.len, k.r); s.shaft.rotation.z = Math.PI / 2; (s.shaft.material as THREE.MeshBasicMaterial).color.set(k.shaft);   // lies along +x
     s.head.scale.set(k.r * 2, headLen, k.r * 2); s.head.rotation.z = -Math.PI / 2; s.head.position.x = k.len / 2 + headLen / 2; (s.head.material as THREE.MeshBasicMaterial).color.set(k.head);
-    s.fins.forEach((f) => { f.scale.set(k.r * 4, k.r * 4, 1);   // small dark fletching: at 9 radii the pale planes read as white squares at the fight camera (bow frames 2026-10-18) f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });
+    s.fins.forEach((f) => { f.scale.set(k.r * 4, k.r * 4, 1); f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });   // small dark fletching: at 9 radii the pale planes read as white squares at the fight camera (bow frames 2026-10-18)
   };
   const dressed = [undefined, undefined] as (string | undefined)[], VOLLEY_SPREAD = 0.7;   // metres the outer arrows of a volley bow out from the line at mid-flight
   // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
