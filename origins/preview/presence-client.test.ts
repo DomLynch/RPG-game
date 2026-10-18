@@ -135,5 +135,5 @@ test('stop() closes with 1000, cancels the retry and the pose timer', () => {
 
 test('the URL and the kill switch', () => {
   assert.equal(presenceUrl('https://frankendom.com'), 'wss://frankendom.com/origins/presence');
-  assert.equal(presenceWanted(''), true); assert.equal(presenceWanted('?presence=0'), false); assert.equal(presenceWanted('?a=1&presence=0'), false);
+  assert.equal(presenceWanted(''), true); assert.equal(presenceWanted('?presence=0'), false); assert.equal(presenceWanted('?a=1&presence=0'), false); assert.equal(presenceWanted('', true), false, 'an unlisted zone never joins presence (the live server would reset the walker to the Pit)');
 });
