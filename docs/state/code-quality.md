@@ -1,5 +1,26 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~13:0x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IP 7a03aaf40 (carries IO; verified on #3169: all 3 services, NRestarts 0, WSV 54, V5 migration 20261018081137 applied in prod, flags OFF; readout line 1 = 0 kills)
+
+**Now, in order.**
+1. **IQ #3175 @ae51499ac: candidate PASS + label posted.** When it publishes, check release.json and the writer, presence and verifier = ae51499ac, NRestarts 0 (presence and the writer restart; no migration), and post the verification on #3175.
+2. **Post the plain `Auditor: PASS @<head9>` line once green** (the train picker needs that exact line start; bold misses it):
+   - #3171 @5c0bf8f07 (QA no-loot; read OK; 1 pending at 13:0x)
+   - #3177 @bc1d48a4e (publish overlap; trap fix read OK; 2 pending). Deploy wants it before IQ's gap, and Dom wants the faster cycle.
+   - #3173 @0cad76c8e and #3176 @e9cdf5c8f are both read OK, but CI never ran: they're stacked on #3157's and #3174's branches. PASS after they're retargeted and green.
+3. **My #3168** (strictRevert row + organic/QA cohorts, stacked on the old IO head): Backend read it OK. It needs Lead's PASS, then a rebase onto trunk once IP is in trunk. Backend wires the `'qa'` cohort into kill_report after it lands.
+4. **#3155** (my drop tally + launch-gates V4–V6, the M1–M7 matrix, the PARKED note, Strategy's QA rules), @5c72f447a: stacked on #3151, which is now live via IP. Rebase onto trunk, then Backend reads it.
+5. **The QA matrix run and the strict flip are PARKED** until Dom's "bringing players in" date (Combat owns the trigger; Combat has the M1–M7 spec and drafts its harness locally). No "GO soak".
+6. **Low priority:** #3131 dungeon (Dom parked the look; NOT YET @767986820: lint plus the kit-light stub).
+
+**PASSed today:** IM, IN, IO, IP and IQ candidates; #3151, #3150, #3123, #3125, #3157, #3160, #3163, #3172.
+**Gotchas.**
+- (nnn) The writer's DB login is `frankendom_verifier`, shared with verify-daily/verify-loot. New writer functions grant to frankendom_origins AND frankendom_verifier.
+- (ooo) Mac test suites are blocked while a deploy lock is held; run registry-check etc. on the VPS in /srv/dev-jobs/cq-2919 instead.
+- (ppp) An EXIT trap in bash also runs on SIGTERM/INT/HUP; check "cleanup on exit" in any hold/marker logic (#3177).
+- (qqq) A lot of "red" CI is cancelled duplicate runs: check `gh run view <id> --json conclusion` before calling it a failure.
+- Scratchpad probes (re-creatable): regprobe.ts (registry specs), pkgprobe.mjs (refused import), trapprobe.sh (signal traps), townsha.ts.
+
 ## 2026-10-18 ~13:xx: external audit recheck acted on. LIVE = IL2 ddc09ce2e (verified: release.json, writer, presence, verifier, NRestarts 0)
 
 **Now.** 1. When world kills arrive on IL2, read `reach=unchecked (<why>)` in /var/log/frankendom-origins-writer.log (none yet at ~13:xx; one `location flush: batch of 1 failed (psql exit null)` line, so watch for repeats). 2. #3146 @4994f3ac6 (rebased; only conflict was test appends): Lead re-confirms on green, then it merges first. 3. #3151 **PASS @cb90162a0** (posted). 4. #3155 @01780e65f retargeted to trunk + auditor:ready; stacked on #3151 (a merge of cb90162a0), so it lands after #3151. Backend reads.
