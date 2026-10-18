@@ -42,3 +42,24 @@ test('P0-b: every kill in a pack carries a record that replays to that kill, wit
   assert.ok(kills >= 32, `the scenarios fought (${kills} kills)`);
   assert.equal(verified, kills, `recorded and verified ${verified} of ${kills} kills`);
 });
+
+test('P0-b (Lead): a gear change inside an open window drops that window\'s record; the next window opens on the new gear and verifies', () => {
+  let weapon = 'trident', t = 0, killedAt = -1; const fell: string[] = [], got: Array<{ id: string; rec: WorldRecord | null }> = [];
+  const wolves = [{ spec: mob('wolf-1', 1), x: -2, z: 1.2, from: 0 }, { spec: mob('wolf-2', 1), x: 2, z: 1.2, from: 1e9 }];
+  const mobs = { within: (x: number, z: number, r: number) => wolves.filter((m) => !fell.includes(m.spec.id) && t >= m.from && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ spec: m.spec, x: m.x, z: m.z, dist: Math.hypot(m.x - x, m.z - z), hunting: true })), drive: () => {} };
+  const wc = createWorldCombat({ mobs: () => mobs as never, onKill: (sp) => { fell.push(sp.id); got.push({ id: sp.id, rec: wc.record() }); if (killedAt < 0) { killedAt = t; wolves[1]!.from = t + 4; } }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, weapon: weapon as never }) });
+  let changed = false;
+  for (let i = 0; i < 600 && got.length < 2 && !wc.hero().dead; i++) {
+    wc.press();
+    for (let s = 0; s < 0.5; s += 1 / 30) {
+      t += 1 / 30; const w = wc.debug().filter((x) => x.id !== 'me' && x.phase !== 'dead').sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
+      wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 });
+      if (!changed && wc.debug().some((x) => x.id === 'wolf-1')) { changed = true; weapon = 'longsword'; wc.heroChanged(); }   // the worn gear changes while wolf-1 is in the loop
+    }
+  }
+  assert.equal(got.length, 2, 'both wolves fell');
+  assert.equal(got[0]!.rec, null, 'the window the gear changed in has no record: nothing is paid on a stale sheet');
+  const r = got[1]!.rec; assert.ok(r, 'the next window opened');
+  assert.equal(r!.hero.weapon, 'longsword', 'on the new gear');
+  const rep = replayWorldRecord(r!); assert.ok(rep.ok && rep.kills.includes('wolf-2'), JSON.stringify(rep));
+});
