@@ -11,6 +11,10 @@ const sandbox = (ROWS as unknown as { files: Record<string, Record<string, unkno
 for (const r of sandbox.rules as { id: string; value?: number }[]) { const row = d.rules.find((x) => x.id === r.id); if (row && r.value !== undefined) row.value = r.value; else if (!row && r.value !== undefined) d.rules.push({ id: r.id, value: r.value }); }
 for (const k of ['bands', 'missile', 'missileLanes'] as const) (d[k] as unknown[]).push(...(sandbox[k] as unknown[]));
 for (const r of d.missile as { kind?: string; weapon: string }[]) if (r.kind === 'bow') r.weapon = 'knife';   // the entry names the stand-in weapon from the link; here it is the knife
+// BOW_TUNE='{"answer":{"dodge":25,"guard":20,"run":0},"bow":{"cleave":{"mult":2500}}}' overrides rows for one run (the tuning sweep); the shipped rows are the defaults.
+const tune = JSON.parse(process.env.BOW_TUNE ?? '{}') as { answer?: object; bow?: Record<string, object> };
+if (tune.answer) Object.assign((sandbox.missileAnswer as object[])[0]!, tune.answer);
+for (const [skill, v] of Object.entries(tune.bow ?? {})) Object.assign((sandbox.bowSpecial as { skill: string }[]).find((r) => r.skill === skill)!, v);
 (d as unknown as { missileAnswer: unknown[] }).missileAnswer = sandbox.missileAnswer;
 d.bowSpecial = sandbox.bowSpecial; d.specialReactFloor = sandbox.specialReactFloor;
 const { createFighter, opponentFighter, stepDuel, idleIntent, legal } = await import('../src/fight/duel.ts');
