@@ -23,6 +23,16 @@ export function createVerdictTally(now: () => Date = () => new Date()): VerdictT
   const since = now().toISOString(), outcomes: Record<string, number> = {};
   return { add: (o) => { outcomes[o] = (outcomes[o] ?? 0) + 1; }, snapshot: () => { const total = Object.values(outcomes).reduce((a, b) => a + b, 0), verified = outcomes.verified ?? 0; return { since, total, verified, rate: total ? verified / total : null, outcomes: { ...outcomes } }; } };
 }
+// The strict-flip readout (audit 2026-10-18; Strategy: both flags ON is a beta-opening gate): may ORIGINS_SPAWN_REFUSE_UNCHECKED go on (enough kills, enough of them reach-checked) and may
+// ORIGINS_WORLD_RECORD_SCORECARD_ONLY (enough kills, enough of them with a record that verified)? Judged on the counts since the writer started, against the strictFlip row. Pure.
+export type FlipGate = { kills: number; rate: number | null; ready: boolean };
+export function flipReadiness(reach: Record<string, number>, records: Record<string, number>, rule: { minKills: number; minRate: number } = SERVER_RULES.strictFlip[0]!): { refuseUnchecked: FlipGate; scorecardOnly: FlipGate } {
+  const gate = (outcomes: Record<string, number>, good: string): FlipGate => {
+    const kills = Object.values(outcomes).reduce((a, b) => a + b, 0), rate = kills ? (outcomes[good] ?? 0) / kills : null;
+    return { kills, rate, ready: kills >= rule.minKills && rate !== null && rate >= rule.minRate };
+  };
+  return { refuseUnchecked: gate(reach, 'checked'), scorecardOnly: gate(records, 'verified') };
+}
 export type VerifyJob = { text: string; spawn: Pick<Spawn, 'spec'>; kind: string; limit?: HeroLimit | null; maxTicks?: number; token?: string };
 export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>, kind: string, limit?: HeroLimit | null, maxTicks: number = MAX_WORLD_TICKS, token?: string): Promise<Verdict> {
   let rec;

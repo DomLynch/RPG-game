@@ -6,6 +6,22 @@
     { "id": "terrainWarp", "value": 0.6, "unit": "ratio" },
     { "id": "padBlend", "value": 1.6, "unit": "ratio" },
     { "id": "roadHalf", "value": 6, "unit": "m" },
-    { "id": "buildingModule", "value": 3, "unit": "m" }
+    { "id": "buildingModule", "value": 3, "unit": "m" },
+    { "id": "windowChance", "value": 0.4, "unit": "ratio" },
+    { "id": "signOffset", "value": 0.3, "unit": "m" },
+    { "id": "counterInset", "value": 1.2, "unit": "m" },
+    { "id": "counterDivisor", "value": 5, "unit": "divisor" },
+    { "id": "chimneyDivisor", "value": 4, "unit": "divisor" },
+    { "id": "roofDivisor", "value": 6, "unit": "divisor" },
+    { "id": "pieceVariants", "value": 3, "unit": "count" },
+    { "id": "plazaBase", "value": 9, "unit": "m" },
+    { "id": "plazaSpan", "value": 6, "unit": "m" },
+    { "id": "civicCentres", "value": 3, "unit": "count" },
+    { "id": "turnBase", "value": 27, "unit": "deg" },
+    { "id": "turnSpan", "value": 6, "unit": "deg" },
+    { "id": "ringTries", "value": 6, "unit": "count" },
+    { "id": "ringSpread", "value": 2, "unit": "m" },
+    { "id": "ringJitter", "value": 0.25, "unit": "rad" },
+    { "id": "townRadiusPad", "value": 12, "unit": "m" }
   ]
 }

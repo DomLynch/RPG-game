@@ -1,7 +1,6 @@
 {
  "origins/board/board-screen.ts": {
-  "2": 1,
-  "30_000": 1
+  "2": 1
  },
  "origins/board/board-view.ts": {
   "60": 2,
@@ -47,17 +46,14 @@
   "0.5": 2
  },
  "origins/encounters/encounters.ts": {
-  "30": 1,
-  "99": 1,
-  "100": 7,
-  "120": 1
+  "100": 4
  },
  "origins/feuds/feuds.ts": {
   "-1": 1
  },
  "origins/gear/wear-repair.ts": {
   "10": 1,
-  "100": 13
+  "100": 12
  },
  "origins/mobs/populate.ts": {
   "2": 1,
@@ -93,13 +89,7 @@
   "4096": 2
  },
  "origins/presence/main.ts": {
-  "8": 1,
-  "12": 1,
-  "1000": 1,
-  "8793": 1,
-  "100000": 1,
-  "300_000": 2,
-  "60_000": 1
+  "12": 1
  },
  "origins/presence/saves.ts": {
   "8": 1
@@ -116,9 +106,7 @@
   "100": 2
  },
  "origins/presence/where.ts": {
-  "200": 2,
-  "1000": 1,
-  "1500": 1
+  "200": 2
  },
  "origins/presence/wire.ts": {
   "2": 2,
@@ -133,10 +121,7 @@
   "8": 1
  },
  "origins/presence/zones.ts": {
-  "2": 9,
-  "100": 4,
-  "2.5": 2,
-  "0.5": 2
+  "2": 9
  },
  "origins/preview/camp-fire.ts": {
   "2": 1,
@@ -750,31 +735,10 @@
   "2": 1
  },
  "origins/region1/load.ts": {
-  "4": 1,
-  "8": 2,
-  "10": 1,
-  "24": 2,
-  "30": 1,
-  "50": 2,
-  "60": 3,
-  "99": 1,
-  "100": 2,
-  "120": 1,
-  "1000": 2,
-  "86_400": 2,
-  "604_800": 1
- },
- "origins/server/auth.ts": {
-  "5000": 1
+  "86_400": 1
  },
  "origins/server/consume.ts": {
   "120": 1
- },
- "origins/server/db.ts": {
-  "12": 1,
-  "200": 2,
-  "30_000": 1,
-  "-4000": 1
  },
  "origins/server/encounter-fixtures.ts": {
   "2": 1,
@@ -792,29 +756,12 @@
  "origins/server/encounter-pose.ts": {
   "2": 6
  },
- "origins/server/encounter.ts": {
-  "2": 1,
-  "8": 1,
-  "31": 1,
-  "200": 2,
-  "1e9": 1,
-  "60_000": 1
- },
  "origins/server/gear-import.ts": {
   "16": 1,
-  "24": 1,
-  "40": 1,
-  "80": 1
- },
- "origins/server/gear-repair.ts": {
-  "80": 1,
-  "120": 1
+  "24": 1
  },
  "origins/server/gear-wear.ts": {
   "80": 1
- },
- "origins/server/gear.ts": {
-  "80": 2
  },
  "origins/server/ground-take.ts": {
   "32": 1
@@ -825,18 +772,9 @@
  "origins/server/live-ops.ts": {
   "60_000": 1
  },
- "origins/server/location.ts": {
-  "500": 1,
-  "1500": 2
- },
- "origins/server/quest-advance.ts": {
-  "64": 2,
-  "120": 1
- },
  "origins/server/shop-buy.ts": {
   "16": 1,
-  "32": 1,
-  "80": 1
+  "32": 1
  },
  "origins/server/spell-check.ts": {
   "100": 1
@@ -844,16 +782,8 @@
  "origins/server/story.ts": {
   "40": 1
  },
- "origins/server/talk-pick.ts": {
-  "64": 1,
-  "120": 1
- },
  "origins/server/upgrade.ts": {
   "120": 1
- },
- "origins/server/world-verify-pool.ts": {
-  "16": 1,
-  "3000": 1
  },
  "origins/shops/shop-view.ts": {
   "60": 6,
@@ -927,25 +857,8 @@
   "5": 1
  },
  "origins/world/town.ts": {
-  "2": 15,
-  "3": 3,
-  "4": 2,
-  "5": 1,
-  "6": 4,
-  "9": 1,
-  "12": 1,
-  "27": 1,
-  "100": 1,
-  "180": 1,
-  "3432918353": 1,
-  "4294967296": 1,
-  "0.5": 7,
-  "0.4": 1,
-  "0.3": 1,
-  "1.2": 1,
-  "0.25": 1,
-  "-2": 1,
-  "-1": 1
+  "2": 1,
+  "180": 1
  },
  "origins/world/variants.ts": {
   "4": 1,
@@ -1386,8 +1299,8 @@
   "127": 1
  },
  "src/core/registry.ts": {
-  "-2": 1,
-  "-1": 2
+  "-1": 1,
+  "-2": 1
  },
  "src/core/rename.ts": {
   "2": 1
@@ -4113,12 +4026,10 @@
   "3600": 3
  },
  "src/net/lobby.ts": {
-  "16": 1,
   "32": 2,
   "40": 1,
   "60": 4,
   "127": 2,
-  "250": 1,
   "300": 1,
   "1000": 2,
   "3600": 2,
@@ -4138,10 +4049,8 @@
   "8": 3,
   "16": 2,
   "60": 2,
-  "120": 1,
   "0.95": 2,
-  "0.5": 1,
-  "0.9": 1
+  "0.5": 1
  },
  "src/net/transport.ts": {
   "401": 1,

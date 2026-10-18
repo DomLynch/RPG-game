@@ -74,5 +74,16 @@
       "dayMs": 86400000,
       "note": "PLACEHOLDERS (Stats): starting rating, K factor, lowest rating; base pay of a counted win, how many a day pay in full, the multiplier after each further win and its floor; the day is the UTC day"
     }
+  ],
+  "timing": [
+    {
+      "id": "timing",
+      "delayStepDownFrames": 120,
+      "delayRttQuantile": 0.9,
+      "retireGraceMs": 5000,
+      "idlePumpMs": 16,
+      "lobbyPollMs": 250,
+      "note": "the adaptive delay steps down one frame after this many steady frames, reading this quantile of the measured round trips; a finished duel's transport closes this long after the abandon window; the lobby steps the handshake every idlePumpMs until the duel starts and watches the room every lobbyPollMs"
+    }
   ]
 }

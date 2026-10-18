@@ -13,7 +13,7 @@ const makeRng = (seed: number) => { let s = seed >>> 0; return () => { const [v,
 export type BoardReward = { id: string; kind: string; amount: number; item?: string };
 export type Discovery = { id: string; zone: string; landmark: string; firstFind: string };
 export type BoardTask = { id: string; kind: string; target: string; count: number; reward: string; weight: number };
-export type BoardRule = { id: string; slots: number; distinctKinds: boolean; noRepeatDays: number; anchorEvery: number; seedSalt: number; completionCap: number; resetHourUtc: number };
+export type BoardRule = { id: string; slots: number; distinctKinds: boolean; noRepeatDays: number; anchorEvery: number; seedSalt: number; completionCap: number; resetHourUtc: number; redrawMs: number };
 
 // The registry checks types and refs; these are the relations in the board rule (a zero here would make the board recurse forever or never reset).
 export function checkBoardRelations(data: { boards: BoardRule[]; tasks: BoardTask[] }): void {

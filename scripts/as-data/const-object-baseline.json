@@ -12,11 +12,6 @@
   "STRIKE": 1,
   "VIBRATO": 1
  },
- "src/coach.ts": {
-  "COACH_BRAINS": 1,
-  "FOE_LAPSE": 1,
-  "FOE_LAPSE_SCALE": 1
- },
  "src/core/grades.ts": {
   "GRADES": 1
  },
