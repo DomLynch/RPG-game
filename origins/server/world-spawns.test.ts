@@ -131,9 +131,10 @@ test('kill_report 409 (launch gate V5): a paid token reads back as paid with its
   assert.equal((await ops.kill_report!(ctx(first.db), { token: TOKEN, hits: 50 }) as { result: string }).result, 'killed');
   assert.equal(first.kills.length, 1, 'the first report pays once');
   const stored = { kind: 'paid', instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 };
-  const retry = async (a: Record<string, unknown>, opts: { absent?: boolean } = {}) => {
-    const s = stub({ origins_spawn_engage_get: null, ...a }, opts);
-    const e = await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
+  const retry = async (a: Record<string, unknown>, receiptAbsent = false) => {
+    const s = stub({ origins_spawn_engage_get: null, ...a });
+    const db: Db = receiptAbsent ? { run: async (sql, v) => (/origins_spawn_receipt/.test(sql) ? 'absent' : s.db.run(sql, v)) } : s.db;   // only the V5 migration missing
+    const e = await ops.kill_report!(ctx(db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
     assert.ok(e instanceof Refused && e.status === 409 && e.code === 'used' && e.message === 'engage token unknown, used or expired', 'always the old 409: status, code and message unchanged');
     assert.equal(s.kills.length, 0, 'a retry never reaches the kill function: no second kill, ledger or reward row');
     return (e as Refused).detail;
@@ -144,7 +145,7 @@ test('kill_report 409 (launch gate V5): a paid token reads back as paid with its
   assert.deepEqual(await retry({ origins_spawn_receipt: { kind: 'paid', instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1, token: 'LEAK', account: 'LEAK' } }), { kind: 'paid', receipt: { instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1 } }, 'only the receipt fields leave the writer');
   assert.equal(await retry({ origins_spawn_receipt: { kind: 'open' } }), undefined, 'a token that is still open is not a receipt: the plain 409');
   assert.equal(await retry({ origins_spawn_receipt: new Error('db down') }), undefined, 'a failed lookup is the plain 409, never a 500');
-  assert.equal(await retry({}, { absent: true }), undefined, 'migration absent: the plain 409');
+  assert.equal(await retry({}, true), undefined, 'receipt migration absent: the plain 409');
   // a duplicate that raced the first report: the engage looked open, the kill function found it used (O0009), the answer is the receipt
   const race = stub({ origins_spawn_engage_get: open, origins_spawn_kill: new DbError('O0009', 'gone'), origins_spawn_receipt: stored });
   const e = await ops.kill_report!(ctx(race.db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
