@@ -55,7 +55,8 @@ try {
     await page.waitForTimeout(3000);
     const target = await page.evaluate(() => { const m = window.originsPreview.mobs().mobs.find((q) => q.drawn && q.model && q.body === 'goblin'); return { id: m.id, x: m.x, z: m.z }; });
     receipt.target = target;
-    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 5, 0), [target.x, target.z]);
+    const [dx, dz] = opt('place', '0,-5').split(',').map(Number);   // where the hero starts, relative to the goblin (a clear sight line: Zone 1's props can stand between)
+    await page.evaluate(([x, z, ox, oz]) => window.originsPreview.place(x + ox, z + oz, Math.atan2(-ox, -oz)), [target.x, target.z, dx, dz]);
     read = () => page.evaluate((id) => { const m = window.originsPreview.mobs().mobs.find((q) => q.id === id), p = window.originsPreview.pos; return { hero: { x: p.x, z: p.z }, foe: { x: m.x, z: m.z } }; }, target.id);
   }
   await page.addStyleTag({ content: '#debug{display:none!important}' });
