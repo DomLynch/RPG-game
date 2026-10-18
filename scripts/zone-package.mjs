@@ -22,7 +22,7 @@ export function loadTables(root = ROOT) { return Object.fromEntries(SHARED.map((
 export const zoneRowText = (n, root = ROOT) => readFileSync(join(root, `origins/zone-rows/zone${n}.row.json`), 'utf8');
 
 /** Gather zone N's package from the shared tables: { files: { name: text }, manifest }. Pure over its inputs. */
-export function exportPackage(n, zoneText, tables, biome = null) {   // `biome`: { id, spec }, a preset the package brings (the CLI's --own-biome); null = the zone uses a preset that already exists
+export function exportPackage(n, zoneText, tables, biome = /** @type {{ id: string, spec: object } | null} */ (null)) {   // `biome`: { id, spec }, a preset the package brings (the CLI's --own-biome); null = the zone uses a preset that already exists
   const zone = JSON.parse(zoneText), dungeon = tables.dungeons.find((d) => d.id === zone.dungeon), usedTheme = dungeon && tables.themes.find((t) => t.id === dungeon.theme);
   // a theme two dungeons share is OWNED by the one whose id sorts first; the other only USES it (manifest uses.theme), so the generated table holds the row once
   const owner = usedTheme && tables.dungeons.filter((d) => d.theme === usedTheme.id).map((d) => d.id).sort()[0] === dungeon.id, theme = owner ? usedTheme : undefined;

@@ -37,21 +37,26 @@ test('a package that brings a biome imports it unlisted, and the generated table
     const table = JSON.parse(readFileSync(join(root, 'origins/zones/biomes.packages.json'), 'utf8')) as { biomes: Record<string, unknown> };
     assert.deepEqual(table.biomes, { 'goblin-fortress-test': SPEC });
     assert.equal(readFileSync(join(root, 'origins/zone-rows/zone91.row.json'), 'utf8').includes('"biome": "goblin-fortress-test"'), true, 'its zone row names the preset');
-    assert.deepEqual(Object.keys((generate(root) as Record<string, string>)).includes('origins/zones/biomes.packages.json'), true);
+    assert.ok(Object.keys(generate(root) as object).includes('origins/zones/biomes.packages.json'));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('a zone that names a biome nobody carries is refused at generation', () => {
+test('a zone that names a biome nobody carries is refused at import, and nothing is written', () => {
   const { root, folder } = scratchWith('no-such-biome', false);
-  try { importFolder(folder, root); assert.throws(() => generate(root), /names biome "no-such-biome", which neither biomes.json nor a package carries/); } finally { rmSync(root, { recursive: true, force: true }); }
+  try {
+    const before = readdirSync(join(root, 'origins/packages')).sort();
+    assert.match((importFolder(folder, root) as string[]).join(';'), /names biome "no-such-biome", which neither biomes.json nor a package carries/);
+    assert.deepEqual(readdirSync(join(root, 'origins/packages')).sort(), before, 'no package folder was written');
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('a package may not bring a biome that biomes.json already has, unless it names it in --replace', () => {
+test('a package may not bring a biome that biomes.json already has, even with --replace: a shared preset is not redefined by a package', () => {
   const { root, folder } = scratchWith('ash-wastes', true);
   try {
+    const before = readdirSync(join(root, 'origins/packages')).sort();
     assert.match((importFolder(folder, root) as string[]).join(';'), /biome "ash-wastes" already exists/);
-    assert.deepEqual(importFolder(folder, root, new Set(['ash-wastes'])), [], 'an explicit replace is allowed at import');
-    assert.throws(() => generate(root), /biome "ash-wastes" already exists/, 'but generation still refuses a package preset that shadows a shared one');
+    assert.match((importFolder(folder, root, new Set(['ash-wastes'])) as string[]).join(';'), /would leave the packages inconsistent.*biome "ash-wastes" already exists/, 'naming it does not help: generation refuses a package preset that shadows a shared one');
+    assert.deepEqual(readdirSync(join(root, 'origins/packages')).sort(), before, 'nothing written');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

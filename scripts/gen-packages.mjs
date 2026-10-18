@@ -99,8 +99,8 @@ export function readPackages(root = ROOT) {
 }
 
 /** Everything the packages generate: { relative path: text }. Throws on any package problem or a clash between two packages. */
-export function generate(root = ROOT) {
-  const pkgs = readPackages(root), rules = loadRules(JSON.parse(readFileSync(join(root, 'origins/zones/package-rules.json'), 'utf8')));
+export function generate(root = ROOT, incoming = null) {   // incoming: { id, files }, a package folder not on disk yet: the dry run an import does before it touches anything
+  const pkgs = (incoming ? [...readPackages(root).filter((p) => p.id !== incoming.id), incoming].sort((a, b) => (a.id < b.id ? -1 : 1)) : readPackages(root)), rules = loadRules(JSON.parse(readFileSync(join(root, 'origins/zones/package-rules.json'), 'utf8')));
   const baseBiomes = Object.keys(JSON.parse(readFileSync(join(root, 'origins/zones/biomes.json'), 'utf8')).biomes);   // the presets that are not packages (biomes.json, hand-edited)
   const out = {}, tables = { exits: [], dungeons: [], themes: [] }, biomes = {}, zoneBiomes = [], zones = [], seen = { zones: new Set(), exits: new Set(), dungeons: new Set(), themes: new Set(), warps: new Set(), biomes: new Set(baseBiomes) };
   for (const p of pkgs) {
@@ -139,8 +139,16 @@ export function importFolder(src, root = ROOT, replace = new Set()) {
   const files = readFolder(src), bad = validatePackage(files, { rules: loadRules(JSON.parse(readFileSync(join(root, 'origins/zones/package-rules.json'), 'utf8'))), mode: 'import', existing: existingIds(root), replace, publicHas: (u) => existsSync(join(root, 'public', u)) });
   if (bad.length) return bad;
   const id = JSON.parse(files['package.json']).id, dest = join(PACKAGES(root), id);
+  // The FULL check before anything touches the disk: generate() the whole result in memory with the package in place. It refuses what the validator alone cannot see (a dungeon naming a theme no package carries,
+  // an id --replace named that belongs to ANOTHER package), so a refused import leaves no folder and no generated file behind.
+  let out; try { out = generate(root, { id, files }); } catch (e) { return [`the import would leave the packages inconsistent: ${e.message}`]; }
   mkdirSync(dest, { recursive: true }); for (const [f, t] of Object.entries(files)) writeFileSync(join(dest, f), t);
-  writeGenerated(root); return [];
+  for (const [f, t] of Object.entries(out)) { mkdirSync(join(root, f, '..'), { recursive: true }); writeFileSync(join(root, f), t); }
+  return [];
+}
+/** The generated files that differ from what the package folders generate, or are missing: [] when everything is as generated. The build calls this and fails on drift; only `npm run packages` writes. */
+export function staleGenerated(root = ROOT) {
+  return Object.entries(generate(root)).filter(([f, t]) => !existsSync(join(root, f)) || readFileSync(join(root, f), 'utf8') !== t).map(([f]) => f);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
