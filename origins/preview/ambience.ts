@@ -1,5 +1,5 @@
 // A zone's ambient bed (zone sandbox, 2026-10-15; the audit's B38: zone data names "wind" and nothing played it): synthesized with Web Audio, no sound files. Wind = looped noise through a band-pass whose centre
-// drifts and whose level swells slowly; fire crackle = short filtered noise bursts at a rate that rises as the walker nears a fire. Every number is the zone's ambience row (props-defs.json ambience). The browser
+// drifts and whose level swells slowly; fire crackle = short filtered noise bursts at a rate that rises as the walker nears a fire. The levels, rates and frequencies are the zone's ambience row (props-defs.json ambience); the swell envelope, the noise-buffer length and the crackle's pitch spread are this module's own sound design. The browser
 // plays nothing before a gesture, so unlock() is called from the page's first one (like zone-sound.ts); `?sound=0` turns it off. `windAt` and `fireGain` are pure and tested; the audio graph is browser-only.
 import type { Ambience } from '../world/props-rules.ts';
 

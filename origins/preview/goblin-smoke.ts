@@ -1,6 +1,6 @@
 // The smoking fires' smoke and light (?look=goblin, World lane; light: Zone sandbox): a column of soft translucent sprites per fire, each rising, widening and fading on its own phase, and a
-// flickering point light per fire when the palette's torchPower is above 0. View only (no sim, no record); the fires' places come from the kit (goblin-field.ts), every number is a row
-// (smokeCount, smokeRise, smokeSpeed, smokeSize0/1, smokeOpacity, smokeBase, smokeDrift, smokeFadeIn, puffCore, torch*, flicker*), the colours are the palette's. `smokePuff` is pure and tested.
+// flickering point light per fire when the palette's torchPower is above 0. View only (no sim, no record); the fires' places come from the kit (goblin-field.ts), the smoke and
+// light numbers are rows (smokeCount, smokeRise, smokeSpeed, smokeSize0/1, smokeOpacity, smokeBase, smokeDrift, smokeFadeIn, puffCore, torch*, flicker*), the colours are the palette's; the sprite's own canvas size and falloff are this module's look. `smokePuff` is pure and tested.
 import * as THREE from 'three';
 import { goblinRule as R, type GoblinPalette } from '../world/goblin-field-rules.ts';
 
