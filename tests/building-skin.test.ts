@@ -6,7 +6,7 @@ import { zoneBuildings } from '../origins/world/goblin-field-rules.ts';
 import { buildingSkin, skinPieces } from '../origins/preview/building-skin.ts';
 import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
 import { placementsByFile } from '../origins/preview/skin-models.ts';
-import { loadZone, zoneAsBiome } from '../origins/zones/loader.ts';
+import { loadZone } from '../origins/zones/loader.ts';
 
 test('a skin is fractions of the building: the same parts stand inside a small and a large block', () => {
   const parts = skinParts('goblin', 'default')!;
@@ -29,7 +29,8 @@ test('the skin changes how a town looks, never where it stands: same solids, dif
   assert.notDeepEqual(skinned.pieces, plain.pieces); assert.ok(skinned.models.length > 0 && plain.models.length === 0, 'the skin stands model nodes; the bricks stand none');
   assert.deepEqual(frontierBuild(F, buildingSkin('')), plain, "'' is today's bricks"); assert.deepEqual(frontierBuild(F, buildingSkin('nope')), plain, 'an unknown skin is none');
   for (const id of ['1', '2', '3', '4']) assert.equal(zoneBuildings(loadZone(id)), '', `${id}: the real zones keep their bricks`);
-  assert.equal(zoneBuildings(zoneAsBiome('1', 'goblin-fortress')), 'goblin', 'the fortress biome asks for the goblin skin');
+  const asks = (v: unknown) => zoneBuildings({ fields: { 'look.buildings': v }, set: ['look.buildings'], world: [] });
+  assert.equal(asks('goblin'), 'goblin'); assert.equal(asks('nope'), '', 'an unknown skin is the bricks'); assert.equal(zoneBuildings({ fields: { 'look.buildings': 'goblin' }, set: [], world: [] }), '', 'a field the zone did not SET is not read');
 });
 test('model nodes are grouped by the file that holds them, so a zone fetches only the files its buildings use', () => {
   const at = { x: 0, z: 0, rotY: 0, scale: 1 }, by = placementsByFile([{ node: 'goblin_hut', ...at }, { node: 'goblin_hut', ...at }, { node: 'goblin_tower', ...at }, { node: 'not_a_node', ...at }]);
