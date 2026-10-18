@@ -4,6 +4,13 @@
 
 **Now.** 1. When world kills arrive on IL2, read `reach=unchecked (<why>)` in /var/log/frankendom-origins-writer.log (none yet at ~13:xx; one `location flush: batch of 1 failed (psql exit null)` line, so watch for repeats). 2. #3146 @4994f3ac6 (rebased; only conflict was test appends): Lead re-confirms on green, then it merges first. 3. #3151 **PASS @cb90162a0** (posted). 4. #3155 @01780e65f retargeted to trunk + auditor:ready; stacked on #3151 (a merge of cb90162a0), so it lands after #3151. Backend reads.
 **Done.** Bounded drop tally: only `record-drop-defs.json` reasons (`DROP_REASONS` in record-drop-rows.ts) get a key, anything else is `dropped: other`, and the log shows the bucket only. launch-gates.md: 48/50 = a controlled rollout only, a scenario list plus a timestamped receipt per build; new gates V4 (a mid-fight equip silently costs the reward: lock equipping or show a notice, Lead picks, Combat builds), V5 (409 receipt lookup, Backend/Web, tracked), V6 (live strict-mode proof). Audit stance: NO-GO for public persistent rewards until V1/V2/V6 close.
+**~16:xx. READ FIRST.** LIVE = IM a1fb12ca5 (verified; baseline line 0 = 0 kills, posted on #3158).
+- **When they publish:** IN (#3159) and IO (#3162, candidate PASS @6d819cdc6) are next. On IO, check that migration 20261018090000 is applied and that the writer, verifier and presence are all on 6d819cdc6. IP (#3150 + #3139) gets a candidate PASS when Deploy cuts it.
+- **The QA matrix run and the strict flip are PARKED** until Dom's "bringing players in" date (Combat owns the trigger; launch-gates on #3155 @5c72f447a). Combat already has the M1–M7 spec.
+- **My #3168** (strictRevert row + organic/QA cohorts, stacked on IO) is open with auditor:ready. Backend's QA mark (is_test) passes the cohort in world-spawns.ts.
+- #3163 reads OK @0e7739f3d (236 tables identical); post the plain PASS line on green.
+- NOT YET, unchanged heads: #3157 @1f360ceae (stub + frame-driven max-hold), #3131 @767986820 (lint + kit-light stub).
+- PASS lines must start exactly "Auditor: PASS @<head9>" (the train picker).
 **~15:xx.**
 - **candidate:pass IM #3158 @a1fb12ca5** (#3146 + #3148; tree 17bfcabd3 = my recut) and **IN #3159 @5d348f5f9** (#3125/#3153/#3154/#3156; tree 5664c7ce2; restarts presence and the writer).
 - **After IM publishes:** verify the services, then post the baseline readout line (checked %, record %, gear-change drops, `since`, sha). P0-b is in IO, so the real "after" starts at IO.
