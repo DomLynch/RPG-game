@@ -863,7 +863,7 @@ function heroDeathSequence() {
 }
 // The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox zones only (row `warband.enabled`).
 const warBandRun = createWarBandRun({
-  mobs: () => mobs, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
+  mobs: () => mobs ?? undefined, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
   hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => !!loadZone().unlisted && fxNum('warband.enabled') > 0,
 });
 function creatureFell(spec: MobSpec) {

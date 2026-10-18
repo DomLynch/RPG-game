@@ -20,8 +20,8 @@ const frames = (run: ReturnType<typeof make>['run'], seconds: number) => { for (
 
 test('nothing happens until a goblin is hit; then the horn-blower (the lightest) walks to the horn, the horn rallies the nearest goblins, and every notice radius is given back', () => {
   const w = make(); frames(w.run, 1);
-  assert.equal(w.driven.size, 0, 'a quiet band is not driven'); assert.deepEqual(w.toasts, []);
-  w.run.hit('c'); assert.deepEqual(w.toasts, ['A goblin runs for the horn!']);
+  assert.equal(w.driven.size, 0, 'a quiet band is not driven'); assert.equal(w.toasts.length, 0);
+  w.run.hit('c'); assert.equal(w.toasts.join('|'), 'A goblin runs for the horn!');
   frames(w.run, 20);   // the blower is 'e' (the lightest), the horn hangs 8 m behind the band's centre
   assert.ok(w.toasts.includes('A horn sounds! The war band rallies!'), 'the horn is blown when he arrives');
   const raised = [...w.aggro].filter(([, v]) => v !== 9).map(([id]) => id);
