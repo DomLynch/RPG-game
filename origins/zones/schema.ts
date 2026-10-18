@@ -15,12 +15,13 @@ const sound = row('sound', 'World', false), population = row('population', 'Char
 export const FIELDS: readonly Field[] = [
   // The facts every zone folder already states (zone.ts, spawns.ts, kit.ts, look.ts, mob-looks.ts, place.ts): wired.
   legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 1 }),
+  legacy('band', 'list', [], { donor: 'AzerothCore instance_template / EQEmu zone.min_level..max_level (the level band a dungeon row names; [] = none, the zone-number rule applies)' }),
   legacy('spawns', 'map', { openers: {}, rows: [] }), legacy('kit', 'map', { url: '', nodes: [], landmarks: [], kinds: [] }), legacy('looks', 'map', {}), legacy('mobLooks', 'map', null as never, { nullable: true }), legacy('place', 'map', null as never, { nullable: true }),
   legacy('biome', 'string', 'ash-wastes'), legacy('unlisted', 'boolean', false, { donor: 'EQEmu zone.min_status (a zone only some can enter)' }), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.
-  position('exits', 'list', [], { donor: 'EQEmu zone_points' }), position('entry', 'point', null, { nullable: true }), position('respawn', 'point', null, { nullable: true, donor: 'EQEmu zone.safe_x/z' }),
+  position('exits', 'list', [], { donor: 'EQEmu zone_points', wired: true }), position('entry', 'point', null, { nullable: true }), position('respawn', 'point', null, { nullable: true, donor: 'EQEmu zone.safe_x/z' }),
   position('fastTravel', 'list', []), position('instance.mode', 'enum', 'shared', { values: ['shared', 'instanced'], owner: 'Backend', donor: 'EQEmu zone.insttype' }),
   position('instance.cap', 'number', 0, { min: 0, owner: 'Backend', donor: 'EQEmu zone.maxclients' }), position('instance.seeding', 'boolean', false, { owner: 'Backend' }),
   // LOOK. Wire first (Strategy): sky/time, fog, grade, ground, prop density.
@@ -47,6 +48,7 @@ export const FIELDS: readonly Field[] = [
   interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp' }), interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp' }),
   // HOW IT PLAYS (the warm-up list is DERIVED from camps + the player, warm-plan.ts: not a field)
   play('loot.overrides', 'map', {}), play('difficulty.mult', 'number', 1, { min: 0.1, max: 10 }), play('reward.mult', 'number', 1, { min: 0, max: 10, donor: 'EQEmu zone.zone_exp_multiplier' }),
+  play('presence', 'map', {}, { donor: 'EQEmu zone.maxclients (per world zone: speed, quiet, caps {floor, soft, hard}; fields only, nothing enforces caps)' }),
   play('dayNight.on', 'boolean', true, { owner: 'World' }), play('dayNight.cycleSeconds', 'number', 0, { min: 0, owner: 'World' }),
   // BUDGET (0 = no zone limit: the global gate applies)
   budget('budget.triangles', 'number', 0, { min: 0 }), budget('budget.textures', 'number', 0, { min: 0 }), budget('budget.drawCalls', 'number', 0, { min: 0 }),

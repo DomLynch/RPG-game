@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { SPELL_IDS } from '../../src/fight/spell-cast.ts';
+import type { SpecialsCut } from '../../src/core/server.ts';
+// The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
+const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
@@ -41,7 +44,7 @@ async function honest(): Promise<{ rec: WorldRecord; text: string }> {
   const spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
-  const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  const hero = { x: at.x, z: at.z - 1.4, facing: 0 };   // 1.4 m (was 1.2, RV75/WSV52): a world creature now stops at 0.85 of its reach and stands, so the bot stands outside that band and swings from there; at 1.2 it traded blow for blow and died on some timings
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
@@ -54,7 +57,8 @@ async function honestCast(spell: { id: string; skill: number }, spell2?: { id: s
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell, ...(spell2 ? { spell2 } : {}) }) });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
-  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 8; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
+  // RV75/WSV52 re-timing: the wolf now stops at 0.85 of its reach and trades from where it stands, so a fixed-script caster kills it only on some timings (a seeded script: the result is stable until the next sim change). Measured: at 1.2 m a cast every 10 presses (one slot, was 8) or every 16 (two slots) kills; the hero's health is untouched.
+  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 10; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted caster kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
@@ -114,6 +118,14 @@ test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified'
   const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 0 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
+});
+
+test('heroOf is handed the CLAIM\'s record version (rv), so a v74 page\'s world fight posted after a v75 deploy is held to v74 rules', async () => {
+  const { rec, text } = await honest(), seen: (number | undefined)[] = [];
+  const ops = mk({ scorecardOnlyUnverified: true, heroOf: async (_a: string, _c: string, version?: number) => { seen.push(version); return { level: 0 }; } });
+  await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(seen, [rec.rv], 'the version is the record\'s own, not this build\'s');
+  assert.ok(rec.rv > 0);
 });
 
 test('an overlong record is refused in a few ms without a replay, and kill_report still pays as today', async () => {
@@ -188,7 +200,7 @@ test('the soak counters are wired in the production entry and answer GET /intern
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
   assert.match(entry, /const tally = createVerdictTally\(\)/);
   assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
-  assert.match(entry, /heroOf: \(account, character\) => heroLimitOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
+  assert.match(entry, /heroOf: \(account, character, version\) => heroLimitOf\(db, account, character, version\)/, 'and bound the hero claim by the held worn set, read at the claim\'s own record version');
   assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });
@@ -207,10 +219,10 @@ test('verifyWorldRecord: a two-slot cast record verifies only when the ledger vo
   const { rec, text } = await honestCast(a, b);
   assert.deepEqual(rec.hero.spell2, b); assert.ok(rec.steps.some((st) => st.cast2), 'the record carries slot-b presses');
   const held = { grimoire: { [a.id]: {}, [b.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { spells: held }), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  await no({ spells: { ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
-  await no({ spells: { ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
 });
 
 test('verifyWorldRecord: a cast record verifies only when the ledger vouches for its spell (grimoire and skill)', async () => {
@@ -218,11 +230,11 @@ test('verifyWorldRecord: a cast record verifies only when the ledger vouches for
   const { rec, text } = await honestCast(claim);
   assert.deepEqual(rec.hero.spell, claim); assert.ok(rec.steps.some((st) => st.cast), 'the record carries cast presses');
   const held = { grimoire: { [claim.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { spells: held }), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
   assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });   // no ledger at all (dev): nothing to hold the claim to
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  await no({}, 'spell');                                                          // a ledger that gave no spell read cannot vouch for the claim
-  await no({ spells: { ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
+  await no({ cut: LIFTED }, 'spell');                                             // a ledger that gave no spell read cannot vouch for the claim
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
   const high = await honestCast({ ...claim, skill: 100 });
-  const v = await verifyWorldRecord(high.text, wolf, 'wolf', { spells: held }); assert.ok(!v.ok && v.reason === 'spell', 'a skill past the stored one is refused');
+  const v = await verifyWorldRecord(high.text, wolf, 'wolf', { cut: LIFTED, spells:held }); assert.ok(!v.ok && v.reason === 'spell', 'a skill past the stored one is refused');
 });

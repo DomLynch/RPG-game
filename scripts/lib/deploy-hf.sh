@@ -33,7 +33,15 @@ hf_wall_rows_launch() {
     echo "hf-wall-rows: job $hf_job launched at candidate open for $revision (rows ${hf_wall_planned:-none})"
     return 0
   fi
-  hf_job=$(node scripts/hf-wall-rows.mjs launch "$revision" --skip "${placed_skip:-}") || { hf_job=""; echo 'hf-wall-rows: launch failed; every row runs on the Mac'; return 0; }
+  local hf_err; hf_err=$(mktemp)
+  hf_job=$(node scripts/hf-wall-rows.mjs launch "$revision" --skip "${placed_skip:-}" 2>"$hf_err") || {
+    hf_job=""
+    # Nothing left for the T4 (every wall row CI-trusted or placed elsewhere) is not a failure (IF 2026-10-17: logged as "launch failed").
+    if grep -q 'no wall rows to run' "$hf_err"; then echo 'hf-wall-rows: no wall rows to launch; nothing for the T4 to run'
+    else cat "$hf_err" >&2; echo 'hf-wall-rows: launch failed; every row runs on the Mac'; fi
+    rm -f "$hf_err"; return 0
+  }
+  cat "$hf_err" >&2; rm -f "$hf_err"
   hf_wall_planned=$(node -e 'try{process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).rows.join(","))}catch{}' "$hf_state" || true)
   echo "hf-wall-rows: job $hf_job launched for $revision (rows ${hf_wall_planned:-none})"
 }

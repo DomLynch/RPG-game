@@ -24,7 +24,7 @@ import { previewRule } from './preview-rules.ts';
 const URLS: Record<string, string> = Object.fromEntries(['goblin', 'knight', 'pitborn', 'witch'].map((id) => [id, catalogueBodyUrl(id)!]));   // the engine's bodies, by catalogue row (K11); the wolf is served by worldBodyUrl (public/world), not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
 // Which kinds draw a world body is the catalogue row's `worldBody` flag (worldBodyUrl); public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters.
-const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
+const FETCH_RANGE = TUNING.range + previewRule('fetchMargin');   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = previewRule('fetchRangePhone');           // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
 const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks every frame
@@ -61,7 +61,7 @@ export type Mobs = {
 };
 const RESPAWN = previewRule('clientRespawn');   // s
 const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
-const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
+const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSphereNamed') };   // m: the tap sphere's radius round a creature's chest
 
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
   const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
@@ -137,7 +137,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   function viewOf(i: number): View {
     let v = views.get(i); if (v) return v;
-    const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
+    const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(previewRule('mobHeightMin'), (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85;
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height; label.userData.y0 = height;
@@ -183,8 +183,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.actor) {
           // The gait follows the speed it actually covers (the engine's gait table); the pose comes from the engine's actorPose of the duel it is in, the death clip once it is down.
-          const away = Math.hypot(m.x - v.px, m.z - v.pz) / Math.max(dt, 1e-3); v.px = m.x; v.pz = m.z;
-          v.speed += ((Number.isFinite(away) ? Math.min(away, 8) : 0) - v.speed) * (1 - Math.exp(-dt * 14)); if (v.speed < 0.015) v.speed = 0;
+          const away = Math.hypot(m.x - v.px, m.z - v.pz) / Math.max(dt, previewRule('dtFloor')); v.px = m.x; v.pz = m.z;
+          v.speed += ((Number.isFinite(away) ? Math.min(away, previewRule('mobSpeedMax')) : 0) - v.speed) * (1 - Math.exp(-dt * 14)); if (v.speed < 0.015) v.speed = 0;
           const posed = dv?.fall ? { pose: 'death' as const, progress: dv.fall, attack: 'light' as const, contact: 0.35 } : dv?.duel ? actorPose({ duel: dv.duel } as unknown as Practice, 1) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 };
           const tick = (step: number) => v.actor!.update(v.speed, step, posed.pose, posed.progress, posed.attack, posed.contact, 0);
           if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; tick(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)

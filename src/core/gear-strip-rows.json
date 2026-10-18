@@ -1,0 +1,8 @@
+{
+  "gearStat": [
+    { "id": "health", "label": "Health", "note": "the sheet's base health" },
+    { "id": "stamina", "label": "Stamina", "note": "the sheet's base stamina" },
+    { "id": "attack", "label": "Attack", "note": "gear's tilt in whole points, brief 19 Addendum C: \"ATK 15 · RES 20\", unsigned" },
+    { "id": "res", "label": "Resistance", "note": "the sheet's resistance" }
+  ]
+}

@@ -783,6 +783,11 @@
             "u": 0.7,
             "v": 0.8,
             "facing": 90
+          },
+          "cave-mouth": {
+            "u": 0.5,
+            "v": 0.85,
+            "facing": 90
           }
         },
         "connections": {
@@ -1061,6 +1066,7 @@
       "shrine",
       "hold-road",
       "troll-cave",
+      "cave-mouth",
       "landing-shore",
       "reed-bank",
       "mere-hollow",

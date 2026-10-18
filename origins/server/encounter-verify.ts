@@ -9,6 +9,7 @@
 // build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, type Sheet, sheetRefusal, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { RANK_STEPS, TITLES } from '../../src/core/server.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import { mobLayer } from '../../src/core/server.ts';
 import { kitOfBuild, kitTag } from '../../src/core/server.ts';
 import { MOB_STYLES, type MobStyle } from '../../src/core/server.ts';
@@ -22,7 +23,7 @@ export type EncounterParams = { seed: number; enemy: string; level: number; bar:
 export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number; heroHits: Readonly<Record<string, number>> } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
 
-export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
+export const MAX_FIGHT_TICKS = Math.round(SERVER_RULES.fightLimit[0]!.maxFightSec / STEP);   // a fight longer than the fightLimit row (900 s, 15 minutes) is not a fight
 
 // Special Moves are on for a warden from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
 const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');

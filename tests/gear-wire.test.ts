@@ -15,7 +15,7 @@ import { ROSTER } from '../src/roster.ts';
 import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
 import { RECORD_VERSION, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
@@ -70,7 +70,7 @@ test('a live Match takes the sheet from its port at every begin(): the fight and
   const want = sheetOfLoot(plate);
   assert.deepEqual(m.sheet, want); assert.deepEqual(m.practice.duel.fighters[0].sheet, want); assert.equal(m.practice.duel.fighters[1].sheet, undefined, 'the warden is a creature row, off the sheet');
   const rec = m.recorder!.finish('abandoned');
-  assert.deepEqual(rec.sheet, want); assert.equal(rec.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight is written no lower than the cast-penalty version');
+  assert.deepEqual(rec.sheet, want); assert.equal(rec.v, SHEET_ERA_VERSION, 'a sheet fight is written no lower than the cast-penalty version');
   loot = undefined; m.rematch();
   assert.equal(m.sheet, undefined, 'the armour came off: the next fight is naked');
   const plain = mk(); plain.rematch();

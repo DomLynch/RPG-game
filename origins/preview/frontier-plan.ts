@@ -10,9 +10,11 @@ import type { CharacterId, EncounterId, RegionId } from '../../src/core/server.t
 import { loadRegion1, type Bounty, type Region1, type Town } from '../region1/load.ts';
 import { CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
+import { openExits, exitSpots } from '../zones/exits.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
@@ -90,10 +92,11 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
   const owned = new Set(loadZone(zoneId).world), kept = [...placed.values()].filter((q) => owned.has(q.zone));
   // A link this page does not walk leaves nothing behind: its landmark (the post and collider it would draw) goes too, unless a kept link or a spawn stands on it.
   const spawnAt = new Set(data.registry.regions.get(FRONTIER)!.spawns.map((s) => s.at));
+  const doors = exitSpots(zoneId, [...owned], openExits());   // a door to another zone page (zones/exits.ts) keeps its landmark: the page draws the way in and the player lands on it
   for (const q of kept) {
     q.links = q.links.filter((l) => owned.has(l.to));
     const used = new Set(q.links.map((l) => l.here));
-    for (const c of Object.values(frZones.get(q.zone)!.connections)) if (!owned.has(c.to) && !used.has(c.here) && !spawnAt.has(c.here)) delete q.landmarks[c.here];
+    for (const c of Object.values(frZones.get(q.zone)!.connections)) if (!owned.has(c.to) && !used.has(c.here) && !spawnAt.has(c.here) && !doors.has(c.here)) delete q.landmarks[c.here];
   }
   zones.push(...kept);
 
@@ -108,6 +111,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
     signs.push({ at, lines: [c.kind === 'portal' ? `${to} (the night boat: not in this slice)` : to], back: false });
   }
 
+  for (const r of openExits()) { const at = kept.find((q) => q.zone === r.zone)?.landmarks[r.landmark]; if (at) signs.push({ at, lines: [r.label], back: false }); }   // a door to another zone page is signposted like a link
   // The Bounty: the slice's one, posted by the ruler of the town whose zone links to the Bounty's ground.
   const bounty = data.bounties.find((b) => b.id === SLICE_BOUNTY)!, reg = data.registry.regions.get(FRONTIER)!;
   const spawn = reg.spawns.find((s) => s.encounter === bounty.encounter)!;
@@ -181,7 +185,7 @@ export function frontierBuild(f: Frontier): Build {
     const c = off(a, a.facing, -d / 2);
     put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
     put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
-    if (w > 2) put('soot', ['box', Math.min(1.6, w / 3), Math.min(2.4, h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(1.2, (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
+    if (w > 2) put('soot', ['box', Math.min(stageRule('sootWidthMax'), w / 3), Math.min(stageRule('sootHeightMax'), h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(stageRule('sootCenterMax'), (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
     if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 });
     return c;
   };

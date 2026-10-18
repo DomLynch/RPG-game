@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "table": "perkTemplate",
+      "file": "perk-templates.json",
+      "at": "templates",
+      "key": "id",
+      "required": {
+        "gainWhen": "string",
+        "gainStat": "string",
+        "gainSign": "integer",
+        "costWhen": "string",
+        "costStat": "string",
+        "costSign": "integer"
+      }
+    }
+  ]
+}

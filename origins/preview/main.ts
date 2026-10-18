@@ -2,8 +2,8 @@ import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
-import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
+import { actorPose, armWarriors, loadEquip, loadWarriors, DEFAULT_WEAPON, PLAYER_WEAPONS, type Practice, type WeaponId } from '../../src/fight/index.ts';
+import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, mountBuild, type OwnBuild, type Tier } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
@@ -29,8 +29,10 @@ import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { openExits, type ExitRow } from '../zones/exits.ts';
+import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { applyServerKill, killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -72,7 +74,8 @@ import { startFight as startEncounter, settleFight as settleEncounter } from './
 import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
-import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
+import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
+import { SKILL_ROWS, type SkillId } from '../../src/fight/index.ts';   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -193,15 +196,39 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let remote: ReturnType<typeof createRemoteHeroes> | undefined, shownOthers: Other[] | null = null;   // the zone's other players (remote-heroes.ts), made with the hero's own rig once it has loaded
-let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
+let warriors: (Awaited<ReturnType<typeof loadWarriors>> & { baseAsset: Awaited<ReturnType<typeof loadWarriors>>['asset'] }) | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+// The weapon the hero wields in the world is the one he wears (Dom 2026-10-17): the rig draws it and the sim swings it, from the same variable (`rigWeapon`, handed to the sim by hero() below). Only weapons whose art
+// ships with this page (the ground models) are offered; any other worn weapon is the longsword. A change re-arms the rig between fights (the equip file loads on demand), and the sim's hero is rebuilt at the next clean window.
+const WEAPON_ART: Record<string, string> = Object.fromEntries(Object.entries(GROUND_MODELS).map(([path, url]) => [path.replace(/^.*\/(\w+)\.glb$/, '$1'), url]));
+const ZONE_CARRIED: readonly WeaponId[] = PLAYER_WEAPONS.filter((w) => w === DEFAULT_WEAPON || WEAPON_ART[w] !== undefined);
+let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false, failedWeapon: WeaponId | null = null, forcedWeapon: WeaponId | null = null;   // forcedWeapon: the browser checks hold him in one weapon (originsPreview.forceWeapon; a local run, the server would refuse its record)
+function syncRigWeapon() {
+  const want = forcedWeapon && ZONE_CARRIED.includes(forcedWeapon) ? forcedWeapon : gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
+  if (want === rigWeapon || want === failedWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
+  swappingWeapon = true;
+  const base = warriors.baseAsset;
+  (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadEquip(WEAPON_ART[want]!)).then((part) => {
+    const next = armWarriors(base, undefined, [want, want], part, (error) => console.warn('hero weapon equip failed', error));
+    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
+  }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
+}
+loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
+const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
+if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
+const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
+function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page
+  const veil = document.createElement('div'); veil.id = 'zone-cross'; veil.textContent = row.label;
+  veil.style.cssText = 'position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#000;color:#e8dcc8;font:600 22px/1 Georgia,serif;opacity:0;transition:opacity .45s;pointer-events:all';
+  document.body.append(veil); requestAnimationFrame(() => { veil.style.opacity = '1'; });
+  setTimeout(() => { presence?.stop(); location.assign(exitHref(location.href, row)); }, 550);
+}
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
 let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
@@ -301,12 +328,12 @@ function step(dt: number) {
   if (open) forward = turn = 0;
   else if (kit) {   // the Pit's own controls (src/fight/input.ts over the game's kit, pit-duel.ts world mode): stick walks, a button presses the nearest creature into a duel
     const i = duel!.worldIntent(), k = i.run ? 2 : 1;
-    forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
+    forward = Math.max(-previewRule('walkBackMax'), Math.min(previewRule('stickRange'), -i.z)) * k; strafe = Math.max(-previewRule('stickRange'), Math.min(previewRule('stickRange'), i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
     const a = i.action;
-    if (a === 'skill2' && slotShown([equippedCast(), equippedCast(1)], 1)) wc.cast2();   // the SPELL 2 button: slot b's own spell, cooldown and cost; an empty slot shows no button and the press does nothing
-    else if (a === 'skill' && equippedCast()) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
+    if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
+    else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
     else if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
     if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
       const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
@@ -335,7 +362,7 @@ function step(dt: number) {
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   // The engine's actor poses him: the gait follows the speed he actually covers (collisions included, signed backwards), the pose / progress / attack / contact come from the engine's actorPose of his duel.
   if (warriors) {
-    gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, 1e-3) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
+    gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, previewRule('dtFloor')) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
     const duel = wc.heroDuel(), posed = forcedPose ?? (duel ? actorPose({ duel } as unknown as Practice, 0) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 });
     const dx = state.x - px, dz = state.z - pz, moved = Math.hypot(dx, dz);
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
@@ -352,6 +379,7 @@ function step(dt: number) {
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
+  syncRigWeapon();
   if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = (mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, f = seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
@@ -363,7 +391,7 @@ function step(dt: number) {
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
     : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
-    : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
+    : zoneNow?.zone === 'exchange' && state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;   // the bank is the Exchange's: south of its step is the whole Frontier (and the Bone Hollow's gate stands at x 0), where "Bank" is wrong
   const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
   prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
   prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
@@ -444,15 +472,38 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
   warmedHero.done = true;
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 // The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked AFTER [zone ready] and off its critical path (Lead's ruling on #2938, 2026-10-16 night: before ready the one kit in flight cost +8 s of [zone ready] on SwiftShader and the cap cannot cut a compile). One kit per idle slice, and NO kit starts while a creature is within tap range (the engage window the seamless row guards); the kit already in flight cannot be cut. Nothing is fetched or
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
-let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number } | null = null;
+type KitPhase = { kit: string; at: number; prepMs: number; actorMs: number; dressMs: number; cloneMs: number; compileMs: number; framesMs: number; steps: { step: string; ms: number }[] };   // at: ms from the warm's start; prep / actor only on the first kit
+type KitsWarm = { failed: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: { at: number; ms: number }[]; phases?: KitPhase[] };
+let remoteKitsWarm: KitsWarm | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
+// The player's OWN figure wears the ledger's set (Lead 2026-10-17; the walking hero was the bare base figure while the gear sheet showed his gear). The sheet's wear is the one place every change passes (gear-mount.ts onWorn).
+// The set's programs are built on a second actor out of sight BEFORE the walker puts the pieces on (the kit warm's step: warmActor, then two frames in the scene for the shadow-pass programs), so dressing him links nothing
+// at the next frame. ONE dressing path (dress-remote.ts); self keeps the full rig (hero.glb), the near/far LODs are for remotes only. A newer set supersedes an older one still being built.
+let selfWorn: { ids: readonly string[]; tiers: Record<string, Tier> } | null = null, selfSeq = 0, selfBusy = 0;
+const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [id, id]));
+async function applySelf() {
+  if (!warriors || !selfWorn) return;
+  const mine = selfWorn, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  selfBusy++;
+  try {
+    const pieces = await sharedLoot();
+    if (mine.ids.length) {
+      const probe = secondActor(); probe.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(probe.anchor);
+      try { dressRemote(probe, pieces, worn, mine.tiers, failed); await warmActor(renderer, camera, scene, cloneRig(probe.anchor), nextFrame); await nextFrame(); await nextFrame(); } finally { scene.remove(probe.anchor); }
+    }
+    if (seq === selfSeq && warriors) dressRemote(warriors.player, pieces, worn, mine.tiers, failed);
+  } catch (error) { console.warn('your gear did not go on', error); } finally { selfBusy--; }
+}
+// The zone is not ready while his gear is being built, nor (signed in) before the ledger has answered (bounded by loadoutWait: an unreachable writer must not hold the zone).
+const selfSettled = () => selfBusy === 0 && (!storedToken(storage, Date.now()) || !!gearMount?.ready() || performance.now() > previewRule('loadoutWait'));
 // One idle slice, then wait while a creature is within tap range; gives up (the loop reports failed) once `until` passes with one still there.
 async function kitSlice(until: number) {
   for (;;) {
@@ -461,7 +512,38 @@ async function kitSlice(until: number) {
     if (performance.now() > until) throw new Error('a creature stayed within tap range');
   }
 }
+// The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
+// (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
+let deviceSlow: boolean | undefined;
+async function slowDevice(): Promise<boolean> {
+  if (deviceSlow !== undefined) return deviceSlow;
+  const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
+  for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+  return (deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')));
+}
+// On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
+// On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
+const GEAR_WARM_FORCED = /[?&]gearwarm=1\b/.test(location.search);
+async function warmGearScreen() {
+  const t0 = performance.now(), took = () => Math.round(performance.now() - t0);
+  try {
+    if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
+    // (?kitwarm=soft is the browser rows' flag: software GL by definition, so no second probe)
+    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
+    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
+    let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
+    const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
+    gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
+  } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
+}
 async function warmRemoteKitsAfterReady() {
+  gearMount?.hold();
+  try { await warmRemoteKits(); } finally { await warmGearScreen(); if (kitsResult) remoteKitsWarm = kitsResult; }
+}
+async function warmRemoteKits() {
   const t0 = performance.now();
   let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
@@ -469,25 +551,34 @@ async function warmRemoteKitsAfterReady() {
   const until = t0 + cap;
   // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
   // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
-  if (!/[?&]kitwarm=soft\b/.test(location.search)) {
-    const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
-    for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
-    if (tooSlow(gaps, previewRule('kitSlowFrameMs'))) {
-      console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
-      remoteKitsWarm = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
-      return;
-    }
+  if (!/[?&]kitwarm=soft\b/.test(location.search) && await slowDevice()) {
+    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
+    kitsResult = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
+    return;
   }
+  // What the warm costs the main thread, for the receipt: every long task (the browser reports only those over 50 ms, so an empty list is "none over 50 ms") and each kit's three phases in wall ms.
+  const longTasks: { at: number; ms: number }[] = [], phases: KitPhase[] = [];
+  const watcher = typeof PerformanceObserver === 'function' ? new PerformanceObserver((list) => { for (const e of list.getEntries()) longTasks.push({ at: Math.round(e.startTime - t0), ms: Math.round(e.duration) }); }) : null;
+  try { watcher?.observe({ type: 'longtask' }); } catch { /* an engine without long-task entries: the list stays empty */ }
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);
-    if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
-    dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), nextFrame); await nextFrame(); await nextFrame();
+    let prepMs = 0, actorMs = 0;
+    if (!pieces || !remote) {
+      const p0 = performance.now(); pieces = await sharedLoot(); prepMs = Math.round(performance.now() - p0);
+      const a0 = performance.now(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); actorMs = Math.round(performance.now() - a0);
+    }
+    const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
+    const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
+    await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
+    await nextFrame(); await nextFrame();
+    phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
   };
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
   const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
-  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
+  watcher?.disconnect();
+  kitsResult = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed, maxLongTaskMs: Math.max(0, ...longTasks.map((t) => t.ms)), longTasks, phases };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
@@ -497,6 +588,7 @@ function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
+  if (!selfSettled()) return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
@@ -505,9 +597,9 @@ function zoneReadyCheck() {
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
-  const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -556,7 +648,7 @@ if (frontier) {
       boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
       chips.append(boardEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
-      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
@@ -574,19 +666,21 @@ const saveNote = document.getElementById('save')!, allegianceButton = document.g
 let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
 // The open-world cast (Strategy order 2026-10-14): the equipped spell is the viewer's pick from the account's grimoire (src/core/spell-equip.ts, the Pit page's own), read at load like the Pit page does; the world hero carries it (world-combat hero dep) and SKILL casts it.
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / SPECIAL 2 (the specials PR): class skills from the beta pick row, read by the hero hook above and the buttons
 try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }
 const spellSkills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void spellSkills.refresh();
-void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend)); syncSpell2Button(); } }, () => {});
+void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend).filter(inBetaSpells)); syncSpell2Button(); } }, () => {});   // spells are off in the beta (betaCut spellsOff): the book offers only the utility spells } }, () => {});
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
 // The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
 const spellNames = new Map<string, string>();   // legend id -> the catalogue's spell name, read once through the lazy catalogue (the entry bundle carries no spell data)
 function syncSpell2Button() {
-  const id = equippedCast(1)?.id;
-  duel?.setWorldSlotB(slotShown([equippedCast(), equippedCast(1)], 1), id ? spellNames.get(id) : undefined);
+  const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
+  duel?.setWorldSpecials((equippedSpecial(0) as SkillId | undefined) ?? null, equippedSpecial(1) as SkillId | undefined);   // the world input judges presses against an idle stand-in fighter: it carries the picks, so the press is accepted and the HUD lights the buttons
+  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? SKILL_ROWS[melee2]?.name : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows its skill row's own name
   if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
-onSpellsChanged(syncSpell2Button); syncSpell2Button();
+onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
@@ -595,19 +689,26 @@ if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joi
   token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
-    if (frontier && !startWarped) { startWarped = true; presence?.warp('zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (frontier && !startWarped) { startWarped = true; presence?.warp(landed?.row.warp ?? 'zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
     if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
   },
   onOthers: (list) => { others = list; },
   onEnter: (who) => { otherNames.set(who.id, { name: who.name, guest: who.guest, worn: who.worn }); },
 }); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
+// "Place your point" in Zone 1 (Lead 2026-10-17): a one-line nudge beside "Sign in to keep it" while there are points to place; a tap opens the build dialog, never a modal on its own. The count and the dialog are mounted below the stored build.
+let pointsOpen = 0, pointsPolled = -1, buildOpen: (() => void) | null = null, buildPoll: (() => void) | null = null;
+let guestHolds = (): boolean => false;   // whether a guest's session bag holds anything (set where the bag is made, below: showCareer runs before that line)
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
-  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a);
+    if (guestHolds()) { const loss = document.createElement('span'); loss.id = 'guest-loss'; loss.textContent = GUEST_SIGN_IN_LOSS; loss.style.cssText = 'display:block;pointer-events:none'; saveNote.append(loss); }   // before the tap: what signing in costs a guest who holds loot (an empty bag gets no noise)
+  }
+  if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); career.append(' · ', b); }   // on the career line (Level 16 · 0 / 8625 CP · 16 points to place): one line on a phone
+  if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. A fight is never re-based under the player, so a career that arrives while one is on is held and adopted
@@ -685,6 +786,7 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const itemName = itemNamer(), guestContent = loadEncounterContent(), guestHeld = guestBag();   // a signed-out player's session loot: in memory only
+guestHolds = () => guestHeld.items().length > 0 || guestHeld.bronze() > 0;
 let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
@@ -736,7 +838,7 @@ function creatureFell(spec: MobSpec) {
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
     const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
-    if (guest) guestHeld.add(guest);
+    if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
     worldToast(killToast(k, itemName, spec.name, bountyTaken, guest));
   });
 }
@@ -771,7 +873,7 @@ for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventList
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
-  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); }, nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
   read: () => readGround(storedToken(storage, Date.now()), repairBase),
   take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
 });
@@ -784,6 +886,21 @@ let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get
 let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
 const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) { ownBuild = b; wc.heroChanged(); } else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
+// The build dialog (build-screen.ts, the Pit's own) over EITHER copy: a signed-in character's is the server's (build-server.ts), a guest's lives in memory only (build-guest.ts: nothing stored or sent, a reload resets it, his world
+// kills stay unverified and unpaid). Saving a signed-in build re-reads it for the fight's sheet; a guest's own build is the sheet's `own` at once (hero() below). Opening is always the player's tap: a nudge line, the journal's "Your build".
+const guestBuild = createGuestBuild(() => careerLine(session.career).level), serverBuild = createServerBuild({ storage, search: location.search, now: () => Date.now() });
+const buildCopy = {
+  view: () => (pageSignedIn() ? serverBuild.view() : guestBuild.view()),
+  refresh: () => (pageSignedIn() ? serverBuild.refresh() : guestBuild.refresh()),
+  save: async (next: Parameters<typeof guestBuild.save>[0]) => { const out = pageSignedIn() ? await serverBuild.save(next) : await guestBuild.save(next); if (out === 'saved') { if (pageSignedIn()) loadOwnBuild(2); else wc.heroChanged(); } return out; },
+};
+{ const dialog = document.getElementById('build-dialog') as HTMLDialogElement | null;
+  if (dialog) {
+    const build = mountBuild(dialog, buildCopy, (open) => { pointsOpen = open; const dot = document.getElementById('build-dot'), note = document.getElementById('build-open-note'); if (dot) dot.hidden = open === 0; if (note) note.textContent = open ? `${open} to place` : ''; showCareer(); });
+    buildOpen = () => { void build.open(); }; buildPoll = () => { void build.poll(); };
+    document.getElementById('build-open')?.addEventListener('click', () => { (document.getElementById('journal') as HTMLDialogElement | null)?.close(); buildOpen?.(); });
+    buildPoll();
+  } }
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
@@ -797,7 +914,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = pageSignedIn() ? gearMount?.sheet(ownBuild) : gearMount?.sheet(guestBuild.own(), true), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; const special = equippedSpecial(0) as SkillId | undefined, special2 = equippedSpecial(1) as SkillId | undefined; return { level: careerLine(session.career).level, weapon: rigWeapon, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}), ...(special ? { special } : {}), ...(special2 ? { special2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
@@ -826,17 +943,18 @@ function programOwners(): Record<string, string[]> {
   return out;
 }
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  guestTake: (item: string, quantity: number) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); },   // browser rows: put something in a guest's session bag as a take or a kill would (guest-loss-check.mjs); the real paths are the ground pickup and the kill
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
-  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
+  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
+  remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm, selfWorn: () => warriors?.player.worn().map((piece) => piece.name) ?? [],   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
-  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
+  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page

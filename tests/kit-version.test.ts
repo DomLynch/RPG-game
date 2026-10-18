@@ -12,7 +12,8 @@ import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } 
 // Re-pinned 2026-10-14 (World, data-layer day): the KITS and CHAINS tables moved out of kits.ts into mob-kits.json (the kit tag over the same data is unchanged: 1zqmougjnm3 before and after), behaviour did not move, KIT_LOGIC_VERSION stays.
 // Re-pinned for the move to src/core/world (core slice 3): only the file path, the import specifier and a comment changed; behaviour did not, KIT_LOGIC_VERSION stays.
 // Re-pinned for Combat debt (mobkit AFTER_HIT_TICKS, CHAIN_CAP, EXHAUSTED_BELOW moved to mobkit-defs.json rows): the same numbers, behaviour did not move, KIT_LOGIC_VERSION stays.
-const KIT_CODE_DIGEST = '240382752ef31d1a678fdded03261282cdd918489f0d8b58c7546126e39c34ad';
+// Re-pinned for the audit TUNABLE-GAMEPLAY pass (World, 2026-10-17): MODE moved out of kits.ts into mob-kits.json `modes` (the same three deltas, same key order; tests/kit-modes-rows.test.ts pins them and the kit tag test below still passes unchanged), behaviour did not move, KIT_LOGIC_VERSION stays.
+const KIT_CODE_DIGEST = 'cc44f4dfa9aaedc917930c2e24bfde110a9f040bf77271be860c0328bcd9cb77';
 
 test('the kit code is pinned: a change in src/fight/mobkit.ts or src/core/world/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../src/core/world/kits.ts', import.meta.url))).digest('hex');

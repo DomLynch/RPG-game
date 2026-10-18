@@ -5,20 +5,23 @@
 // `base` is what the host hands in (the Pit and the zone read their combat constants, so src/core imports nothing from src/fight); `worn` is the ledger's worn pieces,
 // for rows that add what gear gives once pieces carry numbers (Origin season 1).
 import type { LootId } from './loot.ts';
+import STRIP_ROWS from './gear-strip-rows.json' with { type: 'json' };
 
 export type StatContext = { base: Readonly<Record<string, number>>; worn: readonly LootId[] };
 export type GearStat = { id: string; label: string; read: (c: StatContext) => number | null };
 export type StatRow = { id: string; label: string; value: string };
 
-export const GEAR_STATS: readonly GearStat[] = [
-  { id: 'health', label: 'Health', read: (c) => c.base.health ?? null },
-  { id: 'stamina', label: 'Stamina', read: (c) => c.base.stamina ?? null },
-  { id: 'attack', label: 'Attack', read: (c) => c.base.attack ?? null },   // gear's tilt in whole points, brief 19 Addendum C: "ATK 15 · RES 20", unsigned
-  { id: 'res', label: 'Resistance', read: (c) => c.base.res ?? null },
-];
+// The strip's rows are DATA (gear-strip-rows.json: id, label); each reads the host's `base` number of the same id.
+export const GEAR_STATS: readonly GearStat[] = STRIP_ROWS.gearStat.map((r) => ({ id: r.id, label: r.label, read: (c: StatContext) => c.base[r.id] ?? null }));
 
 export const statRows = (ctx: StatContext, stats: readonly GearStat[] = GEAR_STATS): StatRow[] =>
   stats.flatMap((stat) => { const value = stat.read(ctx); return value === null || !Number.isFinite(value) ? [] : [{ id: stat.id, label: stat.label, value: String(Math.round(value)) }]; });
+
+/** One piece's own line for its backpack row: what it gives at its rung, as the paperdoll reads it ("ATK 15 · RES 20", unsigned magnitudes of the tilt, brief 19 Addendum C), or "No bonus" when it gives nothing (a Recruit piece is the identity rung). */
+export const pieceLine = (nums: Readonly<Record<string, number>>): string => {
+  const parts = [['attack', 'ATK'], ['res', 'RES']].flatMap(([id, short]) => { const n = Math.round(nums[id!] ?? 0); return n > 0 ? [`${short} ${n}`] : []; });
+  return parts.length ? parts.join(' · ') : 'No bonus';
+};
 
 /** Draw the rows into the strip (a <dl>); no rows = the strip is hidden. */
 export function renderStats(host: HTMLElement, rows: readonly StatRow[], doc: Pick<Document, 'createElement'>): void {   // `doc` is the page's own (the sheet's), as loot-panel.ts takes its document

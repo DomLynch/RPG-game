@@ -89,9 +89,11 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
 
 // Zone 1 is byte-identical to what it was before Zone 2 existed: hashes recorded from the base (world/zone2-data 5eee9e6), order-free. A link this page does not walk (the Ash Reach turn) leaves no post or collider behind.
 // Re-pinned 2026-10-16 (the Cave Troll placement #2877, Lead's ruling: the troll's group moves out of the goblin camp's aggro range): the new `troll-cave` landmark (u 0.7, v 0.8; chosen from a scan of the free ground because it is a spot where the seeded dressing stays byte-identical to before and no dressing solid comes within 4 m of any landmark) is drawn like every landmark, one marker piece and one collider (170 -> 171 pieces, 57 -> 58 solids); the sha before it acc9e948fd235ae5 / 70bce4a238048f1c. Nothing else in Zone 1 moved.
-test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark)', () => {
+// Re-pinned 2026-10-17 (the beta dungeon's door, Lead's ruling: the cave mouth is a door to Zone 5): the `cave-mouth` landmark (cinder-fields west edge, zones/exit-rows.json) is kept on the page and signposted
+// like a link: +3 pieces (marker and sign) and +1 collider, 171 -> 174 and 58 -> 59.
+test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark and the cave-mouth door)', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
-  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [171, '5b43bfcefb8180da', 58, 'e2df4f455b4d2268']);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [174, 'fbc437921f82ccf3', 59, '2fce1d40b375e5ff']);
 });
 
 // Zone 2 is byte-identical to what it was before its map entry moved into the zone 2 row (hashes recorded from trunk 5719c9f36, equal on the place.ts branch): pieces, solids, creature homes, the plan's zones.

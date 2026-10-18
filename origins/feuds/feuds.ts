@@ -15,6 +15,8 @@
 import { MAX_LEVEL, RANK_STEPS, TITLES, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import feudRows from './feud-rules.json' with { type: 'json' };
 import feudManifest from './feud-rules.manifest.json' with { type: 'json' };
+import ringRows from './rings.json' with { type: 'json' };
+import ringManifest from './rings.manifest.json' with { type: 'json' };
 import { prng } from '../world/generate.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -372,11 +374,10 @@ export const giverPricePermille = (rival: RivalState, at: number): number => {
 
 export type RingId = 'outer' | 'middle' | 'inner';
 export type Ring = { id: RingId; fromMetres: number; band: 'wanted' | 'hunted'; guardLevelFloor: number; guardLevelOver: number; damagePermille: number };
-export const DEFAULT_RINGS: readonly Ring[] = [
-  { id: 'outer', fromMetres: 30, band: 'wanted', guardLevelFloor: GUARD_LEVEL_FLOOR, guardLevelOver: GUARD_LEVEL_OVER, damagePermille: 1000 },
-  { id: 'middle', fromMetres: 15, band: 'wanted', guardLevelFloor: 30, guardLevelOver: 10, damagePermille: 1500 },
-  { id: 'inner', fromMetres: 0, band: 'hunted', guardLevelFloor: 40, guardLevelOver: 20, damagePermille: 4000 },
-];
+// The rings are rows (rings.json + manifest; tests/guard-rings-rows.test.ts pins them to the literals they replaced). A row carries its own guard level floor and over, or `"levelFrom": "rules"`: the feud rules' guardLevelFloor / guardLevelOver.
+loadRegistry([tableFromFile(ringManifest.tables[0] as unknown as Manifest, ringRows, 'rings.json')]);
+type RingRow = Omit<Ring, 'guardLevelFloor' | 'guardLevelOver'> & { guardLevelFloor?: number; guardLevelOver?: number; levelFrom?: 'rules' };
+export const DEFAULT_RINGS: readonly Ring[] = (ringRows.rings as unknown as readonly RingRow[]).map((r) => ({ id: r.id, fromMetres: r.fromMetres, band: r.band, guardLevelFloor: r.levelFrom === 'rules' ? GUARD_LEVEL_FLOOR : r.guardLevelFloor!, guardLevelOver: r.levelFrom === 'rules' ? GUARD_LEVEL_OVER : r.guardLevelOver!, damagePermille: r.damagePermille }));
 export const guardLevel = (ring: Pick<Ring, 'guardLevelFloor' | 'guardLevelOver'>, yourLevel: number): number =>
   Math.min(MAX_LEVEL, Math.max(ring.guardLevelFloor, yourLevel + ring.guardLevelOver));
 

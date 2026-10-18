@@ -1,13 +1,13 @@
 import { createInput } from './fight/index.ts';
 import { ui } from './ui-rows.ts';
-import { AFK_CAP_S } from './first-loss.ts';
-import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
+import { AFK_CAP_S, FRAME_DT_MAX_S } from './first-loss.ts';
+import { GEAR_IN_FIGHTS, fightSheet, gearNumbers, pieceNumbers } from './fight/gear-numbers.ts';
 import { weightClassOf } from './fight/gear-weight.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
+import { PLAYER_WEAPONS, RULES, SKILL_ROWS, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
-import { arenaFor } from './arena-themes.ts';
+import { ARENA_KEYS, LADDER_PICK, arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './fight/defence-grade.ts';
 import { kickCloseFlag } from './fight/kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
@@ -15,7 +15,7 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
+import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, mountSpecials, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
@@ -26,7 +26,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { fightLevel, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
+import { betaMarks, equippedSpecial, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, onSpecialsChanged, rankFor, shownMarks, useSpecialStore, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
@@ -131,7 +131,7 @@ const fightRank = element('fight-rank');
 // Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
 // Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
 // player's Match is built at the level the HUD shows.
-function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
+function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return betaMarks(shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length)); }   // the beta cut (career-ladder.ts): the rank, the HUD and the fight's level stop at the cut; the server's marks do not
 // A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
 // so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
 let watchedLevel: number | null = null;   // a kill link's record level while its fight is on screen (startReplay); PLAY NOW clears it
@@ -255,7 +255,7 @@ if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: locat
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 // eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
-const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers, pieceNumbers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
@@ -367,7 +367,7 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? [...ARENA_KEYS, LADDER_PICK].includes(rawArena) ? rawArena : LADDER_PICK
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 // The career's own arena (Lead + Dom 2026-10-06, rotation): the first fight is Arena 1, then ladder.ts nextArena. A kill link is NOT a career fight: it replays in its
@@ -375,7 +375,7 @@ const sparArena = sparPreview.kit ? requestedArena : undefined;
 const careerArena = !replayText && !sharedId ? profile.arena ?? '1' : undefined;
 const arenaPick = requestedArena ?? (storedArena || careerArena);   // what the scene is built with (createScene); 'ladder' and unknown keys fall to the band
 const builtArena = arenaFor(opponent.id, arenaPick).id as RecordArena;   // the key the scene really builds: a live fight's record names it
-arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
+arenaSelect.value = sparArena === LADDER_PICK ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
 // Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
 // The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
@@ -424,8 +424,9 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void lo
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
@@ -777,8 +778,11 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
   element('journal-button').addEventListener('click', () => { void build.poll(); });   // the dot sits on the journal button: opening the journal re-reads the build
   void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
 }
-{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got; });   // the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
+{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
+  { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) { match.lastSkill = one; match.skill = one; } }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }
+  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => SKILL_ROWS[id]?.name ?? id);   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
+    element('special-open').addEventListener('click', () => { journal.close(); specials.open(); }); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }
 element('journal-button').addEventListener('click', openJournal);
@@ -1197,7 +1201,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', (ARENA_KEYS as readonly string[]).includes(arenaSelect.value) ? arenaSelect.value : LADDER_PICK);   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
@@ -1481,7 +1485,7 @@ function frame(now: number) {
   // jump (every release check under page.clock on the Linux runner: frames ran, page time advanced, the tick never moved).
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
-  const dt = Math.min(elapsed, 0.1);
+  const dt = Math.min(elapsed, FRAME_DT_MAX_S);
   const room = gearRoom(); if (room) { room.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (!paused()) {
     controls.promoteDodge(now);

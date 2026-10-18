@@ -1,0 +1,6 @@
+{
+  "zones": [
+    { "id": "pit-yard", "quiet": true, "mount": "pit" },
+    { "id": "exchange", "mount": "exchange", "trade": true }
+  ]
+}

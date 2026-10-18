@@ -5,7 +5,7 @@ import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/fight/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 import { PHONE_LOOKS, rankLookFor } from '../src/fight/rank-look.ts';
-import { levelOf, tierAt } from '../src/core/server.ts';
+import { betaMarks, levelOf, tierAt } from '../src/core/server.ts';   // betaMarks: the beta cut (#3024) shows the rank at the cut, so the rank look the page streams is the cut's
 import { SHIPPING_SHIELDS, shieldFor } from '../src/fight/shields.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 // This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).
@@ -39,7 +39,7 @@ const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
 try {
  const {page}=await phonePage(browser,{errors:receipt.errors});
- const MARKS=12, rankLook=(id,phone=false)=>rankLookFor(id,levelOf(tierAt(MARKS)),phone);   // the look the seeded profile's rank streams (12 marks: Gladiator → L3)
+ const MARKS=12, rankLook=(id,phone=false)=>rankLookFor(id,levelOf(tierAt(betaMarks(MARKS))),phone);   // the look the seeded profile's rank streams (12 marks: Gladiator → L3 uncapped; the beta cut shows it at the cut, betaMarks(12) → L2)
  await page.addInitScript((marks)=>{
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:marks}}));
  },MARKS);

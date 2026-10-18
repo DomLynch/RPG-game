@@ -11,10 +11,14 @@ import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
 import { stageRule } from '../world/stage-rules.ts';
 import type { Spec } from './biomes.ts';
+import type { ExitRow } from './exits.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
+/** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
+export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
 export type Zone = {
   id: string; level: number;
+  band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
   defaultKind?: string;       // the roster body a creature whose character form names none stands as (a row column, schema default 'goblin', checked as a roster body)
   name: string;               // the zone's display name: the tab title and the HUD read it (Zone 1 = the Cinder Fields it opens in)
   names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
@@ -27,6 +31,8 @@ export type Zone = {
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
+  exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
+  presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
@@ -39,7 +45,13 @@ const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.met
 const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
 export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
-export const zonePlaces = (): Place[] => { const ids = new Set(listedIds(PACKAGES, here())); return placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id)))); };
+/** The places of the zones this page sees. An UNLISTED zone is seen only on its own page, EXCEPT its bare joins (a join without `link`: a landmark the package brings into another zone, e.g. a dungeon's door): on a build with the opt-in they apply on every page, so the Zone 1 page can draw the door, and on a normal build they apply nowhere, so Zone 1 stays byte-identical. */
+export const zonePlaces = (): Place[] => {
+  const ids = new Set(listedIds(PACKAGES, here())), own = placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id))));
+  if (!opensNow()) return own;
+  const bare = Object.keys(PACKAGES).filter((id) => PACKAGES[id]!.unlisted && !ids.has(id)).flatMap((id) => PACKAGES[id]!.place?.joins.filter((j) => j.link === undefined) ?? []);
+  return bare.length ? [...own, { zones: {}, joins: bare, waypoints: bare.map((j) => j.landmark), spawns: [] }] : own;
+};
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
@@ -53,7 +65,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
     const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
-    if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
+    if (z.band) { if (!(r.level[0] >= z.band[0] && r.level[1] <= z.band[1] && r.level[0] <= r.level[1])) bad.push(`${r.id}: level ${r.level.join('-')} is outside the zone's band ${z.band.join('-')}`); }   // a dungeon row's own level band wins; the zone-number rule below is the fallback for a zone without one
+    else if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
   }
   for (const [zoneId, rowId] of Object.entries(z.spawns.openers)) if (!ids.has(rowId)) bad.push(`opener for ${zoneId} names ${rowId}, which is not a row`);
   for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
@@ -85,9 +98,18 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
   }
+  for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
+  for (const [w, p] of Object.entries(z.presence ?? {})) {
+    if (!z.world.includes(w)) bad.push(`presence ${w}: not a world zone of this package`);
+    if (p.speed !== undefined && !(p.speed > 0 && p.speed <= 10)) bad.push(`presence ${w}: speed ${p.speed} is out of range (0-10]`);
+    const c = p.caps, ns = [c?.floor, c?.soft, c?.hard].filter((n): n is number => n !== undefined);
+    if (c && !(ns.every((n) => Number.isInteger(n) && n >= 0) && (c.floor ?? 0) <= (c.soft ?? Infinity) && (c.soft ?? 0) <= (c.hard ?? Infinity))) bad.push(`presence ${w}: caps must be whole numbers with floor <= soft <= hard`);
+  }
   return bad;
 }
 
+/** Whether zone `id` exists for this build: a listed zone always, an UNLISTED one only with the opt-in (the Zone 1 page needs this to draw a door to it; zoneIds() lists an unlisted zone only on its own page). `opens` false is the server's. */
+export const zoneOpen = (id: string, opens: boolean = opensNow()): boolean => { const z = PACKAGES[id]; return !!z && (!z.unlisted || opens); };
 export const zoneIds = (opens: boolean = opensNow()): string[] => listedIds(PACKAGES, here(), opens);
 /** Every zone row, listed or not: for checks that must validate an unlisted row too (scripts/data-only-check.mjs), never for what a player or the server sees. */
 export const allZoneIds = (): string[] => Object.keys(PACKAGES);

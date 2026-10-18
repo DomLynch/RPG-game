@@ -15,6 +15,7 @@ import { decodeRecord } from '../src/fight/record.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
 import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
+import { pgConn } from '../origins/server/pg-service.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;
@@ -82,7 +83,7 @@ export function restAdapter(api, fetchFn = globalThis.fetch) {
 // validated before they are quoted into SQL; the role can do nothing else even if they were not.
 export function psqlAdapter(databaseUrl, run = spawnSync) {
   const sql = statement => {
-    const res = run('psql', [databaseUrl, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C.UTF-8' } });
+    const res = run('psql', ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, ...pgConn(databaseUrl).env, LC_ALL: 'C.UTF-8' } });   // the URL (it holds the password) goes in a 0600 service file, never argv
     if (res.status !== 0) throw Error(`psql: ${(res.stderr || res.error?.message || '').trim() || `exit ${res.status}`}`);
     return res.stdout.trim();
   };
