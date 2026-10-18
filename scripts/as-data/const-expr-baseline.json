@@ -98,9 +98,6 @@
   "TAU": 1,
   "RETARGET_CONE": 1
  },
- "src/net/lobby.ts": {
-  "RETIRE_MS": 1
- },
  "src/pvp-hold.ts": {
   "TICK_MS": 1
  }
