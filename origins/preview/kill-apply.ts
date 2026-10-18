@@ -22,13 +22,16 @@ export function receiptToast(n: ReceiptNote): string {
   const paid = [...(r.cp ? [TEXT.toast.receiptCp.replace('{n}', String(r.cp))] : []), ...(r.bronze ? [TEXT.toast.receiptBronze.replace('{n}', String(r.bronze))] : []), ...(r.loot ? [(r.loot === 1 ? TEXT.toast.receiptItemOne : TEXT.toast.receiptItemMany).replace('{n}', String(r.loot))] : [])];
   return paid.length ? TEXT.toast.receiptPaid.replace('{paid}', paid.join(' · ')) : TEXT.toast.receiptPaidNothing;
 }
+/** Whether a zone's kills are reported to the writer: not from an UNLISTED zone (the server cannot know it: no engage token, nothing to verify or pay), so the page sends no kill_report there at all (Strategy 2026-10-18). */
+export const reportsKills = (zone: { readonly unlisted?: boolean }): boolean => zone.unlisted !== true;
 export const SIGN_IN_TO_KEEP = TEXT.toast.guestNoLoot, NOT_SAVED = TEXT.toast.notSaved;
 /** The one plain line beside a guest's "Sign in" link, shown only while the guest holds something (SCOPE guest acceptance item 4): signing in is a page navigation and a guest's loot is an unverified, session-only roll (guest-loot.ts), so it is NOT carried over; the player is told before the tap. */
 export const GUEST_SIGN_IN_LOSS = TEXT.guest.signInLoss;
 const lines = (loot: readonly { item: string; quantity: number }[], name: (id: string) => string): string[] => loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
 /** The kill toast: ONE path. What the server paid ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); a guest (no session) is shown what the same table rolled for this session with a nudge to sign in to keep it ("Wolf pelt ×2 (sign in to keep it).", guest-loot.ts; no CP, nothing saved), and with nothing rolled gets the plain nudge; a signed-in page the server did not answer is told nothing was saved. "Bounty done." is the journal step's own answer (the server pays no bounty bronze yet). The copy is a row (kill-text.json). */
-export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, guest: GuestLoot | null = null): string {
+export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, guest: GuestLoot | null = null, sandbox = false): string {
   const done = bountyTaken ? ' Bounty done.' : '';
+  if (sandbox) return `${TEXT.toast.sandboxKill.replace('{creature}', creature)}${done}`;   // an UNLISTED zone (the Test Zone): the server never sees it, so nothing is paid or saved there, and the row says so
   if ('offline' in killed && killed.offline === 'http-409' && killed.kind) return `${creature} is down. ${receiptToast({ kind: killed.kind, instance: '', ...(killed.receipt ? { receipt: killed.receipt } : {}) })}${done}`;   // the first send's own 409 reads the same way
   if ('offline' in killed) {
     const held = killed.offline === 'no-session' && guest ? [...(guest.bronze ? [`+${guest.bronze} bronze`] : []), ...lines(guest.loot, name)] : [];

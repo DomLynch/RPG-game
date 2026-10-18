@@ -15,9 +15,9 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zoneCamp } = await import('../origins/world/goblin-field-rules.ts');
     const { frontierPlan, FRONTIER } = await import('../origins/preview/frontier-plan.ts');
     assert.ok(zoneIds().includes('90'));
-    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'dusk'); assert.equal(zoneCamp(z), 'test-field');
+    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress', 'the dome is the fortress palette (the Test Zone\'s own look, from its biome; was dusk before the package import)'); assert.equal(zoneCamp(z), 'test-field');
     const F = frontierPlan(true, '90'); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     // the camp's pieces (goblinFieldKit) are built by the preview page's kit PR, which carries its own check
-    assert.equal(z.spawns.rows.length, 0, 'no creatures: nothing at level 90 exists');
+    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll', 'character:pit-goblin', 'character:ash-wolf', 'character:ash-boar'], 'the Test Zone\'s own five creature rows (level 1: the zone row sets its own level, unlisted only)');
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });

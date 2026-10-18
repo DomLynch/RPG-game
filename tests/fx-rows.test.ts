@@ -22,6 +22,17 @@ test('the private numbers are rows with their old values', () => {
   assert.throws(() => fxNum('no-such-row'), /no row/);
 });
 
+// The first-person rig's numbers (R07, ported from the Test Zone sandbox @07fddad44): rows only, the readers (main.ts, follow-camera.ts) come with their owner lanes' ports.
+test('the first-person rows hold the sandbox values', () => {
+  const fp: Record<string, number> = {
+    'fp.eye': 1.62, 'fp.forward': 0.14, 'fp.tilt': 6, 'fp.look-down': 1.2, 'fp.bob-amp': 0.03, 'fp.bob-step': 8, 'fp.bob-speed-cap': 3.2,
+    'fp.hand-right': 0.3, 'fp.hand-up': -0.25, 'fp.hand-forward': 0.5, 'fp.pole-right': 0.7, 'fp.pole-up': -0.9, 'fp.pole-forward': -0.2,
+    'fp.blade-right': -0.3, 'fp.blade-up': 0.45, 'fp.blade-forward': 0.88, 'fp.arm-rate': 14,
+    'fp.kick-rest': 1.5, 'fp.kick-roll': 0.25, 'fp.kick-yaw': 0.12, 'fp.kick-lunge': 0.35, 'fp.fov-landscape': 72, 'fp.fov-portrait': 80,
+  };
+  for (const [id, v] of Object.entries(fp)) assert.equal(fxNum(id), v, id);
+});
+
 test('the seven files keep none of the old literals', () => {
   const src = (f: string) => readFileSync(new URL(`../src/fight/${f}`, import.meta.url), 'utf8');
   assert.doesNotMatch(src('charge-fx.ts'), /HOOF = 18|STRIDE = 0\.36|LEAD = 2\.0/);
