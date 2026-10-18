@@ -1,4 +1,5 @@
 // The two SPECIAL slots' store (src/core/special-equip.ts): the picks come from the betaCut row, a skill never sits in both slots, a pick outside the row is dropped, a viewer without storage keeps nothing.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SPECIAL_SLOT_COUNT, equipSpecial, equippedSpecial, equippedSpecials, onSpecialsChanged, specialChoices, useSpecialStore } from '../src/core/special-equip.ts';

@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { NO_OPEN, openPose, openWeight } from '../src/fight/opening-pose.ts';

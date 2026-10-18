@@ -1,6 +1,7 @@
 // The Mac unit step runs under the pinned node or not at all (Lead 2026-10-13: the Mac's default node was v25.8.1, every trusted receipt ran NODE_PIN
 // v22.23.3). scripts/lib/node-pin.sh against stub `node` binaries that report a chosen version, and deploy.sh's wiring: every branch that runs a suite
 // calls `use_pinned_node || exit 1` before it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

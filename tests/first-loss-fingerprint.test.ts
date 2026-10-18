@@ -1,6 +1,7 @@
 // The scripted first loss's stepped duel, fingerprinted: six players x twelve seeds, the whole final duel state, the beats and the tick count hashed into one digest.
 // Written BEFORE the first-loss numbers (GAP, REACH, FLOOR, TIMEOUT, FINALE_LIMIT) moved into rows (src/first-loss-rules.json), so a change that moves any of them,
 // or the order the lessons fire in, fails here. FIRST_LOSS_PRINT=1 prints the digest instead of asserting it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

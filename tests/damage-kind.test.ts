@@ -1,4 +1,5 @@
 // Damage kinds as data (Wave A1 PR2, RV49): a move row may name a kind; slash drains the target's stamina, crush adds posture, pierce ignores a share of the armour dial; a move with no kind is the plain blow.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

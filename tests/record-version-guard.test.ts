@@ -6,6 +6,7 @@
 // version. Change that code and this test fails; the fix is to bump RECORD_VERSION in src/fight/record.ts (old links are then refused cleanly
 // at decode) and paste the digest the failure prints into SIM_DIGEST below. Moving code between sim files byte for byte (src/fight/,
 // Release K) keeps the digest, so it keeps the version and every live link (Lead, 2026-10-09).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

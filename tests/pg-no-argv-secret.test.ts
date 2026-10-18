@@ -1,5 +1,6 @@
 // No database secret on any command line (Lead 2026-10-17: the verifier's password was visible in `ps`). The connection string becomes a 0600 libpq service file
 // (origins/server/pg-service.ts); psql is spawned with no connection argument. This pins the helper, the writer's spawn, and guards the source so a URL cannot be put back in argv.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';

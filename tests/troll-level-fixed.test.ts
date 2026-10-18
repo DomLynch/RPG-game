@@ -1,6 +1,7 @@
 // Strategy's ruling (2026-10-16): the Cave Troll's level is FIXED from its zone row (3), never from the hero, so "an L16 sheeted hero against the troll" means against the LEVEL-3 troll and he wins ~always.
 // Nothing in the world loop scales a creature to the hero: a creature's level is its spawn's (origins/preview/mobs.ts: the row's level band by distance, a camp boss its form's level) and world.ts creature() takes that level and
 // nothing about the hero. This pins the row level, and runs the real world loop (stepCombat) with an L16 hero (his level's build points + a plate set) against the troll at that level.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import GOLDEN from '../origins/preview/mobs.golden.json' with { type: 'json' };

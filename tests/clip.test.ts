@@ -1,6 +1,7 @@
 // Export clip B (src/clip.ts + Match.startClip/endClip, Dom 2026-09-26): the clip re-plays the ended fight's own record in place.
 // The gates: the re-play reaches the same finish as the fight, never ends it a second time (no second reward, no second record),
 // writes nothing, and endClip puts the kill screen's state back exactly (the record, the drop, the mode and the final picture).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

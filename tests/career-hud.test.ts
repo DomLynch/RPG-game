@@ -1,4 +1,5 @@
 // The HUD's career line (origins/preview/career-text.ts): Zone 1 labels the level as the career's while the world fight is a bare body (Strategy 2026-10-16); everywhere else it is the line it always was.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { careerHud } from '../origins/preview/career-text.ts';

@@ -1,5 +1,6 @@
 // scripts/ci-trusted-checks.mjs with GROUPED release-checks jobs (Deploy, release speed 2026-10-13): a job named `checks 1,13,20 (...)` covers several rows,
 // each row still needs its own receipt (an array in the group's receipt file), and the one-job-per-row shape keeps working.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

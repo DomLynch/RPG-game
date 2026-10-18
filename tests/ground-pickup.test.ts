@@ -1,5 +1,6 @@
 // The ground-loot pickup prompt (slice 3, Backend's #2775 plan): the rows load and a bad one is refused; the prompt is for the nearest visible, available item inside the row's own radius; the tap is one
 // ground_take for the character and nothing else; and the three outcomes each do their one thing: a take (hide, pack read again, pickup cue), a lost race (refuse cue and a line) and the switch off (a quiet "not now").
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import RULES from '../origins/preview/ground-pickup.json' with { type: 'json' };

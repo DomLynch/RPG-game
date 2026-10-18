@@ -1,5 +1,6 @@
 // The item and service vocabularies that are data (src/core/contracts/definitions.json): rarities, materials, loot presentations and what a service accepts. A new value is one row; an unknown id still rejects; the
 // lists whose values select code (CATEGORIES, STORY, BINDINGS, POWERS, LOCATION/PROVENANCE/HISTORY kinds, ROLL_MODES, SERVICE_KINDS, DISTRIBUTIONS) stay code. 'common' is pinned: loot-catalogue.ts and the fixtures assign it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

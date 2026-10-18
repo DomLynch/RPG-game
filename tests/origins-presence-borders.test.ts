@@ -1,6 +1,7 @@
 // Launch gate S3 (docs/specs/origins/launch-gates.md; one-shard.md §6 "Interest bugs"): players crossing the grid's cell borders are handed over correctly. Each pair that should
 // see each other does, in both directions, with no ghost left behind in the cell a player came from and no entity sent twice. tests/origins-presence.test.ts covers the radius, the 40-nearest cap
 // and the sockets; this file is the border cases. The oracle is a brute-force distance scan that never touches the grid, so a wrong cell index shows up as a difference.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { decodeDown } from '../origins/presence/wire.ts';

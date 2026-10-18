@@ -1,6 +1,7 @@
 // Legends parity (Lead, 2026-09-27): GAME_SPEC.md's legends table is the owner-facing copy of src/legends.ts. Every opponent row,
 // every rung header and every "Name (source)" cell must match the code exactly and in order, so a text swap that edits one side
 // and not the other fails here instead of drifting.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

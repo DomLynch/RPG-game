@@ -1,4 +1,5 @@
 // The zone package folders are the one source of truth (docs/specs/zone-package.md, step 2): the shared tables and a package's zone row are BUILD OUTPUT of scripts/gen-packages.mjs, so a hand edit of one fails here.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

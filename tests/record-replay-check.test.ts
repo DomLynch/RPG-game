@@ -1,6 +1,7 @@
 // The kill-link determinism release check (scripts/record-replay-check.mjs): passes on identical replay, passes with a message when
 // the record's version is refused, and fails loudly on a silent mismatch. Each case runs the script against its own modified copy
 // of tests/fixtures/fight-records.json (RECORD_REPLAY_FIXTURE).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

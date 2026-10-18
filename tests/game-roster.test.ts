@@ -1,4 +1,5 @@
 // The /game/legends/ roster page (scripts/game-roster.mjs): exactly the legends the Pit keeps and lets you challenge, each with a line, each at its ladder rank.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

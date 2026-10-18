@@ -1,4 +1,5 @@
 // The pit's geometry and the arena themes are data (src/arena-rules-defs.json, src/arena-themes.json): every value equals the literal it replaced.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';

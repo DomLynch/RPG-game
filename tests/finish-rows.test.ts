@@ -1,4 +1,5 @@
 // The `rust` finish row (ground-loot brief, Backend #2775): a dull brown-orange iron with low sheen, written onto a sword's metal by `finishedAs`; no new mesh.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MeshStandardMaterial } from 'three';

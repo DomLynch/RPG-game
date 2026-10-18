@@ -1,4 +1,5 @@
 // K5 wounds rows (World's #2000 schema as catalogue data): the quadruped bodytype and the beast species, and the wolf, boar and bear rows that read them.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bodytypeProblems, catalogueProblems, type Bodytype, type CatalogueRow } from '../src/fight/catalogue.ts';

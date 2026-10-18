@@ -1,4 +1,5 @@
 // Spell combat slice 1 (RV69, WSV45): a spell whose root has a spell-hit-defs.json row lands its SAME total damage as timed pulses (a burst that holds the caster, or a damage over time), era-gated by cast-rules.json hitsFrom.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';

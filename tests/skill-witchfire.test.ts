@@ -2,6 +2,7 @@
 // spent at commitment, its refusals, how each defence resolves, and a Witch-fire fight that records, encodes and replays exactly.
 // The defender in the scripted exchanges is a plain man with the longsword's guard (duel.ts createFighter defaults), so every number
 // below is the rule's own, with no opponent's guard profile or poise folded in.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

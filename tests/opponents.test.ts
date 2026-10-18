@@ -1,5 +1,6 @@
 // Opponents are data (moves.ts OPPONENTS): weapon, body scale, health, poise and a profile per level. The Veteran is the warden as
 // shipped — `initialDuel()` is still exactly him. The Pitborn is the first creature: relentless, poised, more health, honest openings.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';

@@ -1,4 +1,5 @@
 // Loot tables are ROWS (origins/region1/loot-tables.json): same bytes as the old code, every row is contract-checked, and a new table is one row, no code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

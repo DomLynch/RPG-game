@@ -2,6 +2,7 @@
 // tests/fixtures/v40-pit-records.json was written by scripts/record-replay-check.mjs --write on trunk 28a7cea6 (RECORD_VERSION 40), before the ladder existed: five reference fights against the Veteran.
 // The gate is the check script itself (record-replay-check.mjs): same final tick, outcome and Killed tick for every record; on Linux x64 (where the fixture was written and CI runs) the fighters' final-state digest too,
 // which is the byte-for-byte promise (the digest drifts by a float ulp on arm64, see the script's header).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

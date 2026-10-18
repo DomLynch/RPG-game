@@ -1,5 +1,6 @@
 // Coach mode slice 1 (src/coach.ts): the player's side driven by the warden's own brain. Three promises: (1) the human-reaction bounds are the AI's (no stance brain touches what a fighter SEES, none is quicker
 // than the quickest warden), (2) a coached fight's record replays byte for byte like a played one (the record stores intents, so there is no RV and no new codec), (3) it is a pure function of seed + stance.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

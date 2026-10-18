@@ -1,5 +1,6 @@
 // The contract vocabularies that are data (src/core/contracts/definitions.json): gates, relations, quest roles, attitudes and quest scopes are ROWS. A new value is one row and no code, an unknown id still
 // rejects, and the lists whose values select their own code path (ENCOUNTER_SCOPES, STAGE_KINDS, CONDITION_KINDS, QUEST_STATUSES) stay code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

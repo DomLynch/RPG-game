@@ -1,6 +1,7 @@
 // Pins the ONE-career proposal (docs/specs/src/core/career-model.ts-proposal.md): the rising requirement curve, the universal pay rule
 // (kill value × falloff × type weight), first-win-only bosses reopened at the top, its worked examples and the properties ruling 7
 // asks for — existing players' level unchanged, credit monotonic, farm yield bounded, no NaN.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MAX_LEVEL, levelOfMarks } from '../src/core/career-ladder.ts';

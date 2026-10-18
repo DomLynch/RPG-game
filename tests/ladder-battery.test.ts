@@ -1,6 +1,7 @@
 // The ladder's level-1 gate (Strategy 2026-09-27: "the gate that matters most"): a first-timer who only taps attack, in reach or not,
 // with the day-one Pommel carried, beats EVERY ladder opponent at level 1 in at least 44 of 48 fights. The full level screen (levels
 // 1–46 × every strategy) is Combat's sweep, not a unit test; this row is what a change to the novice rule or body must never break.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LADDER } from '../src/ladder.ts';

@@ -1,6 +1,7 @@
 // scripts/vps-shadow-rows.sh: the Mac-side wrapper starts a shadow run over ssh. SHADOW_CONCURRENCY and SHADOW_CEILING_S must reach the
 // VPS runner as RELEASE_CHECK_CONCURRENCY / RELEASE_CHECK_CEILING_S (Lead 2026-09-30: overnight shadows run 1–2 wide with an 1800 s
 // ceiling), and the wrapper must connect as the row user, never root. ssh and scp are stubbed on PATH; nothing leaves this machine.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

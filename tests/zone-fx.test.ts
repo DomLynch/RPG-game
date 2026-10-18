@@ -1,6 +1,7 @@
 // P2: the zones use the engine's contact effects (src/fight/zone-fx.ts createZoneFx, one createFightFx per active pair), the same for every zone.
 //   - the engine hands the client each pair's Pit events (takeContacts), attributed to the creature, with the pair's duel;
 //   - no zone module (origins/**) takes its effects from anywhere but src/fight: the Pit's effect modules in src/ are the engine's, a zone page never imports them.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

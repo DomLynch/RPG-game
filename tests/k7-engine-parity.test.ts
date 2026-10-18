@@ -3,6 +3,7 @@
 // zone-own copy of engine code. What fails today is pinned below, each entry with the slice that removes it; the lists only shrink (a new violation fails, and a listed one that is gone
 // fails until you delete the line). Zone 2 (and any zone N >= 2) must be data: a JSON row (zone-rows/zone<N>.row.json), no code, so no src/ import. Classified by module NAME, so moving a module (src/audio/creature.ts
 // -> src/fight/sound/creature.ts) does not change its row. An import of a src/ module that is neither a row nor ALLOWED fails: classify it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

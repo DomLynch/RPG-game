@@ -1,5 +1,6 @@
 // Overlapping publishes (Lead GO 2026-10-18, Dom: "get this live"): with POST_PUBLISH_DETACH=1 deploy.sh leaves the CI-routed post-publish rows to scripts/release-train-postcheck.sh, which the train
 // publisher starts after it releases the hold. The tail holds the NEXT publish on a red or unproved row and never rolls back or re-trusts one.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

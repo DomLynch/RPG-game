@@ -1,6 +1,7 @@
 // The writer's inventory ops (origins/server/consume.ts) over real HTTP against a small in-memory stand-in for the database: origins_open,
 // origins_event and origins_commit (event + burn ops with the database's own O0001 / O0002 refusals). No Postgres; the real cluster is
 // scripts/origins-writer-check.mjs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';

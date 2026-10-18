@@ -1,6 +1,7 @@
 // Legend name everywhere (Dom via Strategy, 2026-09-28): after the versus card the opponent is called by his legend on every surface,
 // and the possessive is always "'s" — "Mars's boots", never "Mars' boots". These are the surfaces that are pure functions; the DOM ones
 // (main.ts) are pinned by the browser rows.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { initialPractice, practiceHint } from '../src/fight/combat.ts';

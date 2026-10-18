@@ -1,4 +1,5 @@
 // The HF half of the work waterfall: caps counted from `hf jobs ps`, one CPU slot reserved for the deploy lane, the T4 for graphics only, a tier line on every launch.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

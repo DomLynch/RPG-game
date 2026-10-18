@@ -1,4 +1,5 @@
 // Presence and the writer share a box: neither may default to the other's port, and the writer's default PRESENCE_URL must reach presence's default bind.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

@@ -1,5 +1,6 @@
 // The sim digest reads the catalogue through its DEFINITIONS (tests/lib/sim-digest.ts): a field flagged sim: false never reaches the digest, a sim field does, and where a value lives (a row's own key or its
 // `fields` map) does not matter. Synthetic rows and definitions, so the properties do not depend on today's data.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { simDigest } from './lib/sim-digest.ts';

@@ -1,4 +1,5 @@
 // The end-of-fight share row (Strategy 2026-10-02): DUEL, LINK, CLIP in that order, and a duel link previews as the challenge's share text.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

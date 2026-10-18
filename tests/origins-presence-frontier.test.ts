@@ -1,4 +1,5 @@
 // Frontier-zone presence, step 1 (docs/specs/origins/frontier-presence.md): the zone table as rows, the whole-world frame, the walkable clamp, the Pit's quiet, the v1 shim and the v2 hello.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES, World } from '../origins/presence/interest.ts';

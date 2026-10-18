@@ -1,4 +1,5 @@
 // Brief 14: the grade table is factors only, covers every material the shipped kit actually uses, and reads as eight distinct grades.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

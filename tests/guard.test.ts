@@ -1,4 +1,5 @@
 // Brief 13: the arena guard file (scripts/build-warrior.mjs WARRIOR_GUARD=1) — the contract the world lane instances six times.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';

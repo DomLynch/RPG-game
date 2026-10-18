@@ -1,6 +1,7 @@
 // The kills board's and rankings board's DATA (src/pit/skulls.ts), kept when the walkable Pit room and its renderers were removed: the pit_record and
 // daily_board_summary mappings, the loot fallback, the fetches that never throw, the live feed's races, the demo sets. These tests were
 // tests/pit-board.test.ts and tests/pit-champions.test.ts; the room-drawing halves of those files went with the room.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFeed, blankRecord, demoKills, demoRecord, fetchKills, fetchRecord, killsFromLoot, localRecord, lootKills, recordFromRows, splitOf, NO_CHAMPIONS, boardName, championLine, championsFromSummary, demoChampions, fetchChampions, type SkullDb } from '../src/pit/skulls.ts';

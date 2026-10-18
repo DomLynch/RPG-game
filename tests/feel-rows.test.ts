@@ -1,4 +1,5 @@
 // The feel and look numbers of seven src/fight files as rows (Dom's data-layer rule), pinned to the values they held in code. Most of those files import three, so the rows are pinned from the data.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';

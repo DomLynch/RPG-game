@@ -1,6 +1,7 @@
 // scripts/publish-origins-preview.sh: the /preview/origins/ publish step. A guest-only build (no VITE_SUPABASE_* in the build's environment)
 // would make the session refresh a silent no-op in production, so the account check must run on the build BEFORE anything is copied, and
 // the script must refuse a checkout that is not the live revision. No build, no browser, no network beyond a loopback stub.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';

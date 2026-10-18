@@ -1,5 +1,6 @@
 // The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { CC_LADDER } from '../src/fight/cc-ladder.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';

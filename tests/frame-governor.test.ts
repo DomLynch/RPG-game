@@ -1,4 +1,5 @@
 // The frame governor (origins/preview/frame-governor.ts): the p95 of the last window decides LOW (the smaller full count of remote figures) and HIGH, with a gap between the two thresholds and a full window before any change.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGovernor } from '../origins/preview/frame-governor.ts';

@@ -1,6 +1,7 @@
 // Rules (f) const expressions, (g) object consts and (h) inline numbers in game logic of the as-data checker (scripts/as-data/{const-expr,const-object,inline-number}.yml + check.ts; hard-coding audit 2026-10-17,
 // gaps 1, 3 and 2). Pinned on a fixture tree with its own baselines, never the live count: each site is listed, a tree that matches its baselines is green under --gate, a NEW site is red (exit 1), and a baseline above the
 // tree is stale (exit 3). (h) scans only the files its scope names, so the fixture scopes one folder.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

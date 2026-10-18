@@ -3,6 +3,7 @@
 // source archives are not in the repo, so a rebuild cannot be diffed against the file. This pins the lifted piece's bounds, found BY NAME
 // (an accessor index moves when the file is rebuilt): a rebuild without the lift lands 1.7-1.9 cm short on y and z and fails here, and
 // the next full rebuild must re-verify SHOULDER_LIFT against these numbers (source-archive gap, PR #1291).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

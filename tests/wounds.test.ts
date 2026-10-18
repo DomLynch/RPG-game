@@ -1,4 +1,5 @@
 // K5: a creature's wounds are read from its catalogue row (src/fight/wounds.ts), never typed per creature. Pure data side; the draw is src/fight/wounds-fx.ts.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

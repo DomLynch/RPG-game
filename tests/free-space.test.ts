@@ -1,4 +1,5 @@
 // Free-space guard (Lead 2026-10-13, the Mac disk hit 100%): the cut and the release train refuse to start a candidate under 20 GiB free.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

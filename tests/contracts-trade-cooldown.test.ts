@@ -2,6 +2,7 @@
 // cooldown. A fresh piece waits FIRST_TRADE_DELAY_S (72 h) after it was looted, minted or bought; after its 1st, 2nd and 3rd change of
 // hands the new owner waits 7, 14 and 30 days, and 30 days after every later trade. The hop count is derived from history (never decays).
 // Cash-shop items, metal, shop consumables and stackables never trade. Enforced by changeOffer and re-checked by settleTrade.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Result } from '../src/core/contracts/core.ts';

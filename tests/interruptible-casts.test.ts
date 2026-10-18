@@ -1,5 +1,6 @@
 // Interruptible special wind-ups (#1507 item 1, docs/specs/combat/interruptible-windups.md): damage taken while a special counts down cuts it at
 // RULES.special.interruptAt of max health. Constructed fights, real blows from the foe, no AI.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/fight/duel.ts';

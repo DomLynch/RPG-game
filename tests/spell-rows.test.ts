@@ -1,4 +1,5 @@
 // The spell list and the special slots as rows (spec docs/specs/combat/spell-slots.md, rows PR): the loaders refuse a bad row, the shipped rows match the brief.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ALLOW_DUPLICATE, SHARED_COOLDOWN, SPELL_LIST, SPELL_SLOTS, STAMINA_BAR, checkSpellList } from '../src/fight/spell-rows.ts';

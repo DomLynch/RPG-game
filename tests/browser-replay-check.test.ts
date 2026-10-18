@@ -3,6 +3,7 @@
 // startReplay: initialPractice(seed, opponentAt, weapon, skill) + stepPractice) reaches the pinned victim, draw flag and end tick, with
 // Combat's sampled state hashes. A record bump or a rules change that moves a fight fails here first, in test:all, with the regenerate
 // command; the release row (scripts/browser-replay-check.mjs) then compares the browser against the same Node leg.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decodeRecord, NO_PATRON_VERSION, RECORD_VERSION } from '../src/fight/record.ts';

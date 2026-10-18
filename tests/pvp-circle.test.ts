@@ -1,5 +1,6 @@
 // PvP is not Arena 1: both peers and the verifier pin the original play circle at duel start (net/rollback.ts pvpDuel), so the same duel plays
 // the same whatever circle the page's last Match left behind (play-radius.ts). A runner at the wall exercises the boundary.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { idleIntent, stepDuel, type Intent } from '../src/fight/duel.ts';

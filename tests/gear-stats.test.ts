@@ -4,6 +4,7 @@
 // full Origin. Gear carries Attack and RES only; POISE, health and stamina are the Origin character layer's
 // (docs/progression-direction.md), and there is a test below that says so, because a later hand adding a third column here would be
 // crossing a layer boundary rather than extending a table.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, kitFrom, loadoutFor, opponentOf, pointsFor, wholePoints, type Kit, type Loadout, type TierOf } from '../src/fight/gear-stats.ts';

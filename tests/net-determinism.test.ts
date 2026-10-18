@@ -2,6 +2,7 @@
 // (1) the ban list cannot drift: every file the sim or the rollback core reaches must be a scanned sim file; (2) stepDuel never writes
 // into its input (a snapshot is just the old Duel object); (3) the cross-engine fixture is stable in Node — the browser legs
 // (scripts/net-engines-check.mjs: Chromium + WebKit on CI) compare against this same Node run.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

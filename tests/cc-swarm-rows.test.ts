@@ -1,5 +1,6 @@
 // Wave A1 steps 6+7 (programme items 8, 7, 6; RV50): one-row proofs for each new row, and the opt-in proof that a fight naming none steps as before.
 // CC timing (cc-ladder.ts windowFrom / immunity), a creature's immuneTier and resist (catalogue fields -> Fighter.ccGuard), and the swarm band (roll.ts SWARM_ROWS).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, withRoll, type Action, type Duel, type Intent } from '../src/fight/duel.ts';

@@ -1,5 +1,6 @@
 // src/core/open.ts: the page's one writer `open`. One request per page and storage, a slow answer is asked again (Dom's first /zone1/ visit timed out while the writer was still creating his
 // character), a refusal is final, and a failure is not kept.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { characterFor, openAccount, openCharacter } from '../src/core/open.ts';

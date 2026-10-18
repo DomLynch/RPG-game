@@ -1,4 +1,5 @@
 // The greybox's feel numbers are rows (origins/preview/preview-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PREVIEW_RULES, loadPreviewRules, previewRule } from '../origins/preview/preview-rules.ts';

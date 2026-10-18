@@ -1,6 +1,7 @@
 // The work waterfall's one router (Dom 2026-10-11): Mac = coding + WebKit rows only; VPS first; Hugging Face CPU when the VPS is busy or has no room;
 // the T4 only for graphics. scripts/lib/waterfall.mjs pickTarget decides; this file pins every branch and the boundary: no script launches a heavy job
 // outside waterfall.mjs except the shrink-only KNOWN list (the entry points not yet converted).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';

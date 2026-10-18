@@ -5,6 +5,7 @@
 // rig's arcs ride skull-high and DO land head organically.  These tests pin that split so a future clip re-bake or
 // region edit cannot silently close the only organic Split Crown path or feed the finishers table a location it never
 // earned (a thrust kill must stay torso → Run Through; only heavy cleaver blows may report head → Split Crown).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';

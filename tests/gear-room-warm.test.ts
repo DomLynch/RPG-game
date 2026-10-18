@@ -1,5 +1,6 @@
 // The gear sheet's warm-up (src/core/gear-room.ts warmGearRoom, Web 2026-10-17): it dresses the stage's scene in the fitting room's look (backdrop, no fog, key and rim) while the compile runs and one frame
 // is drawn, then hands the scene back EXACTLY as found, also when the compile throws, so the walk never sees the studio and the sheet adds its own look on top of a clean scene.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

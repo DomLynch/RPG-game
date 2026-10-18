@@ -1,6 +1,7 @@
 // The RNG draw fingerprint (scripts/rng-fingerprint.mjs, Lead brief 2026-10-06): when a level is added or a table retuned, existing fights and
 // replays must stay bit-identical unless the change means to alter them. A changed fingerprint is allowed only with a RECORD_VERSION bump, and
 // the bump comes with a regenerated fixture and the reason in the PR: `npm run fingerprint:update`.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,5 @@
 // Spell slots (spec docs/specs/combat/spell-slots.md, sim PR): slot b on the Fighter, its own cooldown and cost, an empty slot inert, a one-spell fight untouched, and the open-world record carrying cast2.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';

@@ -1,4 +1,5 @@
 // Five more Characters numbers as rows (Dom's data-layer rule): the loot panel's tap guard and the gear room's framing keep the values they had in code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { TAP_GUARD_MS } from '../src/core/loot-panel.ts';

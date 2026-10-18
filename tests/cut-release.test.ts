@@ -1,5 +1,6 @@
 // scripts/cut-release.mjs: the release cut in one command. mergeAll runs on a fixture repo (clean merge, a conflicting PR is aborted and named while the others still merge,
 // an unknown sha is skipped); parseSpec/passAt are the pure parts; the workflow keeps release-* candidates in the CI row matrix (drafts included) at 20 wide.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

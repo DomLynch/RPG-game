@@ -1,5 +1,6 @@
 // Finishers as data: the loaded table is byte-identical to the code tables it replaced, the pick is unchanged, a finisher is one row, and the
 // loader refuses a broken table at load.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

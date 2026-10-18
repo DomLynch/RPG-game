@@ -1,5 +1,6 @@
 // Which Concord zone a presence position is in (origins/presence/zones.ts): computed from x, z in the one Concord frame, never from a client.
 // Presence is u16 centimetres (centre CENTRE_CM, the whole world: town square and Frontier); Concord is metres with the Pit yard's centre at the origin, so world (0, 0) is presence (CENTRE_CM, CENTRE_CM).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CENTRE_CM, worldMetres, zoneAt } from '../origins/presence/zones.ts';

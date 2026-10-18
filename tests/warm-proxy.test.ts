@@ -1,6 +1,7 @@
 // The warm-up's proxy material is ONE shared, never-disposed material, linked once before [zone ready] (origins/preview/warm-proxy.ts). Made and disposed at each use, its program was alive at one of the
 // seamless row's readings and gone at the other (71 -> 72, "no scene material uses it"). The behaviour is the browser row (scripts/origins-seamless-check.mjs: 0 new programs after ready); these pin the
 // shape: one instance, one link, the renderer's own target restored, and neither warm-up site making or disposing a proxy of its own.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
