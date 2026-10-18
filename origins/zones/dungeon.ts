@@ -83,31 +83,32 @@ export function walkRoute(d: Dungeon): { readonly in: readonly string[]; readonl
   return { in: path, out: [...path].reverse() };
 }
 
-export type FixedPiece = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; frame: 'zone' };
-const RAD = Math.PI / 180, r3 = (n: number): number => Math.round(n * 1000) / 1000;
+export type FixedPiece = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame: true };
+const HALF = 0.5, MILLI = 1000, EPS = 1e-9, HALF_TURN_DEG = 180;   // one half; metres to millimetres (the pieces' offsets are rounded to a millimetre); a float guard on a ceiling; degrees in half a turn (exempt: scripts/as-data/allow/origins-zones.json)
+export const radians = (deg: number): number => (deg * Math.PI) / HALF_TURN_DEG, degrees = (rad: number): number => (rad * HALF_TURN_DEG) / Math.PI, r3 = (n: number): number => Math.round(n * MILLI) / MILLI;
 /** The pieces that ENCLOSE every room of a dungeon (theme `enclosure`): four walls round the room's footprint, and a doorway set into the wall that faces each linked room (and, on the entrance room, the way out). Offsets are in the ZONE's frame
- *  (`frame: 'zone'`: x across, d deep, relative to the room's landmark; rotDeg from the zone's +x axis), so they follow the zone's mount in the world. A room whose walls would leave the zone is refused. Pure. */
+ *  (`inZoneFrame`: x across, d deep, relative to the room's landmark; rotDeg from the zone's +x axis), so they follow the zone's mount in the world. A room whose walls would leave the zone is refused. Pure. */
 export function encloseRooms(d: Dungeon, enc: Enclosure): readonly FixedPiece[] {
-  const local = new Map(d.rooms.map((r) => [r.id, { x: (r.at.u - 0.5) * d.size.width, d: r.at.v * d.size.depth }]));
+  const local = new Map(d.rooms.map((r) => [r.id, { x: (r.at.u - HALF) * d.size.width, d: r.at.v * d.size.depth }]));
   const out: FixedPiece[] = [];
   for (const room of d.rooms) {
-    const w = room.size?.w ?? enc.room.w, depth = room.size?.d ?? enc.room.d, th = room.at.facing * RAD, c = local.get(room.id)!;
+    const w = room.size?.w ?? enc.room.w, depth = room.size?.d ?? enc.room.d, th = radians(room.at.facing), c = local.get(room.id)!;
     const fwd = { x: -Math.sin(th), d: Math.cos(th) }, rgt = { x: Math.cos(th), d: Math.sin(th) };
     // side i: its outward normal, its direction of run and its length: +forward, -forward, +right, -right
-    const sides = [{ n: fwd, run: rgt, len: w, off: depth / 2 }, { n: { x: -fwd.x, d: -fwd.d }, run: rgt, len: w, off: depth / 2 }, { n: rgt, run: fwd, len: depth, off: w / 2 }, { n: { x: -rgt.x, d: -rgt.d }, run: fwd, len: depth, off: w / 2 }];
+    const sides = [{ n: fwd, run: rgt, len: w, off: depth * HALF }, { n: { x: -fwd.x, d: -fwd.d }, run: rgt, len: w, off: depth * HALF }, { n: rgt, run: fwd, len: depth, off: w * HALF }, { n: { x: -rgt.x, d: -rgt.d }, run: fwd, len: depth, off: w * HALF }];
     const open = new Set<number>(), face = (to: { x: number; d: number }) => { const dx = to.x - c.x, dd = to.d - c.d; let best = 0, bestDot = -Infinity; sides.forEach((s, i) => { const dot = s.n.x * dx + s.n.d * dd; if (dot > bestDot) { bestDot = dot; best = i; } }); return best; };
     for (const l of room.links) open.add(face(local.get(l)!));
     if (room.id === d.entrance.room) open.add(0);   // the way out: the room's own facing is out of the zone
     const put = (node: string, x: number, dd: number, ang: number, scale: number, solid: number): void => {
       const px = c.x + x, pd = c.d + dd;
-      if (Math.abs(px) > d.size.width / 2 || pd < 0 || pd > d.size.depth) throw new Error(`dungeon "${d.id}": room "${room.id}" has a ${node} at (${r3(px)}, ${r3(pd)}) outside the ${d.size.width} x ${d.size.depth} zone: shrink the room or move it in`);
-      out.push({ node, at: room.id, dx: r3(x), dz: r3(dd), rotDeg: r3(ang), scale: r3(scale), solid, frame: 'zone' });
+      if (Math.abs(px) > d.size.width * HALF || pd < 0 || pd > d.size.depth) throw new Error(`dungeon "${d.id}": room "${room.id}" has a ${node} at (${r3(px)}, ${r3(pd)}) outside the ${d.size.width} x ${d.size.depth} zone: shrink the room or move it in`);
+      out.push({ node, at: room.id, dx: r3(x), dz: r3(dd), rotDeg: r3(ang), scale: r3(scale), solid, inZoneFrame: true });
     };
     sides.forEach((s, i) => {
-      const ang = Math.atan2(s.run.d, s.run.x) / RAD, gap = open.has(i) ? enc.doorway.gap : 0, cx = s.n.x * s.off, cd = s.n.d * s.off;
-      for (const [from, to] of gap ? [[-s.len / 2, -gap / 2], [gap / 2, s.len / 2]] : [[-s.len / 2, s.len / 2]]) {
-        const span = to! - from!, n = Math.max(1, Math.ceil(span / enc.wall.length - 1e-9)), step = span / n;
-        for (let k = 0; k < n; k++) { const t = from! + (k + 0.5) * step; put(enc.wall.node, cx + s.run.x * t, cd + s.run.d * t, ang, (enc.wall.scale * step) / enc.wall.length, enc.wall.solid); }
+      const ang = degrees(Math.atan2(s.run.d, s.run.x)), gap = open.has(i) ? enc.doorway.gap : 0, cx = s.n.x * s.off, cd = s.n.d * s.off, edge = s.len * HALF;
+      for (const [from, to] of gap ? [[-edge, -gap * HALF], [gap * HALF, edge]] : [[-edge, edge]]) {
+        const span = to! - from!, n = Math.max(1, Math.ceil(span / enc.wall.length - EPS)), step = span / n;
+        for (let k = 0; k < n; k++) { const t = from! + (k + HALF) * step; put(enc.wall.node, cx + s.run.x * t, cd + s.run.d * t, ang, (enc.wall.scale * step) / enc.wall.length, enc.wall.solid); }
       }
       if (gap) put(enc.doorway.node, cx, cd, ang, enc.doorway.scale, 0);
     });

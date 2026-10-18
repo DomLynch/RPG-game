@@ -5,6 +5,7 @@ import { stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
 import { loadZone } from '../zones/loader.ts';
+import { radians } from '../zones/dungeon.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type KitNode = string;   // a node name of the zone's kit (origins/zone-rows/zone1.row.json (kit), checked by the loader)
@@ -46,8 +47,8 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
   const marksById = Object.assign({}, ...f.zones.map((q) => q.landmarks)) as Record<string, { x: number; z: number }>;
   for (const p of zone.kit.fixed ?? []) {
     const a = marksById[p.at]; if (!a) continue;
-    let at = { x: a.x + p.dx, z: a.z + p.dz }, rotY = (p.rotDeg * Math.PI) / 180;
-    if (p.frame === 'zone') {   // the zone's own frame (a dungeon's enclosure): turned into the world by the mount of the zone that owns the landmark (derive.ts toWorld: local +x = (-cos h, sin h), local +d = (sin h, cos h))
+    let at = { x: a.x + p.dx, z: a.z + p.dz }, rotY = radians(p.rotDeg);
+    if (p.inZoneFrame) {   // the zone's own frame (a dungeon's enclosure): turned into the world by the mount of the zone that owns the landmark (derive.ts toWorld: local +x = (-cos h, sin h), local +d = (sin h, cos h))
       const h = f.zones.find((q) => q.landmarks[p.at])!.mount.heading, s = Math.sin(h), c = Math.cos(h);
       at = { x: a.x - p.dx * c + p.dz * s, z: a.z + p.dx * s + p.dz * c }; rotY += h + Math.PI;
     }

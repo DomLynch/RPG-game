@@ -16,7 +16,7 @@ import type { ExitRow } from './exits.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
-export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; frame?: 'zone' };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none). frame 'zone' (a dungeon theme's enclosure): dx = across, dz = deep in the ZONE's own frame, rotDeg from the zone's +x axis, so the piece follows the zone's mount
+export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame?: boolean; optional?: boolean };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none). inZoneFrame (a dungeon theme's enclosure): dx = across, dz = deep in the ZONE's own frame, rotDeg from the zone's +x axis, so the piece follows the zone's mount
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
@@ -82,8 +82,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   }
   const places = new Set(Object.values(z.place?.zones ?? {}).flatMap((q) => Object.keys((q.layout ?? {}) as object)));
   for (const f of z.kit.fixed ?? []) {
-    if (!nodes.has(f.node)) bad.push(`kit fixed piece uses ${f.node}, which is not a kit node`);
-    if (!places.has(f.at)) bad.push(`kit fixed ${f.node}: ${f.at} is not a landmark of this zone`);
+    if (!nodes.has(f.node) && !landmarks.has(f.node)) bad.push(`kit fixed piece uses ${f.node}, which is neither a kit node nor a kit landmark`);
+    if (!places.has(f.at) && !f.optional) bad.push(`kit fixed ${f.node}: ${f.at} is not a landmark of this zone`);
     if (![f.dx, f.dz, f.rotDeg].every(Number.isFinite) || !(f.scale > 0) || !(f.solid >= 0)) bad.push(`kit fixed ${f.node}: bad numbers`);
   }
   for (const n of landmarks) if (nodes.has(n)) bad.push(`${n} is both a node and a landmark`);

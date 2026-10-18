@@ -91,6 +91,24 @@ test('the crypt-mouth landmark comes from the zone-6 package: a normal build add
   } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; }
 });
 
+test('a theme with an enclosure walls every room: pieces stay inside the zone, a doorway faces each link (and the way out), a theme without one adds no kit', () => {
+  const parts = dungeonParts('crypt-sample') as { kit?: { url: string; nodes: string[]; fixed: { node: string; at: string; dx: number; dz: number; solid: number; inZoneFrame: boolean }[] } };
+  const fixed = parts.kit!.fixed;
+  assert.equal(parts.kit!.url, '/world/kit/dungeon-kit.glb');
+  assert.ok(fixed.every((p) => p.inZoneFrame && parts.kit!.nodes.includes(p.node)));
+  const doors = (room: string) => fixed.filter((p) => p.at === room && p.node === 'cave_doorway').length;
+  assert.deepEqual(['crypt-door', 'crypt-nave', 'crypt-vault'].map(doors), [2, 2, 1], 'the entrance room has its way out and its link; the nave one each way; the vault one');
+  for (const r of sample.rooms) assert.ok(fixed.filter((p) => p.at === r.id && p.node === 'cave_wall').length >= 8, `${r.id} is walled`);
+  const local = new Map(sample.rooms.map((r) => [r.id, { x: (r.at.u - 0.5) * sample.size.width, d: r.at.v * sample.size.depth }]));
+  for (const p of fixed) { const c = local.get(p.at)!; assert.ok(Math.abs(c.x + p.dx) <= sample.size.width / 2 && c.d + p.dz >= 0 && c.d + p.dz <= sample.size.depth, `${p.at} ${p.node} inside the zone`); }
+  assert.equal((dungeonParts('bone-hollow') as { kit?: unknown }).kit, undefined, 'the Bone Hollow carries its own kit rows');
+});
+test('a room whose walls would leave the zone is refused, and a zone row may not carry the kit a dungeon theme compiles', () => {
+  const wide = clone(sample); (wide.rooms as { size?: { w: number; d: number } }[])[0]!.size = { w: 12, d: 60 };
+  const theme = (THEMES.themes as DungeonTheme[]).find((t) => t.id === sample.theme)!;
+  assert.throws(() => compileDungeon(wide, theme), /outside the 60 x 40 zone/);
+});
+
 test('a dungeon entrance exit must stand on the entrance room', () => {
   assert.throws(() => loadDungeons({ dungeons: [{ ...clone(bone), entrance: { room: 'hollow-hall', exit: 'hollow-gate' } }] }), /stands on landmark "hollow-gate", not on the entrance room/);
 });
