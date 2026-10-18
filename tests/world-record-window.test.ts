@@ -10,8 +10,8 @@ const mob = (id: string, level: number): FightMob => ({ id, body: 'wolf', level,
 type Entry = { spec: FightMob; x: number; z: number; hunting: boolean; after: number };   // after: it is in the ring once this many kills have happened
 
 function scenario(s: number): { kills: number; verified: number; notes: string[] } {
-  const spacing = 1.2 + 0.4 * (s % 4), passives = s % 3, sequential = s >= 8, list: Entry[] = [];
-  for (let k = 0; k < 3; k++) list.push({ spec: mob(`wolf-${k + 1}`, 1), x: (k - 1) * spacing, z: 1.2 + 0.3 * k, hunting: true, after: sequential ? k : 0 });
+  const spacing = 2.0 + 0.4 * (s % 4), passives = s % 3, list: Entry[] = [];
+  for (let k = 0; k < 3; k++) list.push({ spec: mob(`wolf-${k + 1}`, 1), x: (k - 1) * spacing, z: 1.2 + 0.3 * k, hunting: true, after: k });   // one hunter at a time (a level-1 hero dies to two): the next wolf is in the ring the moment the last falls, so it joins while he is still recovering
   for (let p = 0; p < passives; p++) list.push({ spec: mob(`wolf-p${p + 1}`, 1), x: 2 + p, z: 8, hunting: false, after: 0 });
   const fell: string[] = []; let kills = 0, verified = 0; const notes: string[] = [];
   const mobs = { within: (x: number, z: number, r: number) => list.filter((m) => !fell.includes(m.spec.id) && kills >= m.after && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ spec: m.spec, x: m.x, z: m.z, dist: Math.hypot(m.x - x, m.z - z), hunting: m.hunting })), drive: () => {} };
@@ -25,7 +25,7 @@ function scenario(s: number): { kills: number; verified: number; notes: string[]
       if (!r.ok) notes.push(`${sp.id}: ${r.reason}`); else if (!r.kills.includes(sp.id)) notes.push(`${sp.id}: replay did not kill it`); else verified++;
     },
     onHeroDied: () => {}, onHeroHit: () => {},
-    hero: () => ({ level: 1 }),   // a legal body (the replay bounds his health): he dies in some pack fights, the battery counts the kills that happen
+    hero: () => ({ level: 1, weapon: (process.env.W ?? 'trident') as never }),   // the trident wins the most pack fights at level 1, so the battery sees the most kills (W=<weapon> to try another)   // a legal body (the replay bounds his health): he dies in some pack fights, the battery counts the kills that happen
   });
   const total = list.filter((m) => m.hunting).length;
   for (let i = 0; i < 600 && kills < total && !wc.hero().dead; i++) {
@@ -39,6 +39,6 @@ test('P0-b: every kill in a pack carries a record that replays to that kill, wit
   let kills = 0, verified = 0; const table: string[] = [];
   for (let s = 0; s < 16; s++) { const r = scenario(s); kills += r.kills; verified += r.verified; table.push(`s${s}: ${r.verified}/${r.kills}${r.notes.length ? '  ' + r.notes.join('; ') : ''}`); }
   console.log(`# world-record-window: ${verified}/${kills} kills recorded and verified\n# ${table.join('\n# ')}`);
-  assert.ok(kills >= 12, `the scenarios fought (${kills} kills)`);
+  assert.ok(kills >= 32, `the scenarios fought (${kills} kills)`);
   assert.equal(verified, kills, `recorded and verified ${verified} of ${kills} kills`);
 });
