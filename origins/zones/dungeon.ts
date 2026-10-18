@@ -115,12 +115,16 @@ type V2 = { readonly x: number; readonly d: number };
 function encloseHall(d: Dungeon, room: DungeonRoom, enc: Enclosure & { readonly hall?: Hall }, local: ReadonlyMap<string, V2>): FixedPiece[] {
   const h = enc.hall!, { nx, nd } = hallCells(room, enc), w = nx * h.cell, depth = nd * h.cell, th = radians(room.at.facing), c = local.get(room.id)!, out: FixedPiece[] = [];
   const fwd: V2 = { x: -Math.sin(th), d: Math.cos(th) }, rgt: V2 = { x: Math.cos(th), d: Math.sin(th) }, neg = (v: V2): V2 => ({ x: -v.x, d: -v.d });
-  const sides = [{ n: fwd, run: rgt, len: nx }, { n: neg(fwd), run: rgt, len: nx }, { n: rgt, run: fwd, len: nd }, { n: neg(rgt), run: fwd, len: nd }];
-  const onEdge = (s: number, i: number, j: number): boolean => (s === 0 ? j === nd - 1 : s === 1 ? j === 0 : s === 2 ? i === nx - 1 : i === 0), runIndex = (s: number, i: number, j: number): number => (s < 2 ? i : j);
+  // each side: its outward normal, its direction of run, its cells long, whether cell (i, j) is on it and the cell's place along it
+  const sides = [
+    { n: fwd, run: rgt, len: nx, on: (_i: number, j: number) => j === nd - 1, at: (i: number, _j: number) => i }, { n: neg(fwd), run: rgt, len: nx, on: (_i: number, j: number) => j === 0, at: (i: number, _j: number) => i },
+    { n: rgt, run: fwd, len: nd, on: (i: number, _j: number) => i === nx - 1, at: (_i: number, j: number) => j }, { n: neg(rgt), run: fwd, len: nd, on: (i: number, _j: number) => i === 0, at: (_i: number, j: number) => j },
+  ];
+  const onEdge = (s: number, i: number, j: number): boolean => sides[s]!.on(i, j), runIndex = (s: number, i: number, j: number): number => sides[s]!.at(i, j);
   const pos = (i: number, j: number): V2 => { const a = (i + HALF) * h.cell - w * HALF, b = (j + HALF) * h.cell - depth * HALF; return { x: rgt.x * a + fwd.x * b, d: rgt.d * a + fwd.d * b }; };
   const doorSides = new Set<number>();
   for (const l of room.links) { const to = local.get(l)!, dx = to.x - c.x, dd = to.d - c.d; let best = 0, bestDot = -Infinity; sides.forEach((s, i) => { const dot = s.n.x * dx + s.n.d * dd; if (dot > bestDot) { bestDot = dot; best = i; } }); doorSides.add(best); }
-  const isDoor = (s: number, idx: number): boolean => { const n = sides[s]!.len, k = (n - h.doorCells) % 2 === 0 ? h.doorCells : h.doorCells + 1, from = (n - k) * HALF; return doorSides.has(s) && idx >= from && idx < from + k; };
+  const isDoor = (s: number, idx: number): boolean => { const n = sides[s]!.len, k = Number.isInteger((n - h.doorCells) * HALF) ? h.doorCells : h.doorCells + 1, from = (n - k) * HALF; return doorSides.has(s) && idx >= from && idx < from + k; };
   const put = (node: string, p: V2, ang: number, solid: number, blockOnly = false): void => {
     if (Math.abs(c.x + p.x) > d.size.width * HALF || c.d + p.d < 0 || c.d + p.d > d.size.depth) throw new Error(`dungeon "${d.id}": room "${room.id}" has a ${node} at (${r3(c.x + p.x)}, ${r3(c.d + p.d)}) outside the ${d.size.width} x ${d.size.depth} zone: shrink the room or move it in`);
     out.push({ node, at: room.id, dx: r3(p.x), dz: r3(p.d), rotDeg: r3(ang), scale: 1, solid, inZoneFrame: true, ...(blockOnly ? { blockOnly: true as const } : {}) });
@@ -130,7 +134,7 @@ function encloseHall(d: Dungeon, room: DungeonRoom, enc: Enclosure & { readonly 
   for (let j = 0; j < nd; j++) for (let i = 0; i < nx; i++) {
     const p = pos(i, j); put(h.floor, p, room.at.facing, 0); put(h.ceiling, p, room.at.facing, 0);
     const touched = [0, 1, 2, 3].filter((s) => onEdge(s, i, j));
-    if (touched.length === 2) {   // a corner: back wall plus its left (local -x) wall
+    if (touched.length > 1) {   // a corner: back wall plus its left (local -x) wall
       const [a, b] = [sides[touched[0]!]!, sides[touched[1]!]!], thA = faceDeg(a.n), rad = radians(thA), leftIsB = -Math.cos(rad) * b.n.x - Math.sin(rad) * b.n.d > HALF;
       put(h.corner, p, leftIsB ? thA : faceDeg(b.n), 0); block(p, a); block(p, b); continue;
     }
