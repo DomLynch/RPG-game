@@ -10,7 +10,7 @@ Fresh trunk worktree per PR, off trunk head (or stacked on the open PR it depend
 |---|---|---|---|---|
 | #3226 | R06 rows (start.clear-m, drop.reach, zoneloot.*, mob-view.wear-max-scale) | b081e9d93 | zone/port-rows / frankendom-zone-port | `auditor:ready` on; checks passed |
 | #3230 | C12 first person (stacked on Web's #3225, base web/fp-lock-rows) | d7844f63d | zone/port-fp / frankendom-zone-fp | Auditor PASS @8ca2d7235; I then pushed the Head-scale note fix (d7844f63d); do NOT label until #3225 merges and it retargets to trunk |
-| #3232 | C15/R11 fire breath (Combat reviews) | 55878ee1c | zone/port-breath / frankendom-zone-breath | Auditor said NOT YET (literals, LCG): fixed (all tuning is breath.* rows, makeRng); put auditor:ready on when `static` is green (check `gh pr checks 3232`) |
+| #3232 | C15/R11 fire breath (Combat reviews) | 55878ee1c | zone/port-breath / frankendom-zone-breath | **`static` FAILED @55878ee1c** (CI run 39129328473): as-data gameplay "new 14" (my local run said 0: the CI baseline differs, rebase on trunk and rerun `npm run check:as-data -- --gate`, read the NEW lines). The remaining inline numbers in `src/fight/fire-breath.ts` at lines 57, 75, 94, 96, 97, 100, 115, 133 (0.5, 2, 3, 9, -1000) must become `K` rows or named exempts. Fix, push, then label `auditor:ready` only when static is green. NOT labelled. |
 | #3235 | C14/R08 war band (stacked on #3216, base char/loadouts; Combat + Characters) | cc6a230ad | zone/port-warband / frankendom-zone-warband | opened; not labelled; wait for #3216 to merge, retarget, label when static green |
 
 ## Still to do (mine, Lead allocated)
