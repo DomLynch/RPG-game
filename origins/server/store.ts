@@ -194,7 +194,7 @@ export const spawnEngageGet = async (db: Db, account: string, token: string): Pr
   return out === null ? null : out === 'null' ? 'none' : JSON.parse(out);
 };
 const HAS_RECEIPT = `select to_regprocedure('public.origins_spawn_receipt(uuid,text)') is not null as receipt \\gset\n`;
-// Launch gate V5: what happened to a token that is not open any more, from the stored rows only (migration 20261018090000; null when the token is not this account's, or the migration is not applied).
+// Launch gate V5: what happened to a token that is not open any more, from the stored rows only (migration 20261018081137; null when the token is not this account's, or the migration is not applied).
 export type SpawnReceipt = { kind: 'paid'; instance: string; killedAt: string; cp: number; bronze: number; loot: number } | { kind: 'expired' } | { kind: 'open' };
 export const spawnReceipt = async (db: Db, account: string, token: string): Promise<SpawnReceipt | 'unknown' | null> => {
   const out = await gated(db, 'spawn receipt', HAS_RECEIPT, 'receipt', `select coalesce(public.origins_spawn_receipt(:'a'::uuid, :'t'), 'null'::jsonb)::text;`, { a: acct(account), t: token });
