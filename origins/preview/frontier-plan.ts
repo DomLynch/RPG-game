@@ -144,7 +144,7 @@ export const inZone = (z: ZonePlan, x: number, wz: number, margin = 0) => {
   const p = toZone(z, x, wz);
   return Math.abs(p.x) <= z.width / 2 - margin && p.d >= margin && p.d <= z.depth - margin;
 };
-/** Metres from a world point to the nearest edge of the zone (negative = outside it). */
+/** Metres from a world point to the nearest edge of the zone (negative = outside it). The `/ 2` is the half-extent, genuine math not tuning: the one counted +1 in inline-number-baseline.json (Test Zone port: rim slowdown, z.width / 2, Lead 10-18). */
 export const edgeDistance = (z: ZonePlan, x: number, wz: number): number => { const p = toZone(z, x, wz); return Math.min(z.width / 2 - Math.abs(p.x), p.d, z.depth - p.d); };
 /** The speed scale of the soft rim: 1 beyond `margin` m of the edge, easing linearly down to `slow` at the edge itself. */
 export const rimScale = (distance: number, margin: number, slow: number): number => (margin > 0 && distance < margin ? slow + (1 - slow) * Math.max(0, distance) / margin : 1);
