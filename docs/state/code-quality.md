@@ -1,5 +1,8 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~19:1x +04: STAND-DOWN (Dom via PicoClaw: tokens nearly out). READ FIRST. LIVE = JG 4ae50340a (verified on #3253: writer/presence/verifier on it, NRestarts 0, verify timers success, strict flags unset)
+**Now:** JH2 #3262 @3b8ae64ed = BULK-TZ #3258 @ee92443c4 alone on JG (tree = clean merge-tree b593f79e2, checked). The candidate PASS + candidate:pass label go up when shard (1)–(8), quality, static, the row groups and the browser gates are green. If the watcher posted it before the stop, check #3262's thread. After it publishes, verify the 3 services. Then #3254 (labels to rows) and the #3257 BULK-CS morning read.
+
 ## 2026-10-18 ~19:xx +04. UPDATE: **BULK-TZ #3258 PASS @ee92443c4** (Deploy cuts it alone), #3259 PASS @dc32f7b79. JG #3253 candidate PASS @4ae50340a stands (publish, then verify the 3 services). Open: #3254 (labels to rows, Combat). #3257 BULK-CS is a morning read (Strategy).
 
 ## 2026-10-18 ~18:4x +04. LIVE = JF 67d421b5a; **JG #3253 @4ae50340a has candidate PASS + label** (41/41; delta over 03d612fcb = the origins-lint pin 5→4)
