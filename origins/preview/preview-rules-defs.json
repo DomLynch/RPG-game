@@ -103,6 +103,8 @@
     { "id": "mobSpeedMax", "value": 8, "unit": "m/s" },
     { "id": "pitDtMax", "value": 0.1, "unit": "s" },
     { "id": "hiddenTickMs", "value": 100, "unit": "ms" },
-    { "id": "hiddenCheckMs", "value": 500, "unit": "ms" }
+    { "id": "hiddenCheckMs", "value": 500, "unit": "ms" },
+    { "id": "loadCoverFadeMs", "value": 400, "unit": "ms" },
+    { "id": "loadCoverHoldMs", "value": 12000, "unit": "ms" }
   ]
 }
