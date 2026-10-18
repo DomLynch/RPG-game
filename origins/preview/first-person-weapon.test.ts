@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import * as THREE from 'three';
 import { createViewmodel, viewmodelMatrix } from './first-person-weapon.ts';
 
-const LOOK = { metal: 0.7, rough: 0.4, skin: 0xc58b63, forearm: 0.045, fist: 0.055 };
+const LOOK = { metal: 0.7, rough: 0.4, skin: 0x6a4a36, bracer: 0x3a2a1f, forearm: 0.045, fist: 0.055, length: 0.9, armRight: 0.5, armUp: -0.8, armBack: -0.3, swordX: 0, swordY: 0, swordZ: 0 };
 const frame = (x: number, y: number, z: number, yaw: number) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
 const posOf = (m: THREE.Matrix4) => new THREE.Vector3().setFromMatrixPosition(m);
 
@@ -21,8 +21,8 @@ test('the clone is added once, drawn on top with its own material, the original 
   const scene = new THREE.Scene(), rig = new THREE.Group(), weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshStandardMaterial()); weapon.name = 'SwordDrawn'; rig.add(weapon); scene.add(rig);
   const vm = createViewmodel(scene), eye = frame(0, 1.6, 0, 0), lift = { right: 0.3, up: -0.3, forward: 0.55 };
   vm.update(rig, true, eye, lift, true, LOOK); vm.update(rig, true, eye, lift, true, LOOK);
-  assert.equal(scene.children.length, 2, 'the rig and ONE clone'); assert.equal(weapon.visible, false);
-  const clone = scene.children[1] as THREE.Mesh; assert.notEqual(clone.material, weapon.material, 'its own material'); assert.equal((clone.material as THREE.Material).depthTest, false); assert.equal(clone.renderOrder, 999);
+  assert.equal(scene.children.length, 3, 'the rig, ONE clone and the arm'); assert.equal(weapon.visible, false);
+  const clone = scene.children[1] as THREE.Mesh; assert.notEqual(clone.material, weapon.material, 'its own material'); assert.equal((clone.material as THREE.Material).depthTest, false); assert.equal(clone.renderOrder, 5000);
   assert.equal((weapon.material as THREE.Material).depthTest, true, 'the original material is untouched (the creatures share these)');
   vm.update(rig, false, eye, lift, true, LOOK); assert.equal(scene.children.length, 1); assert.equal(weapon.visible, true);
 });
