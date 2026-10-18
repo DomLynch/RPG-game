@@ -25,13 +25,12 @@ function scenario(s: number): { kills: number; verified: number; notes: string[]
       if (!r.ok) notes.push(`${sp.id}: ${r.reason}`); else if (!r.kills.includes(sp.id)) notes.push(`${sp.id}: replay did not kill it`); else verified++;
     },
     onHeroDied: () => {}, onHeroHit: () => {},
+    hero: () => ({ level: 1, health: 4000 }),   // he outlasts the pack: the battery measures records, not the fight's odds
   });
-  const live = () => list.filter((m) => m.hunting && !fell.includes(m.spec.id) && kills >= m.after).length;
   const total = list.filter((m) => m.hunting).length;
   for (let i = 0; i < 600 && kills < total && !wc.hero().dead; i++) {
     wc.press();
-    for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.phase !== 'dead')[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); }
-    if (live() === 0 && kills < total && !list.some((m) => m.hunting && !fell.includes(m.spec.id))) break;
+    for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.id !== 'me' && x.phase !== 'dead').sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); }
   }
   return { kills, verified, notes };
 }
@@ -40,6 +39,6 @@ test('P0-b: every kill in a pack carries a record that replays to that kill, wit
   let kills = 0, verified = 0; const table: string[] = [];
   for (let s = 0; s < 16; s++) { const r = scenario(s); kills += r.kills; verified += r.verified; table.push(`s${s}: ${r.verified}/${r.kills}${r.notes.length ? '  ' + r.notes.join('; ') : ''}`); }
   console.log(`# world-record-window: ${verified}/${kills} kills recorded and verified\n# ${table.join('\n# ')}`);
-  assert.ok(kills >= 16, `the scenarios fought (${kills} kills)`);
+  assert.ok(kills >= 40, `the scenarios fought (${kills} kills of 48)`);
   assert.equal(verified, kills, `recorded and verified ${verified} of ${kills} kills`);
 });
