@@ -33,7 +33,7 @@ try {
     await page.waitForFunction(() => window.__zoneReady && window.originsPreview, null, { timeout: 240000 }).catch(() => { throw new Error(`${label}: [zone ready] (window.__zoneReady) never fired`); });
     // Another player's gear programs are linked in idle time AFTER [zone ready] by design (main.ts warmRemoteKitsInIdle, #2938), as the crowd harness knows: wait for that warm to answer, then count.
     const warm = await page.waitForFunction(() => window.originsPreview.remoteKitsWarm?.(), null, { timeout: 120000 }).then((h) => h.jsonValue(), () => null);
-    return page.evaluate((w) => ({ names: window.originsPreview.renderInfo().programNames, pos: { ...window.originsPreview.pos }, kitWarm: w }), warm);
+    return page.evaluate((w) => ({ names: window.originsPreview.renderInfo().programNames, worn: window.originsPreview.selfWorn?.() ?? [],pos: { ...window.originsPreview.pos }, kitWarm: w }), warm);
   };
   const door = (id) => page.evaluate((zoneLandmark) => { const z = window.originsPreview.region().zones.find((q) => q.landmarks[zoneLandmark]); return z && z.landmarks[zoneLandmark]; }, id);
   const cross = async (label, landmark, toZone, still, inside) => {   // inside: this page's own landing point, which is the way into the zone from this door
@@ -47,19 +47,37 @@ try {
     await page.waitForURL(new RegExp(`[?&]zone=${toZone}(&|$)`), { timeout: 30000 });
     return d;
   };
-  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+  // ?kitwarm=soft is the browser rows' flag (main.ts): software GL by definition, so the slow-device probe is not left to chance (without it a page load may judge itself fast, run the kit and gear warms at a seconds-per-frame pace, and see the
+  // gear mannequin's compile outlive its bound and link AFTER the check counted: the 13 "post-ready" programs of the return trip). The gear warm is skipped under it; the kit warm runs on the long soft cap. EXIT_KITWARM=0 drops it.
+  await page.goto(`${origin}/preview/origins/?region=1${process.env.EXIT_KITWARM === '0' ? '' : '&kitwarm=soft'}`, { waitUntil: 'load' });
+  // The worst frame gap over a window (a rAF recorder): the hitch measure for an arrival. On software GL every frame is seconds, so it is only comparable run to run, not an absolute stutter figure.
+  const gapProbe = () => page.evaluate(() => { window.__maxGap = 0; let last = performance.now(); const f = (t) => { window.__maxGap = Math.max(window.__maxGap, t - last); last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   const z1 = await ready('Zone 1'); receipt.zone1Programs = z1.names.length; receipt.zone1KitWarm = z1.kitWarm;
+  if (process.env.EXIT_Z1_SETTLE === '1') {   // informational: does the FIRST Zone 1 load also link programs after ready (then it is not a return-trip fault)?
+    await gapProbe(); await page.waitForTimeout(SETTLE_MS);
+    const names = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
+    receipt.zone1Settle = { newPrograms: names.filter((n) => !z1.names.includes(n)), maxFrameGapMs: Math.round(await page.evaluate(() => window.__maxGap)), gearWarm: await page.evaluate(() => window.originsPreview.gearWarm?.() ?? null) };
+  }
   const leg = async (label, landmark, toZone, landing, still, arriveStill, inside) => {
     await cross(label, landmark, toZone, still, inside);
     const a = await ready(label), l = { label, landed: a.pos, programsAtReady: a.names.length };
     assert.ok(Math.hypot(a.pos.x - landing[0], a.pos.z - landing[1]) < 0.5, `${label}: landed at ${JSON.stringify(a.pos)}, wanted ${landing}`);
-    await page.waitForTimeout(SETTLE_MS);
+    await gapProbe();
+    l.timeline = [];   // when the program count changes after ready, and what the hero wears then (who links it)
+    let lastCount = a.names.length; const t0 = Date.now();
+    while (Date.now() - t0 < SETTLE_MS) {
+      await page.waitForTimeout(500);
+      const now = await page.evaluate(() => ({ n: window.originsPreview.renderInfo().programNames.length, worn: window.originsPreview.selfWorn?.() ?? [], gear: window.originsPreview.gearWarm?.() ?? null, kits: window.originsPreview.remoteKitsWarm?.() ? 'done' : 'pending' }));
+      if (now.n !== lastCount) { l.timeline.push({ atMs: Date.now() - t0, programs: now.n, worn: now.worn, kits: now.kits, gearSkipped: now.gear?.skipped ?? null }); lastCount = now.n; }
+    }
+    l.wornAtReady = a.worn; l.wornAtEnd = await page.evaluate(() => window.originsPreview.selfWorn?.() ?? []);
     await page.screenshot({ path: path.join(shots, `${arriveStill}.png`) });
     const after = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     l.newPrograms = after.filter((n) => !a.names.includes(n)); l.zoneReady = await page.evaluate(() => window.__zoneReady);
+    l.maxFrameGapMs = Math.round(await page.evaluate(() => window.__maxGap)); l.kitWarm = a.kitWarm; l.gearWarm = await page.evaluate(() => window.originsPreview.gearWarm?.() ?? null);
+    receipt.legs.push(l);   // before the assertion, so a failing leg's timeline is in the receipt
     if (process.env.EXIT_CARRY === '1' && l.newPrograms.length) (receipt.carried ??= []).push(`${label}: compiled programs after [zone ready]: ${l.newPrograms.join(', ')}`);   // EXIT_CARRY=1 carries on past a post-ready compile so later legs still get a real result (it is still reported)
     else assert.deepEqual(l.newPrograms, [], `${label}: compiled programs after [zone ready]`);
-    receipt.legs.push(l);
   };
   await leg('Zone 1 -> Bone Hollow', 'cave-mouth', '5', [1, -320], 'cave-mouth', 'hollow-arrival', [-141, 30]);
   await leg('Bone Hollow -> Zone 1', 'hollow-gate', '1', [-141, 30], 'hollow-gate', 'mouth-arrival', [1, -320]);
