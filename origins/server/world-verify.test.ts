@@ -8,7 +8,7 @@ const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: 
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, flipReadiness, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
-import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
+import { worldSpawnOps, defaultZoneSpawns, dropOf, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../../src/core/server.ts';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
@@ -98,6 +98,23 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   assert.ok(logs.some((l) => /world record verified/.test(l)), 'the verdict is logged');
   assert.ok(logs.some((l) => /world record not verified \(undecodable\)/.test(l)), 'the reason is logged');
   assert.deepEqual(tally.snapshot(), { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
+});
+
+test('the page\'s `drop` (#3151: why it sent no record) is counted apart from plain "no record", logged, never trusted, and ignored beside a record or when malformed', async () => {
+  const { text } = await honest(), tally = createVerdictTally(), logs: string[] = [], ops = mk({ tally, log: (l: string) => logs.push(l) });
+  const send = async (body: Record<string, unknown>) => { const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, ...body }); return s; };
+  const plain = await send({}), gear = await send({ drop: 'gear-change' }), unclean = await send({ drop: 'hero-unclean' });
+  await send({ drop: 'Not A Reason!' }); await send({ drop: 7 }); await send({ drop: 'x'.repeat(41) });   // malformed: counted as plain no record
+  await send({ record: text, drop: 'gear-change' });   // beside a record: the record decides, the drop is ignored
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4, 'dropped: gear-change': 1, 'dropped: hero-unclean': 1, verified: 1 });
+  assert.ok(logs.some((l) => /record=none \(dropped: gear-change\)/.test(l)), logs.join(' | '));
+  assert.deepEqual(paidOps(gear.kills[0]!.b), paidOps(plain.kills[0]!.b), 'flag off: a drop label changes no payout');
+  assert.deepEqual(paidOps(unclean.kills[0]!.b), paidOps(plain.kills[0]!.b));
+  const strict = mk({ scorecardOnlyUnverified: true }), s = stub();
+  await strict.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, drop: 'gear-change' });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'flag on: a dropped window pays scorecard counts only, like any kill without a verified record');
+  assert.deepEqual([dropOf('gear-change', undefined), dropOf('gear-change', 'rec'), dropOf('BAD', undefined), dropOf(undefined, undefined)], ['gear-change', null, null, null]);
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
