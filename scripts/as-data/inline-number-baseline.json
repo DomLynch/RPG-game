@@ -794,12 +794,18 @@
   "600": 1,
   "999": 1
  },
+ "origins/world/ground-point.ts": {
+  "2": 1
+ },
  "origins/world/relief.ts": {
   "2": 2
  },
  "origins/world/town.ts": {
   "2": 1,
   "180": 1
+ },
+ "origins/world/zone-rules.ts": {
+  "2": 2
  },
  "origins/zones/loader.ts": {
   "3": 1,

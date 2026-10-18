@@ -4,6 +4,7 @@
 // rolls exactly as before. `variantFor` is a seeded draw per spawn: the same spawn id and seed always roll the same variant. Rows only; applying the multipliers to a fight and the tint to the
 // model are separate wiring steps, and no sim file reads this yet. Pure: no DOM, no clock, no storage.
 import { loadRegistry, mixSeed, nextRandom, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { layoutRule } from './layout-rules.ts';
 import DEFS from './variants.json' with { type: 'json' };
 import MANIFEST from './variants.manifest.json' with { type: 'json' };
 
@@ -11,7 +12,7 @@ export type VariantRow = { readonly order: number; readonly weight: number; read
 export type VariantTable = Readonly<Record<string, VariantRow>>;
 export type Rolled = { readonly id: string } & VariantRow;
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const MAX_MULTIPLIER = 4, FNV_PRIME = 16777619;   // the multiplier bound the error text states ((0, 4]); FNV-1a's prime (exempt: scripts/as-data/allow/origins-world.json)
+const MAX_MULTIPLIER = layoutRule('variantMultiplierMax'), FNV_PRIME = 16777619;   // the multiplier bound ((0, max]) is a layout row (a gameplay bound); FNV-1a's prime (exempt: scripts/as-data/allow/origins-world.json)
 
 /** The one loader: the registry's duplicate/missing/mistyped checks, then the row rules (a positive weight and multipliers in (0, 4], a #rrggbb tint, an eligible id that is a real catalogue creature, and a `plain` row that changes nothing). */
 export function loadVariants(raw: { variants?: unknown }, catalogueIds: Iterable<string>): VariantTable {
@@ -19,7 +20,7 @@ export function loadVariants(raw: { variants?: unknown }, catalogueIds: Iterable
   const rows = raw.variants as VariantTable, known = new Set(catalogueIds);
   for (const [id, r] of Object.entries(rows)) {
     if (!(Number.isFinite(r.weight) && r.weight > 0)) throw Error(`variants "${id}": weight is a number > 0`);
-    for (const k of ['health', 'damage', 'scale'] as const) if (!(Number.isFinite(r[k]) && r[k] > 0 && r[k] <= MAX_MULTIPLIER)) throw Error(`variants "${id}": ${k} is a multiplier in (0, 4]`);
+    for (const k of ['health', 'damage', 'scale'] as const) if (!(Number.isFinite(r[k]) && r[k] > 0 && r[k] <= MAX_MULTIPLIER)) throw Error(`variants "${id}": ${k} is a multiplier in (0, ${MAX_MULTIPLIER}]`);
     if (r.tint != null && !HEX.test(r.tint)) throw Error(`variants "${id}": tint is #rrggbb or null`);
     for (const e of r.eligible) if (!known.has(e)) throw Error(`variants "${id}": ${e} is not a catalogue creature`);
   }

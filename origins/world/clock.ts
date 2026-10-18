@@ -7,10 +7,11 @@
 //   weather    - per biome, weighted picks of arena weather kinds (src/fight/arena-defs.json weather rows); `weatherFor` draws one per game day from the zone's seed, same day = same weather.
 // Pure: no DOM, no clock, no storage. Wiring the page (spawn the night rows when `night`, set the weather preset for the day) reads these functions and is a separate step.
 import { loadRegistry, mixSeed, nextRandom, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { layoutRule } from './layout-rules.ts';
 import DEFS from './clock.json' with { type: 'json' };
 import MANIFEST from './clock.manifest.json' with { type: 'json' };
 
-const MAX_NIGHT_SPAWN = 8, FNV_PRIME = 16777619, DAY_STRIDE = 7919;   // the nightSpawn count bound the error text states; FNV-1a's prime; the prime a game day is multiplied by in the weather seed (changing it re-rolls every weather: pinned by clock.test.ts) (exempt: scripts/as-data/allow/origins-world.json)
+const MAX_NIGHT_SPAWN = layoutRule('nightSpawnMax'), FNV_PRIME = 16777619, DAY_STRIDE = 7919;   // the nightSpawn count bound is a layout row (a gameplay bound); FNV-1a's prime; the prime a game day is multiplied by in the weather seed (changing it re-rolls every weather: pinned by clock.test.ts) (exempt: scripts/as-data/allow/origins-world.json)
 export type DayPartRow = { readonly order: number; readonly night: boolean };
 export type ClockBonusRow = { readonly order: number; readonly day: number; readonly night: number };
 export type NightSpawnRow = { readonly order: number; readonly part: string; readonly zone: string; readonly character: string; readonly count: number };
@@ -27,7 +28,7 @@ export function loadClockDefs(raw: unknown, known: ClockKnown): ClockDefs {
     if (!d.dayParts[s.part]) throw Error(`clock.json nightSpawn "${id}": ${s.part} is not a day part`);
     if (!zones.has(s.zone)) throw Error(`clock.json nightSpawn "${id}": ${s.zone} is not a zone`);
     if (!characters.has(s.character)) throw Error(`clock.json nightSpawn "${id}": ${s.character} is not a creature row`);
-    if (!(s.count >= 1 && s.count <= MAX_NIGHT_SPAWN)) throw Error(`clock.json nightSpawn "${id}": count is 1..8`);
+    if (!(s.count >= 1 && s.count <= MAX_NIGHT_SPAWN)) throw Error(`clock.json nightSpawn "${id}": count is 1..${MAX_NIGHT_SPAWN}`);
   }
   for (const [id, w] of Object.entries(d.weather)) {
     if (!biomes.has(id)) throw Error(`clock.json weather "${id}": not a biome`);

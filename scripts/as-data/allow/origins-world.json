@@ -60,15 +60,11 @@
     {"file": "origins/world/town-kit.ts", "name": "VARIANT_STRIDE", "kind": "exempt", "reason": "mixing in the weighted piece pick so consecutive variants do not walk the list in order: part of the pick's definition (pinned by the town digests), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/town-kit.ts", "name": "VARIANT_OFFSET", "kind": "exempt", "reason": "mixing in the weighted piece pick: part of the pick's definition (pinned by the town digests), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/town-kit.ts", "name": "GENERIC_SIGNS", "kind": "exempt", "reason": "how many of the kit's sign pieces are the generic ones a lot without its own sign draws from: the kit's own layout (Characters' file order), not a game number", "owner": "World & Audio"},
-    {"file": "origins/world/clock.ts", "name": "MAX_NIGHT_SPAWN", "kind": "exempt", "reason": "the loader's validation bound the error text states (a night spawn count is 1..8), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/clock.ts", "name": "FNV_PRIME", "kind": "exempt", "reason": "FNV-1a 32-bit prime: the hash's published parameter, not tuning", "owner": "World & Audio"},
     {"file": "origins/world/clock.ts", "name": "DAY_STRIDE", "kind": "exempt", "reason": "prime a game day is multiplied by in the weather seed: part of the seed format (changing it re-rolls every weather, pinned by clock.test.ts), not tuning", "owner": "World & Audio"},
-    {"file": "origins/world/variants.ts", "name": "MAX_MULTIPLIER", "kind": "exempt", "reason": "the loader's validation bound the error text states (a multiplier is in (0, 4]), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/variants.ts", "name": "FNV_PRIME", "kind": "exempt", "reason": "FNV-1a 32-bit prime: the hash's published parameter, not tuning", "owner": "World & Audio"},
     {"file": "origins/world/instances.ts", "name": "MAX_SLOTS", "kind": "exempt", "reason": "the loader's validation bound the error text states (1 to 256 slots), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/derive.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the centre of the zone's width, a mathematical constant, not tuning", "owner": "World & Audio"},
-    {"file": "origins/world/derive.ts", "name": "PER", "kind": "exempt", "reason": "the density unit: a row's counts are per 100 m2 (the field names say per100), a unit, not tuning", "owner": "World & Audio"},
-    {"file": "origins/world/ground-point.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the middle of the place's depth, a mathematical constant, not tuning", "owner": "World & Audio"},
-    {"file": "origins/world/zone-rules.ts", "name": "HALF", "kind": "exempt", "reason": "one half: a quarter turn is Math.PI * HALF and the entry sits at half the width, a mathematical constant, not tuning", "owner": "World & Audio"}
+    {"file": "origins/world/derive.ts", "name": "PER", "kind": "exempt", "reason": "the density unit: a row's counts are per 100 m2 (the field names say per100), a unit, not tuning", "owner": "World & Audio"}
   ]
 }

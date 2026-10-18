@@ -34,14 +34,13 @@ export function worstHop(entry: Pt, points: readonly Pt[]): { from: Pt; to: Pt; 
   return best;
 }
 
-const HALF = 0.5;   // one half (exempt: scripts/as-data/allow/origins-world.json)
 // The opener rule, one function for the generator and for hand zones: where the first fight stands. A spot `clear` (15) to `far` (40) m from the entry,
 // on the inward side (`inward` is the heading the zone runs in, 0 = +z), that `ok` accepts. `rand` is any [0, 1) source; null when nothing fits.
 export const OPENER_CLEAR = worldRule('openerClear'), OPENER_FAR = worldRule('openerFar');   // m: an opener stands at least this clear of the entry and at most this far (rows: 15 / 40)
 const OPENER_TRIES = stageRule('openerTries'), OPENER_PAD = stageRule('openerPad'), OPENER_SLACK = stageRule('openerSlack');   // stage-rules-defs.json: attempts, and the inner / outer margins of the opener's distance band
 export function openerSpot(entry: Pt, inward: number, rand: () => number, ok: (x: number, z: number) => boolean, clear = OPENER_CLEAR, far = OPENER_FAR): Pt | null {
   for (let t = 0; t < OPENER_TRIES; t++) {
-    const r = clear + OPENER_PAD + rand() * (far - clear - OPENER_SLACK), a = inward + rand() * Math.PI - Math.PI * HALF, x = entry.x + Math.sin(a) * r, z = entry.z + Math.cos(a) * r;
+    const r = clear + OPENER_PAD + rand() * (far - clear - OPENER_SLACK), a = inward + rand() * Math.PI - Math.PI / 2, x = entry.x + Math.sin(a) * r, z = entry.z + Math.cos(a) * r;
     if (ok(x, z)) return { x, z };
   }
   return null;
@@ -66,7 +65,7 @@ export function sketchOf(name: string, zone: Params, creatures: readonly Pt[]): 
   const mpu = zone.scale.metresPerUnit, width = zone.zoneSize.width * mpu, depth = zone.zoneSize.depth * mpu, e = zone.layout.entry;
   const at = (l: { u: number; v: number }): Pt => ({ x: l.u * width, z: l.v * depth });
   return {
-    name, width, depth, entry: e ? at(e) : { x: width * HALF, z: 0 },
+    name, width, depth, entry: e ? at(e) : { x: width / 2, z: 0 },
     stops: Object.entries(zone.layout).filter(([k]) => k !== 'entry').map(([, l]) => at(l)), creatures: [...creatures], safe: zone.rules.safe,
   };
 }
