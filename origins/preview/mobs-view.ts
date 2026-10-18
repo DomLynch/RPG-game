@@ -131,8 +131,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     let actor: Actor;
     try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [weapon, weapon], true).player; }
     catch (error) {
-      if (error instanceof MissingClip) { console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); throw error; }   // fail loud: a body missing its weapon's clip pack is a content bug, never a quiet capsule
-      console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(s.body, 'failed'); failedKinds.add(s.body); return; }
+      // A body missing its weapon's clip pack is a content bug that tests/creature-clips.test.ts fails in CI; in the player's frame it is logged once and the kind stays a stand-in for the session (marked failed, so it is not retried every frame).
+      if (error instanceof MissingClip) console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); else console.warn(`${s.body} actor did not build; the capsule stays`, error);
+      bodies.set(s.body, 'failed'); failedKinds.add(s.body); return;
+    }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
