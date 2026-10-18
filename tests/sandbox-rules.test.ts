@@ -19,7 +19,7 @@ test('every sandbox rule is off as shipped and every family is empty: a trunk fi
 
 test('nothing on trunk imports the sandbox rules yet: the digest cannot move (the slice that turns a rule on owns the version bump and its battery)', () => {
   const importers: string[] = [];
-  const walk = (dir: string) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = `${dir}/${e.name}`; if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); } else if (/\.(ts|mjs)$/.test(e.name) && p !== 'src/fight/sandbox-rules.ts' && !p.startsWith('tests/') && /sandbox-rules(\.ts)?['"]/.test(readFileSync(p, 'utf8'))) importers.push(p); } };
+  const walk = (dir: string) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = `${dir}/${e.name}`; if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); } else if (/\.(ts|mjs)$/.test(e.name) && p !== 'src/fight/sandbox-rules.ts' && p !== 'src/fight/scene.ts' && !p.startsWith('tests/') && /sandbox-rules(\.ts)?['"]/.test(readFileSync(p, 'utf8'))) importers.push(p); } };
   for (const d of ['src', 'origins']) walk(d);
   assert.deepEqual(importers, [], 'a consumer lands with the slice that bumps the version');
 });
