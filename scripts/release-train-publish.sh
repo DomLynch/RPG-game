@@ -77,7 +77,10 @@ for m in "$state"/post-publish-pending-*; do
   [ -n "$dry" ] || [ -e "$m.told" ] || { touch "$m.told"; [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI tail for $(sed -n 's/^rev=//p' "$m" | head -n 1) died before it finished" || true; }
   skip "post-publish CI tail marker $m is stale (tail pid ${mp:-never started} is not running; rows $(sed -n 's/^rows=//p' "$m" | head -n 1) for $(sed -n 's/^rev=//p' "$m" | head -n 1) were never proved on CI): holding; look at that release's CI, then remove the marker"
 done
-if [ "${cap:-0}" -gt 0 ] 2>/dev/null && [ "$pending" -ge "$cap" ]; then skip "$pending detached post-publish tail(s) still unconfirmed (MAX_PENDING_TAILS=$cap): the next publish waits until the oldest reports"; fi
+log "cap=${cap:-none} pending=$pending"
+# FAIL CLOSED (Auditor, Lead's requirement): a missing, empty, zero or malformed cap is no publish and a reason, never unlimited.
+case "${cap:-}" in ''|*[!0-9]*|0) skip "MAX_PENDING_TAILS is missing or malformed (got '${cap:-}'; the row lives in ${RELEASE_TRAIN_ENV:-$state/release-train.env}): not publishing";; esac
+if [ -n "${cap:-}" ] && [ "$pending" -ge "$cap" ] 2>/dev/null; then skip "$pending detached post-publish tail(s) still unconfirmed (MAX_PENDING_TAILS=$cap): the next publish waits until the oldest reports"; fi
 if [ -e "$hold" ]; then   # held by a person (no pid), by a live publisher, or STALE: a publisher killed mid-publish (its pid is dead, no stopped file)
   hp=$(head -n 1 "$hold" 2>/dev/null | tr -cd '0-9')
   if [ -n "$hp" ] && ! kill -0 "$hp" 2>/dev/null; then

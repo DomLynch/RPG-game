@@ -201,9 +201,9 @@ case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | 
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)', authorAssociation: 'OWNER' }], statusCheckRollup: OK }]));
-  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
+  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, MAX_PENDING_TAILS: '99', ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
-  const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
+  const env = { MAX_PENDING_TAILS: '99', PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
   return { dir, state, run, calls, cand, env, reset: () => writeFileSync(log, '') };
 }
 
@@ -260,12 +260,22 @@ test('publisher (Lead cap): with MAX_PENDING_TAILS=2 a third publish waits while
   } finally { rmSync(two.dir, { recursive: true, force: true }); }
   const one = withTails(1);
   try { assert.match(one.run({ MAX_PENDING_TAILS: '2' }).stdout, /published #2400/, 'one live tail is under the cap'); } finally { rmSync(one.dir, { recursive: true, force: true }); }
-  const free = withTails(2);
-  try { assert.match(free.run().stdout, /published #2400/, 'no cap set: unlimited, as before'); } finally { rmSync(free.dir, { recursive: true, force: true }); }
+  // FAIL CLOSED (Auditor nit, Lead's requirement): a missing, empty, zero or malformed row is no publish plus a reason, never unlimited.
+  for (const [label, row] of [['missing', null], ['malformed', 'export MAX_PENDING_TAILS=two\n'], ['zero', 'export MAX_PENDING_TAILS=0\n']] as const) {
+    const bad = withTails(0);
+    try {
+      if (row !== null) writeFileSync(join(bad.state, 'release-train.env'), row);
+      const r = bad.run({ MAX_PENDING_TAILS: '' });
+      assert.match(r.stdout, /MAX_PENDING_TAILS is missing or malformed/, label);
+      assert.doesNotMatch(bad.calls(), /git push|deploy/, `${label}: nothing publishes`);
+    } finally { rmSync(bad.dir, { recursive: true, force: true }); }
+  }
   const fromEnvFile = withTails(2);
   try {
     writeFileSync(join(fromEnvFile.state, 'release-train.env'), 'export MAX_PENDING_TAILS=2   # Lead\n');
-    assert.match(fromEnvFile.run().stdout, /MAX_PENDING_TAILS=2/, 'the cap is DATA: read from release-train.env');
+    const r = fromEnvFile.run({ MAX_PENDING_TAILS: '' });
+    assert.match(r.stdout, /cap=2 pending=2/, 'the cap is DATA: read from release-train.env, and logged each tick');
+    assert.match(r.stdout, /MAX_PENDING_TAILS=2/);
   } finally { rmSync(fromEnvFile.dir, { recursive: true, force: true }); }
 });
 
