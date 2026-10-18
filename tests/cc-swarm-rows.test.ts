@@ -26,7 +26,7 @@ function breakOnce(cc: CcLadder, guard?: CcGuard): number | null {
 }
 
 test('the shipped rows (Lead\'s accepted numbers): window counted from the END, post-CC immunity stun 120 / knockdown 180, tiers and resists by rank band, no catalogue row names a tier or resist', () => {
-  const imm: Record<string, number> = { stun: 120, knockdown: 180, root: 0 };
+  const imm: Record<string, number> = { stun: 120, knockdown: 180, root: 0, pin: 120 };   // pin: the sandbox bow's Pinning Shot (source pinShot)
   for (const k of Object.values(CC_LADDER.kinds)) { assert.equal(k.immunity, imm[k.id], k.id); assert.equal(k.windowFrom, 'end', k.id); assert.deepEqual(k.steps, [100, 50, 25, 0], k.id); assert.equal(k.window, 900, k.id); }
   const r = ccApply(emptyLadder, 'postureBreak', 10, 120);
   assert.deepEqual(r, { ticks: 120, level: 0, ladder: [{ family: 'stun', count: 1, last: 10, end: 130 }] }, 'a landing now keeps the tick its CC ends');
