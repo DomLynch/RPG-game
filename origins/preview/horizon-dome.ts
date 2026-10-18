@@ -3,12 +3,13 @@
 // (origins/world/goblin-field-defs.json); the colours are one palette row (a zone row names it: look.sky). `ridgeProfile` and `smokeColumns` are pure and tested; the painting and the mesh are browser-only (stills check them).
 // Ported from the Test Zone's branch (zone/goblin-field-dome, Dom's reference look): the painted sky and the repeat ring of the palette's picture only; the sector and matte-card pictures wait for their rows.
 import * as THREE from 'three';
+import { prng } from '../world/generate.ts';
 import { goblinBackdrop, goblinHarmonics, goblinRule as R, type GoblinBackdrop, type GoblinPalette } from '../world/goblin-field-rules.ts';
 
-// The seeded generator's own numbers: mulberry32's increment, mixing shifts and the integer width, and the smoke columns' seed salt. They define the shape of the ridges (change one and every skyline changes, pinned by
-// tests/horizon-dome.test.ts), they are not tuning: exempt in scripts/as-data/allow/origins-preview.json.
-const STEP = 0x6d2b79f5, SHIFT_A = 15, SHIFT_B = 7, SHIFT_C = 14, OR_B = 61, UINT32 = 4294967296, COLUMN_SALT = 0x9e3779b9, TAU = Math.PI * 2;
-const mulberry = (seed: number) => { let a = seed >>> 0; return () => { a = (a + STEP) >>> 0; let t = a; t = Math.imul(t ^ (t >>> SHIFT_A), t | 1); t ^= t + Math.imul(t ^ (t >>> SHIFT_B), t | OR_B); return ((t ^ (t >>> SHIFT_C)) >>> 0) / UINT32; }; };
+// The seeded generator is the world's own (generate.ts prng: mulberry32). The smoke columns' seed salt is part of the seed format (change it and every skyline's columns move, pinned by tests/horizon-dome.test.ts), not tuning:
+// exempt in scripts/as-data/allow/origins-preview.json.
+const COLUMN_SALT = 0x9e3779b9, TAU = Math.PI * 2;
+const mulberry = prng;
 /** A closed (wraps at the seam) ridge line, n samples in 0..1: the harmonic rows (whole periods per turn, so the ends meet) with seeded phases. Pure. */
 export function ridgeProfile(seed: number, n: number): number[] {
   const rnd = mulberry(seed), harm = goblinHarmonics().map(({ k, a }) => ({ k, a, ph: rnd() * TAU }));
