@@ -387,7 +387,7 @@ function step(dt: number) {
   const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
   followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
   applyCombatView();
-  killDrops.update(dt, state);
+  killDrops.update(state);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -871,12 +871,15 @@ function heroDeathSequence() {
 }
 // A creature of an UNLISTED zone drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
 const killDrops = createKillDrops({
-  scene, view: dropItems, itemOf: groundItemOf, groundAt: groundY, found: createFound(), reach: fxNum('drop.reach'),
+  view: dropItems, itemOf: groundItemOf, found: createFound(), reach: fxNum('drop.reach'),
   onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
 });
 function dropLoot(spec: MobSpec, at: { x: number; z: number }) {
   const row = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), pieces = dropSet(row, spec.id, fxNum('zoneloot.take-limit'));
-  pieces.forEach((piece, i) => { const a = (i / pieces.length) * fxNum('zoneloot.turn'); killDrops.drop(piece, pieceLabel(piece), spec.name, at.x + Math.cos(a) * fxNum('zoneloot.ring-m'), at.z + Math.sin(a) * fxNum('zoneloot.ring-m'), row?.rung); });
+  pieces.forEach((piece, i) => {
+    const a = (i / pieces.length) * fxNum('zoneloot.turn');
+    try { killDrops.drop(piece, pieceLabel(piece), spec.name, at.x + Math.cos(a) * fxNum('zoneloot.ring-m'), at.z + Math.sin(a) * fxNum('zoneloot.ring-m'), row?.rung); } catch (error) { console.error(`${spec.name}'s ${piece} could not be laid on the ground`, error); }   // loud, and the kill goes on
+  });
 }
 function creatureFell(spec: MobSpec) {
   const fellAt = mobs?.find(spec.id);

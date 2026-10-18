@@ -1,7 +1,6 @@
 // A kill drops what the creature wore, on the ground, to pick up (zone sandbox, Dom 2026-10-17: "real item drops per kill"). SANDBOX ONLY: the Test Zone is invisible to the server, so nothing here is an
 // account item; the pieces go in a "Found" list in PAGE MEMORY only (no localStorage, nothing sent) until the backend loot-table rows exist (the loadout rows already name the loot piece ids, so a loot table per
-// loadout maps one to one). Donors: UO / ModernUO (the corpse holds what the creature wore) and EQEmu ground spawns (an item at a place, taken by walking onto it). Pure logic plus a small glowing marker; no assets.
-import * as THREE from 'three';
+// loadout maps one to one). Donors: UO / ModernUO (the corpse holds what the creature wore) and EQEmu ground spawns (an item at a place, taken by walking onto it). Pure logic: the piece lies as itself through the ground-item view (no marker of its own, no assets).
 import type { Tier } from '../../src/core/index.ts';
 
 export type FoundItem = { piece: string; label: string; from: string; n: number };
@@ -17,27 +16,21 @@ export function createFound() {
   };
 }
 
-export type Drop = { id: number; piece: string; label: string; from: string; x: number; z: number; age: number; rung?: string };
-type Deps = { scene: THREE.Scene; view: { show(id: string, item: string, at: { x: number; z: number }, tier?: Tier): void; hide(id: string): void }; itemOf: (piece: string) => string; groundAt: (x: number, z: number) => number; found: ReturnType<typeof createFound>; reach: number; onPick: (d: Drop) => void; onChange: () => void };
+export type Drop = { id: number; piece: string; label: string; from: string; x: number; z: number; rung?: string };
+type Deps = { view: { show(id: string, item: string, at: { x: number; z: number }, tier?: Tier): void; hide(id: string): void }; itemOf: (piece: string) => string; found: ReturnType<typeof createFound>; reach: number; onPick: (d: Drop) => void; onChange: () => void };
 
-/** Markers on the ground: `drop` puts one where the creature fell, `update` bobs them and takes the one the hero walks onto (within `reach` metres). */
+/** Pieces lying on the ground: `drop` lays one where the creature fell (as itself: its drop-looks row, pickup ring and beam; a piece with no row or model THROWS, nothing is drawn at a guessed pose), `update` takes the one the hero walks onto (within `reach` metres). */
 export function createKillDrops(deps: Deps) {
-  const bone = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, emissive: 0xb89a55, emissiveIntensity: 1.2, roughness: 0.5 }), ring = new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.55, depthWrite: false });
-  const geo = new THREE.OctahedronGeometry(0.22), ringGeo = new THREE.RingGeometry(0.42, 0.5, 28).rotateX(-Math.PI / 2);
-  const live = new Map<number, { drop: Drop; group: THREE.Group }>(); let next = 1;
+  const live = new Map<number, Drop>(); let next = 1;
   return {
     drop(piece: string, label: string, from: string, x: number, z: number, rung?: string): void {
-      const id = next++, group = new THREE.Group(), halo = new THREE.Mesh(ringGeo, ring); group.add(halo);
-      group.position.set(x, deps.groundAt(x, z) + 0.05, z); deps.scene.add(group);
-      let lying = true;   // the piece lies on the ground as itself (its own model, ground-looks.json row, the pickup ring and beam); a piece with no row or model keeps the small gem
-      try { deps.view.show(`drop:${id}`, deps.itemOf(piece), { x, z }, rung as Tier | undefined); } catch { lying = false; }
-      if (!lying) { const gem = new THREE.Mesh(geo, bone); gem.position.y = 0.55; group.add(gem); }
-      const d: Drop = { id, piece, label, from, x, z, age: 0, rung }; live.set(d.id, { drop: d, group });
+      const id = next++;
+      deps.view.show(`drop:${id}`, deps.itemOf(piece), { x, z }, rung as Tier | undefined);
+      live.set(id, { id, piece, label, from, x, z, rung });
     },
-    update(dt: number, hero: { x: number; z: number }): void {
-      for (const [id, e] of live) {
-        e.drop.age += dt; const gem = e.group.children[1]; if (gem) { gem.position.y = 0.55 + Math.sin(e.drop.age * 2.4) * 0.08; gem.rotation.y += dt * 1.6; }
-        if (Math.hypot(hero.x - e.drop.x, hero.z - e.drop.z) <= deps.reach) { deps.found.add(e.drop.piece, e.drop.label, e.drop.from); deps.scene.remove(e.group); deps.view.hide(`drop:${id}`); live.delete(id); deps.onPick(e.drop); deps.onChange(); }
+    update(hero: { x: number; z: number }): void {
+      for (const [id, d] of live) {
+        if (Math.hypot(hero.x - d.x, hero.z - d.z) <= deps.reach) { deps.found.add(d.piece, d.label, d.from); deps.view.hide(`drop:${id}`); live.delete(id); deps.onPick(d); deps.onChange(); }
       }
     },
     waiting: (): number => live.size,
