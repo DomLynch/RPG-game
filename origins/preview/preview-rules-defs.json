@@ -100,6 +100,8 @@
     { "id": "frameDtMax", "value": 0.05, "unit": "s" },
     { "id": "mobHeightMin", "value": 1.9, "unit": "m" },
     { "id": "mobSpeedMax", "value": 8, "unit": "m/s" },
-    { "id": "pitDtMax", "value": 0.1, "unit": "s" }
+    { "id": "pitDtMax", "value": 0.1, "unit": "s" },
+    { "id": "hiddenTickMs", "value": 100, "unit": "ms" },
+    { "id": "hiddenCheckMs", "value": 500, "unit": "ms" }
   ]
 }
