@@ -399,7 +399,7 @@ test('outbox restore: a saved nextAt from a clock that went back is held at most
   const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, store = memStore();
   let reports = 0;
   const down: typeof fetch = async () => { reports++; return new Response('{}', { status: 503 }); };
-  const far: OutboxEntry = { instance: ids[0]!, token: 'F'.repeat(32), hits: 3, record: null, tries: 1, nextAt: clock.ms + 30 * 24 * 3600_000 };   // a month ahead
+  const far: OutboxEntry = { instance: ids[0]!, token: 'F'.repeat(32), hits: 3, record: null, drop: null, tries: 1, nextAt: clock.ms + 30 * 24 * 3600_000 };   // a month ahead
   store.save(ACCOUNT, [far]);
   const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store });
   t.tick(); await settle();
@@ -413,6 +413,25 @@ test('outbox restore: a saved nextAt from a clock that went back is held at most
   store.saved.set(ACCOUNT, [...(store.saved.get(ACCOUNT) ?? []), { ...far, token: 'A'.repeat(32), nextAt: clock.ms + OUTBOX_RETRY_MAX_MS }]);   // tab A's new report lands in the store
   clock.ms += OUTBOX_RETRY_MAX_MS; tabB.tick(); await settle();   // tab B saves after its own send
   assert.ok(store.saved.get(ACCOUNT)?.some((e) => e.token === 'A'.repeat(32)), 'tab B\'s save kept tab A\'s report (re-read before save)');
+});
+
+test('outbox reload: a report whose window was dropped keeps its reason across a page reload and sends it', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    const down: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) throw new TypeError('network down'); return fetch(url, init); };
+    const t1 = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: down, account: () => ACCOUNT, store });
+    await t1.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t1.hit(ids[0]!);
+    clock.ms += 60_000;
+    assert.deepEqual(await t1.killed(ids[0]!, null, 'gear-change'), { offline: 'network' });
+    assert.equal(store.saved.get(ACCOUNT)?.[0]?.drop, 'gear-change', 'saved with its reason');
+    const bodies: string[] = [];
+    const spy: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) bodies.push(String(init?.body)); return fetch(url, init); };
+    const t2 = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: spy, account: () => ACCOUNT, store });   // the reloaded page
+    clock.ms += OUTBOX_RETRY_MAX_MS; t2.tick(); await settle();
+    assert.equal(bodies.length, 1);
+    assert.equal(JSON.parse(bodies[0]!).drop, 'gear-change', 'the reloaded report still says why it has no record');
+  } finally { await w.close(); }
 });
 
 test('outbox with an expired sign-in: nothing is sent and no try is spent; once a session is back the report goes', async () => {
@@ -433,13 +452,18 @@ test('outbox with an expired sign-in: nothing is sent and no try is spent; once 
 
 test('outbox-store: one localStorage entry per account, malformed entries never come back, an empty outbox removes the key; storedAccount reads the session\'s user id only', () => {
   const kv = new Map<string, string>(), storage = { getItem: (k: string) => kv.get(k) ?? null, setItem: (k: string, v: string) => void kv.set(k, v), removeItem: (k: string) => void kv.delete(k) };
-  const store = localOutbox(storage), entry: OutboxEntry = { instance: ids[0]!, token: 'T'.repeat(32), hits: 3, record: null, tries: 1, nextAt: 5 };
+  const store = localOutbox(storage), entry: OutboxEntry = { instance: ids[0]!, token: 'T'.repeat(32), hits: 3, record: null, drop: null, tries: 1, nextAt: 5 };
   store.save(ACCOUNT, [entry]);
   assert.deepEqual([...kv.keys()], [`${OUTBOX_KEY}:${ACCOUNT}`]);
   assert.deepEqual(store.load(ACCOUNT), [entry]); assert.deepEqual(store.load(OTHER), []);
   kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, JSON.stringify([entry, { ...entry, token: 5 }, { instance: 'x' }, null, 'junk']));
   assert.deepEqual(store.load(ACCOUNT), [entry], 'only well-formed entries');
   kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, '{"not":"a list"}'); assert.deepEqual(store.load(ACCOUNT), []);
+  const dropped: OutboxEntry = { ...entry, drop: 'gear-change' };
+  store.save(ACCOUNT, [dropped]); assert.deepEqual(store.load(ACCOUNT), [dropped], 'the drop reason survives a reload');
+  const { drop: _old, ...legacy } = entry;
+  kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, JSON.stringify([legacy, { ...entry, drop: 5 }]));
+  assert.deepEqual(store.load(ACCOUNT), [entry], 'an entry saved before drop existed reads back with none; a non-string drop is never read');
   store.save(ACCOUNT, []); assert.equal(kv.size, 0, 'nothing left behind');
   assert.equal(storedAccount(storage), null, 'no session');
   kv.set(AUTH_KEY, JSON.stringify({ access_token: 'x', expires_at: 1, user: { id: ACCOUNT.toUpperCase() } }));
