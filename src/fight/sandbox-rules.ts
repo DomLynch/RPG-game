@@ -57,6 +57,9 @@ export const missileMinGap = (): number => sandboxRule('missileMinGap') / CENTIM
 type MissileRow = { archer?: number; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
 type LaneRow = { move: string; lane: number; mult: number };
 export const missileRows = (): number => sandboxRows('missile').length;
+//   missileLook (presentation): one row { id, height (cm above the sand), length, radius (mm), spread (cm a volley's outer arrows bow out), shaft, head, fin (colours) } for the arrow in flight (missile-fx.ts). No row = the arrow is not drawn (and nothing is built).
+export type MissileLookRow = { id: string; height: number; length: number; radius: number; spread: number; shaft: string; head: string; fin: string };
+export const missileLook = (): MissileLookRow | undefined => sandboxRows('missileLook')[0] as unknown as MissileLookRow | undefined;
 export const missileOf = (weapon: string): MissileRow | undefined => sandboxRows('missile').find((r) => r.weapon === weapon) as MissileRow | undefined;
 export const laneOf = (move: string | null): LaneRow | undefined => (move ? sandboxRows('missileLanes').find((r) => r.move === move) as LaneRow | undefined : undefined);
 export const MISSILE_HOMING = sandboxRule('missileHoming');   // 1 = auto-aim (Dom 2026-10-15): the shot flies at the foe and only a roll or a guard answers it

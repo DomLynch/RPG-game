@@ -34,6 +34,7 @@
   "specialSound": [],
   "missile": [],
   "missileLanes": [],
+  "missileLook": [],
   "missileAnswer": [],
   "bowSpecial": []
 }

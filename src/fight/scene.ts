@@ -36,7 +36,7 @@ import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
-import { missileRows } from './sandbox-rules.ts';
+import { missileLook, missileRows } from './sandbox-rules.ts';
 import { createMissileFx } from './missile-fx.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
@@ -209,7 +209,7 @@ export function createScene(
     footDust = createFootDust(scene, dustToneFor(theme)),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene),
-    missileFx = missileRows() ? createMissileFx(scene) : null,   // sandbox missiles (RV79): the bow's arrow in flight; no missile rows (shipped) builds nothing
+    missileFx = missileRows() && missileLook() ? createMissileFx(scene, missileLook()!) : null,   // sandbox missiles (RV79): the arrow in flight, its look from the missileLook row; no rows (shipped) builds nothing
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   if (world) scene.add(world.holder);
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
