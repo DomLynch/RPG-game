@@ -20,7 +20,7 @@ import { groundLook, dropLook } from './ground-looks.ts';
 import { createOutfit, dressedSet, dropSet, groundItemOf } from './outfit.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
-import { fxNum } from '../../src/fight/index.ts';
+import { fxNum, regenOn, regenRules } from '../../src/fight/index.ts';
 import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
@@ -994,7 +994,9 @@ const buildCopy = {
 // The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
 const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh().then(() => wc.heroChanged()); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
  wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
+const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
+  regen: () => (regenOn(!!(zoneRow ?? loadZone()).unlisted) ? regenRules(regenSeconds) : null),   // sandbox zones only; the Pit and every listed zone get none (hero-regen.ts)
   loadoutReady,
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { warBandRun.hit(spec.id); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
