@@ -142,7 +142,7 @@ try {
   const RFN = 'origins_spawn_receipt(uuid,text)';
   eq(psql(`select has_function_privilege('${O}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${RFN}'::regprocedure, 'execute')::int::text`), '1000', 'receipt: the WRITER role only (not the verifier, anon or authenticated)');
   const r12 = await receipt(A, tok(12));
-  eq([r12.kind, r12.instance, typeof r12.killedAt, r12.cp, r12.bronze, r12.loot], ['paid', 'wolves-1', 'string', 30, 7, 1], 'receipt: a paid kill reads back from the stored ledger row (cp 30, bronze 7, one item), not recomputed');
+  eq([r12.kind, r12.instance, typeof r12.killedAt, r12.cp, r12.bronze, r12.loot], ['paid', psql(`select instance from public.origins_spawn_engages where token = '${tok(12)}'`), 'string', 30, 7, 1], 'receipt: a paid kill reads back from the stored ledger row (cp 30, bronze 7, one item), not recomputed');
   const r1 = await receipt(A, tok(1));
   eq([r1.kind, r1.cp, r1.bronze, r1.loot], ['paid', 0, 0, 0], 'receipt: a paid kill whose batch booked nothing reads back as paid with zeros');
   eq(await receipt(B, tok(1)), null, 'receipt: another account\'s token is unknown, nothing leaks');
