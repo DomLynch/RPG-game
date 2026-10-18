@@ -67,6 +67,8 @@
   "bind": [],
   "missile": [],
   "missileLanes": [],
+  "missileAnswer": [],
+  "bowSpecial": [],
   "castPenalty": [],
   "hurtStyles": [],
   "readyStyles": []
