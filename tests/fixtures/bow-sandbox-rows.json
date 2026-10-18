@@ -1,0 +1,35 @@
+{
+  "note": "The sandbox's FINAL bow rows (sandbox/page @93b1138c7, Dom 2026-10-18, quick-shot numbers unplayed), the values the flip turns on. NOT loaded by the game: RV79 ships every table empty. tests/sandbox-bow-battery.test.ts loads this file into the rules to measure fairness; the flip PR copies it into sandbox-rules-defs.json. The bow weapon is the stand-in the link names (here the knife).",
+  "rules": [
+    { "id": "missileMinGap", "value": 180 },
+    { "id": "missileHoming", "value": 1 },
+    { "id": "missileGuardPosture", "value": 18 },
+    { "id": "missileRadius", "value": 70 },
+    { "id": "missileFan", "value": 22 },
+    { "id": "missileStun", "value": 16 },
+    { "id": "quiver", "value": 1 },
+    { "id": "specialMeleeWindup", "value": 32 },
+    { "id": "specialReact", "value": 1 }
+  ],
+  "missile": [
+    { "weapon": "knife", "archer": 1, "speed": 900, "share": 1000, "windup": 20, "recovery": 0, "ammo": 20, "pierce": 350, "chipKills": 1, "tint": "#e8d9a8" }
+  ],
+  "missileLanes": [
+    { "move": "thrust", "lane": 0, "mult": 1000 },
+    { "move": "light_left", "lane": -1, "mult": 1000 },
+    { "move": "light_right", "lane": 1, "mult": 1000 },
+    { "move": "heavy_overhead", "lane": 0, "mult": 1500 }
+  ],
+  "missileLook": [
+    { "id": "arrow", "height": 120, "length": 95, "radius": 14, "spread": 70, "shaft": "#8a6a43", "head": "#8d9399", "fin": "#7a6a4c" }
+  ],
+  "missileAnswer": [
+    { "id": "warden", "dodge": 15, "guard": 15, "run": 0, "dodgeEarly": 2, "guardLead": 24 }
+  ],
+  "bowSpecial": [
+    { "skill": "cleave", "clip": "Special_BowPower", "label": "Power Shot", "unlockAfterBossKills": 0, "arrows": 2, "lanes": [0], "mult": 2000, "windup": 40, "speed": 700, "react": 1, "posture": 70, "tint": "#fff2c0" },
+    { "skill": "reaping", "clip": "Special_BowFan", "label": "Fan Volley", "unlockAfterBossKills": 1, "arrows": 3, "lanes": [-1, 0, 1], "mult": 600, "windup": 36, "speed": 900, "tint": "#e8d9a8" },
+    { "skill": "stomp", "clip": "Special_BowPin", "label": "Pinning Shot", "unlockAfterBossKills": 2, "arrows": 1, "lanes": [0], "mult": 1000, "windup": 36, "speed": 900, "pin": 90, "posture": 90, "tint": "#d8c8ff" },
+    { "skill": "lunge", "clip": "Special_BowQuick", "label": "Quick Shot", "unlockAfterBossKills": 0, "arrows": 1, "lanes": [0], "mult": 1500, "windup": 7, "speed": 2600, "tint": "#ffffff" }
+  ]
+}
