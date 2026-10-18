@@ -64,7 +64,8 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const record = rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   assert.equal(record.weapon, 'knife');
   const bytes = packRecord(record);
-  assert.equal(bytes[2], NO_PATRON_VERSION);
+  assert.equal(bytes[2], 77, 'a goblin fight is stamped at RV77, the bump that reached it (REACH[77]), above the no-patron era');
+  assert.equal(NO_PATRON_VERSION, 31);
   assert.deepEqual(unpackRecord(bytes), record);
   assert.deepEqual(await decodeRecord(await encodeRecord(record)), record);
   assert.equal(verifyRecord(record).ok, true, 'the replay steps the knife, not the longsword');
