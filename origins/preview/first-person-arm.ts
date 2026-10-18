@@ -1,3 +1,4 @@
+// MERGE NOTE (Strategy, 2026-10-18): this two-bone reach is the sandbox's own; if first person is promoted to the main game, that PR makes ONE reach (this one exported, or the one in src/fight/characters.ts extracted: Combat's choice) and this copy goes. Do not re-solve it elsewhere.
 // First person with the hero's OWN arm, hand and sword (zone sandbox, Dom 2026-10-17: "why build custom things? we have the character: the arms, the hands, the real weapons"). The hero's skinned mesh is shown
 // as it is (his head collapsed so the eye is not inside it); while he is idle his right arm is posed by a two-bone IK to a first-person ready pose (hand low at the lower right, blade up and forward), and when he swings
 // the real attack animation takes over again (blended by weight, so there is no pop). Nothing is cloned or drawn by hand. Run it each frame AFTER the rig's animation and BEFORE the render. Pure: no DOM.
