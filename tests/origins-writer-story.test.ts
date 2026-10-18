@@ -148,6 +148,10 @@ test('the QA account (fighter_profiles.is_test): quest_advance and talk_pick adv
     assert.equal((await step(n, 'smith')).cp, STEP_CP, `qa=${qa}: paid as normal`);
     assert.deepEqual(n.commits[0].batch.map(o => `${o.op}${o.kind ? `:${o.kind}` : ''}`), ['quest_set', 'event:quest-stage', 'event:story-step', 'career_set']);
     assert.equal(n.world().career.world_credit, STEP_CP);
+    // talk_pick takes the same quest step: a blind lookup never aborts the pick and pays as normal
+    const p = fakeDb({ qa });
+    assert.equal((await talkOp(p.ctx, { character: PA, npc: NPC, line: 'offer' })).cp, STEP_CP, `qa=${qa}: talk_pick paid as normal`);
+    assert.equal(p.world().career.world_credit, STEP_CP);
   }
 });
 
