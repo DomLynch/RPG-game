@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadZone } from '../zones/loader.ts';
-const { nodes: KIT_NODES, landmarks: LANDMARK_NODES } = loadZone().kit;
+const { nodes: KIT_NODES, landmarks: LANDMARK_NODES, fixed: FIXED = [] } = loadZone().kit;
+const FIXED_NODES = new Set(FIXED.map((f) => f.node));   // pieces stood by hand (the gate arches at the dungeon doors): at a landmark by design, so the scatter rules below skip them
 import { frontierBuild, frontierPlan, inFirstView, inZone, onRoad } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), K = frontierKit(F, B, D);
@@ -13,13 +14,14 @@ const zones = F.zones.filter((z) => z.region.includes('frontier'));
 test('the kit placement is deterministic and a real amount, every node is one the kit ships', () => {
   assert.deepEqual(frontierKit(F, B, D), K);
   assert.ok(K.placements.length > 100 && K.placements.length < 4000, `${K.placements.length} placements`);
-  for (const p of K.placements) assert.ok((KIT_NODES as readonly string[]).includes(p.node), p.node);
+  for (const p of K.placements) assert.ok((KIT_NODES as readonly string[]).includes(p.node) || FIXED_NODES.has(p.node), p.node);
   for (const n of KIT_NODES) assert.ok(K.placements.some((p) => p.node === n), `${n} is never placed`);
 });
 
 test('every placement stands in a zone, off the west road, clear of landmarks and the dressing solids', () => {
   const marks = [...zones.flatMap((z) => Object.values(z.landmarks)), F.giver.at];
   for (const p of K.placements) {
+    if (FIXED_NODES.has(p.node)) continue;
     assert.ok(zones.some((z) => inZone(z, p.x, p.z)), `${p.node} at ${p.x.toFixed(1)},${p.z.toFixed(1)} is off every zone`);
     assert.ok(!onRoad(F, p.x, p.z), `${p.node} on the west road`);
     for (const m of marks) assert.ok(Math.hypot(m.x - p.x, m.z - p.z) > 6, `${p.node} within 6 m of a landmark`);
