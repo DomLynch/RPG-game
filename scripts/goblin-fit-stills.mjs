@@ -45,7 +45,8 @@ try {
       await skipDraws(page, true); await clock.run(16);
       const ph = await page.evaluate(() => globalThis.__special().fighters.map((x) => ({ phase: x.phase, age: x.age })));
       if (!idle && f >= 150 && ph[0].phase === 'ready' && ph[1].phase === 'ready') { await skipDraws(page, false); await clock.run(16); await page.screenshot({ path: `${tag}-idle.jpg`, type: 'jpeg', quality: 92, timeout: 180000 }); idle = true; continue; }
-      if (idle && ph[1].phase === 'attack' && ph[1].age >= 8) { await skipDraws(page, false); await clock.run(16); await page.screenshot({ path: `${tag}-swing.jpg`, type: 'jpeg', quality: 92, timeout: 180000 }); swing = true; }
+      if (idle && f % 40 === 0) await page.locator('#attack-button').tap({ force: true, timeout: 3000 }).catch(() => {});   // the hero swings now and then so a mid-swing frame exists whatever the goblin does
+      if (idle && ph.some((x) => x.phase === 'attack' && x.age >= 8)) { await skipDraws(page, false); await clock.run(16); await page.screenshot({ path: `${tag}-swing.jpg`, type: 'jpeg', quality: 92, timeout: 180000 }); swing = true; }
     }
     report.push({ ...s, idle, swing, url: await page.evaluate(() => location.search) });
     console.log(s.set, s.name, 'idle', idle, 'swing', swing);
