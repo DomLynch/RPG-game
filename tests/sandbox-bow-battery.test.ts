@@ -53,7 +53,7 @@ const rotateKit = ['cleave', 'reaping', 'stomp', 'lunge'] as const;
 test('an archer hero with the four specials wins at most half its fights against the warden at normal [slow]', () => {
   const rows: string[] = [];
   for (const [name, useSpecial] of [['arrows only', false], ['arrows + specials', true], ['kiter + specials', 'kite']] as const) {
-    let wins = 0, losses = 0, stalls = 0, specials = 0;
+    let wins = 0, losses = 0, stalls = 0, specials = 0, foeLeft = 0, ticks = 0, landed = 0, dodged = 0, blocked = 0;
     for (let s = 1; s <= SEEDS; s++) {
       let x = start(0, 'longsword'), ai = initialAi((s * 2654435761) >>> 0); const profile = profileAt(OPPONENTS.veteran, 12);
       const pick = useSpecial === 'kite' ? kiter : archer(useSpecial);
@@ -61,10 +61,12 @@ test('an archer hero with the four specials wins at most half its fights against
         if (useSpecial && x.fighters[0].skillCooldown === 0) x = { ...x, fighters: [{ ...x.fighters[0], skill: rotateKit[(i >> 6) % 4] as never }, x.fighters[1]] } as never;
         const w = decide(x, 1, ai, profile); ai = w.ai; x = stepDuel(x, [pick(x, 0), w.intent]);
         specials += x.events.filter((e) => e.type === 'MissileLaunched' && e.actor === 0 && e.lane === 0 && x.fighters[0].bowSpecial).length;
+        landed += x.events.filter((e) => e.type === 'Hit' && e.actor === 0 && (e as { missile?: boolean }).missile).length; dodged += x.events.filter((e) => e.type === 'Dodged' && e.actor === 1).length; blocked += x.events.filter((e) => e.type === 'Blocked' && e.actor === 1).length;
       }
+      foeLeft += Math.round(100 * x.fighters[1].health / x.fighters[1].maxHealth); ticks += x.tick;
       if (!x.finish) stalls++; else if (x.finish.draw) losses++; else if (x.finish.victim === 1) wins++; else losses++;
     }
-    rows.push(`${name}: ${wins}W ${losses}L ${stalls}S of ${SEEDS}`);
+    rows.push(`${name}: ${wins}W ${losses}L ${stalls}S of ${SEEDS}; warden hp left avg ${Math.round(foeLeft / SEEDS)}%, fight avg ${Math.round(ticks / SEEDS)} ticks, special arrows ${specials}, arrows landed ${landed}, warden dodged ${dodged}, blocked ${blocked}`);
     assert.ok(wins / SEEDS <= 0.5, `archer ${name} wins ${wins}/${SEEDS} at normal (cap 50 %)\n  ${rows.join('\n  ')}`);
   }
   console.log(`bow hero vs warden (normal)\n  ${rows.join('\n  ')}`);
