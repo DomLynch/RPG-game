@@ -844,11 +844,7 @@
   "60_000": 1
  },
  "origins/server/location.ts": {
-  "200": 9,
-  "400": 5,
-  "401": 1,
-  "404": 1,
-  "500": 2,
+  "500": 1,
   "1500": 2
  },
  "origins/server/mob-rewards.ts": {
@@ -858,15 +854,6 @@
  "origins/server/quest-advance.ts": {
   "64": 2,
   "120": 1
- },
- "origins/server/server.ts": {
-  "200": 1,
-  "400": 1,
-  "401": 1,
-  "404": 1,
-  "409": 1,
-  "500": 1,
-  "503": 1
  },
  "origins/server/shop-buy.ts": {
   "16": 1,
