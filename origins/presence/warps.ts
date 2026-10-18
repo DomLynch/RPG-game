@@ -8,6 +8,8 @@ import MANIFEST from './warp-landmarks.manifest.json' with { type: 'json' };
 import { CENTRE_CM } from './frame.ts';
 import { clearOfTradeAreas, zoneAt } from './zones.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
+import { REGISTRY } from '../zones/registry.ts';
+import { zoneOpen } from '../zones/loader.ts';
 import { arrival } from '../preview/zone-exit.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
 
@@ -23,11 +25,16 @@ export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<
 }
 // A place in Concord metres as presence centimetres, held to the one rule every warp keeps: inside a zone row and clear of the trade areas.
 function placeOf(who: string, mx: number, mz: number): { x: number; z: number } {
+  const bad = placeProblem(mx, mz);
+  if (bad) throw Error(`${who}: ${bad}`);
+  return { x: Math.round(CENTRE_CM + mx * 100), z: Math.round(CENTRE_CM + mz * 100) };
+}
+/** Why a place in Concord metres may not be a warp (null = it may): the one rule every warp keeps, also read by the zone package check (origins/server/zone-package-check.ts). */
+export function placeProblem(mx: number, mz: number): string | null {
   const x = Math.round(CENTRE_CM + mx * 100), z = Math.round(CENTRE_CM + mz * 100);
-  if (!zoneAt(x, z)) throw Error(`${who}: not inside any zone row`);
+  if (!zoneAt(x, z)) return 'not inside any zone row';
   const c = clearOfTradeAreas(x, z);
-  if (c.x !== x || c.z !== z) throw Error(`${who}: inside a trade area`);
-  return { x, z };
+  return c.x !== x || c.z !== z ? 'inside a trade area' : null;
 }
 // The warps the zone exits own (origins/zones/exit-rows.json, Lead 2026-10-17): the exit's `warp` id is where a crossing lands, which is the zone page's own arrival point (arriveM inside the `arrive`
 // landmark of the far zone), so the position is DERIVED from the zone plan and never copied here. A warp id must be new: not in the table and not another exit's.
@@ -41,7 +48,11 @@ export function exitWarps(rows: readonly ExitRow[], taken: ReadonlySet<string> =
   }
   return out;
 }
-const TABLE = loadWarps(DEFS);
+// The warps the OPEN zone packages bring (zone row `warps`, zone package gap 2): merged after the table's rows. A package on an unlisted zone brings none on a normal build (it has no presence zone row yet,
+// so a landing there would be refused), the same rule openExits applies to its doors. A repeated id is refused by the table's own key rule; one that is also an exit's warp by exitWarps below.
+export const packageWarps = (zones: Readonly<Record<string, { warps?: readonly WarpRow[] }>> = REGISTRY, opens: boolean = false): readonly WarpRow[] =>
+  Object.entries(zones).filter(([id]) => zoneOpen(id, opens)).flatMap(([, z]) => z.warps ?? []);
+const TABLE = loadWarps({ landmarks: [...DEFS.landmarks, ...packageWarps()] });
 const WARPS = new Map([...TABLE, ...exitWarps(openExits(undefined, false), new Set(TABLE.keys()))]);
 /** The landmark's place in presence centimetres (the v2 frame), or null for an id the table does not hold. */
 export const warpPlace = (id: string): { x: number; z: number } | null => WARPS.get(id) ?? null;
