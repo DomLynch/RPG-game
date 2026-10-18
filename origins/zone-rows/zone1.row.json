@@ -361,8 +361,8 @@
       }
     ],
     "fixed": [
-      { "node": "landmark_ruin_arch", "at": "cave-mouth", "dx": 0, "dz": 0, "rotDeg": 0, "scale": 1.6, "solid": 0 },
-      { "node": "landmark_ruin_arch", "at": "crypt-mouth", "dx": 0, "dz": 0, "rotDeg": 0, "scale": 1.6, "solid": 0, "optional": true }
+      { "node": "landmark_ruin_arch", "at": "cave-mouth", "dx": 0, "dz": 0, "rotDeg": 0, "scale": 1.6, "solid": 0, "unlistedOnly": true },
+      { "node": "landmark_ruin_arch", "at": "crypt-mouth", "dx": 0, "dz": 0, "rotDeg": 0, "scale": 1.6, "solid": 0, "optional": true, "unlistedOnly": true }
     ]
   },
   "looks": {

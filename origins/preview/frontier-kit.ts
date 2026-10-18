@@ -4,7 +4,7 @@
 import { stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
-import { loadZone } from '../zones/loader.ts';
+import { loadZone, unlistedZonesOpen } from '../zones/loader.ts';
 import { radians } from '../zones/dungeon.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
@@ -46,7 +46,7 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
   // Pieces stood by hand (the zone row's kit.fixed): at a landmark of the plan plus an offset, no density, no free-spot search. Their solids join the walk-blocking circles.
   const marksById = Object.assign({}, ...f.zones.map((q) => q.landmarks)) as Record<string, { x: number; z: number }>;
   for (const p of zone.kit.fixed ?? []) {
-    const a = marksById[p.at]; if (!a) continue;
+    const a = marksById[p.at]; if (!a || (p.unlistedOnly && !unlistedZonesOpen())) continue;
     let at = { x: a.x + p.dx, z: a.z + p.dz }, rotY = radians(p.rotDeg);
     if (p.inZoneFrame) {   // the zone's own frame (a dungeon's enclosure): turned into the world by the mount of the zone that owns the landmark (derive.ts toWorld: local +x = (-cos h, sin h), local +d = (sin h, cos h))
       const h = f.zones.find((q) => q.landmarks[p.at])!.mount.heading, s = Math.sin(h), c = Math.cos(h);

@@ -104,7 +104,7 @@ test('a theme with an enclosure walls every room: pieces stay inside the zone, a
   assert.equal((dungeonParts('bone-hollow') as { kit?: unknown }).kit, undefined, 'the Bone Hollow carries its own kit rows');
 });
 test('a room whose walls would leave the zone is refused, and a zone row may not carry the kit a dungeon theme compiles', () => {
-  const wide = clone(sample); (wide.rooms as { size?: { w: number; d: number } }[])[0]!.size = { w: 12, d: 60 };
+  const wide: Dungeon = { ...sample, rooms: sample.rooms.map((r, i) => (i === 0 ? { ...r, size: { w: 12, d: 60 } } : r)) };
   const theme = (THEMES.themes as DungeonTheme[]).find((t) => t.id === sample.theme)!;
   assert.throws(() => compileDungeon(wide, theme), /outside the 60 x 40 zone/);
 });

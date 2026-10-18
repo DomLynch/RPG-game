@@ -16,7 +16,7 @@ import type { ExitRow } from './exits.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
-export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame?: boolean; optional?: boolean };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none). inZoneFrame (a dungeon theme's enclosure): dx = across, dz = deep in the ZONE's own frame, rotDeg from the zone's +x axis, so the piece follows the zone's mount
+export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number; inZoneFrame?: boolean; optional?: boolean; unlistedOnly?: boolean };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none). inZoneFrame (a dungeon theme's enclosure): dx = across, dz = deep in the ZONE's own frame, rotDeg from the zone's +x axis, so the piece follows the zone's mount
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
@@ -43,7 +43,9 @@ const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Whether a build may open an unlisted zone: ONLY when it was built or run with the explicit opt-in VITE_UNLISTED_ZONES=1. Default off. The live game is the /preview/origins/ bundle (also published at /zone1/), so a base path says nothing about live; only Deploy's sandbox previews for Dom set the flag, never the /zone1/ + /preview/origins/ publish (tests/unlisted-zones-guard.test.ts fails if a publish or deploy script or a .env.production* sets it). Pure on its argument. */
 export const unlistedOpens = (env: { VITE_UNLISTED_ZONES?: string } | undefined): boolean => env?.VITE_UNLISTED_ZONES === '1';
 const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.meta as unknown as { env?: { VITE_UNLISTED_ZONES?: string } }).env ?? (typeof process === 'undefined' ? undefined : process.env);
-const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
+const opensNow = (): boolean => unlistedOpens(buildEnv());
+/** Whether this build opens unlisted zones (the VITE_UNLISTED_ZONES=1 opt-in): the gate arches at Zone 1's dungeon doors (kit.fixed `unlistedOnly`) are drawn only then, so a normal build's Zone 1 is unchanged. */
+export const unlistedZonesOpen = (): boolean => opensNow();   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
 export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
 /** The places of the zones this page sees. An UNLISTED zone is seen only on its own page, EXCEPT its bare joins (a join without `link`: a landmark the package brings into another zone, e.g. a dungeon's door): on a build with the opt-in they apply on every page, so the Zone 1 page can draw the door, and on a normal build they apply nowhere, so Zone 1 stays byte-identical. */

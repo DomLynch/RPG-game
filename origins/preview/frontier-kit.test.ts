@@ -53,3 +53,13 @@ test('Zone 5 (the Bone Hollow): its kit is the dungeon kit, every piece a `fixed
   assert.equal(fixed.filter((p) => p.node === 'cave_doorway').length, 2, 'a doorway at each end');
   assert.equal(K5.solids.length, fixed.filter((p) => p.solid > 0).length);
 });
+
+test('the gate arches at the Zone 1 dungeon doors are drawn only on a build that opens unlisted zones (a normal build keeps Zone 1 as it was)', () => {
+  const was = process.env.VITE_UNLISTED_ZONES, arches = () => { const f = frontierPlan(), b = frontierBuild(f); return frontierKit(f, b, frontierDress(f, b)).placements.filter((p) => p.node === 'landmark_ruin_arch'); };
+  try {
+    delete process.env.VITE_UNLISTED_ZONES;
+    assert.deepEqual(arches(), [], 'no arch on a normal build');
+    process.env.VITE_UNLISTED_ZONES = '1';
+    assert.equal(arches().length, 2, 'the cave door and the crypt door');
+  } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; }
+});
