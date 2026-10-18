@@ -35,6 +35,7 @@ Mixamo FBX are NOT in git: `/srv/dev-jobs/mixamo-drop/mixamo` on the VPS (privat
 
 | Slice | Path | Kind | State | Owner | Trunk already has | Port status |
 |---|---|---|---|---|---|---|
+| d | MELEE SPECIAL REACH (Dom 2026-10-18, "short-mid, a tad more than a normal attack"), commit 3b118938e: rows `specialMeleeReach` 220 cm + `specialMeleeSlack` 40 (sandbox-rules-defs.json 0 = trunk); `sandbox-rules.ts` `meleeSpecialReach`; `duel.ts` press refused beyond reach with the `far` cue (nothing spent), release whiffs (`SpecialFizzled`) beyond reach + slack (before: no range check at release); `ai.ts` casts inside the same reach. Fixes a special landing from across the arena. 231 sandbox/special tests green on the VPS. | code (SIM: RV bump, WSV) + rows | DONE | Combat | no | TODO |
 | d | `src/fight/duel.ts` `specialMeleeWindup`, `specialReact` (stagger/knock/posture rows), `specialReactFloor`; `src/fight/hit-impact.ts` `special` tier; `src/fight/sound/cues.ts` `specialSound` | code (SIM: RV bump, WSV, batteries) | DONE | Combat | no; trunk has `special-look.ts`, `special-modes.ts`, cc-defs | TODO |
 | d | Four specials Skull Crack / Whirlwind / Ground Slam / Lunge on every melee weapon | feature | DONE (Dom approved) | Combat | no | TODO |
 | d | `src/fight/special-shards.ts` (MIT port of World of Claudecraft chips; rows empty by default), `specialTrail` rows | code (view) | DONE | Combat | no | TODO |
