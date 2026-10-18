@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createOutfit, dropSet, groundItemOf, weaponPiece } from './outfit.ts';
-import { groundLook } from './ground-looks.ts';
+import { dropLook } from './ground-looks.ts';
 import type { Loadout } from '../world/loadouts-rules.ts';
 
 const row = { id: 'x', label: 'X', tier: 'medium', weapon: 'gladius', pieces: ['goblin.Helmet', 'goblin.Body', 'goblin.Boots'] } as unknown as Loadout;
@@ -42,7 +42,7 @@ test('every piece the loadouts can drop has a ground look row (armour by its id,
   assert.equal(groundItemOf('goblin.Warhammer'), 'loot:weapon.Warhammer');
   assert.equal(groundItemOf('executioner.Maul'), 'loot:weapon.Maul');
   const missing: string[] = [];
-  for (const id of loadoutIds()) for (const piece of dropSet(loadoutRow(id), 'x', 0)) { try { groundLook(groundItemOf(piece)); } catch { missing.push(piece); } }
+  for (const id of loadoutIds()) for (const piece of dropSet(loadoutRow(id), 'x', 0)) { try { dropLook(groundItemOf(piece)); } catch { missing.push(piece); } }
   assert.deepEqual([...new Set(missing)], [], 'every droppable piece lies as itself (the gloves are the kit-wide ~kit.Gloves draws)');
 });
 
