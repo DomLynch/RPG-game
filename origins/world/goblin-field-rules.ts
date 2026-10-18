@@ -3,7 +3,7 @@
 // A palette row is one direction for the dome, smoke and fire light (Zone sandbox, 2026-10-15: field = World's first pass, ash, marsh, dusk); its `haze` names the zone row look (fog, light, ground tint).
 // Pure, and page- and server-safe. Every number the look module reads is a row; a missing or non-positive named rule is refused.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
-import { ambienceRow } from './props-rules.ts';
+import { ambienceRow, dressSet, kitIds } from './props-rules.ts';
 import { skinIds } from './building-skins-rules.ts';
 import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
@@ -68,6 +68,14 @@ export function zoneCamp(z: ZoneLookFields): string | null {
   const at = zoneSet(z, 'look.props.camp');
   return typeof at === 'string' && at && z.world.includes(at) ? at : (z.world[0] ?? null);
 }
+/** The kit a zone row asks for (`look.props.kit`, an id in props-defs.json) and the world zone it stands in (`look.props.camp`, a world zone of this zone, else its first); null = none. `rim`: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too. */
+export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean } | null {
+  const kit = zoneSet(z, 'look.props.kit'); if (typeof kit !== 'string' || !kitIds().includes(kit)) return null;
+  const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
+  return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;
+}
+/** The clutter multipliers a zone asks for (`look.dress`, a dress set id); unset = the base clutter as it was. */
+export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress') as string | undefined);
 /** The building skin a zone asks for (`look.buildings`, an id in building-skins.json); '' = the brick blocks as they were. */
 export const zoneBuildings = (z: ZoneLookFields): string => { const v = zoneSet(z, 'look.buildings'); return typeof v === 'string' && skinIds().includes(v) ? v : ''; };
 /** The ground a zone asks for (`look.ground.material` naming a ground row; an id with no row, like the biomes' old "ash", leaves the Frontier's own dirt). */
