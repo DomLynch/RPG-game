@@ -32,9 +32,9 @@
     { "id": "goblin.t6.maul", "label": "Praetorian maul", "tier": "heavy", "weapon": "maul", "rung": "Praetorian", "look": "/looks/goblin-L6.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Greaves", "goblin.Boots"] },
     { "id": "goblin.t7.longsword", "label": "Master longsword", "tier": "heavy", "weapon": "longsword", "rung": "Master", "look": "/looks/goblin-L7.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] },
     { "id": "goblin.t7.estoc", "label": "Master estoc", "tier": "heavy", "weapon": "estoc", "rung": "Master", "look": "/looks/goblin-L7.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] },
-    { "id": "troll.pit.t4.cleaver", "label": "Veteran cleaver (pitborn kit)", "tier": "heavy", "weapon": "cleaver", "rung": "Veteran", "pieces": ["pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
-    { "id": "troll.pit.t6.warhammer", "label": "Praetorian warhammer (pitborn kit)", "tier": "heavy", "weapon": "warhammer", "rung": "Praetorian", "pieces": ["pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
-    { "id": "troll.pit.t5.maul", "label": "Champion maul (pitborn kit)", "tier": "heavy", "weapon": "maul", "rung": "Champion", "pieces": ["pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
-    { "id": "troll.pit.t7.cleaver", "label": "Master cleaver (pitborn kit)", "tier": "heavy", "weapon": "cleaver", "rung": "Master", "pieces": ["pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] }
+    { "id": "troll.pit.t4.cleaver", "label": "Veteran cleaver (pitborn kit)", "tier": "heavy", "weapon": "cleaver", "rung": "Veteran", "pieces": ["pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
+    { "id": "troll.pit.t6.warhammer", "label": "Praetorian warhammer (pitborn kit)", "tier": "heavy", "weapon": "warhammer", "rung": "Praetorian", "pieces": ["pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
+    { "id": "troll.pit.t5.maul", "label": "Champion maul (pitborn kit)", "tier": "heavy", "weapon": "maul", "rung": "Champion", "pieces": ["pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
+    { "id": "troll.pit.t7.cleaver", "label": "Master cleaver (pitborn kit)", "tier": "heavy", "weapon": "cleaver", "rung": "Master", "pieces": ["pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] }
   ]
 }
