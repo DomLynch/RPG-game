@@ -130,7 +130,6 @@ if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
 const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
 if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
-if (zoneKit) console.info('[kit-debug]', JSON.stringify(zoneKit.placements.filter((p) => p.node === 'landmark_ruin_arch')), JSON.stringify(zoneKit.landmarks.map((l) => [l.node, Math.round(l.x), Math.round(l.z)])));
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 // The hills (frontier-relief.ts): flat pads under everything the plan and the dressing put down, hills in the open ground between; ?relief=0 is the kill switch. groundY is the ground under a world point (0 off the Frontier).
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
@@ -151,7 +150,7 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 let frontierGroup: THREE.Group | null = null;
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => { frontierGroup?.add(g); g.children.forEach((c) => { const im = c as THREE.InstancedMesh; if (/ruin_arch/.test(im.name)) { const mm = new THREE.Matrix4(), v = new THREE.Vector3(), out: number[][] = []; for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, mm); v.setFromMatrixPosition(mm); out.push([Math.round(v.x), +v.y.toFixed(1), Math.round(v.z), +mm.elements[0]!.toFixed(2)]); } console.info('[kit-debug2]', im.name, im.count, JSON.stringify(out), JSON.stringify(im.boundingSphere), im.visible, frontierGroup?.visible); } }); }).catch(() => {});   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first

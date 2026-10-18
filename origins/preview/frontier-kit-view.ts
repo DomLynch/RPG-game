@@ -20,9 +20,10 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
     if (!mesh.isMesh || !list?.length) return;
     const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, list.length);
     inst.name = o.name; inst.castShadow = !NO_SHADOW.test(o.name); inst.receiveShadow = true;
+    const bare = mesh.matrixWorld.clone().setPosition(0, 0, 0);   // a hand-stood piece (kit.fixed) stands where its row says: the node's authored position in the kit file (a landmark node sits 37 m off the origin) is dropped
     list.forEach((p, i) => {   // the node's own transform in the file first, then the placement on the ground
       place.compose(new THREE.Vector3(p.x, groundAt(p.x, p.z), p.z), q.setFromAxisAngle(up, p.rotY), new THREE.Vector3(p.scale, p.scale, p.scale));
-      inst.setMatrixAt(i, m.multiplyMatrices(place, mesh.matrixWorld));
+      inst.setMatrixAt(i, m.multiplyMatrices(place, p.fixed ? bare : mesh.matrixWorld));
     });
     inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); group.add(inst);
   });
