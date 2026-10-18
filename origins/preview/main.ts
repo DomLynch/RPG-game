@@ -903,6 +903,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
+  heroFist: () => { const a = warriors?.player, h = a?.boneWorld('hand_r'), f = a?.boneWorld('middle_01_r'); return h && f ? +h.distanceTo(f).toFixed(3) : null; },   // the browser checks: the hero's hand-to-knuckle length (grip fitting)
   regenQuiet: () => wc.regenQuiet(),   // the browser checks: how long he has been out of combat
   hurt: (amount: number) => wc.debugHurt(amount),   // the browser checks: a known hurt, to time the regeneration without a fight
   fell: (id: string) => { const m = mobs?.find(id); if (!m) return false; creatureFell(m.spec); return true; },   // the browser checks: the creature falls through the real fall path (drops, toast), without a fight

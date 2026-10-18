@@ -26,9 +26,37 @@ export function boneRatios(source: THREE.Skeleton, rig: THREE.Skeleton): Map<str
   return out;
 }
 
+/** Bones the body's skin never uses (the troll's hand and fingers: its claws are skinned to the forearm), each mapped to its nearest ancestor that does carry skin. A weapon or glove hung on such a bone floats away from the
+ *  visible hand; hung on the ancestor it follows the claw. Empty for a body whose bones all carry skin (the goblin). */
+export function unweightedBones(body: THREE.SkinnedMesh): Map<string, string> {
+  const si = body.geometry.getAttribute('skinIndex'), sw = body.geometry.getAttribute('skinWeight'), bones = body.skeleton.bones, used = new Array<number>(bones.length).fill(0);
+  if (!si || !sw) return new Map();
+  const main = fxNum('fit.skin-min-weight');   // a bone counts as carrying skin only where it is the vertex's MAIN driver: the troll's hand bones carry a trace of weight but no claw
+  for (let j = 0; j < si.count; j++) for (let c = 0; c < 4; c++) if (sw.getComponent(j, c) >= main) used[si.getComponent(j, c)] = (used[si.getComponent(j, c)] ?? 0) + sw.getComponent(j, c);
+  const out = new Map<string, string>(), byName = new Map(bones.map((b, i) => [b.name, i] as const));
+  bones.forEach((bone, i) => {
+    if (used[i]! > 0) return;
+    let up = bone.parent, at = up ? byName.get(up.name) : undefined;
+    while (up && (at === undefined || used[at]! <= 0)) { up = up.parent; at = up ? byName.get(up.name) : undefined; }
+    if (up && at !== undefined) out.set(bone.name, up.name);
+  });
+  return out;
+}
+
 /** The pieces re-fitted to the rig: each a clone sharing the geometry and material, on a copy of its skeleton whose inverse binds carry the per-bone ratio. One new skeleton per source skeleton. */
-export function fitPieces(pieces: readonly THREE.SkinnedMesh[], rig: THREE.Skeleton): THREE.SkinnedMesh[] {
+export function fitPieces(pieces: readonly THREE.SkinnedMesh[], rig: THREE.Skeleton, remap: ReadonlyMap<string, string> = new Map()): THREE.SkinnedMesh[] {
   const fitted = new Map<THREE.Skeleton, THREE.Skeleton>(), rigNames = new Set(rig.bones.map((b) => b.name));
+  // A piece skinned to a bone the body does not skin (a glove on the troll's hand bone) is re-skinned to that bone's ancestor that the body does skin (the forearm), on a copy of its geometry (only such pieces are copied).
+  const reskin = (piece: THREE.SkinnedMesh): THREE.BufferGeometry => {
+    if (!remap.size || !piece.skeleton) return piece.geometry;
+    const names = piece.skeleton.bones.map((b) => b.name), to = names.map((n) => { const a = remap.get(n); return a === undefined ? -1 : names.indexOf(a); });
+    const si = piece.geometry.getAttribute('skinIndex'); if (!si || !to.some((t) => t >= 0)) return piece.geometry;
+    let touched = false; for (let j = 0; j < si.count && !touched; j++) for (let c = 0; c < 4; c++) if (to[si.getComponent(j, c)]! >= 0) { touched = true; break; }
+    if (!touched) return piece.geometry;
+    const g = piece.geometry.clone(), gi = g.getAttribute('skinIndex');
+    for (let j = 0; j < gi.count; j++) for (let c = 0; c < 4; c++) { const t = to[gi.getComponent(j, c)]!; if (t >= 0) gi.setComponent(j, c, t); }
+    return g;
+  };
   return pieces.map((piece) => {
     if (!piece.skeleton) return piece;
     if (!piece.skeleton.bones.every((b) => rigNames.has(b.name))) return piece;   // scope: a biped rig with the hero's own bone names (troll, goblin); any other skeleton keeps the engine's plain retarget, no promise made
@@ -46,6 +74,6 @@ export function fitPieces(pieces: readonly THREE.SkinnedMesh[], rig: THREE.Skele
       }));
       fitted.set(piece.skeleton, skeleton);
     }
-    const copy = piece.clone(); copy.skeleton = skeleton; return copy;
+    const copy = piece.clone(); copy.geometry = reskin(piece); copy.skeleton = skeleton; return copy;
   });
 }
