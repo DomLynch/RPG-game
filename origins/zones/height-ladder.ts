@@ -3,7 +3,7 @@
 // render.scale): not the raw scale factor. A creature over its zone's cap is refused by the zone validator (zoneProblems) unless a named exception row (with its reason) lets it through. Pure: rows in, problems out.
 // Length is recorded beside height (the same script) but only height is checked: Dom is deciding whether "size" means the biggest dimension.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
-import { catalogueRow } from '../../src/fight/catalogue-rows.ts';
+import { catalogueRow } from '../../src/fight/index.ts';   // the engine's door (K7: a zone reaches the catalogue through it)
 import DEFS from './height-ladder.json' with { type: 'json' };
 import MANIFEST from './height-ladder.manifest.json' with { type: 'json' };
 
