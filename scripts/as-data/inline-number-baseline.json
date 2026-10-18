@@ -827,10 +827,6 @@
  "origins/server/live-ops.ts": {
   "60_000": 1
  },
- "origins/server/location.ts": {
-  "500": 1,
-  "1500": 2
- },
  "origins/server/shop-buy.ts": {
   "16": 1,
   "32": 1

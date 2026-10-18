@@ -91,5 +91,13 @@
       "verifyJobMs": 3000,
       "note": "how long the sign-in check waits for Supabase before the token counts as bad (ms); how long one database script may run before it is killed (ms); how many world-record replays may wait for the verifier thread before 'busy', and how long one replay may take (ms)"
     }
+  ],
+  "strictFlip": [
+    {
+      "id": "flip",
+      "minKills": 50,
+      "minRate": 0.95,
+      "note": "when the world-reward strict flags may go on (audit 2026-10-18, Strategy: a beta-opening gate): ORIGINS_SPAWN_REFUSE_UNCHECKED once at least minKills kills since the writer started were reach-checked at minRate or better; ORIGINS_WORLD_RECORD_SCORECARD_ONLY once at least minKills kills carried a record that verified at minRate or better. Read by the writer's /internal/world-records readout; the flags themselves are set by Deploy on Lead's word"
+    }
   ]
 }

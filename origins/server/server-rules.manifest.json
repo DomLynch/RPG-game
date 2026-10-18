@@ -123,6 +123,17 @@
         "verifyJobMs": "integer",
         "note": "string"
       }
+    },
+    {
+      "table": "strictFlip",
+      "file": "server-rules.json",
+      "at": "strictFlip",
+      "key": "id",
+      "required": {
+        "minKills": "integer",
+        "minRate": "number",
+        "note": "string"
+      }
     }
   ]
 }

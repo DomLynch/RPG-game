@@ -7,27 +7,24 @@
 // warden does at that level, and `decide()` applies the same reaction cap. tests/coach.test.ts pins that no stance brain touches them and that none is faster than the quickest AI profile.
 import { decide, initialAi, type AiState } from './fight/ai.ts';
 import { present } from './present-rows.ts';
+import { COACH_BRAINS, FOE_LAPSE, FOE_LAPSE_SCALE } from './coach-rows.ts';
 import { idleIntent, type Duel, type Intent } from './fight/duel.ts';
 import { PROFILES, type AiProfile, type Level } from './fight/moves.ts';
 import { PICKS, type PickedStance } from './fight/stance.ts';
 
 // The knobs a stance brain may set: how it PLAYS (cadence, guard, feints, kicks), never how fast it sees. Numbers are the stance battery's BY_STANCE brains (scripts/stance-battery.mjs), which
 // Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile with the coach's own lapse and read (every stance sets them, RV-free tuning in #1809), and coachProfile adds the per-foe lapse on top.
-export const COACH_BRAINS: Readonly<Record<PickedStance, Partial<AiProfile>>> = {
-  neutral: { lapse: 0.5, read: 0.5 },
-  aggressive: { aggression: 0.9, parry: 0.2, lapse: 0.6, read: 0.45 },
-  defensive: { parry: 0.7, dodge: 0.1, aggression: 0.35, guard: 1, lapse: 0.4, read: 0.6 },
-  trickster: { feint: 0.5, kick: 0.6, aggression: 0.7, parry: 0.2, lapse: 0.5, read: 0.5 },
-};
+// The numbers are the `coachStance` rows' `brain` (src/coach-defs.json), read by src/coach-rows.ts.
+export { COACH_BRAINS, FOE_LAPSE, FOE_LAPSE_SCALE };
 // What a brain must leave alone: the noticing and timing limits it shares with the warden.
 export const COACH_FIXED: readonly (keyof AiProfile)[] = ['reaction', 'tellReaction', 'anticipate', 'accuracy', 'discipline'];
 // Per-foe strength (Combat, 2026-10-08, scripts/coach-battery.mjs n=100 at L6): one lapse for every foe left the coach winning 92-99 % against the easy ones and 29-47 % against the Plague Doctor. Strategy's target is 70-80 % in a good
 // matchup, 35-45 % in a bad one, so the lapse (the share of cuts the coach does not answer) moves by foe, added to the stance's own. A foe not listed adds nothing. Only lapse moves: reaction, tell reaction, anticipate, accuracy and
 // discipline stay the warden's own (COACH_FIXED), so the coach is never faster than the foe's eye.
-export const FOE_LAPSE: Readonly<Record<string, number>> = { goblin: 0.15, nightborn: 0.08, executioner: 0.2, dwarf: 0.25, knight: 0.18, shieldmaiden: 0.08, plaguedoctor: -0.1 };
+// (the `coachFoe` rows, coach-defs.json)
 // The first n=100 table showed the stances answer lapse very differently: the defensive brain (it lives on its answers) fell from 62 % to 42 % against the Executioner on +0.2, while the aggressive one barely moved (99 % -> 93 %). So the
 // per-foe amount is scaled by how much each stance leans on answering.
-export const FOE_LAPSE_SCALE: Readonly<Record<PickedStance, number>> = { neutral: 1, aggressive: 1.8, defensive: 0.35, trickster: 0.8 };
+// (the `coachStance` rows' `lapseScale`)
 const LAPSE_MIN = present('coach-lapse-min'), LAPSE_MAX = present('coach-lapse-max');
 export const coachProfile = (stance: PickedStance, level: Level = 'normal', foe?: string): AiProfile => {
   const p = { ...PROFILES[level], ...COACH_BRAINS[stance] }, add = foe ? FOE_LAPSE[foe] : undefined;
