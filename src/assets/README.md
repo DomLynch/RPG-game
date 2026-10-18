@@ -805,9 +805,9 @@ Hamstrung pattern: adopted on demand by `characters.ts`, `warrior.glb` untouched
 | `Special_SkullCrack` | Adobe Mixamo "Standing Melee Attack Downward" (FBX binary, 30 fps, no skin, no keyframe reduction) | Mixamo terms (royalty-free in games; no raw redistribution, no ML training) | 2026-10-17 (Dom's Adobe ID) |
 | `Special_Whirlwind` | Adobe Mixamo "Standing Melee Attack 360 High" (same settings) | same | 2026-10-17 |
 | `Special_GroundSlam` | Adobe Mixamo "Standing Melee Run Jump Attack" (the file carries root motion; the horizontal hip travel, 3.4 m, is dropped) | same | 2026-10-17 |
-| `Special_Lunge` | Adobe Mixamo "Sword And Shield Attack" (root motion stripped; 2026-10-18 replaces the UAL2 `Sword_Dash`, whose held-high sword read as a cast pose, not a thrust) | same | 2026-10-17 (Dom's Adobe ID) |
+| `Special_Lunge` | Adobe Mixamo "Standing Torch Melee Attack Stab" (FBX binary, 30 fps, no skin; the front foot steps ~1 m, root motion stripped; 2026-10-18 replaces the UAL2 `Sword_Dash`, whose held-high sword read as a cast pose, not a thrust) | same | 2026-10-18 (Dom's Adobe ID) |
 
-Not used: Mixamo "Sword And Shield Attack" / "-2" (both carry 2.7-3.7 m of root motion, a one-hand lunge the UAL2 dash already covers), "Sword And Shield
+Not used: Mixamo "Sword And Shield Attack" / "-2" (a looping slash, not a stab: the hand sweeps 0.7 m sideways; and a jump), "Sword And Shield
 Slash", "Mutant Swiping" (kept in the private drop folder for the Side Head-Smash and Reaping Sweep). Retarget: `scripts/character/mixamo_dump.py`
 (Blender, headless) writes each FBX's world bone poses to a private JSON; the build aims each of OUR 52 bones along the source bone's direction with the
 source twist, so the T-pose vs A-pose rest difference never matters; the UAL2 clip shares our skeleton and takes the build-warrior.mjs rest correction.

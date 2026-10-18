@@ -32,6 +32,7 @@ for (const special of SPECIALS) {
   await skipDraws(page, true);
   for (let n = 0; n < Number(arg('wait', '160')); n++) await run(n % 3 === 2 ? 16 : 17);   // the first-cast wait
   await skipDraws(page, false); await run(17);
+  await page.waitForTimeout(2500); await run(17); await page.waitForTimeout(500);   // the special's clip is fetched on the first draw (characters.ts specialMove) in real time: let it land, or the first cast plays the heavy's raise instead of the clip
   await page.locator(button).tap();
   await skipDraws(page, true);
   const steps = Math.round(SECONDS * 60), shots = Math.floor(steps / 2); let best = { alive: -1, file: '' }, k = 0; const seen = [];
@@ -40,6 +41,7 @@ for (const special of SPECIALS) {
       await skipDraws(page, false); await run(17);
       const file = `${dir}/f${String(k++).padStart(5, '0')}.jpg`;
       await page.screenshot({ path: file, type: 'jpeg', quality: 88 });
+      if (arg('trace', '') && k % 6 === 0) console.log(`  trace f${k}`, await page.evaluate(() => { const m = globalThis.__sandboxMatch?.practice?.duel, f = m?.fighters?.[0]; return [`tick ${m?.tick}`, f?.phase, `move ${f?.move ?? f?.lastMove}`, `age ${f?.age}`, `special ${f?.special}`, `recover ${f?.specialRecover}`, `foe stun ${m?.fighters?.[1]?.stun}`, `playing ${globalThis.__view?.playing?.()}`].join(' | '); }));   // --trace 1: the caster's state every 6th picture
       const alive = await page.evaluate(() => globalThis.__view?.probe?.().skillImpact?.alive ?? 0);
       if (alive > best.alive) best = { alive, file };
       const clip = (await page.evaluate(() => globalThis.__view?.playing?.() ?? '')).split(' ')[0]?.split('@')[0] ?? '';   // the player's dominant clip, `role:clip`
