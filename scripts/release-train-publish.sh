@@ -61,15 +61,23 @@ deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-
 # Pending post-publish CI tails (Lead 2026-10-18, #3177): the publisher writes $state/post-publish-pending-<rev8> (rev, rows, at) before it releases the hold, the tail records its pid in it and
 # removes it when it finishes. A tail that is still alive is the overlap Lead allowed; a marker whose tail is DEAD (Mac sleep, reboot) or never started within the grace holds the next publish:
 # nobody proved those rows, and "trust silently" is the one thing this never does. Remove the marker after looking at that release's CI.
+# THE RULES OF THE OVERLAP (Lead + Strategy, standing procedure 2026-10-18):
+#   - at most MAX_PENDING_TAILS (release-train.env, 2) releases have an unconfirmed detached tail at once; a further publish waits until the oldest tail reports;
+#   - a RED tail from release N is fixed forward against whatever is live at that moment, named on that cut's thread, and never silently re-trusted (the tail writes deploy_hold and the
+#     train starts nothing until a person has looked);
+#   - a tail that died (pid gone) holds the next publish (the loop below).
+pending=0
+cap=${MAX_PENDING_TAILS:-$(sed -n 's/^export MAX_PENDING_TAILS=\([0-9][0-9]*\).*/\1/p' "${RELEASE_TRAIN_ENV:-$state/release-train.env}" 2>/dev/null | head -n 1)}
 for m in "$state"/post-publish-pending-*; do
   [ -e "$m" ] || continue
   case "$m" in *.told) continue;; esac
   mp=$(sed -n 's/^pid=//p' "$m" | head -n 1); mat=$(sed -n 's/^at=//p' "$m" | head -n 1)
-  if [ -n "$mp" ] && kill -0 "$mp" 2>/dev/null; then continue; fi
-  if [ -z "$mp" ] && [ $(( $(date +%s) - ${mat:-0} )) -lt "${POSTCHECK_START_GRACE_S:-300}" ]; then continue; fi
+  if [ -n "$mp" ] && kill -0 "$mp" 2>/dev/null; then pending=$((pending + 1)); continue; fi
+  if [ -z "$mp" ] && [ $(( $(date +%s) - ${mat:-0} )) -lt "${POSTCHECK_START_GRACE_S:-300}" ]; then pending=$((pending + 1)); continue; fi
   [ -n "$dry" ] || [ -e "$m.told" ] || { touch "$m.told"; [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI tail for $(sed -n 's/^rev=//p' "$m" | head -n 1) died before it finished" || true; }
   skip "post-publish CI tail marker $m is stale (tail pid ${mp:-never started} is not running; rows $(sed -n 's/^rows=//p' "$m" | head -n 1) for $(sed -n 's/^rev=//p' "$m" | head -n 1) were never proved on CI): holding; look at that release's CI, then remove the marker"
 done
+if [ "${cap:-0}" -gt 0 ] 2>/dev/null && [ "$pending" -ge "$cap" ]; then skip "$pending detached post-publish tail(s) still unconfirmed (MAX_PENDING_TAILS=$cap): the next publish waits until the oldest reports"; fi
 if [ -e "$hold" ]; then   # held by a person (no pid), by a live publisher, or STALE: a publisher killed mid-publish (its pid is dead, no stopped file)
   hp=$(head -n 1 "$hold" 2>/dev/null | tr -cd '0-9')
   if [ -n "$hp" ] && ! kill -0 "$hp" 2>/dev/null; then

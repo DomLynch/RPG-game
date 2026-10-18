@@ -249,6 +249,26 @@ test('publisher (#3177): a post-publish tail marker whose tail is DEAD, or never
   } finally { rmSync(fresh.dir, { recursive: true, force: true }); }
 });
 
+test('publisher (Lead cap): with MAX_PENDING_TAILS=2 a third publish waits while two live tails are unconfirmed; one live tail, no cap, or a cap of 0 do not block', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const withTails = (n: number) => { const p = publisher(); for (let i = 0; i < n; i++) writeFileSync(join(p.state, `post-publish-pending-aaaaaa0${i}`), `rev=${'a'.repeat(40)}\nrows=9\nat=${now - 60}\npid=${process.pid}\n`); return p; };
+  const two = withTails(2);
+  try {
+    const r = two.run({ MAX_PENDING_TAILS: '2' });
+    assert.match(r.stdout, /2 detached post-publish tail\(s\) still unconfirmed \(MAX_PENDING_TAILS=2\): the next publish waits/);
+    assert.doesNotMatch(two.calls(), /git push|deploy/, 'nothing publishes');
+  } finally { rmSync(two.dir, { recursive: true, force: true }); }
+  const one = withTails(1);
+  try { assert.match(one.run({ MAX_PENDING_TAILS: '2' }).stdout, /published #2400/, 'one live tail is under the cap'); } finally { rmSync(one.dir, { recursive: true, force: true }); }
+  const free = withTails(2);
+  try { assert.match(free.run().stdout, /published #2400/, 'no cap set: unlimited, as before'); } finally { rmSync(free.dir, { recursive: true, force: true }); }
+  const fromEnvFile = withTails(2);
+  try {
+    writeFileSync(join(fromEnvFile.state, 'release-train.env'), 'export MAX_PENDING_TAILS=2   # Lead\n');
+    assert.match(fromEnvFile.run().stdout, /MAX_PENDING_TAILS=2/, 'the cap is DATA: read from release-train.env');
+  } finally { rmSync(fromEnvFile.dir, { recursive: true, force: true }); }
+});
+
 test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {
   const p = publisher();
   try {
