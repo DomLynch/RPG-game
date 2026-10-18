@@ -21,6 +21,8 @@ import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
+import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { createLoadoutGate } from './loadout-gate.ts';
@@ -376,8 +378,11 @@ function step(dt: number) {
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
+  warriors?.player.anchor.getObjectByName('Head')?.scale.setScalar(firstPerson ? 0.001 : 1);   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it; the body, arms and weapon stay in view
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap'), bobJumpM: fxNum('fp.bob-jump-m'), bobWalkMps: fxNum('fp.bob-walk-mps'), bobFade: fxNum('fp.bob-fade') } } : {}) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
   applyCombatView();
+  fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
+  if (firstPerson) { const k = fpArm.kick(), fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); camera.rotateZ(-k.lat * fxNum('fp.kick-roll')); camera.rotateY(-k.lat * fxNum('fp.kick-yaw')); camera.position.addScaledVector(fwd, k.fwd * fxNum('fp.kick-lunge')); }   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -422,6 +427,11 @@ function showZone(id: string | null) {
 // The follow camera only places the camera; what a fight adds to the lens (a lift off the thumb buttons, fov, zoom) is applied here, only when it changed.
 const COMBAT_CAM = /[?&;]combatcam=0\b/.test(location.search) ? undefined : wideCombatCam(), BASE_FOV = camera.fov, MAN_M = previewRule('camPSizeFrom');
 let lastView = '';
+// First person (the ☰ menu's View setting, Dom 2026-10-17; first-person-arm.ts): the camera is the hero's head and his own right arm holds his own sword between swings. Default stays over the shoulder; `?view=first|third` overrides the saved setting for a link.
+const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { return localStorage.getItem(BOB_KEY) !== 'off'; } catch { return true; } })();   // head bob on unless the player turned it off (the ☰ menu)
+const fpArm = createFirstPersonArm();
+const fpPose = (): ArmPose => ({ handRight: fxNum('fp.hand-right'), handUp: fxNum('fp.hand-up'), handForward: fxNum('fp.hand-forward'), poleRight: fxNum('fp.pole-right'), poleUp: fxNum('fp.pole-up'), poleForward: fxNum('fp.pole-forward'), bladeRight: fxNum('fp.blade-right'), bladeUp: fxNum('fp.blade-up'), bladeForward: fxNum('fp.blade-forward'), rate: fxNum('fp.arm-rate'), kickRest: fxNum('fp.kick-rest') });
+const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());
 const foeSizes = new Map<string, number>();
 const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
   let s = foeSizes.get(id); if (s !== undefined) return s;
@@ -682,6 +692,16 @@ if (frontier) {
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
     paint();
+    if (chips) {   // View: over the shoulder (the main game's camera B) or first person (Dom 2026-10-17); a setting on this device, ?view=first|third overrides it for a link
+      const v = document.createElement('button'); v.id = 'menu-view';
+      const paintView = () => { v.textContent = `View: ${firstPerson ? 'First person' : 'Over the shoulder'}`; v.setAttribute('aria-pressed', String(firstPerson)); };
+      v.addEventListener('click', () => { firstPerson = !firstPerson; try { localStorage.setItem(VIEW_KEY, firstPerson ? 'first' : 'third'); } catch { /* storage blocked */ } followCam.snap(); lastView = ''; paintView(); });
+      paintView(); chips.append(v);
+      const b = document.createElement('button'); b.id = 'menu-head-bob';   // first person only matters, but the setting is kept either way
+      const paintBob = () => { b.textContent = `Head bob: ${headBob ? 'On' : 'Off'}`; b.setAttribute('aria-pressed', String(headBob)); };
+      b.addEventListener('click', () => { headBob = !headBob; try { localStorage.setItem(BOB_KEY, headBob ? 'on' : 'off'); } catch { /* storage blocked */ } paintBob(); });
+      paintBob(); chips.append(b);
+    }
   }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
 }
 const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
