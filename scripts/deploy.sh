@@ -378,6 +378,7 @@ POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.
 # The deferred non-Mac group goes to the GitHub runners (post_publish_ci_start: CI-trusted by tree, else one release-checks dispatch, returns at once); the Mac group below, which can roll the
 # release back, never waits on CI; post_publish_ci_collect then waits for the run and leaves only what CI could not prove for the Mac.
 pp_all="$post_publish"
+if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && "${TAIL_MIN_INTERVAL_S:-0}" =~ ^[1-9][0-9]*$ ]]; then export POST_PUBLISH_DISPATCH=true; fi   # coalesced window (release-train.env): the window's tail dispatches ONE CI run for the newest member, not one per release
 pp_open=$(post_publish_ci_start "$revision" "$post_publish")
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0
@@ -400,8 +401,16 @@ if (( mac_rc == 0 )); then   # a rolled-back or failed Mac group: no CI wait, po
     # Overlapping publishes (Lead GO 2026-10-18, Dom): the live read-backs and the rollback-capable Mac group are done, so the hold may release now. The rows CI has not finished are NOT
     # waited for here: the train publisher starts scripts/release-train-postcheck.sh on this line, which waits for CI and holds the NEXT publish on a red or unproved row. The pending
     # full-run stamp is not promoted on this path (the tail cannot reach this checkout's artifacts: the next publish rewrites the slot).
-    echo "post-publish CI tail: rows $pp_open for $revision (detached: the Mac group is done, the hold is released, release-train-postcheck.sh waits for CI)"
-    post_publish=""
+    # The rows CI never proves (POST_PUBLISH_MAC_ROWS, default 9: polearm-browser-check ran on the Mac as the fallback in every cycle before this) are NOT detached: they run on the Mac below,
+    # inside the hold, exactly as before. Only the rest is the tail's. If nothing is left to detach, the old path runs (IT, 2026-10-18: the first detached cycle dropped row 9).
+    detach_rows=$(_pp_left "$pp_open" "${POST_PUBLISH_MAC_ROWS:-9}")
+    if [[ -n "$detach_rows" ]]; then
+      post_publish=$(_pp_left "$pp_open" "$detach_rows")   # the Mac-first rows among the open ones
+      echo "post-publish CI tail: rows $detach_rows for $revision (detached: the Mac group is done, the hold is released, release-train-postcheck.sh waits for CI; Mac rows now: ${post_publish:-none})"
+    else
+      post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
+      [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"
+    fi
   else
     post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
     [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"   # every row was CI-trusted: nothing left to run, the stamp still counts
