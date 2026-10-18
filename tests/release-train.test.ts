@@ -221,6 +221,55 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
+// Overlapping publishes (#3177, Lead 2026-10-18): the pending marker, the stale-tail hold, the detached tail's start, publish-to-publish minutes.
+test('publisher (#3177): a post-publish tail marker whose tail is DEAD, or never started within the grace, holds the next publish; a live tail or a fresh marker does not', () => {
+  const stale = (marker: string) => { const p = publisher(); writeFileSync(join(p.state, 'post-publish-pending-aaaaaaaa'), marker); return p; };
+  const now = Math.floor(Date.now() / 1000);
+  const dead = stale(`rev=${'a'.repeat(40)}\nrows=9,46\nat=${now - 60}\npid=999999\n`);
+  try {
+    const r = dead.run();
+    assert.match(r.stdout, /post-publish CI tail marker .* is stale \(tail pid 999999 is not running; rows 9,46 for a{40} were never proved on CI\): holding/);
+    assert.doesNotMatch(dead.calls(), /git push|deploy/, 'nothing publishes');
+    assert.equal(existsSync(join(dead.state, 'post-publish-pending-aaaaaaaa.told')), true, 'told once');
+  } finally { rmSync(dead.dir, { recursive: true, force: true }); }
+  const never = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 1000}\n`);
+  try {
+    assert.match(never.run().stdout, /tail pid never started is not running/);
+    assert.doesNotMatch(never.calls(), /git push|deploy/);
+  } finally { rmSync(never.dir, { recursive: true, force: true }); }
+  const alive = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 60}\npid=${process.pid}\n`);
+  try {
+    const r = alive.run();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(alive.calls(), /git push -q origin/, 'a live tail is the overlap Lead allowed');
+  } finally { rmSync(alive.dir, { recursive: true, force: true }); }
+  const fresh = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 10}\n`);
+  try {
+    assert.match(fresh.run().stdout, /published #2400/, 'a marker younger than the grace is a tail that has not started yet');
+  } finally { rmSync(fresh.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {
+  const p = publisher();
+  try {
+    const deploy = join(p.dir, 'bin', 'deploy-tail'), postcheck = join(p.dir, 'bin', 'postcheck');
+    writeFileSync(deploy, `#!/usr/bin/env bash\nprintf 'Published %s\\npost-publish CI tail: rows 9,46,3 for %s (detached: x)\\n' "$CAND" "$CAND"\n`); chmodSync(deploy, 0o755);
+    writeFileSync(postcheck, `#!/usr/bin/env bash\necho "postcheck $1 $2 $3 hold=$(test -e "${p.state}/deploy_hold" && echo yes || echo no) marker=$(test -e "${p.state}/post-publish-pending-${p.cand.slice(0, 8)}" && echo yes || echo no)" >> "${p.dir}/postcheck.out"\n`); chmodSync(postcheck, 0o755);
+    writeFileSync(join(p.state, 'release-train-last-publish'), `rev=${'b'.repeat(40)}\nat=${Math.floor(Date.now() / 1000) - 600}\n`);
+    const r = p.run({ RELEASE_TRAIN_DEPLOY: deploy, RELEASE_TRAIN_POSTCHECK: postcheck, CAND: p.cand });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold released');
+    const marker = readFileSync(join(p.state, `post-publish-pending-${p.cand.slice(0, 8)}`), 'utf8');
+    assert.match(marker, new RegExp(`^rev=${p.cand}\\nrows=9,46,3\\nat=\\d+\\n`));
+    assert.match(r.stdout, /post-publish CI tail for c{40}: rows 9,46,3/);
+    assert.match(r.stdout, /publish-to-publish 10 min \(bbbbbbbb -> cccccccc\)/);
+    assert.match(readFileSync(join(p.state, 'release-train-last-publish'), 'utf8'), new RegExp(`^rev=${p.cand}\\nat=\\d+\\n`));
+    // the tail is detached: give it a moment to run its stub
+    for (let i = 0; i < 50 && !existsSync(join(p.dir, 'postcheck.out')); i++) spawnSync('sleep', ['0.1']);
+    assert.match(readFileSync(join(p.dir, 'postcheck.out'), 'utf8'), new RegExp(`^postcheck ${p.cand} 9,46,3 2400 hold=no marker=yes`));
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
 test('publisher (Auditor on #2863): a push refused says so; a push killed at its limit says the trunk state is UNKNOWN, names the check, and never claims "refused" or "nothing deployed"', () => {
   const refused = publisher();
   try {

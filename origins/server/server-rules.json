@@ -113,5 +113,14 @@
       "minRate": 0.95,
       "note": "when the world-reward strict flags may go on (audit 2026-10-18, Strategy: a beta-opening gate): ORIGINS_SPAWN_REFUSE_UNCHECKED once at least minKills kills since the writer started were reach-checked at minRate or better; ORIGINS_WORLD_RECORD_SCORECARD_ONLY once at least minKills kills carried a record that verified at minRate or better. Read by the writer's /internal/world-records readout; the flags themselves are set by Deploy on Lead's word"
     }
+  ],
+  "strictRevert": [
+    {
+      "id": "revert",
+      "firstKills": 50,
+      "minRate": 0.95,
+      "maxUncheckedRun": 10,
+      "note": "when the strict flags come back OFF after the flip (Strategy 2026-10-18): judged on ORGANIC kills only (the QA account's kills are their own cohort), from the reach tally since the writer started (so, after the flip-restart, under the flags). Revert when the first firstKills organic kills are complete and fewer than minRate of them were reach-checked, or as soon as maxUncheckedRun organic kills in a row were unchecked. Read by the writer's /internal/world-records readout (`revert`); Deploy flips both flags off with a readout line on the thread and Lead reopens the item. The gate closes when the first firstKills organic kills are at minRate or better"
+    }
   ]
 }
