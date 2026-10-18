@@ -7,9 +7,11 @@
 //   weather    - per biome, weighted picks of arena weather kinds (src/fight/arena-defs.json weather rows); `weatherFor` draws one per game day from the zone's seed, same day = same weather.
 // Pure: no DOM, no clock, no storage. Wiring the page (spawn the night rows when `night`, set the weather preset for the day) reads these functions and is a separate step.
 import { loadRegistry, mixSeed, nextRandom, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { layoutRule } from './layout-rules.ts';
 import DEFS from './clock.json' with { type: 'json' };
 import MANIFEST from './clock.manifest.json' with { type: 'json' };
 
+const MAX_NIGHT_SPAWN = layoutRule('nightSpawnMax'), FNV_PRIME = 16777619, DAY_STRIDE = 7919;   // the nightSpawn count bound is a layout row (a gameplay bound); FNV-1a's prime; the prime a game day is multiplied by in the weather seed (changing it re-rolls every weather: pinned by clock.test.ts) (exempt: scripts/as-data/allow/origins-world.json)
 export type DayPartRow = { readonly order: number; readonly night: boolean };
 export type ClockBonusRow = { readonly order: number; readonly day: number; readonly night: number };
 export type NightSpawnRow = { readonly order: number; readonly part: string; readonly zone: string; readonly character: string; readonly count: number };
@@ -26,7 +28,7 @@ export function loadClockDefs(raw: unknown, known: ClockKnown): ClockDefs {
     if (!d.dayParts[s.part]) throw Error(`clock.json nightSpawn "${id}": ${s.part} is not a day part`);
     if (!zones.has(s.zone)) throw Error(`clock.json nightSpawn "${id}": ${s.zone} is not a zone`);
     if (!characters.has(s.character)) throw Error(`clock.json nightSpawn "${id}": ${s.character} is not a creature row`);
-    if (!(s.count >= 1 && s.count <= 8)) throw Error(`clock.json nightSpawn "${id}": count is 1..8`);
+    if (!(s.count >= 1 && s.count <= MAX_NIGHT_SPAWN)) throw Error(`clock.json nightSpawn "${id}": count is 1..${MAX_NIGHT_SPAWN}`);
   }
   for (const [id, w] of Object.entries(d.weather)) {
     if (!biomes.has(id)) throw Error(`clock.json weather "${id}": not a biome`);
@@ -48,13 +50,13 @@ export const partOf = (night: boolean, defs: ClockDefs = CLOCK): string => byOrd
 export const clockBonusFor = (alignment: string, night: boolean, defs: ClockDefs = CLOCK): number => { const r = defs.clockBonus[alignment]; return r ? (night ? r.night : r.day) : 0; };
 /** The night (or day) spawn rows live in a zone right now, in table order. */
 export const spawnsFor = (zone: string, night: boolean, defs: ClockDefs = CLOCK): NightSpawnRow[] => byOrder(defs.nightSpawns).map(([, s]) => s).filter((s) => s.zone === zone && s.part === partOf(night, defs));
-const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), FNV_PRIME); return h >>> 0; };
 /** The weather kind for a biome on a game day: a seeded weighted draw over the biome's picks (same seed, biome and day = same weather; a biome with no row is 'clear', i.e. none). */
 export function weatherFor(biome: string, day: number, seed: number, defs: ClockDefs = CLOCK): string | null {
   const row = defs.weather[biome];
   if (!row) return null;
   const picks = Object.entries(row.picks).sort((a, b) => a[0] < b[0] ? -1 : 1), total = picks.reduce((n, [, w]) => n + w, 0);
-  let roll = nextRandom(mixSeed(seed, hash(biome) + day * 7919))[0] * total;
+  let roll = nextRandom(mixSeed(seed, hash(biome) + day * DAY_STRIDE))[0] * total;
   for (const [kind, weight] of picks) { if (roll < weight) return kind; roll -= weight; }
   return picks[picks.length - 1]![0];
 }
