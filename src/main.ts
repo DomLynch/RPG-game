@@ -70,7 +70,7 @@ import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
-import { impactTier } from './fight/hit-impact.ts';
+import { HOLD_TIER, impactTier } from './fight/hit-impact.ts';
 import { stopFor } from './hit-stop.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
@@ -1635,7 +1635,7 @@ function frame(now: number) {
       let stop = quiet || match.mode === 'pvp' ? 0 : stopFor(practice.events);
       if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
         const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
-        stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'special' ? 'full' : tier === 'full' || tier === 'half' ? tier : null);   // the weapon's own hold treats a skill as the heavy it always was
+        stop += weaponHoldMs(armfeel, stop, practice.events, tier ? HOLD_TIER[tier] : null);   // the weapon's own hold treats a skill as the heavy it always was (HOLD_TIER)
       }
       if (stop) {
         hitStop = stop;
