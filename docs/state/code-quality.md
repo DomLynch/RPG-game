@@ -1,5 +1,18 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~12:xx: HANDOFF before /clear (Dom). READ FIRST. LIVE = IK 521d54a1c (verified). IL2 #3152 @ddc09ce2e PASSED + candidate:pass, NOT yet published
+
+**Now, in order.**
+1. **IL2 publish:** check release.json, the writer, presence and the verifier = ddc09ce2e, NRestarts 0 (it carries #3145, #3140, #3127, #3124; it changes the writer and location.ts). The World-rewards soak counters start at zero from that restart. Then read /var/log/frankendom-origins-writer.log for the `reach=unchecked (<why>)` reasons: that is the input for fixing the presence cause of V1.
+2. **#3151 (Combat P0-b) @cb90162a0:** my gap is closed and verified (no-heroChanged probe → record null + drop gear-change; battery 40/40; world tests 23/23). **PASS when CI is green**; a watcher was running at handoff. If the head moves, re-check the delta. It must rebase on #3146 (which lands first), carrying `drop` into OutboxEntry and outbox-store isEntry (I told Combat).
+3. **#3155** (my drop tally, stacked on #3145's branch): after IL2 is live, retarget it to trunk (`gh api -X PATCH repos/DomLynch/RPG-game/pulls/3155 -f base=codex/01a09a76/task-1`), re-add auditor:ready, and wait for CI. Reviewer: Backend; Lead PASSes.
+4. **#3146** (outbox) @4b6db65c3: waiting on Web's re-read. **#3148** (era fixtures) @07b461489: guards fixed; waiting on CI and Combat's re-read; Lead PASSes.
+5. **#3148 follow-up** (after P0-a/b, Lead): killed-path era records (plain, cave-troll); a per-feature event count in each pin; a world-era (wv) counterpart.
+6. After #3151 is live: post the AFTER readout (target ≥95% verified over ≥50 kills). If `dropped: gear-change` is a large share, rebuild-on-gear-change comes back (Strategy).
+
+**Done this stretch:** the Oct 18 audit was reviewed and implemented (entry below). PASS: IL2 #3152, #3147 @a75859608 (halls kit; its condition is carried to #3131's loader: validate the sconce extras.light as a row). NOT YET → fixed: #3151 (the worn-gear path never called heroChanged). Fixed my own #3145 (readout note), #3146 (engage-time account, nextAt clamp, cross-tab re-read) and #3148 (sheet-trust and spell-gate guards: entries store the server view, the gate verdict is pinned).
+**Gotchas.** (iii) ciwait.sh / cisnap pick the max created_at run, and a skipped duplicate can win the tie (IL2's release-checks): check the run list. (jjj) A candidate containing my own PR: say so in the PASS (its review was Backend's plus Lead's); my PASS covers the cut. (kkk) The bash hook blocks heredoc file writes: use Write.
+
 ## 2026-10-18 ~11:xx: READ FIRST. The Oct 18 external audit (Dom asked me to review it and fix it; Strategy aligned). LIVE = IK 521d54a1c (verified: release.json, writer, presence, verifier, NRestarts 0)
 
 **Verified live (VPS, read-only):** `ORIGINS_WORLD_RECORD_SCORECARD_ONLY` and `ORIGINS_SPAWN_REFUSE_UNCHECKED` are both UNSET. Writer log (/var/log/frankendom-origins-writer.log): 5 world kills, all `reach=unchecked`, 4 with no record, 1 `not verified (sheet)`, all paid; 2 ground_takes also unchecked. The writer→presence link is healthy (same key sha, /internal/where 200), and presence has real joins.
