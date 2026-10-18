@@ -73,7 +73,7 @@ test('a replace is explicit per id: a clash is refused unless that id is named',
 });
 
 test('every bound is a row: more exits, rooms, creatures or bytes than the rows allow is refused', () => {
-  const f = bone(), rules = loadRules(), ex = JSON.parse(f['exits.json']!), d = JSON.parse(f['dungeon.row.json']!);
+  const f = bone(), rules = loadRules() as Record<string, number>, ex = JSON.parse(f['exits.json']!), d = JSON.parse(f['dungeon.row.json']!);
   const manyExits = { owned: Array.from({ length: rules.maxExits + 1 }, (_, i) => ({ ...ex.owned[0], id: `x${i}` })), inbound: [] };
   const withOwns = (files: Files, owns: Record<string, unknown>) => { const m = JSON.parse(files['package.json']!); m.owns = { ...m.owns, ...owns }; return { ...files, 'package.json': canon(m) }; };
   assert.match(problems(withOwns(edit(f, 'exits.json', canon(manyExits)), { exits: manyExits.owned.map((e: { id: string }) => e.id) }), ctx({ mode: 'generate' })).join(';'), /more than 64 exit rows/);

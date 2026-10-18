@@ -103,7 +103,7 @@ export function generate(root = ROOT) {
     const m = JSON.parse(p.files['package.json']), ex = JSON.parse(p.files['exits.json'] ?? '{"owned":[],"inbound":[]}');
     if (m.id !== p.id) throw new Error(`package folder "${p.id}" holds the manifest of "${m.id}"`);
     seen.zones.add(String(m.zone)); out[`origins/zone-rows/zone${m.zone}.row.json`] = p.files['zone.row.json'];
-    for (const e of [...ex.owned, ...ex.inbound]) { tables.exits.push(e); seen.exits.add(e.id); }
+    for (const e of [...ex.inbound, ...ex.owned]) { tables.exits.push(e); seen.exits.add(e.id); }   // the door in from the far zone first, then the door out: the order the shared table has always had (the unlisted-crypt test pins it)
     if (p.files['dungeon.row.json']) { const d = JSON.parse(p.files['dungeon.row.json']); tables.dungeons.push(d); seen.dungeons.add(d.id); }
     if (p.files['theme.row.json']) { const t = JSON.parse(p.files['theme.row.json']); tables.themes.push(t); seen.themes.add(t.id); }
     zones.push(m.zone);

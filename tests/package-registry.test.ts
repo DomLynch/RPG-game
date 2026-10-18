@@ -11,7 +11,7 @@ import { roundTrip } from '../scripts/zone-package.mjs';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 test('every committed generated file is what the package folders generate (npm run packages writes them)', () => {
-  const out = generate() as Record<string, string>;
+  const out = generate() as unknown as Record<string, string>;
   assert.ok(Object.keys(out).length >= 5, 'the shared tables and each package zone row');
   for (const [file, text] of Object.entries(out)) assert.equal(readFileSync(join(ROOT, file), 'utf8'), text, `stale or hand-edited ${file}: run \`npm run packages\``);
 });
@@ -23,7 +23,7 @@ test('a hand edit of a generated file is caught, and regenerating repairs it', (
     writeGenerated(scratch);
     const file = join(scratch, 'origins/zones/exit-rows.json'), good = readFileSync(file, 'utf8');
     writeFileSync(file, good.replace('"radiusM": 2.5', '"radiusM": 9'));
-    assert.notEqual(readFileSync(file, 'utf8'), (generate(scratch) as Record<string, string>)['origins/zones/exit-rows.json'], 'the edit differs from a fresh generation');
+    assert.notEqual(readFileSync(file, 'utf8'), (generate(scratch) as unknown as Record<string, string>)['origins/zones/exit-rows.json'], 'the edit differs from a fresh generation');
     writeGenerated(scratch);
     assert.equal(readFileSync(file, 'utf8'), good, 'regenerating puts it back');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
