@@ -52,19 +52,11 @@
  "src/core/contracts/ids.ts": {
   "'item'": 1
  },
- "src/core/contracts/items.ts": {
-  "'gear'": 2,
-  "'loot'": 1,
-  "'shop'": 1
- },
  "src/core/contracts/world.ts": {
   "'public'": 1
  },
  "src/core/spell-slot-view.ts": {
   "'allowDuplicate'": 1
- },
- "src/core/world/row.ts": {
-  "'rare'": 3
  },
  "src/fight/ai.ts": {
   "'circle'": 3
@@ -102,9 +94,6 @@
  },
  "src/fight/signature.ts": {
   "'floor'": 1
- },
- "src/fight/sound/feedback.ts": {
-  "'swing'": 4
  },
  "src/fight/special-class-timing.ts": {
   "'tempo'": 4,
@@ -164,13 +153,8 @@
  "src/fight/world.ts": {
   "'stamina'": 1
  },
- "src/lorarii.ts": {
-  "'hold'": 4
- },
  "src/main.ts": {
-  "'ladder'": 1,
-  "'drag'": 1,
-  "'full'": 1
+  "'drag'": 1
  },
  "src/pit/skulls.ts": {
   "'duel'": 2

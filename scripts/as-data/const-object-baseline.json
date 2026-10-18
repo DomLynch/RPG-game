@@ -17,12 +17,6 @@
  "origins/preview/main.ts": {
   "TOWN_RESPAWN": 1
  },
- "origins/preview/mobs-view.ts": {
-  "HIT": 1
- },
- "origins/preview/mobs.ts": {
-  "NAMED": 1
- },
  "origins/server/encounter-fixtures.ts": {
   "RESOLVED": 1
  },
@@ -37,9 +31,6 @@
  },
  "src/core/grades.ts": {
   "GRADES": 1
- },
- "src/core/loot.ts": {
-  "PACK": 1
  },
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
