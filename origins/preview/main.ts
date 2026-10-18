@@ -88,6 +88,7 @@ import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
+import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -476,7 +477,8 @@ async function warmHero(anchor: THREE.Object3D) {   // the player's own programs
   await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
   warmedHero.done = true;
 }
-const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+const frameEnv: FrameEnv = { raf: (cb) => { requestAnimationFrame(cb); }, timer: (cb, ms) => { setTimeout(cb, ms); }, hidden: () => document.hidden };
+const nextFrame = () => waitFrame(frameEnv, previewRule('hiddenTickMs'), previewRule('hiddenCheckMs'));   // rAF never fires in a hidden tab: a timer stands in (frame-wait.ts)
 // The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked AFTER [zone ready] and off its critical path (Lead's ruling on #2938, 2026-10-16 night: before ready the one kit in flight cost +8 s of [zone ready] on SwiftShader and the cap cannot cut a compile). One kit per idle slice, and NO kit starts while a creature is within tap range (the engage window the seamless row guards); the kit already in flight cannot be cut. Nothing is fetched or
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
@@ -617,6 +619,7 @@ renderer.setAnimationLoop(walkLoop);
 // thing the page keeps is its own: the graduation allegiance, under save.ts ALLEGIANCE_KEY (never a `frankendom.*` key).
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
+setInterval(hiddenDriver({ hidden: () => document.hidden, held: () => fighting || zoneReadyAt >= 0 }, walkLoop), previewRule('hiddenTickMs'));   // a hidden tab gets no animation frames: a timer drives the walk until [zone ready] so it still arrives, and stops there (a hidden tab never fights or reports kills; a visible tab is drawn by rAF as before; a duel owns the canvas while it is up)
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
 // The daily board (origins/board): a button under the Journal and a dialog; the tasks, their words and their names are rows, the reset is the board rule's.
