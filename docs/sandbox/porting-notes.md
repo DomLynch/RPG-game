@@ -9,7 +9,7 @@ Written during Lead's freeze (docs only). Branch state when written: live previe
 - Types: `npx tsc --noEmit -p .` (clean on the branch).
 - Data layer: `npm run check:as-data -- --gate` (0 new on the branch).
 - Tests (VPS, not the Mac): `node --test origins/preview/*.test.ts origins/world/*.test.ts tests/hero-regen.test.ts tests/test-zone.test.ts` (341 green at the last publish). Nine old tests in `tests/origins-world-combat.test.ts` / `origins-world-verify.test.ts` fail ON THE BRANCH ONLY (stale copy of Combat's creature motion); they pass on trunk.
-- Pictures (Mac GPU, headless 375 wide): `scripts/zone-look-stills.mjs` is in the repo; my one-off scripts live in a scratchpad and are not committed. The browser-check hooks they used are listed at the end.
+- Pictures and live checks (Mac GPU, headless 375 wide): the scripts are committed under `scripts/zone-sandbox/` with a README (gear sheets, crops, troll before/after, loot, regen incl. the hunted case, claw and grip checks). `scripts/zone-look-stills.mjs` is the older still script. The browser-check hooks they use are listed at the end.
 - Publish (sandbox only): build with `VITE_UNLISTED_ZONES=1`; the standard publish script strips that flag and the page then shows "There is no zone 90".
 
 ## Rows
