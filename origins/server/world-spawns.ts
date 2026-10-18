@@ -76,14 +76,20 @@ export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
   for (const id of listedZoneIds()) {
     if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
-    const f = frontierPlan(false, id), prefix = zoneKeyPrefix(id);
-    for (const spec of mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows)) {
-      if (zoneOfKey(spec.id) !== id) problems.push(`${spec.id} reads as zone ${zoneOfKey(spec.id)}, not ${id}`);
-      else if (prefix === '' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(prefix)) problems.push(`${spec.id}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
-      if (!/^[a-z0-9._:-]{1,96}$/.test(spec.id)) problems.push(`${spec.id} does not fit the table's key check`);
-      if (seen.has(spec.id)) problems.push(`${spec.id} is in zone ${seen.get(spec.id)} and zone ${id}`);
-      seen.set(spec.id, id);
-    }
+    const f = frontierPlan(false, id);
+    problems.push(...keyProblemsOf(id, mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows).map((s) => s.id), seen));
+  }
+  return problems;
+}
+/** The key rule for ONE zone's creature ids (zoneKeyProblems runs it over every listed zone; the zone package check runs it over a package, listed or not). `seen` carries the ids of the zones already read, so a key in two zones is named. */
+export function keyProblemsOf(id: string, keys: readonly string[], seen: Map<string, string> = new Map()): string[] {
+  const problems: string[] = [], prefix = zoneKeyPrefix(id);
+  for (const key of keys) {
+    if (zoneOfKey(key) !== id) problems.push(`${key} reads as zone ${zoneOfKey(key)}, not ${id}`);
+    else if (prefix === '' ? /^z[0-9]/.test(key) : !key.startsWith(prefix)) problems.push(`${key}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
+    if (!/^[a-z0-9._:-]{1,96}$/.test(key)) problems.push(`${key} does not fit the table's key check`);
+    if (seen.has(key)) problems.push(`${key} is in zone ${seen.get(key)} and zone ${id}`);
+    seen.set(key, id);
   }
   return problems;
 }

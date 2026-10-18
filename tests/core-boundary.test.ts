@@ -27,15 +27,27 @@ const NODE_RUN_PAGES: ReadonlySet<string> = new Set(SERVER_ENTRIES.flatMap((e) =
 const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
 const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
+// The third door (Lead 10-18, after the preview-no-server finding on #3189): src/core/neutral.ts re-exports only zero-import modules, so a page-folder file the box also loads can read the registry loader without the
+// page reaching src/core/server.ts. Any page, node-run page or server file may take it; the door itself is guarded below (its closure imports nothing).
+export const NEUTRAL_DOOR = 'src/core/neutral.ts';
 
 export function c1(read: (f: string) => string, list: readonly string[]): string[] {
   const bad: string[] = [];
   for (const f of list) {
     const door = NODE_RUN_PAGES.has(f) ? 'src/core/server.ts' : PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
     if (!door) continue;
-    for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door) bad.push(`${f} -> ${s.target} (take ${door})`);
+    for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door && s.target !== NEUTRAL_DOOR) bad.push(`${f} -> ${s.target} (take ${door}, or ${NEUTRAL_DOOR} for the registry loader)`);
   }
   return bad.sort();
+}
+/** The neutral door's closure: every file it reaches, each with the imports it makes. It must reach only files that import nothing (relative, bare or node:), so it can never carry a renderer or a node API. */
+export function neutralClosure(read: (f: string) => string): { files: string[]; imports: string[] } {
+  const files: string[] = [], imports: string[] = [], queue = [NEUTRAL_DOOR];
+  for (const f of queue) {
+    if (files.includes(f)) continue; files.push(f);
+    for (const s of specsOf(f, read(f))) { if (f !== NEUTRAL_DOOR) imports.push(`${f} -> ${s.spec}`); if (s.spec.startsWith('.')) queue.push(s.target); }
+  }
+  return { files, imports };
 }
 export function c2(read: (f: string) => string, list: readonly string[]): string[] {
   const bad: string[] = [];
@@ -135,6 +147,15 @@ test('C1 mutation: a deep core import from the Pit, the zone page or a server mo
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/index.ts';"), FILES).length, 1, 'a page file the box loads must take the server door (the AA crash)');
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/server.ts';"), FILES).length, 0);
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/index.ts';"), FILES).length, 0);
+  assert.equal(c1(withFile('origins/preview/preview-rules.ts', "import { x } from '../../src/core/neutral.ts';"), FILES).length, 0, 'the neutral door is open to a page file the box loads');
+  assert.equal(c1(withFile('origins/preview/save.ts', "import { x } from '../../src/core/neutral.ts';"), FILES).length, 0, 'and to a page file');
+  assert.equal(c1(withFile('origins/preview/preview-rules.ts', "import { x } from '../../src/core/registry.ts';"), FILES).length, 1, 'but the registry module itself is still a deep import');
+});
+test('the neutral door reaches only files that import nothing (no renderer, no node API, no other core module)', () => {
+  const { files, imports } = neutralClosure(disk);
+  assert.deepEqual(files, ['src/core/neutral.ts', 'src/core/registry.ts'], 'what the neutral door re-exports: add a module only if it has zero imports, and name it here');
+  assert.deepEqual(imports, [], 'a module behind the neutral door imports something');
+  assert.deepEqual(neutralClosure((f) => (f === 'src/core/neutral.ts' ? "export * from './x.ts';" : "import fs from 'node:fs';")).imports, ['src/core/x.ts -> node:fs'], 'mutation: the walk sees an import behind the door');
 });
 
 test('C2: nothing outside src/core imports writer-call or POSTs /origins', () => {
