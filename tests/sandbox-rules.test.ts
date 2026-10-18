@@ -15,4 +15,5 @@ test('the shipped melee-special rules are off: the special keeps its own windup,
   assert.deepEqual(specialShardsOf('cleave'), []);
   assert.equal(shardRows(), 0);
   assert.deepEqual(specialSoundOf('cleave'), []);
+  assert.deepEqual(specialSoundOf('skullcrack'), []);
 });
