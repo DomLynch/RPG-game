@@ -9,6 +9,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, TRADE_ZONE, zoneAt as zoneAtCm } from '../presence/zones.ts';
+import { presenceRule } from '../presence/presence-rules.ts';
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
@@ -117,7 +118,7 @@ export function parseWorn(v: unknown): Worn {
   return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, string] => SLOT.test(e[0]) && typeof e[1] === 'string' && LOOT_ID.test(e[1])).sort(([a], [b]) => (a < b ? -1 : 1)));
 }
 // presence's refresh: only the worn set (GET /internal/location?worn=1). Any error is thrown; the caller keeps the last set.
-export function writerWorn(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Worn> {
+export function writerWorn(baseUrl: string, key: string, timeoutMs = presenceRule('writerWornTimeoutMs'), fetchImpl: typeof fetch = fetch): (account: string) => Promise<Worn> {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/location?account=${encodeURIComponent(account)}&worn=1`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== HTTP_OK) throw new Error(`writer: HTTP ${res.status}`);
@@ -125,7 +126,7 @@ export function writerWorn(baseUrl: string, key: string, timeoutMs = 1500, fetch
   };
 }
 // The join's ask. Any error (no answer in time, a refusal, a malformed body) is thrown: presence turns it into the default spawn, never a client pose.
-export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = 500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Served> {
+export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = presenceRule('writerSavedTimeoutMs'), fetchImpl: typeof fetch = fetch): (account: string) => Promise<Served> {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/location?account=${encodeURIComponent(account)}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== HTTP_OK) throw new Error(`writer: HTTP ${res.status}`);
@@ -133,7 +134,7 @@ export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = 50
   };
 }
 // The leave / checkpoint post: presence's own observation of the account.
-export function writerSaveLocation(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string, at: { x: number; z: number; atMs: number }) => Promise<{ character: string | null; stored: boolean; queued?: boolean }> {
+export function writerSaveLocation(baseUrl: string, key: string, timeoutMs = presenceRule('writerSaveTimeoutMs'), fetchImpl: typeof fetch = fetch): (account: string, at: { x: number; z: number; atMs: number }) => Promise<{ character: string | null; stored: boolean; queued?: boolean }> {
   return async (account, at) => {
     const res = await fetchImpl(`${baseUrl}/internal/location`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ account, x: Math.round(at.x), z: Math.round(at.z), at: Math.round(at.atMs) }), signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== HTTP_OK) throw new Error(`writer: HTTP ${res.status}`);
