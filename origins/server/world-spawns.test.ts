@@ -124,6 +124,36 @@ test('kill_report: too few hits is refused before anything is written; a valid r
   assert.deepEqual(k!.g, { reach: 'checked' }, 'the ledger input is the reach status only (cp is derived in SQL); a fresh pose in the zone');
 });
 
+test('kill_report 409 (launch gate V5): a paid token reads back as paid with its STORED receipt, an expired one as expired, an unknown or another account\'s one as unknown; the code stays used; nothing is paid or written on the retry', async () => {
+  const logs: string[] = [], ops = worldSpawnOps({ content, spawns, log: (l: string) => logs.push(l) });
+  const answers: Record<string, unknown> = { origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } };
+  const first = stub(answers);
+  assert.equal((await ops.kill_report!(ctx(first.db), { token: TOKEN, hits: 50 }) as { result: string }).result, 'killed');
+  assert.equal(first.kills.length, 1, 'the first report pays once');
+  const stored = { kind: 'paid', instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 };
+  const retry = async (a: Record<string, unknown>, opts: { absent?: boolean } = {}) => {
+    const s = stub({ origins_spawn_engage_get: null, ...a }, opts);
+    const e = await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
+    assert.ok(e instanceof Refused && e.status === 409 && e.code === 'used' && e.message === 'engage token unknown, used or expired', 'always the old 409: status, code and message unchanged');
+    assert.equal(s.kills.length, 0, 'a retry never reaches the kill function: no second kill, ledger or reward row');
+    return (e as Refused).detail;
+  };
+  assert.deepEqual(await retry({ origins_spawn_receipt: stored }), { kind: 'paid', receipt: { instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 } }, 'the receipt is the stored row, field for field');
+  assert.deepEqual(await retry({ origins_spawn_receipt: { kind: 'expired' } }), { kind: 'expired' });
+  assert.deepEqual(await retry({}), { kind: 'unknown' }, 'no row for this account: unknown, nothing about the token');
+  assert.deepEqual(await retry({ origins_spawn_receipt: { kind: 'paid', instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1, token: 'LEAK', account: 'LEAK' } }), { kind: 'paid', receipt: { instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1 } }, 'only the receipt fields leave the writer');
+  assert.equal(await retry({ origins_spawn_receipt: { kind: 'open' } }), undefined, 'a token that is still open is not a receipt: the plain 409');
+  assert.equal(await retry({ origins_spawn_receipt: new Error('db down') }), undefined, 'a failed lookup is the plain 409, never a 500');
+  assert.equal(await retry({}, { absent: true }), undefined, 'migration absent: the plain 409');
+  // a duplicate that raced the first report: the engage looked open, the kill function found it used (O0009), the answer is the receipt
+  const race = stub({ origins_spawn_engage_get: open, origins_spawn_kill: new DbError('O0009', 'gone'), origins_spawn_receipt: stored });
+  const e = await ops.kill_report!(ctx(race.db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
+  assert.deepEqual((e as Refused).detail, { kind: 'paid', receipt: { instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 } });
+  const kinds = logs.filter((l) => / 409 /.test(l)).map((l) => /409 (\w+)/.exec(l)![1]);
+  assert.deepEqual(kinds, ['paid', 'expired', 'unknown', 'paid', 'unread', 'unread', 'unread', 'paid'], 'the log line names the 409 kind for the soak');
+  assert.ok(logs.every((l) => !l.includes(TOKEN)), 'only the token tail is logged');
+});
+
 test('kill_report: the database\'s refusals map to the contract (dead 409, too-fast 422, cap 429, used 409); reach via presence', async () => {
   const ops = worldSpawnOps({ content, spawns, log: () => {} });
   const with_ = (kill: unknown) => stub({ origins_spawn_engage_get: open, origins_spawn_kill: kill }).db;
