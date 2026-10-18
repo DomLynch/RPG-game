@@ -8,14 +8,14 @@ import type { MobSpec } from '../origins/preview/mobs.ts';
 
 // The hero's out-of-combat regeneration through the REAL world loop (no debug helper): a goblin hurts him, he walks away until nothing hunts him, and the hook (hero-regen.ts, the `regen` dep) must give nothing while any fight or notice is
 // live and nothing inside the out-of-combat window, then refill by the regen.* rows. With the hook absent his health never moves. A recorded fight window cannot see a regen tick: it needs `fought` / `noticed` false, i.e. no window open.
-const DT = 1 / 60;
+const DT = 1 / 60;   // `rises` below counts a health rise while any creature is in the loop, hunting or walking home: that would be inside a record window
 function world(regen: boolean) {
   const spec = { id: 'goblin-1', body: 'goblin', name: 'goblin', level: 1, named: false } as unknown as MobSpec;
   const at = { x: 0, z: 1 }, driven = new Map<string, MobDrive>(); let rises = 0;
   const port = { within: (x: number, z: number, r: number): MobPick[] => (Math.hypot(at.x - x, at.z - z) <= r ? [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }] : []), drive: (id: string, p: MobDrive | null) => { if (p) { driven.set(id, p); at.x = p.x; at.z = p.z; } else driven.delete(id); }, fell: () => {} };
   const wc = createWorldCombat({ mobs: () => port, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, ...(regen ? { regen: () => regenRules() } : {}) } as never);
   const hero = { x: 0, z: 0, facing: 0 };
-  const step = (seconds: number, until?: () => boolean) => { for (let t = 0; t < seconds / DT; t++) { const before = wc.hero().health; if (driven.size) hero.facing = Math.atan2(at.x - hero.x, at.z - hero.z); wc.update(DT, hero); if (wc.hero().health > before + 1e-9 && (wc.inCombat() || driven.size > 0)) rises++;   // a rise while any creature is in the loop, hunting or walking home, would be inside a record window if (until?.()) return t * DT; } return seconds; };
+  const step = (seconds: number, until?: () => boolean) => { for (let t = 0; t < seconds / DT; t++) { const before = wc.hero().health; if (driven.size) hero.facing = Math.atan2(at.x - hero.x, at.z - hero.z); wc.update(DT, hero); if (wc.hero().health > before + 1e-9 && (wc.inCombat() || driven.size > 0)) rises++; if (until?.()) return t * DT; } return seconds; };
   return { wc, hero, step, rises: () => rises, driven };
 }
 
