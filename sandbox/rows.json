@@ -121,7 +121,7 @@
 {"id":"kamaitachi","level":1,"vfx":"wind","unlock":"zone1"},{"id":"banshee","level":1,"vfx":"nyx","unlock":"zone2"},
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"specialPick":[
-{"id":"lunge","role":"opener","label":"Lunge","unlockAfterBossKills":2},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy","label":"Skull Crack","unlockAfterBossKills":0,"slot2Default":1},{"id":"reaping","role":"sweep","label":"Whirlwind","unlockAfterBossKills":0,"slot2Alt":1},{"id":"stomp","role":"posture break","label":"Ground Slam","unlockAfterBossKills":1}
+{"id":"cleave","role":"heavy","label":"Skull Crack","unlockAfterBossKills":0,"slot2Default":1},{"id":"reaping","role":"sweep","label":"Whirlwind","unlockAfterBossKills":0,"slot2Alt":1},{"id":"stomp","role":"posture break","label":"Ground Slam","unlockAfterBossKills":1},{"id":"lunge","role":"opener","label":"Lunge","unlockAfterBossKills":2}
 ],"specialReactFloor":[
 {"id":"lunge","stagger":36}
 ],"specialLook":[
