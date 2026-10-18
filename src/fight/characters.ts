@@ -48,14 +48,16 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // The beta specials' own motion (Dom 2026-10-17, scripts/build-special-clips.mjs; rows in src/assets/special-clips.json): one clip per move, adopted on demand by the actor the
 // first time a special that names it (skill row `specialClip`) is cast on a weapon the row lists, and played in place of the weapon's Heavy / Attack / Thrust, which a weapon
 // the row does not list keeps (the fallback).
-export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge'] as const;
+export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge', 'Special_SkullCrack_2H'] as const;   // a `_2H` row names `variantOf` and its own weapons (maul, warhammer, scythe, trident): that weapon plays it in place of the base clip (specialMove)
 export type SpecialRole = (typeof SPECIAL_ROLES)[number];
 export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES] as const;
 const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> = {
   Special_SkullCrack: () => import('../assets/special-skullcrack.json'), Special_Whirlwind: () => import('../assets/special-whirlwind.json'),
   Special_GroundSlam: () => import('../assets/special-groundslam.json'), Special_Lunge: () => import('../assets/special-lunge.json'),
+  Special_SkullCrack_2H: () => import('../assets/special-skullcrack-2h.json'),
 };
 export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
+export const specialVariant = (role: SpecialRole, weapon: string): SpecialRole => (SPECIAL_CLIP_ROWS.clips.find((c) => (c as { variantOf?: string }).variantOf === role && (c.weapons as readonly string[]).includes(weapon))?.role as SpecialRole | undefined) ?? role;
 // The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
 export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare'>): SpecialRole | null => {
   const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
@@ -728,7 +730,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       slam(weight: number) { slam = weight; },
       specialTrail(t: { samples: number; opacity: number; color: string } | null) { special = t; },
       // The special clip to play while a special's swing runs (specialRoleOf; null clears it). Fetched on the first ask, and only for a weapon the row lists: until it lands, or on any other weapon, the swing plays the weapon's own clip.
-      specialMove(role: SpecialRole | null) {
+      specialMove(asked: SpecialRole | null) {
+        const role = asked && specialVariant(asked, weapon);   // a two-handed weapon plays its own variant of the move's clip
         specialRole = role;
         if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
           specialLoading.add(role);
