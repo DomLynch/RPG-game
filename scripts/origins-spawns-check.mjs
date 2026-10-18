@@ -149,7 +149,7 @@ try {
   eq(await receipt(A, tok(404)), null, 'receipt: a token that never existed is unknown');
   eq(await receipt(B, tok(20)), { kind: 'expired' }, 'receipt: a token closed dead (lost the kill) is expired');
   eq(await receipt(B, tok(22)), { kind: 'expired' }, 'receipt: an open token past its expiry is expired');
-  eq(await receipt(A, tok(1)).then(r => JSON.stringify(Object.keys(r).sort())), JSON.stringify(['bronze', 'cp', 'instance', 'kind', 'killedAt', 'loot']), 'receipt: only the receipt fields');
+  eq(await receipt(A, tok(1)).then(r => JSON.stringify(Object.keys(r).sort())), JSON.stringify(['bronze', 'cp', 'instance', 'killedAt', 'kind', 'loot']), 'receipt: only the receipt fields');
   eq(await code(V, `select public.origins_spawn_receipt('${A}', '${tok(1)}');`), '42501', 'receipt: the verifier role cannot call it');
   eq([used(tok(1)), events(tok(1)), ledger(tok(1))], ['killed', '1', 'unchecked/0/0/0'], 'receipt: reading it twice changes and pays nothing');
   psql(readFileSync(join(dir, '..', 'down', RECEIPT.replace('.sql', '_down.sql')), 'utf8'));
