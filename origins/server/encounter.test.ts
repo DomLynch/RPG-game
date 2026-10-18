@@ -55,6 +55,20 @@ test('settle: a verified record writes the event enc:<token> and the reward line
   assert.equal(events.length, 1);
 });
 
+test('settle for the QA account (fighter_profiles.is_test): the record is checked and the event is written, but the reward hook is never asked: no reward lines, paid false, qa marked', async () => {
+  for (const qa of [true, false, 'blind'] as const) {
+    const { db, events } = fakeDb({ t: 1e6 }, { qa }), asked: string[] = [];
+    const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321, heroHits: {} }), rewards: (f) => { asked.push(f.token); return [{ op: 'reward-line', token: f.token }]; } }));
+    const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+    const out = await ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, 1) }) as Record<string, unknown>;
+    assert.equal(out.result, 'won'); assert.equal(out.verified, true, 'every check ran');
+    assert.equal(events.length, 1);
+    const payload = events[0]!.payload as Record<string, unknown>;
+    if (qa === true) { assert.deepEqual(asked, [], 'a QA win asks for no rewards'); assert.equal(payload.paid, false); assert.equal(payload.qa, true); }
+    else { assert.deepEqual(asked, [start.token], 'anyone else, and a blind lookup (it never aborts the settle), is paid as before'); assert.equal(payload.paid, true); assert.equal('qa' in payload, false); }
+  }
+});
+
 test('settle with the REAL verifier: a record played on the issued seed settles with the sim\'s result (a loss pays nothing)', async () => {
   const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [], ops = encounterOps(deps({ rewards: (f) => { rewards.push(f.token); return []; } }));
   const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };

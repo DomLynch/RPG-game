@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "id": "crypt-sample",
+  "zone": 6,
+  "unlisted": true,
+  "world": [
+    "crypt-sample"
+  ],
+  "owns": {
+    "exits": [
+      "crypt-door"
+    ],
+    "dungeon": "crypt-sample",
+    "theme": null,
+    "warps": []
+  },
+  "inbound": {
+    "exits": [
+      "crypt-mouth"
+    ]
+  },
+  "uses": {
+    "kit": [
+      "/world/kit/zone1-kit.glb"
+    ],
+    "theme": "bone-camp",
+    "characters": [
+      "character:cinder-scavenger",
+      "character:giant-salamander"
+    ],
+    "loot": [
+      "loottable:cinder-scavenger",
+      "loottable:giant-salamander"
+    ]
+  },
+  "files": {
+    "zone.row.json": {
+      "bytes": 5590,
+      "sha256": "089a99f328e79bcb79c40844e5392a2e20531cc72533c9a2e91d6a624c02047e"
+    },
+    "dungeon.row.json": {
+      "bytes": 3383,
+      "sha256": "c936c06d855e03f72dd42c568fca258f60fbb8261914ec42740b07042135d178"
+    },
+    "exits.json": {
+      "bytes": 555,
+      "sha256": "493a4ed83a4ab739ac77f238f07a3d1c5b910716bd1bac4889d7a022eb28a040"
+    }
+  }
+}

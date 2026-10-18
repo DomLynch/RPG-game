@@ -91,7 +91,7 @@ for (const r of LOOT_PIECES.lootStarter) {   // a starter owner is not a roster 
 export const DECLINED_KEPT =LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
-export const PACK = { open: 2, total: 5 } as const;
+export const PACK: { readonly open: number; readonly total: number } = { open: LOOT_RULES.lootRule[0]!.packOpen, total: LOOT_RULES.lootRule[0]!.packTotal };   // the lootRule row (src/core/loot-rules.json)
 
 // The pieces in loot.glb by opponent, in the file's slot order — every visible armour slot a fallen opponent wears (owner, 2026-09-22:
 // "I should be able to pick up any armour or weapon slot"; weapons are the Weapons lane's). Drop order = this order (tests/loot-data.test.ts
