@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 import { optimizeGlb } from '../../scripts/optimize-glb.mjs';
 import { liveKit } from './live-kit.mjs';
 import { ZONES_DIR, registrySource } from '../../scripts/gen-zones.mjs';
-import { writeGenerated } from '../../scripts/gen-packages.mjs';
+import { staleGenerated } from '../../scripts/gen-packages.mjs';
 import { writeFile } from 'node:fs/promises';
 
 // Origins look prototype (Expansion lane, 2026-10-06): its own page, its own build, never part of the game's build.
@@ -21,7 +21,11 @@ export default defineConfig({
   build: { outDir: `${repo}artifacts/origins-preview`, emptyOutDir: true, chunkSizeWarningLimit: 2000 },
   plugins: [{
     name: 'zone-registry',   // a build never ships a stale registry: the zone folders are the source
-    async buildStart() { writeGenerated(); await writeFile(`${ZONES_DIR}registry.ts`, registrySource()); },   // the package folders first (they write the shared rows and their zone rows), then the registry from the zone rows
+    async buildStart() {   // the build CHECKS the package output, it never writes it (a hand edit must fail loudly, not be overwritten); only `npm run packages` writes
+      const stale = staleGenerated();
+      if (stale.length) throw new Error(`generated package files differ from what origins/packages/ generates (a hand edit, or a package changed without regenerating): ${stale.join(', ')}. Run \`npm run packages\` and commit, or revert the edit.`);
+      await writeFile(`${ZONES_DIR}registry.ts`, registrySource());
+    },
   }, {
     name: 'live-fight-kit',
     async transformIndexHtml(html) { return liveKit(await readFile(`${repo}index.html`, 'utf8'), html); },
