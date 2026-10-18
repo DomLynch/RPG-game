@@ -46,7 +46,7 @@ test('postcheck: a row CI did not prove writes deploy_hold naming the rows and t
 
 test('postcheck: nothing proved, or the trust lookup failing, fails CLOSED (hold written)', () => {
   assert.equal(tail('').status, 1);
-  assert.match(tail('').hold ?? '', /rows 9,46,3 not green/);
+  assert.match(tail('').hold ?? '', /rows 3,9,46 not green/);   // subtract lists ascending
   const failed = tail(null);
   assert.equal(failed.status, 1);
   assert.match(failed.hold ?? '', /the trust lookup failed/);
