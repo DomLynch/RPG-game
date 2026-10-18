@@ -505,9 +505,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, gap);
       const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
       if (!(dir.length() > 0)) return;   // the goal on the shoulder: no direction to reach along
-      const d = Math.min(dir.length(), a2 + b2 - .001); dir.normalize();
-      const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
-      bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
+      const d = Math.min(dir.length(), a2 + b2 - (SPECIAL_CLIP_ROWS as { haftReachMarginM: number }).haftReachMarginM); dir.normalize();   // the arm's reach less the row's margin
+      const along = (a2*a2 - b2*b2 + d*d) / (d + d), bend = e.clone().sub(s);
+      bend.addScaledVector(dir, -bend.dot(dir)); if (!(bend.lengthSq() > 0)) return; bend.normalize();
       const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
       aimedOffHand ??= [upperL.quaternion.clone(), lowerL.quaternion.clone()];
       for (const [bone, child, dest] of [[upperL, lowerL, elbow], [lowerL, handL, goal]] as const) {

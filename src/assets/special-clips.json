@@ -1,5 +1,6 @@
 {
  "about": "The beta specials' own animation rows (scripts/build-special-clips.mjs bakes each into the clip JSON named by file, adopted at runtime by characters.ts). source.kind mixamo: Adobe Mixamo clip `file` (private FBX, never committed; licence + provenance in src/assets/README.md); ual2: CC0 Quaternius UAL2 action. from/to are source frames (mixamo) or seconds (ual2); rootMotion strip drops the horizontal hip travel (the sim owns position). weapons: the weapon rows that play the clip (any other keeps its own Heavy / Attack / Thrust, `fallback`). strike: the clip fraction of the blow's contact beat, which the sim's contact tick is eased onto.",
+ "haftReachMarginM": 0.001,
  "twoHanded": {"maul": 0.22, "warhammer": 0.22, "scythe": 0.28, "trident": 0.3},
  "clips": [
   {"role": "Special_SkullCrack", "file": "special-skullcrack.json", "fallback": "Heavy", "weapons": ["longsword", "knife", "cleaver", "estoc", "gladius", "maul", "warhammer", "scythe", "trident"], "strike": 0.37, "source": {"kind": "mixamo", "file": "Standing_Melee_Attack_Downward", "rootMotion": "strip"}},
