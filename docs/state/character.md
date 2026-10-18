@@ -4,6 +4,8 @@
 
 **Lead's address changes every restart: run ListAgents and use the `Frankendom - Lead Dev [ref]` that is "Claude Desktop session" (was [74e71e]).** Acting on a PicoClaw nudge: first line of the report is "per PICO-<id>".
 
+**ADDED after the first save: #3235 (the Test Zone sandbox's loot PR, C10/R04 page half, stacked on #3216) is MINE now as owner (the Sandbox session was cleared; Lead 10-18 evening).** It follows Lead's outfit ruling: per-slot override in unlisted zones only, page memory, restore on exit, with a three-case test. Take any fixes the Auditor asks for; it rides with #3216 under the stacked-child rule. The server half waits for Backend (any account-loot effect is Backend's). The war band (C14/R08, one `setAggro` method in mobs-view next to `drive`) was also the Sandbox's: ask Lead who owns it now.
+
 **Merged today:** #3182 shops/vendor bounds as rows, #3183 MissingClip (named error, creature view logs once + marks failed, no rethrow in the frame) + the creature-clips CI gate, #3195 goblin-fit-stills swing fix, #3196 piece-fit (per-bone refit, NotHeroRig refusal, `fit.*` rows, hero bone list row). Goblin 1.25 fit pass DONE for the knife (the only weapon a goblin wields; bare L4/L5 head is the existing look, same on trunk).
 
 **Open PRs (mine):**
