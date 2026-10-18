@@ -151,7 +151,16 @@ try {
   // a compare, a + / - or a % is never excluded: that is where a tuning hides.
   const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
   const TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
-  const PERCENT_SCALE = new Set(['100', '10_000', '10000']), ROLL_LINE = /\b(?:chance|probability|roll|draw|rand\w*|permille)\b/i;
+  // The percent/permille scale class (Strategy 2026-10-18, tightened by Lead): the scale is an operand of * or / IN CODE (not inside a string or template literal, not inside a console/log call) and the OTHER operand is a
+  // roll expression: an identifier, member chain or call named like roll / draw / chance / rng / random (`draw() * 100`, `e.chancePct / 100`), or a parenthesised group holding one (`(100 - e.chance) / 100`). A roll word merely on the same line is not enough.
+  const PERCENT_SCALE = new Set(['100', '10_000', '10000']);
+  const ROLL_NAME = '\\w*(?:roll|draw|chance|rng|random)\\w*', ROLL_OPERAND = `(?:[\\w$]+\\.)*${ROLL_NAME}(?:\\([^()]*\\))?`, ROLL_GROUP = `\\([^()]*${ROLL_NAME}[^()]*\\)`;
+  const rollBefore = new RegExp(`(?:${ROLL_OPERAND}|${ROLL_GROUP})\\s*[*/]$`, 'i'), rollAfter = new RegExp(`^[*/]\\s*(?:${ROLL_OPERAND}|${ROLL_GROUP})`, 'i');
+  const insideStringOrLog = (before: string): boolean => {   // a quote left open before the literal (' " or `, with escapes) puts it in a string or template; a console/log call puts it in a message
+    let open: string | null = null;
+    for (let i = 0; i < before.length; i++) { const c = before[i]!; if (open) { if (c === '\\') i++; else if (c === open) open = null; } else if (c === '\'' || c === '"' || c === '`') open = c; }
+    return open !== null || /\b(?:console\.\w+|logger?\.\w+|log\w*)\s*\(/.test(before);
+  };
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -174,9 +183,9 @@ try {
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
-    // The one named scale class (Strategy 2026-10-18): 100 or 10_000 as the UNIT of a roll (`draw() * 100 < chance`, a percent chance read against a draw), only beside * or / on a line that names a roll. A compare (`< 100`),
-    // a + / - (`100 - tax`) and any other number (a 250 beside a roll) stay counted: that is where a tuning hides, and plain price or tax maths is not a roll.
-    if (beside && PERCENT_SCALE.has(text) && ROLL_LINE.test(line)) return 'percent/permille scale on a roll (100, 10_000 beside * or / on a chance/roll/draw line)';
+    // The one named scale class (Strategy 2026-10-18): 100 or 10_000 as the UNIT of a roll (`draw() * 100 < chance`, a percent chance read against a draw): see PERCENT_SCALE above. A compare (`< 100`), a + / - (`100 - tax`),
+    // any other number (a 250 beside a roll), a percent in a log string or a template, and plain price, tax or share maths (no roll operand) stay counted: that is where a tuning hides.
+    if (beside && PERCENT_SCALE.has(text) && !insideStringOrLog(before) && (rollBefore.test(before) || rollAfter.test(after))) return 'percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)';
     return null;
   };
   const excludedInline: Record<string, number> = {};
