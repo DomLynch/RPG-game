@@ -7,7 +7,7 @@ import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import ROWS from '../sandbox/rows.json' with { type: 'json' };
 
 const d = DEFS as unknown as { rules: { id: string; value: number }[]; bands: unknown[]; missile: unknown[]; missileLanes: unknown[]; bowSpecial?: unknown[]; specialReactFloor?: unknown[] };
-const sandbox = (ROWS as unknown as Record<string, Record<string, unknown[]>>)['sandbox-rules-defs']!;
+const sandbox = (ROWS as unknown as { files: Record<string, Record<string, unknown[]>> }).files['sandbox-rules-defs']!;
 for (const r of sandbox.rules as { id: string; value?: number }[]) { const row = d.rules.find((x) => x.id === r.id); if (row && r.value !== undefined) row.value = r.value; }
 for (const k of ['bands', 'missile', 'missileLanes'] as const) (d[k] as unknown[]).push(...(sandbox[k] as unknown[]));
 d.bowSpecial = sandbox.bowSpecial; d.specialReactFloor = sandbox.specialReactFloor;
