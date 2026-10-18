@@ -14,12 +14,12 @@ Slice letters (a to i) are the recommended port order, smallest safe first.
 
 | Slice | Path | Kind | State | Owner | Trunk already has | Port status |
 |---|---|---|---|---|---|---|
-| a | `scripts/character/mixamo_dump.py`, `scripts/build-special-clips.mjs` (modes `mixamo`, `ual2`, new `mixamo-seq`) | tool | DONE | Characters/Combat | no | TODO |
-| a | `src/assets/special-clips.json` (clip rows: role, file, weapons, strike, source, twoHanded grips) | row | DONE | Combat | no | TODO |
-| a | `src/assets/special-{skullcrack,whirlwind,groundslam,lunge}.json` (melee clips, 50-240 KB each, lazy) | asset | DONE | Combat | no | TODO |
-| a | `src/assets/special-{bowquick,bowfan,bowpin,bowpower}.json` (Draw Arrow + Aim Recoil, 55-120 KB each) | asset | v1 | Combat | no | TODO |
-| a | `src/assets/README.md` provenance rows (Adobe Mixamo terms: royalty-free in games, no raw redistribution, no ML training; Dom OK 2026-10-18) | doc | DONE | Characters | no | TODO |
-| b | `src/fight/characters.ts`: `SPECIAL_ROLES` (8), `specialRoleOf`, `specialMove` prefetch, `holdHaft` two-hander grip | code (view) | DONE | Combat | no | TODO |
+| a | `scripts/character/mixamo_dump.py`, `scripts/build-special-clips.mjs` (modes `mixamo`, `ual2`, new `mixamo-seq`) | tool | DONE | Characters/Combat | no | IN-PR #3220 |
+| a | `src/assets/special-clips.json` (clip rows: role, file, weapons, strike, source, twoHanded grips) | row | DONE | Combat | no | IN-PR #3220 (and #3222 touches the same file) |
+| a | `src/assets/special-{skullcrack,whirlwind,groundslam,lunge}.json` (melee clips, 50-240 KB each, lazy) | asset | DONE | Combat | no | IN-PR #3220 |
+| a | `src/assets/special-{bowquick,bowfan,bowpin,bowpower}.json` (Draw Arrow + Aim Recoil, 55-120 KB each) | asset | v1 | Combat | no | IN-PR #3220 |
+| a | `src/assets/README.md` provenance rows (Adobe Mixamo terms: royalty-free in games, no raw redistribution, no ML training; Dom OK 2026-10-18) | doc | DONE | Characters | no | IN-PR #3220 |
+| b | `src/fight/characters.ts`: `SPECIAL_ROLES` (8), `specialRoleOf`, `specialMove` prefetch, `holdHaft` two-hander grip | code (view) | DONE | Combat | no | IN-PR #3222 |
 
 Mixamo FBX are NOT in git: `/srv/dev-jobs/mixamo-drop/mixamo` on the VPS (private); dumps in `/srv/dev-jobs/mixamo-drop/dump`. A porter who rebakes needs both folders; baked JSON is byte-identical on rebake (checked 2026-10-18 for the four melee clips). Slice (a) waits on Dom's "yes Mixamo" in Combat's own chat.
 
@@ -27,8 +27,8 @@ Mixamo FBX are NOT in git: `/srv/dev-jobs/mixamo-drop/mixamo` on the VPS (privat
 
 | Slice | Path | Kind | State | Owner | Trunk already has | Port status |
 |---|---|---|---|---|---|---|
-| c | `src/fight/sandbox-rules.ts` (rows reader: specials, missiles, bowSpecial, missileAnswer, bands, mana, heal) | code (sim read) | DONE | Combat | no | TODO |
-| c | `src/fight/sandbox-rules-defs.json` (EVERY row family must be declared here; an undeclared family is silently ignored by the sandbox entry's patch) | row | DONE | Combat | no | TODO |
+| c | `src/fight/sandbox-rules.ts` (rows reader: specials, missiles, bowSpecial, missileAnswer, bands, mana, heal) | code (sim read) | DONE | Combat | melee-special families only (#3198, merged, empty defaults; #3205 adds readers) | IN-PR #3198 (merged) + #3205; the missile / bow / mana / heal readers remain TODO |
+| c | `src/fight/sandbox-rules-defs.json` (EVERY row family must be declared here; an undeclared family is silently ignored by the sandbox entry's patch) | row | DONE | Combat | melee-special families (#3198, merged; #3205) | IN-PR #3198 (merged) + #3205; later families (reach, bow, missile, mana) TODO |
 | c | `sandbox/rows.json` rows: `specialPick`, `specialSound`, `specialReactFloor`, `bowSpecial`, `missileAnswer`, `missile`, `missileLanes` (FINAL bow values: missileAnswer 15 / 15 / run 0, see the message to Combat) | row | v1 | Combat | no; needs trunk manifests per the as-data rule | TODO |
 
 ## Melee specials and slots (slices d, e)
@@ -36,7 +36,7 @@ Mixamo FBX are NOT in git: `/srv/dev-jobs/mixamo-drop/mixamo` on the VPS (privat
 | Slice | Path | Kind | State | Owner | Trunk already has | Port status |
 |---|---|---|---|---|---|---|
 | d | MELEE SPECIAL REACH (Dom 2026-10-18, "short-mid, a tad more than a normal attack"), commit 3b118938e: rows `specialMeleeReach` 220 cm + `specialMeleeSlack` 40 (sandbox-rules-defs.json 0 = trunk); `sandbox-rules.ts` `meleeSpecialReach`; `duel.ts` press refused beyond reach with the `far` cue (nothing spent), release whiffs (`SpecialFizzled`) beyond reach + slack (before: no range check at release); `ai.ts` casts inside the same reach. Fixes a special landing from across the arena. 231 sandbox/special tests green on the VPS. | code (SIM: RV bump, WSV) + rows | DONE | Combat | no | TODO |
-| d | `src/fight/duel.ts` `specialMeleeWindup`, `specialReact` (stagger/knock/posture rows), `specialReactFloor`; `src/fight/hit-impact.ts` `special` tier; `src/fight/sound/cues.ts` `specialSound` | code (SIM: RV bump, WSV, batteries) | DONE | Combat | no; trunk has `special-look.ts`, `special-modes.ts`, cc-defs | TODO |
+| d | `src/fight/duel.ts` `specialMeleeWindup`, `specialReact` (stagger/knock/posture rows), `specialReactFloor`; `src/fight/hit-impact.ts` `special` tier; `src/fight/sound/cues.ts` `specialSound` | code (SIM: RV bump, WSV, batteries) | DONE | Combat | no; trunk has `special-look.ts`, `special-modes.ts`, cc-defs | IN-PR #3205 (duel.ts windup / react, shipped off, RV77); `hit-impact.ts` `special` tier and `specialSound` cues TODO |
 | d | Four specials Skull Crack / Whirlwind / Ground Slam / Lunge on every melee weapon | feature | DONE (Dom approved) | Combat | no | TODO |
 | d | `src/fight/special-shards.ts` (MIT port of World of Claudecraft chips; rows empty by default), `specialTrail` rows | code (view) | DONE | Combat | no | TODO |
 | e | SPECIAL 1 / SPECIAL 2 slots, picker labels + `unlockAfterBossKills` (DATA ONLY: nothing reads it; Combat wires the gate), Heal off (`healOff` row) | code (UI + sim) | DONE | Combat/Web | no | TODO |
@@ -62,7 +62,7 @@ Open on h: multipliers untuned (Power 2.0 / Fan 0.6 each / Pin 1.0 / Quick 1.2 o
 | Slice | Path | Kind | State | Owner | Trunk already has | Port status |
 |---|---|---|---|---|---|---|
 | i | `scripts/special-weapon-sheet.mjs` (`--bow 1`, `--orbit`), `scripts/special-look-clip.mjs`, `sandbox/bow-sheet.sh`, `sandbox/vps-run.sh`, `sandbox/publish.sh` | tool | DONE | Combat | no | TODO |
-| i | `scripts/melee-digest.mjs` (the batteries' before/after digest) | tool | DONE | Combat | no | TODO |
+| i | `scripts/melee-digest.mjs` (the batteries' before/after digest) | tool | DONE | Combat | PORTED #3206 | PORTED #3206 (merged) |
 | i | `tests/sandbox-bow-special.test.ts` (7), `tests/sandbox-bow-battery.test.ts` ([slow], 16 seeds both ways, `BOW_TUNE` sweep), `tests/sandbox-special-weapons.test.ts` (36), `tests/sandbox-special-look.test.ts`, `tests/sandbox-special-sound.test.ts`, `tests/sandbox-quiver.test.ts`, `tests/cc-swarm-rows.test.ts` | tool | DONE | Combat | no | TODO |
 
 ## Older sandbox-mech (experiment, Dom decides; not re-verified by this lane)
