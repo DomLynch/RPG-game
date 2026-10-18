@@ -71,5 +71,8 @@
     {"file": "origins/world/instances.ts", "name": "MAX_SLOTS", "kind": "exempt", "reason": "the loader's validation bound the error text states (1 to 256 slots), not tuning", "owner": "World & Audio"},
     {"file": "origins/world/derive.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the centre of the zone's width, a mathematical constant, not tuning", "owner": "World & Audio"},
     {"file": "origins/world/derive.ts", "name": "PER", "kind": "exempt", "reason": "the density unit: a row's counts are per 100 m2 (the field names say per100), a unit, not tuning", "owner": "World & Audio"}
+  ],
+  "branchIds": [
+    {"file": "origins/world/goblin-field-rules.ts", "literal": "biome", "reason": "a named rule row read by its own name (the goblin-field names table, id \"biome\", validated at load): looking a named rule up is how the data layer is read, not content branching"}
   ]
 }
