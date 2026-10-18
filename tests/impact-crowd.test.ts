@@ -1,4 +1,5 @@
 // CS31 impact flash/ring and crowd roars (Combat sandbox @93b1138c7): data-driven and silent by default. No contact row ships a flash or ring; no roar row ships.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

@@ -1,6 +1,7 @@
 // The player weapon flip (Brief 5): the sim takes the player's weapon at the door, a non-longsword weapon starts armed, the fight record
 // carries the weapon (an older record version is refused, never replayed as a different fight), and every weapon a player can carry is fair against every live
 // rung by the rung's own caps. The pin below runs the same 24-seed table as scripts/player-weapon-battery.mjs (Combat signed it) and derives the offered set from it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';

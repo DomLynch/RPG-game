@@ -1,4 +1,5 @@
 // The goblin field's rows (origins/world/goblin-field-defs.json): the loader refuses a broken table, and the look's defaults are pinned.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { goblinBackdrop, goblinPalette, goblinPalettes, goblinRule, goblinTint, goblinZone, loadGoblinField } from '../origins/world/goblin-field-rules.ts';

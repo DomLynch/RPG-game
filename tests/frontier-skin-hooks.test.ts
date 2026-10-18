@@ -1,5 +1,6 @@
 // The Test Zone's building-skin and clutter-thinning hooks, ported onto trunk's plan / greybox split (Web, Lead's ruling 2026-10-18; promotion-list.md). With no skin and Thin = WHOLE the build is exactly what it was
 // (the digest pins below are the pre-port values); a skin changes what is DRAWN and never what a player can bump into, except that a skin which leaves a plain landmark bare leaves nothing standing there.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Piece } from '../origins/preview/exchange-plan.ts';

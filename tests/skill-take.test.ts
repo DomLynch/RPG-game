@@ -1,5 +1,6 @@
 // The Witch-fire take (SCOPE #729 item 8): a Witch kill offers her move beside her armour, the take is stored on the loot like a piece,
 // survives a reload and a cloud round trip, and the next duel's fighter carries it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../src/core/loot.ts';

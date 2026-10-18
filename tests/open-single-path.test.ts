@@ -1,5 +1,6 @@
 // One universal "your character exists" rule: the writer's `open` is asked in ONE place (src/core/open.ts). No page entry (the Pit src/main.ts, the zone page origins/preview/main.ts) and no
 // screen (src/core/gear-server.ts) may POST `open` itself, or a first page could skip the door that makes the account's first character.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

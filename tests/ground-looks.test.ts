@@ -1,4 +1,5 @@
 // The ground-looks rows load, and the loader refuses a bad one (the Auditor on #2824): a bad colour, a radius or height at or below 0, an opacity outside (0, 1], a missing tilt.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import LOOKS from '../origins/preview/ground-looks.json' with { type: 'json' };

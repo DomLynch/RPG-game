@@ -1,4 +1,5 @@
 // The combat camera (Dom 2026-10-17: in a fight the thumb buttons hid the hero and the foe was too close): the follow camera eases into a zone's combat framing and back, never cuts, and does nothing outside a fight.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';

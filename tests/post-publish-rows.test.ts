@@ -1,6 +1,7 @@
 // Post-publish rows (Lead + Strategy 2026-10-13): rows 9 and 46, the candidate CI's tail (854 s and 458 s), run right AFTER Published instead of gating it. CI leaves them out of a
 // candidate's matrix, deploy.sh defers them (RELEASE_CHECKS_DEFERRED) and runs them once the release is live (scripts/lib/post-publish.sh), and a failure there is a RED line,
 // exit 1 (the release train stops and keeps its hold) and a deploy_hold for the next publish, never a silent pass.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

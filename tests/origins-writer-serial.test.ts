@@ -1,5 +1,6 @@
 // The writer's serial write queue (origins/server/server.ts serialQueue): one account's requests run one at a time, other accounts never wait,
 // a failure does not block the next request, and a flooded account gets 503 'busy'. Over real HTTP with stand-in handlers; no database.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';

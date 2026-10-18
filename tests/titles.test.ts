@@ -1,4 +1,5 @@
 // Fame x karma titles: the table loads through the shared loader, forms a full grid, every cell cites a legend-style source, and the resolver is a pure function of (fame, karma).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { TITLE_ROWS, titleFor, titleRowFor, type TitleRow } from '../src/fight/titles.ts';

@@ -1,5 +1,6 @@
 // Strategy battery: simple, repeatable human strategies against the warden. AI-vs-AI cannot find these; a human finds them in ten minutes.
 // Gate: no scripted strategy wins more than half its fights at normal or more than a third at hard, and none goes untouched.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { OPPONENTS, type Opponent } from '../src/fight/moves.ts';

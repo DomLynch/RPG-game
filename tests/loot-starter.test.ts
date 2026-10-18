@@ -1,5 +1,6 @@
 // The starter longsword (loot-pieces.json lootStarter, Lead + Strategy 2026-10-17): a live LootId, `starter.Longsword`, so the rusty sword a new player finds can be worn and shown on the paperdoll. It belongs to no roster opponent,
 // so it is never offered or dropped (LOOT does not list it); it is valid under isLootId like a retired piece, and its slot decides the weapon, so it fights as the default longsword with identical numbers.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LOOT, LOOT_IDS, RETIRED_LOOT, STARTER_LOOT, cleanLoot, dropFor, fightWeapon, isLootId, ownedName, weaponOf, type Loot } from '../src/core/loot.ts';

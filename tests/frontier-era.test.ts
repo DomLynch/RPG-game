@@ -1,6 +1,7 @@
 // Drift guard (Lead, 2026-10-17): Backend's Frontier-wield era row (origins/region1/frontier-wield.json, fromRecordVersion; #3051) must equal the RECORD_VERSION the sim batch introduces, so it cannot silently drift if
 // someone else bumps first. A claim at or above the row's number wears Frontier pieces; the sim batch (the specials, the audit rows, the world creature movement) is what opens version 75. If this fails, a later bump or a
 // renumber moved one of them: change BOTH deliberately (the row follows the number the batch ends up with).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FIRST_FRONTIER_WIELD_VERSION } from '../origins/region1/frontier-wield.ts';

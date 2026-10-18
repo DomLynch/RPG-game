@@ -1,4 +1,5 @@
 // CS31 styles (Combat sandbox @93b1138c7): the ready and hurt pose styles and plainPosture are rows, all OFF by default.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HURT_STYLES, PLAIN_POSTURE, READY_STYLES, pickStyle } from '../src/fight/character-style-rows.ts';

@@ -1,4 +1,5 @@
 // Play -> Zone 1 (src/zone1-hop.ts): only an exactly plain `/` with a saved fighter and the lesson done goes; everything else stays on the arena as today.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ZONE1_IS_DEFAULT, ZONE1_URL, zone1AfterLesson, zone1Hop } from '../src/zone1-hop.ts';

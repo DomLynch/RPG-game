@@ -1,4 +1,5 @@
 // The Zone 1 "Sign in" link is a thumb target of at least 44 x 44 px (Web 375 pass, 2026-10-09: it was 45 x 30).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

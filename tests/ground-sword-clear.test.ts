@@ -1,6 +1,7 @@
 // The starter weapon is not a fight first (Strategy 2026-10-16: "a starter weapon that needs a win first is a fake barrier"): the rusty sword lies at the Cinder Fields camp's edge, outside the aggro
 // radius PLUS the roam of every creature of the camp and of the lone opener (a creature that has wandered to the edge of its roam still has not noticed a walker beyond its aggro), with a margin, and
 // not on the place centre, where the kobold legend of the Ash Pits stands (origins/boss/legend-spawns.json). Reads the placed list (origins/preview/mobs.golden.json) and the ground row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

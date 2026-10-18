@@ -1,4 +1,5 @@
 // scripts/pack-battery.ts rungs must reach the hero: rungs 0/2/4 gave byte-identical fights because the gear went in as player()'s `level` argument. A rung is a sheet, and a higher rung is a different one.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { rungSheet } from '../scripts/lib/rung-sheet.ts';

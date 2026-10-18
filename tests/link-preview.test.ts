@@ -1,5 +1,6 @@
 // A pasted kill link (/s/<id>, served as index.html by deploy/frankendom.com.conf) previews inline: a crawler runs no script, so the
 // title and the kill-frame still must be static tags in index.html, the image absolute and present in public/.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';

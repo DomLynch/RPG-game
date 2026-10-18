@@ -1,6 +1,7 @@
 // RV29 (2026-10-07): REACH[29] lists every opponent from level 1, so a shared kill link written at v22 (the fight before the late-notice ramp) is refused at decode; the page converts it into
 // "Recorded on an older version of the game" with the warden's still and PLAY NOW (main.ts). Until RV29 these links replayed their own fight (the record's version picked
 // the era flags: play-radius.ts, stab-rule.ts, detmath.ts underRecord); the pinned outcome and state hashes of that replay are in the git history of this file.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';

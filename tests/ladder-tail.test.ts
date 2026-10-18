@@ -1,6 +1,7 @@
 // The tail past hard: Origin II–V, levels 47–50 (Dom via Strategy 2026-10-05; Lead GO, option B, 2026-10-06). Levels 1–46 are the old ladder BYTE FOR BYTE
 // (the hard anchor stays at 46); each level past it blends a quarter further toward moves.ts tailApex — skill knobs only, capped. The fairness of every
 // rung up there is judged against the hard caps (no strategy over a third of its fights, none untouched), like the 46 beneath it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

@@ -1,4 +1,5 @@
 // The moving cluster of the S1 load test's run R2c: the placement rules of origins/presence/cluster.ts (the script itself only drives sockets).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { clusterCount, inSquare, newSquare, pointIn } from '../origins/presence/cluster.ts';

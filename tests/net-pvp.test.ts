@@ -1,5 +1,6 @@
 // PR3 of live PvP (docs/duel-architecture.md §7): the guest's view (viewAs), the wire codec, the lobby handshake and the driver over a
 // lossy fake link, and Match's 'pvp' mode (nothing recorded, nothing awarded).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/fight/ai.ts';

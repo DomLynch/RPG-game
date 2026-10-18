@@ -1,4 +1,5 @@
 // Towns are rows (origins/region1/towns.json): the rows are byte-identical to the old code, and a new trade, temperament or town is one row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

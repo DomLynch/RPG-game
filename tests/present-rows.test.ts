@@ -1,4 +1,5 @@
 // The page's presentation numbers are rows (src/present-rows.json), and every default is the literal the code held before (Dom's data-layer rule, 2026-10-13).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

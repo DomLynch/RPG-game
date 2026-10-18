@@ -1,4 +1,5 @@
 // CS31 one-button strike + touch layout A (Combat sandbox @93b1138c7): off by default, rows with the sandbox's values, the stab sector, and the layout's positions (the sandbox's numbers for the default variant).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

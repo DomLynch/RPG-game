@@ -1,4 +1,5 @@
 // scripts/new-zone.mjs makes a zone from a biome and one number: it writes ONE row file (origins/zone-rows/zone<N>.row.json) and nothing else changes (Lead 2026-10-09, "test zone 999 loads, no edits outside"; 2026-10-11 the row IS the zone).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

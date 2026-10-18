@@ -1,5 +1,6 @@
 // Building skins (zone sandbox, 2026-10-16): a culture's look for a town's buildings as rows. The skin changes how a block looks, never its footprint or solid; empty = today's bricks.
 // The renderer tests (real glb nodes, skinPieces, the frontier plan staying put) come with the renderer PR.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';

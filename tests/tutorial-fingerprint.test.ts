@@ -1,6 +1,7 @@
 // The tutorial foe's stepped duel, fingerprinted: a player who does each step, and three other kinds of player, on twelve seeds; the whole duel state, the beats and the tick count hashed into one digest.
 // Written BEFORE the tutorial numbers (GAP, ROLL_SPAN, SETTLE, REACH, FLOOR) moved into rows (src/tutorial-rules.json), so a change that moves any of them fails here.
 // TUTORIAL_PRINT=1 prints the digest instead of asserting it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

@@ -1,5 +1,6 @@
 // The Ash Wolf (Combat, 2026-10-07; mob beasts proposal): a held opponent on its own quadruped rig, the Goblin's hit-and-run with a bite. The sim half: the row, the weapon, the bake, the
 // reach, the clips the role map names, the flee layer, and a fairness fingerprint against the Goblin.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

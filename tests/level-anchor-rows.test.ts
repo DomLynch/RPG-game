@@ -1,5 +1,6 @@
 // The AI profile tiers' anchor levels are ROWS (src/fight/level-anchor-defs.json, built by src/fight/level-anchor-rows.ts; recce #2554 group B, slice 4). The move is byte-identical: the canonical JSON of
 // LEVEL_ANCHORS and of opponentAt / profileAt for every opponent at every level 1..LEVELS hashes to what the hand-written literal in moves.ts hashed to on slice 3's chain before it went.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';

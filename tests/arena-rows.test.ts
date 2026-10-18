@@ -1,5 +1,6 @@
 // Arena vocabularies as rows (src/fight/arena-defs.json, loaded and checked by the registry loader). Weather: what each kind does is a row of flags
 // the Points cloud reads (src/arena.ts), never a name. These pin the rows to what the old name branches did, and that a theme can only name a row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ARENA_THEMES, WEATHER_ROWS, weatherRow } from '../src/arena-themes.ts';

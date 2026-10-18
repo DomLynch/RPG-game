@@ -1,4 +1,5 @@
 // Positioning bands (spec docs/specs/combat/positioning-gates.md): the rows, the pure band functions, the damage factor behind duel.bands and the AI's holdBand. Default off: no `bands`, no change.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import BAND_DEFS from '../src/fight/band-defs.json' with { type: 'json' };

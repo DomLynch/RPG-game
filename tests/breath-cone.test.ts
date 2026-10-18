@@ -1,4 +1,5 @@
 // The breath cone (Combat, top-30 item 23, PROVISIONAL numbers): a special with a row in cone-defs.json breathes in pulses instead of striking once. Era-keyed at v55 (cone-era.ts); creature specials only.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';

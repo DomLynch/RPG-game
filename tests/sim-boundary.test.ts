@@ -2,6 +2,7 @@
 // three, no scene/hud/input, no account or network code, no package at all. eslint.config.js owns the list (SIM) and keeps clocks and
 // randomness out of those files; this test keeps foreign imports out, from the same list, so a new sim helper joins SIM and is
 // covered by both. ESLint's no-restricted-imports could not express "everything except these siblings" reliably, hence a test.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

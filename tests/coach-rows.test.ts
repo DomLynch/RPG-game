@@ -1,4 +1,5 @@
 // The coach's stance brains, per-foe lapse and stance scale are rows (src/coach-defs.json): every value equals the literal it replaced in src/coach.ts, and the loader refuses a broken row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';

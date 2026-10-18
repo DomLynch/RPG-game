@@ -1,5 +1,6 @@
 // The presence service (origins/presence): the wire format, layers and assignment, interest management, the movement clamp, and the real
 // socket path. Numbers are the one-shard note's est. figures (80 soft / 100 hard, 40 m radius, 40 nearest, 10/5/2 Hz rings).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { decodeDown, decodeUp, encodeDown, encodeUp, ENTITY_BYTES } from '../origins/presence/wire.ts';

@@ -1,6 +1,7 @@
 // writer_back (deploy.sh): when the site switch fails after the writer install, the outgoing writer is put back, but ONLY while the site has not moved. An ssh drop after the
 // switch ran (Auditor, #2489) used to roll the writer back behind a site already on the new release. writer_back_cmd builds the box-side command; run here against scratch roots
 // with a stub systemctl.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

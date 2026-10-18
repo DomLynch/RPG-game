@@ -1,6 +1,7 @@
 // Kill-link previews with the legend's face (Lead 2026-09-28, option c): the nginx whitelist in deploy/frankendom.com.conf is exactly
 // the 100 face names (legends.ts PORTRAIT_KEYS), each has its face file, and every string the /s/ sub_filters look for is in index.html
 // once, so a changed tag fails here instead of silently keeping og.jpg.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

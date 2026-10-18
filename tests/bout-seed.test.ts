@@ -1,4 +1,5 @@
 // The bout seed is one pure integer function: pinned outputs (a change moves every world record's rolls, so it needs a WORLD_SIM bump), a u32 range, and token and tick both matter.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { hash32 } from '../src/fight/bout-seed.ts';

@@ -1,4 +1,5 @@
 // The beta cut (Dom 2026-10-17, Strategy's lists): the Pit shows two titles and the signed-off 20 spells. A VIEW: a stored L16 account still loads, keeps its marks, and the server's rules (MAX_LEVEL, levelOfMarks) do not move.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import CAREER_RULES from '../src/core/career-rules.json' with { type: 'json' };

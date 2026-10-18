@@ -1,4 +1,5 @@
 // The brick catalogue (top-30 row 4, data half): every root the 700 spell rows name is a brick row; costs are signed; the success table is ordered; each root is an FX template the special rows use.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

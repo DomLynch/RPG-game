@@ -1,4 +1,5 @@
 // The boss ground telegraph (boss-telegraph.ts, ?telegraph=1): a pure read of the sim's windup, boss specials only, never written back.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';

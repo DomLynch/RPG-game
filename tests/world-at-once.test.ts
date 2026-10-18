@@ -1,5 +1,6 @@
 // A catalogue row may hold a camp below the one attacker cap (Lead, 2026-10-13: the goblin camps engage at most two at once, by the row's `atOnce` field, until Combat's retune restores the designed sizes).
 // The cap is the lower of MAX_ATTACKERS and the row's value; a kind with no `atOnce` (the wolf) is unchanged.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MAX_ATTACKERS } from '../src/fight/attackers.ts';

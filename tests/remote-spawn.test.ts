@@ -1,4 +1,5 @@
 // Other players in Zone 1 draw the hero's own rig: buildWarriors' `spawn` makes one more actor from the SAME asset (view-only; the duel's player/opponent are built exactly as before).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

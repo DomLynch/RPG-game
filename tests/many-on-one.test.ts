@@ -1,5 +1,6 @@
 // Many-on-one (Combat, RV73 / WSV49): (A) the hero's foe is the creature he faces at ready, so a joiner is hittable; (B) the Nth creature on one hero lands a percent of its blow (swarm-defs.json slots, Duel.crowd).
 // Donors: EQEmu hate_list.cpp / mob_ai.cpp (the most-hated target, the leash from the spawn) and AzerothCore CreatureAI::EnterEvadeMode, SHAPE ONLY; the cut is the 10-13 work on combat/many-on-one @70c3a2582.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { crowdPercent, SLOT_ROWS } from '../src/fight/roll.ts';

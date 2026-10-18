@@ -1,4 +1,5 @@
 // The world follow camera (src/fight/follow-camera.ts): the numbers main.ts used inline before it moved, pinned; a passage is a parameter a zone supplies.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';

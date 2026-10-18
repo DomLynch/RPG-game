@@ -1,6 +1,7 @@
 // The rollback core over a fake link (docs/duel-architecture.md §8, days 1–2): two sessions in one process, each driven by the warden's
 // AI on its own (predicted) view, their packets delayed, jittered, reordered and dropped by a seeded link. Whatever the link does, both
 // sessions must confirm the same fight: the same intent log on both sides, and fingerprints equal to a plain stepDuel over that log.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/fight/ai.ts';

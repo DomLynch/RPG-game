@@ -1,5 +1,6 @@
 // Zones 1 and 2 are DATA ROWS (origins/zone-rows/zone<N>.row.json), read by the registry with no per-zone TypeScript. The loaded zone is exactly what the hand-written folders gave: Zone 2 by the hash taken at trunk
 // 968f996f3 (Lead + Strategy merge gate: this test and tests/k7-engine-parity.test.ts green on the same head). (Whole-zone hashes of Zones 1 and 2, resolved tree included, were equal before and after the folders became rows: the PR body has them.)
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';

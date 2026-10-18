@@ -1,5 +1,6 @@
 // The phone budget for every world body (public/world/<kind>.glb, what a zone draws; Lead 2026-10-09, Dom's phone black screen): at most ~8k triangles, ONE texture, the engine rig's joints and clip names.
 // The boar's was 20,000 triangles (its engine file) until it was generated through scripts/character/world_body.py like the rest. A new world body over the ceiling fails here, not on Dom's phone.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';

@@ -1,5 +1,6 @@
 // The Mac-only rows started at the cut (Strategy + Lead 2026-10-12): release-checks.mjs runs ONLY those rows into its own receipt; scripts/mac-rows-early.sh
 // records a tree-bound receipt; deploy.sh trusts the passed rows by tree, waiting while a run for that tree is still going; the Published line shows start-end.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';

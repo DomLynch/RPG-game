@@ -1,6 +1,7 @@
 // The Origins writer's story ops (quest_advance, talk_pick) on a fake database that keeps the migration's commit rules in memory: event ids are
 // unique (O0001), versioned rows refuse a stale write (O0002), a row for a character outside the batch's account is refused (O0010), a batch is
 // all or nothing. No Postgres; the real cluster runs in scripts/origins-writer-check.mjs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';

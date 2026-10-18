@@ -1,5 +1,6 @@
 // Sheet-in-world PR 5 (Combat, 2026-10-13): the world hero is the Pit's hero. A world Fighter's health, and every number a Hit event reports, IS the Pit duel's own: no Loadout multiplier, no
 // aMul/bMul pool scaling, no flat 150 health or 0 poise for a hero the sheet sizes. This pins that for sheeted heroes before the world-only path is deleted (it must pass on both sides of the deletion).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createFighter, withSheet } from '../src/fight/duel.ts';

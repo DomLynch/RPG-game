@@ -1,4 +1,5 @@
 // The CI unit receipt (scripts/lib/ci-unit.mjs): eight green shards make one receipt; anything short of that is refused, and deploy trust re-checks tree and run.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

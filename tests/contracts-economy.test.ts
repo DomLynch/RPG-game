@@ -1,5 +1,6 @@
 // O1 economy: direct trade (Exchange-only, one of each, provenance kept, history appended, upgrade level travels) and the blacksmith's
 // upgrade service (caps never passed, no-effect refused, idempotent receipts, stale versions refused, priced from a data table).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CAPS } from '../src/fight/gear-stats.ts';

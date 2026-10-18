@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeEvents, cronMatches, eventActive, loadLiveOps, parseCron, switchOn, EMPTY_LIVE_OPS, type Cron, type LiveEvent } from '../src/core/live-ops.ts';

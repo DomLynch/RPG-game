@@ -1,4 +1,5 @@
 // The origins/ type-check ratchet (scripts/origins-tsc.mjs): the counting and the judging, without running tsc (CI runs it as `npm run typecheck:origins`).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

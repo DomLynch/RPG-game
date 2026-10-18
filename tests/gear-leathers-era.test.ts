@@ -1,5 +1,6 @@
 // Gear in the world (Dom 2026-10-17: Zone 1 fight stats come from the gear picked up): the leathers set (goblin, werewolf) takes a new shape from record version 74 (armour up instead of down), and a record
 // fought before it still verifies against the shape it was fought with. The era lives in the set row (gear-defs.json sets eras), read by gearDeltas, and sets the floor a sheet fight is stamped at.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadGearDefs, GEAR, gearDeltas } from '../src/fight/gear-rows.ts';

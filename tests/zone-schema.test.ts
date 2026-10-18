@@ -1,4 +1,5 @@
 // The zone schema (A1, docs/specs/origins/zone-schema.md): one field registry, defaults < biome < zone, versioned, unknown fields refused with the nearest known one. The five tests Strategy named.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadZone, zoneIds } from '../origins/zones/loader.ts';

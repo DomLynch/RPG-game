@@ -1,4 +1,5 @@
 // The skull wall's data (src/pit/skulls.ts): the loot fallback, Backend's pit_recent_kills mapping, the fetch that never throws, the demo set.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { demoKills, fetchKills, killsFromLoot, killsFromRows, lootKills, splitKey, type Kill, type SkullDb } from '../src/pit/skulls.ts';

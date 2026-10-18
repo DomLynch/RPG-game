@@ -1,6 +1,7 @@
 // The built Origins page must not reach the server's code (the #2484 leak class): nothing under origins/preview, followed through every relative import (static, re-export or dynamic), may land in origins/server/ (the writer and
 // the grimoire's whole spell catalogue) or in the node-safe doors src/fight/server.ts and src/core/server.ts. The page reads the engine through src/fight/index.ts and the core through src/core/index.ts.
 // Type-only imports are erased by the build and are not followed. One real leak existed before this guard and is PINNED (it only shrinks): see KNOWN.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

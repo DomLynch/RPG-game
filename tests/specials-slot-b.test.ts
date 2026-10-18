@@ -1,5 +1,6 @@
 // SPECIAL 2 as a melee special (the specials PR, RV75; donor: Combat-sandbox 93f619b27): slot b holds an existing class skill and fights through ITS move-defs row (reach, windup, stagger, knockback, stamina, posture),
 // on its own cooldown, never the flat special share. The six picks (Strategy 2026-10-17: lunge, ironrush, pommel, shove, cleave, stomp; hewer is the alternate) must really differ, and a fight with no skill2 is untouched.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { legal, stepDuel, withSkill2, type CombatEvent, type Duel } from '../src/fight/duel.ts';

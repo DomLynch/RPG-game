@@ -1,4 +1,5 @@
 // The sound's numbers are rows (src/fight/sound/audio-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AUDIO_RULES, CASTER_ROWS, THROAT_ROWS, audioRule, bloomRules, loadAudioRules } from '../src/fight/sound/audio-rules.ts';

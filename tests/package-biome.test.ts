@@ -1,4 +1,5 @@
 // Gap 8: a zone package can bring its own biome preset (biome.row.json), merged into the biome table through the generated biomes.packages.json; the shared presets in biomes.json stay hand-edited and cannot be redefined by a package.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

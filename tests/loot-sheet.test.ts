@@ -1,6 +1,7 @@
 // A dropped item on the sheet (Web, Lead 2026-10-17, the client side of Strategy's #3 loot + gear; Backend #3052: a piece's `tier` IS the minted rung's name, `level` is the upgrade level):
 // each pack cell carries its OWN rung (two copies of one id at different rungs are what the mint's rarity shift makes common), the backpack row shows what THAT piece gives, trying it on and wearing it
 // use that cell, and equipping changes the sheet's numbers. The numbers are a pure function of (lootId, rung) from the Attack/RES table, so there is no server field to agree.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lootOfView, rungOf, stepsFor, stepsToWear, type GearPiece, type GearView } from '../src/core/gear-ledger.ts';

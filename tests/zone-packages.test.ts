@@ -2,6 +2,7 @@
 // in a package except hooks.ts is one literal (import type only: no function, arrow, class, loop, call or computed expression); nothing in the repo outside the
 // zones folder imports a package's files except the loader; no package imports the Pit (src/arena*); and a package's hooks.ts stays within the 300-line budget.
 // Each rule is a function over a root folder, so the negative controls below run it on a broken fixture and must see it fail (no rule can pass vacuously).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,5 +1,6 @@
 // The coach's lapse bounds (coach-lapse-min / coach-lapse-max, src/present-rows.json) feed the AI profile the coach plays with: every stance x level x foe profile, hashed.
 // The digest was computed at the code BEFORE the bounds became rows, so a change to either bound, or to the clamp, fails here. COACH_PRINT=1 prints the digest instead of asserting it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

@@ -1,6 +1,7 @@
 // The sim's math is the same bits in every engine (Strategy ruling, 2026-09-29; the Dwarf seed-828 kill link split between Node's V8 and
 // Chromium's on a 1-ulp Math.atan2). src/fight/detmath.ts carries sin / cos / atan2 / hypot on + − * / sqrt only; old records replay on the
 // engine's own Math, frozen, picked by the record's version and nothing else.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

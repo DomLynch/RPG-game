@@ -1,5 +1,6 @@
 // The PvP relay (scripts/duel-relay.mjs) against Node's own WebSocket client: it is not an open relay (a socket joins only with a signed,
 // unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readToken, RELAY, signToken, startRelay, supabaseAdmin, supabaseUser } from '../scripts/duel-relay.mjs';

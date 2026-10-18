@@ -1,4 +1,5 @@
 // Lead 2026-10-10: a PR runs only the heavy CI jobs its diff needs; trunk pushes run everything (deploy.sh reads `quality` + `browser (combat)` from them).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

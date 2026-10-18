@@ -1,4 +1,5 @@
 // store.ts openWithPending: open and the pending Pit claims are ONE statement (one round trip to the database), two answers on two lines.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Db } from '../origins/server/db.ts';

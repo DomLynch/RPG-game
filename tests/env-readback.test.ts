@@ -1,4 +1,5 @@
 // ops/env-readback.sh: an install receipt reads env keys back as presence + length + hash, never the value (2026-10-08: a hand-written redaction printed a key).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

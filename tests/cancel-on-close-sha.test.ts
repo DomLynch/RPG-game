@@ -1,5 +1,6 @@
 // .github/workflows/cancel-on-close.yml cancels only the closed PR's own runs: same branch AND same head sha (Auditor, run 38252733109: closing the
 // superseded CR #2346 cancelled 7 of the 8 runs of the re-cut CR #2347, which reuses the branch release-CR). The workflow's own jq filter is run on a fixture.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
