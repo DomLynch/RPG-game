@@ -1,7 +1,14 @@
 {
   "tunables": [
     {"file": "origins/preview/presence-client.ts", "name": "OPEN", "kind": "exempt", "reason": "browser API constant WebSocket.OPEN (1): not a number we choose", "owner": "World & Audio"},
-    {"file": "origins/preview/daynight.ts", "name": "MINUTES_PER_DAY", "kind": "exempt", "reason": "a unit fact (24 h x 60 min = 1440 minutes in a day), not a tuning: nobody tunes how long a day is in minutes; the game day's real length is the gameDayMinutes row (Lead 2026-10-18)", "owner": "Web"}
+    {"file": "origins/preview/daynight.ts", "name": "MINUTES_PER_DAY", "kind": "exempt", "reason": "a unit fact (24 h x 60 min = 1440 minutes in a day), not a tuning: nobody tunes how long a day is in minutes; the game day's real length is the gameDayMinutes row (Lead 2026-10-18)", "owner": "Web"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "STEP", "kind": "exempt", "reason": "mulberry32 state increment: part of the seeded generator's definition (changing it re-draws every skyline, pinned by tests/horizon-dome.test.ts), not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "SHIFT_A", "kind": "exempt", "reason": "mulberry32 mixing shift: part of the generator's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "SHIFT_B", "kind": "exempt", "reason": "mulberry32 mixing shift: part of the generator's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "SHIFT_C", "kind": "exempt", "reason": "mulberry32 output shift: part of the generator's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "OR_B", "kind": "exempt", "reason": "mulberry32 mixing OR mask: part of the generator's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "UINT32", "kind": "exempt", "reason": "2^32: scales the generator's unsigned 32-bit output to [0,1), a number of the integer width, not tuning", "owner": "World & Audio"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "COLUMN_SALT", "kind": "exempt", "reason": "salt that separates the smoke columns' draws from the ridges' (golden-ratio constant): part of the seed format, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
     {"file": "origins/preview/ground-looks.ts", "literal": "loot", "reason": "the asset family name in a ground-look row (`asset: \"loot\"` = loot.glb's node, else a path): a schema category the loader validates, not a content id"},
