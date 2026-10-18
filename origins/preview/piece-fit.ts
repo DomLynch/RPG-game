@@ -28,9 +28,10 @@ export function boneRatios(source: THREE.Skeleton, rig: THREE.Skeleton): Map<str
 
 /** The pieces re-fitted to the rig: each a clone sharing the geometry and material, on a copy of its skeleton whose inverse binds carry the per-bone ratio. One new skeleton per source skeleton. */
 export function fitPieces(pieces: readonly THREE.SkinnedMesh[], rig: THREE.Skeleton): THREE.SkinnedMesh[] {
-  const fitted = new Map<THREE.Skeleton, THREE.Skeleton>();
+  const fitted = new Map<THREE.Skeleton, THREE.Skeleton>(), rigNames = new Set(rig.bones.map((b) => b.name));
   return pieces.map((piece) => {
     if (!piece.skeleton) return piece;
+    if (!piece.skeleton.bones.every((b) => rigNames.has(b.name))) return piece;   // scope: a biped rig with the hero's own bone names (troll, goblin); any other skeleton keeps the engine's plain retarget, no promise made
     let skeleton = fitted.get(piece.skeleton);
     if (!skeleton) {
       const ratios = boneRatios(piece.skeleton, rig);

@@ -120,11 +120,14 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   const carriers = new Map<string, THREE.SkinnedMesh[] | 'loading'>();
   const kitOf = (ids: readonly string[] | undefined): string | undefined => ids?.[0]?.split('.')[0];   // the carrier set a loadout's pieces come from: the body id its loot ids start with (executioner.Helmet -> carriers-executioner)
+  const fitCache = new Map<THREE.Skeleton, THREE.SkinnedMesh[]>(); let fitMs = 0, fitRuns = 0;   // piece-fit.ts: the pieces fitted to each body skeleton, and what that cost in all (browser checks read it)
+  const fitOff = /[?&]fit=0\b/.test(location.search);
   const putOn = (v: View) => {
     const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
     const rig = (() => { let s: THREE.Skeleton | undefined; v.actor!.anchor.traverse((o) => { if (!s && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') s = (o as THREE.SkinnedMesh).skeleton; }); return s; })();   // the body's own skeleton: the pieces are fitted to ITS proportions (piece-fit.ts)
-    try { v.actor.wear((rig ? fitPieces(pieces, rig) : pieces).filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
+    const fitted = rig && !fitOff ? (fitCache.get(rig) ?? (fitCache.set(rig, (() => { const t0 = performance.now(), out = fitPieces(pieces, rig); fitMs += performance.now() - t0; fitRuns++; return out; })()), fitCache.get(rig)!)) : pieces;   // fitted ONCE per body skeleton (a body's creatures share it per kind), never per frame; ?fit=0 = the engine's plain retarget, for a before/after
+    try { v.actor.wear(fitted.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
   };
   const loadCarriers = (kind: string) => {
@@ -307,6 +310,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },
     fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
     debug: () => ({
+      fit: { ms: +fitMs.toFixed(2), runs: fitRuns, tris: [...fitCache.values()].map((p) => p.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0)), draws: [...fitCache.values()].map((p) => p.length) },   // piece-fit.ts: the one-time load cost, and the pieces' triangles and draws per fitted body
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
       mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model), at: views.get(i) ? [+views.get(i)!.group.position.x.toFixed(2), +views.get(i)!.group.position.z.toFixed(2)] : null, loadout: mobVariant(s.character, s.id)?.loadout ?? null, worn: (() => { const out: string[] = []; views.get(i)?.model?.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.userData.slot) out.push(`${o.userData.slot}`); }); return out; })(), mouth: (() => { const b = views.get(i)?.actor?.boneWorld('Head') ?? views.get(i)?.actor?.boneWorld('head'); return b ? [+b.x.toFixed(2), +b.y.toFixed(2), +b.z.toFixed(2)] : null; })() })),   // height: the model's world height in metres (size checks); at: where the body is DRAWN (after the stand-off); mouth: its head bone in the world
     }),
