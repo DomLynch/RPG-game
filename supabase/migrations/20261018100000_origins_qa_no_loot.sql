@@ -8,9 +8,12 @@ begin;
 -- (2) origins_ground_take: a QA account's take is the CLAIM and the event with NO mint, so the item is not persisted but the respawn window and the claim count behave exactly as for anyone. Nothing else
 --     changes: every other check, the expected-n, the window, the allowlist of ops (event, mint) and the key rule are the previous body's. A non-QA account still needs exactly one mint under its own key.
 --     A QA account may send zero mints (the writer's QA path) or one (the writer's lookup failed and it paid as normal: accepted, the pre-launch wipe covers the QA account).
-create function public.origins_account_is_test(p_account uuid) returns boolean language sql stable security definer set search_path = '' as $$
-  select coalesce((select p.is_test from public.fighter_profiles p where p.user_id = p_account), false)
-$$;
+--     plpgsql ON PURPOSE: fighter_profiles.is_test belongs to another series (202610110021), and a language-sql body is resolved against the catalog at CREATE, so scripts/origins-database-check.mjs (which
+--     applies only the _origins_ follow-ups on a cluster without that series) could not create it. A plpgsql body is resolved when it runs; in production, and in every check that applies all migrations, the column exists.
+create function public.origins_account_is_test(p_account uuid) returns boolean language plpgsql stable security definer set search_path = '' as $$
+begin
+  return coalesce((select p.is_test from public.fighter_profiles p where p.user_id = p_account), false);
+end $$;
 revoke all on function public.origins_account_is_test(uuid) from public, anon, authenticated;
 grant execute on function public.origins_account_is_test(uuid) to frankendom_origins, frankendom_verifier;
 
