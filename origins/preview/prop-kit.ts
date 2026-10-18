@@ -33,14 +33,14 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
   const free = (x: number, zz: number, r: number, edge = kit.edge) => inZone(z, x, zz, r + edge) && !onRoad(f, x, zz) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + kit.clearRoad)
     && !marks.some((k) => Math.hypot(k.x - x, k.z - zz) < r + kit.clearLandmark) && ![...b.solids, ...base.solids, ...placed, ...baseFoot].some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + kit.clearProp);
 
-  if (rim && kit.mouth) { const m = world(0, -kit.mouth / 2); ground.push({ layer: 'stone', shape: ['box', z.width + kit.mouth * 2, stageRule('cinderSlab'), kit.mouth], x: m.x, y: stageRule('cinderSlab') / 2, z: m.z, tint: [1, 1, 1], rotY: z.mount.heading, foot: -1 }); }   // the dirt carried out behind the gate end too (the cinder pass stops at the mouth), a hair under the zone slab
+  if (rim && kit.mouth) { const slab = stageRule('cinderSlab'), m = world(0, -kit.mouth * kit.mouthMid!); ground.push({ layer: 'stone', shape: ['box', z.width + kit.mouth * kit.mouthPad!, slab, kit.mouth], x: m.x, y: slab * kit.slabMid!, z: m.z, tint: [1, 1, 1], rotY: z.mount.heading, foot: -kit.mouthSink! }); }   // the dirt carried out behind the gate end too (the cinder pass stops at the mouth), a hair under the zone slab
   for (const rc of recipes) {
     if (rc.kind === 'rim' && !rim) continue;   // the stake ring is only for a zone that asks for it (look.props.rim)
     const R = rng(`kit:${kitId}:${z.zone}:${rc.id}`), between = (lo: number, hi: number) => lo + (hi - lo) * R();   // this recipe's own stream
     if (rc.chance !== undefined && R() >= rc.chance) continue;   // a rare place: some zones have it, most do not (seeded by the zone)
     const total = rc.props.reduce((n, w) => n + w.weight, 0), pick = (): Prop => { let t = R() * total; for (const w of rc.props) { t -= w.weight; if (t <= 0) return propRow(w.prop); } return propRow(rc.props[rc.props.length - 1]!.prop); };
     const put = (p: Prop, x: number, zz: number, along?: number) => {
-      const s = between(p.scaleMin, p.scaleMax), yaw = along ?? between(0, 6.28);
+      const s = between(p.scaleMin, p.scaleMax), yaw = along ?? between(0, Math.PI * 2);
       if (rim && p.glb && modelOfNode(p.glb)) models.push({ node: p.glb, x, z: zz, rotY: yaw, scale: s }); else pieces.push(...propPieces(p, x, zz, yaw, s));   // a rim zone draws the kit's modelled props as models (the real goblin kit); the rest, and every other zone, as parts
       placed.push({ x, z: zz, r: p.r * s });
       if (p.emits === 'fire') fires.push({ x, z: zz });
@@ -53,7 +53,7 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
     } else if (rc.kind === 'rim') {   // a thin, see-through line just inside the zone's edge: a piece every `every` m, lying along the edge, a share `gap` of the spots empty (and none on a road or by a landmark: the gate stays open)
       const hw = z.width / 2 - rc.inset!, d0 = rc.inset!, d1 = z.depth - rc.inset!, side = (ax: number, ad: number, bx: number, bd: number) => {
         const n = Math.max(1, Math.round(Math.hypot(bx - ax, bd - ad) / rc.every!)), a = world(ax, ad), c = world(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x);   // the piece's own x axis along this edge
-        for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, o = world(ax + (bx - ax) * t, ad + (bd - ad) * t), skip = R() < rc.gap!, p = pick(); if (!skip && free(o.x, o.z, p.r, -p.r)) put(p, o.x, o.z, yaw); }
+        for (let k = 0; k < n; k++) { const t = (k + rc.phase!) / n, o = world(ax + (bx - ax) * t, ad + (bd - ad) * t), skip = R() < rc.gap!, p = pick(); if (!skip && free(o.x, o.z, p.r, -p.r)) put(p, o.x, o.z, yaw); }
       };
       side(-hw, d0, hw, d0); side(hw, d0, hw, d1); side(hw, d1, -hw, d1); side(-hw, d1, -hw, d0);
     } else if (rc.kind === 'ring') {
