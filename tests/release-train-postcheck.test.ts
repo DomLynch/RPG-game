@@ -1,7 +1,7 @@
 // Overlapping publishes (Lead GO 2026-10-18, Dom: "get this live"): with POST_PUBLISH_DETACH=1 deploy.sh leaves the CI-routed post-publish rows to scripts/release-train-postcheck.sh, which the train
 // publisher starts after it releases the hold. The tail holds the NEXT publish on a red or unproved row and never rolls back or re-trusts one.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -71,6 +71,26 @@ test('postcheck: records its pid in the pending marker while it runs and removes
     assert.equal(existsSync(marker), false, `marker removed when the tail ends (trusted ${trusted})`);
     rmSync(state, { recursive: true, force: true });
   }
+});
+
+test('postcheck: a TERM (what a Mac shutdown sends first) writes deploy_hold "interrupted" and KEEPS the pending marker, it never clears itself', async () => {
+  const state = mkdtempSync(join(tmpdir(), 'postcheck-term-'));
+  const marker = join(state, `post-publish-pending-${REV.slice(0, 8)}`);
+  writeFileSync(marker, `rev=${REV}\nrows=9,46,3\nat=1700000000\n`);
+  const trust = join(state, 'trust.sh');
+  writeFileSync(trust, `#!/bin/sh\ntouch "${state}/waiting"\nsleep 30\necho 3,9,46\n`, { mode: 0o755 });
+  const child = spawn('bash', ['scripts/release-train-postcheck.sh', REV, '9,46,3', ''], { detached: true, stdio: 'ignore', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_CI_SETTLE_S: '0', RELEASE_TRAIN_NOTIFY: '' } });
+  const closed = new Promise<number | null>(resolve => child.on('close', code => resolve(code)));
+  try {
+    for (let i = 0; i < 100 && !existsSync(join(state, 'waiting')); i++) await new Promise(r => setTimeout(r, 50));
+    assert.ok(existsSync(join(state, 'waiting')), 'the tail is waiting on CI');
+    process.kill(-child.pid!, 'SIGTERM');   // the whole group, as a shutdown does
+    const code = await closed;
+    assert.equal(code, 143);
+    assert.equal(existsSync(marker), true, 'the marker survives a dying tail');
+    assert.match(readFileSync(marker, 'utf8'), /pid=\d+/);
+    assert.match(readFileSync(join(state, 'deploy_hold'), 'utf8'), /post-publish tail interrupted.*\nrows 9,46,3 revision a{40}/);
+  } finally { rmSync(state, { recursive: true, force: true }); }
 });
 
 test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the CI wait and the stamp promote only on that path, and prints the line the publisher reads', () => {

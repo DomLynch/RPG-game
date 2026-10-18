@@ -15,8 +15,10 @@ state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"; hold="$state/deploy_hold"
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 marker="$state/post-publish-pending-${rev:0:8}"   # the publisher wrote rev/rows/at before it released the hold; this tail adds its pid and removes the file when it finishes (any exit)
 if [ -e "$marker" ]; then printf 'rev=%s\nrows=%s\nat=%s\npid=%s\n' "$rev" "$rows" "$(sed -n 's/^at=//p' "$marker" | head -n 1)" "$$" > "$marker"; fi
-trap 'rm -f "$marker" "$marker.told"' EXIT
 say() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train-postcheck: $*"; }
+decided() { rm -f "$marker" "$marker.told"; }   # ONLY a decided outcome clears the marker: all green, or deploy_hold written for a red row
+# A dying tail (Mac shutdown or reboot sends SIGTERM first; INT, HUP) decides nothing: it holds the next publish and keeps the marker, never clears itself (Auditor on #3177).
+trap 'say "RED: interrupted"; [ -e "$hold" ] || printf "post-publish tail interrupted; remove this file after looking\nrows %s revision %s at %s\n" "$rows" "$rev" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"; exit 143' TERM INT HUP
 note() {   # one PR comment, best effort (POSTCHECK_COMMENT replaces gh in tests)
   [ -n "$pr" ] || return 0
   if [ -n "${POSTCHECK_COMMENT:-}" ]; then $POSTCHECK_COMMENT "$1" >/dev/null 2>&1 || true; else gh pr comment "$pr" --body "$1" >/dev/null 2>&1 || true; fi
@@ -26,6 +28,7 @@ raise() {   # $1 = why: hold the NEXT publish and tell a person
   [ -e "$hold" ] || printf 'post-publish CI tail failed for a live release; remove this file after looking\nrows %s revision %s: %s at %s\n' "$rows" "$rev" "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"
   note "release-train post-publish: rows $rows for live $rev NOT proved on CI ($1). deploy_hold written; the release stays live. Owner fixes forward on the next publish's thread."
   [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI rows failed for $rev ($1)" || true
+  decided   # the hold is written above: the red outcome is decided
   exit 1
 }
 trust="${POST_PUBLISH_TRUSTED_CMD:-node $dir/ci-trusted-checks.mjs}"
@@ -35,4 +38,5 @@ left=$(node "$dir/lib/row-placement.mjs" subtract "$rows" "$trusted" 2>/dev/null
 [ -z "$left" ] || raise "rows $left not green on CI for the tree"
 say "post-publish rows $rows for $rev: all CI-trusted"
 note "release-train post-publish: rows $rows for live $rev all green on CI."
+decided
 exit 0
