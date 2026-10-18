@@ -1,6 +1,11 @@
 # Code quality lane (Auditor)
 
-## 2026-10-18 ~08:2x: READ FIRST. LIVE = IH 4cd41912f (release.json verified). II #3126 @4ee9aff6f PASSED + candidate:pass; RV76 #3116 @bc1262d43 PASSED
+## 2026-10-18 ~08:4x: READ FIRST. LIVE = II 4ee9aff6f (verified: release.json, writer, presence, verifier, NRestarts 0). RV76 candidate #3129 @21e257102 PASSED + candidate:pass
+
+**Now.** 1. **RV76**: when it publishes, verify release.json, the writer, presence AND the verifier = 21e257102, NRestarts 0 (Deploy runs verify-loot --dry first). 2. #3112 was re-PASSed @777931635 for the batch after RV76. 3. #3123 is still NOT YET (see below). 4. Lead takes #3119's re-PASS.
+How to verify live services on the VPS: `systemctl show frankendom-origins-writer|frankendom-presence -p NRestarts`, the MainPID's cwd, and `readlink -f /opt/frankendom-{origins,presence,verifier}/current`.
+
+## 2026-10-18 ~08:2x (superseded): LIVE = IH 4cd41912f (release.json verified). II #3126 @4ee9aff6f PASSED + candidate:pass; RV76 #3116 @bc1262d43 PASSED
 
 **Now.** 1. **II**: when it publishes, check release.json, the writer and presence = 4ee9aff6f, NRestarts 0. 2. **RV76 #3116**: its own cut after II. At the candidate: recut, `verify-loot.mjs --dry` (HELD troll count), and the verifier + writer + presence all restart (record.ts changes). 3. **#3123** NOT YET @bfe8911f6 (posted): store the verdict only if the page stayed visible through the probe, plus a test; rebase after #3122 lands. 4. **#3119** (Web) was skipped by II on preview-rules conflicts; read it when it rebases.
 **Done.** IH verified live. PASS: II #3126 (tree 4c9479b6b = my recut; allow/src.json union exact: +#3105 'hold', +#3108 'full'), #3116 @bc1262d43 (fingerprint 42/798, all troll), #3122 @3949ffceb (soft PASS; EXIT_KITWARM=0 reproduces 13 post-ready programs), re-PASS #3113 @02298b38c, #3112 @3122256d6. II was NOT YET first at d0276e8f1 (stale populate.ts baseline, exit 3), fixed by a regen commit. Told Deploy that cq-3122 is dead.
