@@ -22,7 +22,7 @@ import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
-import { fxNum } from '../../src/fight/fx-rows.ts';
+import { fxNum } from '../../src/fight/index.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { createLoadoutGate } from './loadout-gate.ts';
@@ -382,7 +382,7 @@ function step(dt: number) {
   followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap'), bobJumpM: fxNum('fp.bob-jump-m'), bobWalkMps: fxNum('fp.bob-walk-mps'), bobFade: fxNum('fp.bob-fade') } } : {}) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
   applyCombatView();
   fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
-  if (firstPerson) { const k = fpArm.kick(), fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); camera.rotateZ(-k.lat * fxNum('fp.kick-roll')); camera.rotateY(-k.lat * fxNum('fp.kick-yaw')); camera.position.addScaledVector(fwd, k.fwd * fxNum('fp.kick-lunge')); }   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
+  if (firstPerson) followCam.kick(fpArm.kick(), heading, { roll: fxNum('fp.kick-roll'), yaw: fxNum('fp.kick-yaw'), lunge: fxNum('fp.kick-lunge') });   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
