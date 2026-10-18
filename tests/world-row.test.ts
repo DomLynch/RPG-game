@@ -204,3 +204,11 @@ test('respawnSeconds: inside 30..300 s, else respawn-range', () => {
   assert.deepEqual(codes({ ...good, respawnSeconds: 10 }), ['respawn-range'], 'under half a minute');
   assert.deepEqual(codes({ ...good, respawnSeconds: 900 }), ['respawn-range'], 'a typo-sized wait');
 });
+
+test('a row names the encounter form it stands as (MobRow.form): every shipped row does, against the character record; a missing or unknown form is bad-form', () => {
+  const withForms: RowContext = { ...ctx, forms: (id) => registry.characters.get(id as never)?.encounterForms.map((f) => f.id) ?? null };
+  assert.deepEqual(validateRows(FRONTIER_ROWS, withForms), [], 'every Zone 1 row names a form its character has');
+  assert.deepEqual(codes({ ...good, form: undefined }, withForms), ['bad-form'], 'a row that names no form');
+  assert.deepEqual(codes({ ...good, form: 'no-such-form' }, withForms), ['bad-form'], 'a form the character does not have');
+  assert.deepEqual(codes({ ...good, form: undefined }), [], 'without the record (a test context) the check is off');
+});

@@ -37,14 +37,16 @@ export type MobRow = {
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
   respawnSeconds?: number;       // seconds until a killed member of this kind stands again (Dom's animal rule: 60-90 s); the server writer reads it per row
+  form?: string;                 // the id of the character's encounter form this creature stands as in the open world (the character record's `encounterForms`, a free row id): a row names it, code never guesses it from an id; checked against the record's forms when the context supplies them
   later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
-export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'respawn-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
+export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'respawn-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder' | 'bad-form';
 export type RowIssue = { code: RowCode; path: string; message: string };
 export type RowContext = {
   look: (id: string) => { opponent: string } | null;   // the look table: mobLook
   lootTables: ReadonlySet<string>;
+  forms?: (id: string) => readonly string[] | null;    // the encounter form ids of a character record (null = no record): when supplied, a shipped row's `form` must name one of them
   zone?: { levelMin: number; levelMax: number };       // when a zone is supplied, the band must meet it
   generated?: boolean;                                  // the generator's eligibility check: no pending source, no named row
 };
@@ -83,6 +85,8 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
     if (bad) add('no-source', 'source', `source citation required: ${bad}`);
     else if (ctx.generated && 'pending' in row.source) add('no-source', 'source', 'source citation required: a pending source cannot be generated');
     if (!ctx.look(row.id)) add('family-no-look', 'id', `${row.id} has no look (origins/preview/mob-looks.ts)`);
+    const forms = ctx.forms?.(row.id);
+    if (ctx.forms && (row.form === undefined || !forms?.includes(row.form))) add('bad-form', 'form', row.form === undefined ? 'a row names the encounter form it stands as' : `form "${row.form}" is not one of ${row.id}'s encounter forms (${(forms ?? []).join(', ') || 'no record'})`);
   }
   if (styleOpponent(row.role) === undefined) add('bad-role', 'role', `role "${row.role}" is not a MobStyle`);
   const [lo, hi] = row.level;

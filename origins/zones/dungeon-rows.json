@@ -22,6 +22,7 @@
           "source": { "kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\"" },
           "role": "beast",
           "loot": "loottable:cinder-scavenger",
+          "form": "mob",
           "level": [5, 6],
           "behaviour": { "roam": 8, "spread": 16, "pull": 0, "campSize": [4, 4] }
         },
@@ -30,6 +31,7 @@
           "source": { "kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\"" },
           "role": "beast",
           "loot": "loottable:pit-goblin",
+          "form": "mob",
           "level": [5, 6],
           "respawnSeconds": 75,
           "behaviour": { "roam": 6, "spread": 6, "pull": 0, "campSize": [2, 2] }
@@ -39,6 +41,7 @@
           "source": { "kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)" },
           "role": "beast",
           "loot": "loottable:giant-salamander",
+          "form": "mob",
           "level": [7, 7],
           "named": true,
           "respawnSeconds": 90,
@@ -79,6 +82,7 @@
           "source": { "kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\"" },
           "role": "beast",
           "loot": "loottable:cinder-scavenger",
+          "form": "mob",
           "level": [4, 5],
           "behaviour": { "roam": 6, "spread": 8, "pull": 0, "campSize": [3, 3] }
         },
@@ -87,6 +91,7 @@
           "source": { "kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)" },
           "role": "beast",
           "loot": "loottable:giant-salamander",
+          "form": "mob",
           "level": [6, 6],
           "named": true,
           "respawnSeconds": 90,

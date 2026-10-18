@@ -15,9 +15,6 @@
  "origins/preview/mobs-view.ts": {
   "'late'": 1
  },
- "origins/preview/mobs.ts": {
-  "'mob'": 2
- },
  "origins/preview/play.ts": {
   "'bounty'": 2
  },

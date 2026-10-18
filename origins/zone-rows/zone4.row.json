@@ -28,6 +28,7 @@
         },
         "role": "beast",
         "loot": "loottable:ember-wolf",
+        "form": "mob",
         "level": [
           4,
           5
