@@ -23,7 +23,7 @@ import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { createWarBandRun } from './war-band-run.ts';
-import { fxNum } from '../../src/fight/fx-rows.ts';
+import { fxNum } from '../../src/fight/index.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { createLoadoutGate } from './loadout-gate.ts';

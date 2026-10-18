@@ -1,7 +1,7 @@
 // The war band on the page (zone sandbox, Strategy's #1 test for Zone 1): war-band.ts decides, this file feeds it and carries the answer out. A hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins turn on the
 // hero with an enlarged notice radius for the rally's seconds; if he is killed first the horn is never blown. PRESENTATION and creature-view only: it reads positions and hits, drives the walkers through the creature view's own `drive`, sets a
 // notice radius through `setAggro` (and ALWAYS gives it back), and writes nothing into world-combat, duel, ai or any sim file. Nothing is allocated on a quiet frame (the band's answer is one shared object; positions go through one scratch).
-import { fxNum } from '../../src/fight/fx-rows.ts';
+import { fxNum } from '../../src/fight/index.ts';
 import { createWarBand, pickRoles, type Goblin } from './war-band.ts';
 
 export type BandPose = { x: number; z: number; facing: number; moving: boolean };
