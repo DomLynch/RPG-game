@@ -96,6 +96,8 @@ World kills and ground pickups pay today without a verified record or a checked 
 
 **The beta-opening gate (Strategy, 2026-10-18):** NO-GO on public persistent rewards until V1, V2 and V6 close. **Baseline:** IM's receipt carries the first readout line after its restart, as the soak baseline (Auditor). It read 0 kills: there is no organic traffic, so the soak is driven.
 
+**PARKED (Dom via Strategy, 2026-10-18): alpha/beta readiness comes first.** The reward-integrity CODE ships as planned: IO (P0-b #3151, the V5 server half #3160), IP, the V5 page half, and the strictRevert readout (#3168). The QA matrix run and the strict flip wait for Dom's **"bringing players in" date**. **Owner of that trigger: Combat.** When Dom names the date, Combat runs the matrix below on the QA account, the Auditor reads it live, and the flip follows the rules below. The matrix spec and strictRevert stay exactly as ruled; only the timing moves.
+
 **QA-driven kills count (Strategy, 2026-10-18), under these conditions:**
 - **The ≥50 kills are the matrix below, not happy paths.** Each scenario is named in the readout with its checked and record result. The QA script logs `<scenario> <token tail>`, and the Auditor joins it to the writer's `kill_report <tail>` lines.
 - The ≥95% is measured over the whole matrix, and **any single scenario at 0% checked or 0% verified blocks the flip**.
