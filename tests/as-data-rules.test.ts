@@ -40,6 +40,8 @@ const GAME = [
   'export const lc = (draw: () => number) => console.log(draw() * 100);',                    // (h) counted: inside a console/log call, never a roll scale
   'export const lv = (level: number) => level * 2 - 1;',       // (h) counted: the same shape on a count (level) is a tuning, so its 2 stays
   'export const pct = (x: number) => x * 100 + 60 + x * 2 + (x % 7) * 0.5;',   // (h) counted: a percent (100), a frame count (60), x * 2 and 0.5 are where a tuning hides; so is % 7 (a cadence)
+  'export const he = (z: { width: number }, plan: { depth: number }, size: number) => z.width / 2 + plan.depth / 2 + size / 2;',   // not (h): three half-extents (an extent name / 2), EXCLUDED and named
+  'export const hx = (range: number, aggro: number, width: number) => range / 2 + aggro / 2 + width / 3 + width * 0.5;',      // (h) counted: halving a range or aggro is tuning, width / 3 is not a half, and * 0.5 never trades for / 2
   'export const LIMIT = 40;',                                    // not (h): a top-level UPPER const is the const rules'
   'export const z = (x: number) => x + 1;',                      // not (h): 1 is identity
   'declare function foo(...a: unknown[]): void;',
@@ -56,7 +58,7 @@ function tree() {
     '--allow', f('allow.json', { allow: [] }), '--inline-scope', f('scope.json', { files: [], dirs: ['**/inl-fixture/*.ts'] }),
     '--clamp-baseline', f('clamp.json', { [gk]: { '0.5': 1 } }), '--map-baseline', f('map.json', {}),
     '--const-expr-baseline', f('expr.json', { [ck]: { SAVE_EVERY_MS: 1, SPAN: 1 } }), '--const-object-baseline', f('obj.json', { [ck]: { CAPS: 1, SIZES: 1 } }),
-    '--inline-number-baseline', f('inl.json', { [gk]: { '0.5': 1, '0.85': 1, '100': 6, '2': 2, '2.5': 1, '250': 1, '4': 1, '60': 1, '7': 2, '9': 1 } }),
+    '--inline-number-baseline', f('inl.json', { [gk]: { '0.5': 2, '0.85': 1, '100': 6, '2': 4, '2.5': 1, '250': 1, '3': 1, '4': 1, '60': 1, '7': 2, '9': 1 } }),
   ];
   const run = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', join(dir, 'src'), ...args, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
   const report = (r: ReturnType<typeof run>) => JSON.parse(r.stdout.split('\n').filter((l) => l.startsWith('{')).pop()!) as Report;
@@ -73,8 +75,9 @@ test('(f) lists an UPPER const whose value is arithmetic with a number, (g) an U
     assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS', 'SPAN']);   // TAU, QUARTER and TURN (math constant x integer) are exempt, and the report names them:
     assert.deepEqual(rep.constExprExcluded.map((c) => [c.class, c.count, t.texts(c.sites)]), [['math constant × integer (const)', 3, ['QUARTER', 'TAU', 'TURN']]]);
     assert.deepEqual(t.texts(rep.constObjectSites), ['CAPS', 'SIZES']);
-    assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.5', '0.85', '100', '100', '100', '100', '100', '100', '2', '2', '2.5', '250', '4', '60', '7', '7', '9']);   // stay counted: the 250 beside a roll, the compare and subtraction 100s, a percent in a template string, a share / 100 on a roll line, a console.log argument
-    assert.deepEqual(Object.keys(rep.inlineExcluded).sort(), ['-1 sentinel (compared, or beside indexOf/findIndex)', 'bits (beside & | ^ << >>)', 'hex/binary: bit mask or hash salt', 'math: 2 as a midpoint (a+b)/2', 'math: Math.PI * 2', 'math: the * 2 - 1 remap of a unit draw', 'percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)', 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)']);   // every excluded class is named in the report
+    assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.5', '0.5', '0.85', '100', '100', '100', '100', '100', '100', '2', '2', '2', '2', '2.5', '250', '3', '4', '60', '7', '7', '9']);   // stay counted: the 250 beside a roll, the compare and subtraction 100s, a percent in a template string, a share / 100 on a roll line, a console.log argument; range / 2, aggro / 2, width / 3 and width * 0.5
+    assert.deepEqual(Object.keys(rep.inlineExcluded).sort(), ['-1 sentinel (compared, or beside indexOf/findIndex)', 'bits (beside & | ^ << >>)', 'hex/binary: bit mask or hash salt', 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)', 'math: 2 as a midpoint (a+b)/2', 'math: Math.PI * 2', 'math: the * 2 - 1 remap of a unit draw', 'percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)', 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)']);   // every excluded class is named in the report
+    assert.equal(rep.inlineExcluded['math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)'], 3);   // exactly z.width / 2, plan.depth / 2 and size / 2 on the he line, none of the hx controls
     assert.equal(rep.inlineExcluded['percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)'], 1);   // exactly the unit on the rc line (draw() * 100), none of the six negative controls
     assert.deepEqual([rep.newConstExprSites, rep.newConstObjectSites, rep.newInlineNumberSites].map((l) => l.length), [0, 0, 0]);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
