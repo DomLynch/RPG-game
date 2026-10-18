@@ -152,3 +152,10 @@ export function loadZone(id: string = pageZoneId(), opens: boolean = opensNow())
   const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
   loaded.set(id, full); return full;
 }
+
+/** A zone seen as if it were in another biome (`?look=goblin` on Zone 1): its own package resolved with `biome` swapped, plus any `extra` fields set outright. Only look readers use it; the zone itself is untouched. */
+export function zoneAsBiome(id: string, biome: string, extra: Record<string, unknown> = {}): Zone {
+  const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
+  const r = resolveZone(id, { ...z, biome } as unknown as Spec);
+  return { ...z, fields: { ...r.values, ...extra }, set: [...r.explicit, ...Object.keys(extra)] };
+}
