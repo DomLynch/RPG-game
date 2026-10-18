@@ -209,7 +209,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); h
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = (frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null) ?? (goblinKit?.centre ? { x: goblinKit.centre.x, z: goblinKit.centre.z + goblinRule('campView'), facing: Math.PI } : null);   // a zone with no creatures starts him off its camp, facing it
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = (frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, (zoneRow ?? loadZone()).unlisted ? fxNum('start.clear-m') : undefined) : null) ?? (goblinKit?.centre ? { x: goblinKit.centre.x, z: goblinKit.centre.z + goblinRule('campView'), facing: Math.PI } : null);   // a zone with no creatures starts him off its camp, facing it
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;

@@ -42,6 +42,7 @@
     { "id": "opened.scan", "fields": {"value": 100000} },
     { "id": "opened.step-ms", "fields": {"value": 8} },
     { "id": "drop.reach", "fields": {"value": 1.4} },
+    { "id": "start.clear-m", "fields": {"value": 16} },
     { "id": "warband.horn-run-speed", "fields": {"value": 4.2} },
     { "id": "warband.horn-reach", "fields": {"value": 1} },
     { "id": "warband.rally-count", "fields": {"value": 4} },
