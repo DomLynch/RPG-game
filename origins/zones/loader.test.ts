@@ -80,7 +80,10 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
   assert.equal(edit(() => {}), '', 'a valid entry passes');
   assert.match(edit((m) => { m.looks['character:x']!.opponent = 'dragon'; }), /dragon is not a roster body/);
   assert.match(edit((m) => { m.looks['character:x']!.tint = -1; }), /tint is not a 0xrrggbb number/);
-  assert.match(edit((m) => { m.looks['character:x']!.scale = 9; }), /scale 9 is out of range/);
+  assert.match(edit((m) => { m.looks['character:x']!.scale = 9; }), /scale 9 is out of range \(0\.3-6\)/);
+  assert.equal(edit((m) => { m.looks['character:x']!.scale = 6; }), '', 'the bound is the stage rows (mobScaleMax 6): the Test Zone\'s salamander at 6 passes');
+  assert.match(edit((m) => { m.looks['character:x']!.scale = 6.5; }), /scale 6\.5 is out of range/);
+  assert.match(edit((m) => { m.looks['character:x']!.scale = 0.2; }), /scale 0\.2 is out of range/);
   assert.match(edit((m) => { m.looks['character:x']!.dressing.burnt = 2; }), /soot\/burnt must be 0\.\.1/);
   assert.match(edit((m) => { m.spread['character:y'] = m.spread['character:x']!; }), /spread character:y has no mob look/);
   assert.match(edit((m) => { m.spread['character:x']!.tints = []; }), /tints must be/);
