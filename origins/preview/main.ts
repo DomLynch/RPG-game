@@ -80,7 +80,7 @@ import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { fxNum } from '../../src/fight/fx-rows.ts';
-import { createViewmodel } from './first-person-weapon.ts';
+import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
@@ -375,7 +375,7 @@ function step(dt: number) {
   warriors?.player.anchor.getObjectByName('Head')?.scale.setScalar(firstPerson ? 0.001 : 1);   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it; the body, arms and weapon stay in view
   followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap') } } : {}) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
   applyCombatView();
-  fpWeapon.update(warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), { right: fxNum('fp.rest-right'), up: fxNum('fp.rest-up'), forward: fxNum('fp.rest-forward') }, wc.hero().phase === 'ready', { metal: fxNum('fp.blade-metal'), rough: fxNum('fp.blade-rough'), skin: fxNum('fp.skin'), bracer: fxNum('fp.bracer'), forearm: fxNum('fp.forearm'), fist: fxNum('fp.fist'), length: fxNum('fp.arm-length'), armRight: fxNum('fp.arm-right'), armUp: fxNum('fp.arm-up'), armBack: fxNum('fp.arm-back'), swordX: fpTry?.[0] ?? fxNum('fp.sword-rx'), swordY: fpTry?.[1] ?? fxNum('fp.sword-ry'), swordZ: fpTry?.[2] ?? fxNum('fp.sword-rz'), swordScale: fpTry?.[3] ?? fxNum('fp.sword-scale') });   // first person: the sword rests low at the right of the view and swings with the animation (first-person-weapon.ts)
+  fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -420,8 +420,9 @@ const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim:
 const COMBAT_CAMS = zoneCombatCams(zoneRow ?? loadZone());
 let combatId = /[?&;]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPreset(zoneRow ?? loadZone()), combatCam: CombatCam | undefined = COMBAT_CAMS[combatId];
 const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { return localStorage.getItem(BOB_KEY) !== 'off'; } catch { return true; } })();   // first-person head bob: on unless the player turned it off (the ☰ menu)
-const fpWeapon = createViewmodel(scene);
-let fpTry: [number, number, number, number] | undefined;   // a look test sets the sword's turn live (originsPreview.fpTurn(x, y, z) in degrees) to compare angles in one run; unset = the rows
+const fpArm = createFirstPersonArm();
+let fpTry: Partial<ArmPose> | undefined;   // a look test sets the ready pose live (originsPreview.fpPose({ handUp: -0.3, ... })) to compare in one run; unset = the rows
+const fpPose = (): ArmPose => ({ handRight: fxNum('fp.hand-right'), handUp: fxNum('fp.hand-up'), handForward: fxNum('fp.hand-forward'), poleRight: fxNum('fp.pole-right'), poleUp: fxNum('fp.pole-up'), poleForward: fxNum('fp.pole-forward'), bladeRight: fxNum('fp.blade-right'), bladeUp: fxNum('fp.blade-up'), bladeForward: fxNum('fp.blade-forward'), rate: fxNum('fp.arm-rate'), ...fpTry });
 const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());   // View: first person or over the shoulder
 const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1', SHOULDER_KEY = 'origins-preview.shoulder.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0, shoulder = 1;   // shoulder: 1 = the framing's own side, -1 = mirrored; a setting on this device, never switched by the camera (a flip mid-fight moves the foe under the thumb)
 try { shoulder = localStorage.getItem(SHOULDER_KEY) === 'left' ? -1 : 1; } catch { /* storage blocked: the framing's own side */ }
@@ -832,8 +833,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
-  fpTurn: (x?: number, y?: number, z?: number, s?: number) => { fpTry = x === undefined ? undefined : [x, y ?? 0, z ?? 0, s ?? fxNum('fp.sword-scale')]; },
-  fpWeapon: () => ({ ...fpWeapon.debug(), weaponNodes: (() => { const n: string[] = []; warriors?.player.anchor.traverse((o) => { if (/weapon|sword|blade|hilt|estoc|knife/i.test(o.name)) n.push(`${o.type}:${o.name}`); }); return n.slice(0, 12); })(), eye: [+camera.position.x.toFixed(2), +camera.position.y.toFixed(2), +camera.position.z.toFixed(2)], heading: +heading.toFixed(2), phase: wc.hero().phase }),
+  fpPose: (p?: Partial<ArmPose>) => { fpTry = p; },
   goblinCentre: () => goblinKit?.centre ?? null, goblinFires: () => goblinKit?.fires ?? [], goblinDomeProbe: (flat?: boolean) => { const m = goblinDome?.mesh; if (!m) return null; if (flat) { const mt = m.material as THREE.MeshBasicMaterial; mt.map = null; mt.color.set('#ff00ff'); mt.needsUpdate = true; } return { visible: m.visible, inScene: scene.children.includes(m), pos: m.position.toArray(), renderOrder: m.renderOrder, camY: camera.position.y, far: camera.far }; }, goblinDomeImage: () => { const t = (goblinDome?.mesh.material as THREE.MeshBasicMaterial | undefined)?.map?.image as HTMLCanvasElement | undefined; return t ? t.toDataURL('image/png') : null; },   // ?look=goblin: where the kit's camp stands, for the look stills
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
