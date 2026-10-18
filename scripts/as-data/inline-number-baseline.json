@@ -779,16 +779,12 @@
   "86_400": 2,
   "604_800": 1
  },
- "origins/server/auth.ts": {
-  "5000": 1
- },
  "origins/server/consume.ts": {
   "120": 1
  },
  "origins/server/db.ts": {
   "12": 1,
   "200": 2,
-  "30_000": 1,
   "-4000": 1
  },
  "origins/server/encounter-fixtures.ts": {
@@ -817,19 +813,10 @@
  },
  "origins/server/gear-import.ts": {
   "16": 1,
-  "24": 1,
-  "40": 1,
-  "80": 1
- },
- "origins/server/gear-repair.ts": {
-  "80": 1,
-  "120": 1
+  "24": 1
  },
  "origins/server/gear-wear.ts": {
   "80": 1
- },
- "origins/server/gear.ts": {
-  "80": 2
  },
  "origins/server/ground-take.ts": {
   "32": 1
@@ -840,18 +827,9 @@
  "origins/server/live-ops.ts": {
   "60_000": 1
  },
- "origins/server/location.ts": {
-  "500": 1,
-  "1500": 2
- },
- "origins/server/quest-advance.ts": {
-  "64": 2,
-  "120": 1
- },
  "origins/server/shop-buy.ts": {
   "16": 1,
-  "32": 1,
-  "80": 1
+  "32": 1
  },
  "origins/server/spell-check.ts": {
   "100": 1
@@ -859,16 +837,8 @@
  "origins/server/story.ts": {
   "40": 1
  },
- "origins/server/talk-pick.ts": {
-  "64": 1,
-  "120": 1
- },
  "origins/server/upgrade.ts": {
   "120": 1
- },
- "origins/server/world-verify-pool.ts": {
-  "16": 1,
-  "3000": 1
  },
  "origins/shops/shop-view.ts": {
   "60": 6,

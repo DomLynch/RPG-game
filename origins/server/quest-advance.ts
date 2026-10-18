@@ -8,13 +8,16 @@ import { Refused } from './errors.ts';
 import { career, factsOf, field, journalOf, must, ownCharacter, questBatch, type Clock, type StoryContent } from './story.ts';
 import { openAccount, type Handler } from './handlers.ts';
 import * as store from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
-const optionalChoice = (v: unknown): string | undefined => (v === undefined || v === null ? undefined : field(v, 'choice', 64));
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
+
+const optionalChoice = (v: unknown): string | undefined => (v === undefined || v === null ? undefined : field(v, 'choice', INPUT.choiceIdChars));
 
 export function questAdvance(content: StoryContent | null, now: Clock = () => new Date()): Handler {
   return async (ctx, body) => {
     if (!content) throw new Refused(503, 'quests are not loaded: the writer is not ready');
-    const quest = field(body.quest, 'quest', 120) as QuestId, stage = field(body.stage, 'stage', 64), choice = optionalChoice(body.choice);
+    const quest = field(body.quest, 'quest', INPUT.questIdChars) as QuestId, stage = field(body.stage, 'stage', INPUT.stageIdChars), choice = optionalChoice(body.choice);
     const snap = await openAccount(ctx);
     const character = ownCharacter(snap, body.character);
     const { journal, stored } = journalOf(snap, character, content.quests);

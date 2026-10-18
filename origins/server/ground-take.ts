@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import type { CharacterInstanceId, EncounterId, Inventory } from '../../src/core/server.ts';
 import { intoBackpack, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { worldMetres } from '../presence/zones.ts';
+import { reachOf } from '../presence/where.ts';
 import { zoneMintLevel } from '../zones/band.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { GROUND_ITEMS, GROUND_LIMITS, type GroundItem, type GroundItems, type GroundLimits } from '../world/ground-items.ts';
@@ -85,15 +86,15 @@ export function groundOps(deps: GroundDeps | null): Record<string, Handler> {
     if (state === null) return absent();
     const claim = state.takes[0], w = windowOf(row, claim, state.now);
     if (!w.available) throw new Refused(409, REFUSAL.taken![1], 'taken');
-    // Reach: a fresh placed pose in the item's place within the radius is 'checked'; none is 'unchecked' (refused only when refuseUnchecked is on), as kill_report does.
-    const pose = where ? await where(account).catch(() => null) : null;
+    // Reach: a fresh placed pose in the item's place within the radius is 'checked'; anything else is 'unchecked' and the take goes ahead unless refuseUnchecked is on, as kill_report does (reachOf, the why in the log).
+    const seen = await reachOf(where, account, row.place, POSE_AGE_MS);
     let reach: 'checked' | 'unchecked' = 'unchecked';
-    if (pose && pose.online && pose.placed && pose.ageMs <= POSE_AGE_MS && pose.zone === row.place) {
-      const at = worldMetres(pose.x, pose.z);
+    if (seen.pose) {
+      const at = worldMetres(seen.pose.x, seen.pose.z);
       if (Math.hypot(at.x - point.x, at.z - point.z) > radiusOf(row, limits)) return refuse('away');
       reach = 'checked';
     }
-    if (reach === 'unchecked' && deps.refuseUnchecked) return refuse('unchecked');
+    if (reach === 'unchecked' && deps.refuseUnchecked) { log(`ground_take ${instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
     const n = (claim?.n ?? 0) + 1, lookup = lookupOf(deps.content);
     const { inventory } = await openHoldingsWith(db, account, character, { lookup });
     const taken = groundTakeBatch({ account, character, instance, n, row, inventory, content: deps.content, at: now().toISOString(), reach });
@@ -101,7 +102,7 @@ export function groundOps(deps: GroundDeps | null): Record<string, Handler> {
     const got = await store.groundTake(db, account, instance, n, row.respawnSec, taken.batch).catch((e: unknown) => { if (e instanceof Error && 'code' in e && (e as { code?: string }).code === 'O0002') return refuse('stale'); throw e; });
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`ground_take ${instance} n=${n} reach=${reach} item=${taken.item}`);
+    log(`ground_take ${instance} n=${n} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} item=${taken.item}`);
     return { result: 'taken', instance, item: taken.item, qty: row.qty, availableAt: new Date(now().getTime() + row.respawnSec * 1000).toISOString() };
   };
 
