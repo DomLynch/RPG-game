@@ -15,7 +15,7 @@ import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' }
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
-import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
+import { HAZARDS, TWISTS, loadRegion1, span, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
 import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { BETA_MAX_LOOT_RUNG, TIERS, type Tier } from '../../src/core/server.ts';
@@ -148,8 +148,8 @@ function readOverlay(issues: Issues, raw: readonly unknown[], base: readonly Twi
       if (!Object.hasOwn(o, k)) { if (required) issues.add('missing-field', `${p}.${k}`, `${kind} needs ${k}`); return; }
       if (!Number.isInteger(o[k]) || (o[k] as number) < lo || (o[k] as number) > hi) issues.add('out-of-range', `${p}.${k}`, `${k} is a whole number in ${lo}..${hi}`);
     };
-    if (kind === 'flee-at') { int('percent', 1, 99, true); int('catchSeconds', 1, 120, false); }
-    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', 1, 30, true); }
+    if (kind === 'flee-at') { int('percent', ...span('flee-at.percent'), true); int('catchSeconds', ...span('flee-at.catchSeconds'), false); }
+    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', ...span('hazard.stillSeconds'), true); }
     if ([...base, ...out].some((b) => b.kind === kind)) issues.add('duplicate-id', p, `a ${kind} twist is set twice on one fight`);
     out.push(o as Twist);
   });
