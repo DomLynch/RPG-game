@@ -43,6 +43,7 @@
     { "id": "opened.step-ms", "fields": {"value": 8} },
     { "id": "drop.reach", "fields": {"value": 1.4} },
     { "id": "start.clear-m", "fields": {"value": 16} },
+    { "id": "mob-view.wear-max-scale", "fields": {"value": 1.4} },
     { "id": "regen.out-of-combat", "fields": {"value": 1} },
     { "id": "regen.health-full", "fields": {"value": 60} },
     { "id": "regen.stamina-full", "fields": {"value": 12} },
