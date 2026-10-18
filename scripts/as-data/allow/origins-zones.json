@@ -1,5 +1,9 @@
 {
   "tunables": [
-    {"file": "origins/zones/schema.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
+    {"file": "origins/zones/schema.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"},
+    {"file": "origins/zones/dungeon.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the centre of a span, a mathematical constant, not tuning", "owner": "World & Audio"},
+    {"file": "origins/zones/dungeon.ts", "name": "MILLI", "kind": "exempt", "reason": "millimetres per metre: the enclosure pieces' offsets are rounded to a millimetre so the compiled rows are stable text, a unit conversion, not tuning", "owner": "World & Audio"},
+    {"file": "origins/zones/dungeon.ts", "name": "EPS", "kind": "exempt", "reason": "a float guard on a ceiling so an exact multiple of the wall length does not add a piece: numeric hygiene, not tuning", "owner": "World & Audio"},
+    {"file": "origins/zones/dungeon.ts", "name": "HALF_TURN_DEG", "kind": "exempt", "reason": "degrees in half a turn: a unit conversion, not tuning", "owner": "World & Audio"}
   ]
 }

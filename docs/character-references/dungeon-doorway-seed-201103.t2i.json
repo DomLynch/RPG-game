@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of a single rough-hewn stone doorway cut into a cave wall, front view, centred, isolated on a plain neutral grey background with soft even light. About four metres wide and three metres tall and one metre deep: a narrow crude arched opening one and a half metres wide and two and a half metres tall with no door, the opening centred, chisel marks on heavy dark limestone, a thick rough lintel stone across the top with a ram skull and a few horns wedged above it, soot streaks, damp at the foot, rubble and bone fragments at the threshold, flat base. Historical grim cave dwelling, weathered, realistic proportions and materials, matte, no glow, not cartoon, not stylised, no people, no text.",
+  "seed": 201103,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 50.9,
+  "sha256": "b52fa396f51d4b9fa48796d067796c3d7cd8cb41df01a203e707b741f3cccfa5"
+}

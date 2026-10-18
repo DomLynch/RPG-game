@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadZone } from '../zones/loader.ts';
-const { nodes: KIT_NODES, landmarks: LANDMARK_NODES } = loadZone().kit;
+const { nodes: KIT_NODES, landmarks: LANDMARK_NODES, fixed: FIXED = [] } = loadZone().kit;
+const FIXED_NODES = new Set(FIXED.map((f) => f.node));   // pieces stood by hand (the gate arches at the dungeon doors): at a landmark by design, so the scatter rules below skip them
 import { frontierBuild, frontierPlan, inFirstView, inZone, onRoad } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), K = frontierKit(F, B, D);
@@ -13,13 +14,14 @@ const zones = F.zones.filter((z) => z.region.includes('frontier'));
 test('the kit placement is deterministic and a real amount, every node is one the kit ships', () => {
   assert.deepEqual(frontierKit(F, B, D), K);
   assert.ok(K.placements.length > 100 && K.placements.length < 4000, `${K.placements.length} placements`);
-  for (const p of K.placements) assert.ok((KIT_NODES as readonly string[]).includes(p.node), p.node);
+  for (const p of K.placements) assert.ok((KIT_NODES as readonly string[]).includes(p.node) || FIXED_NODES.has(p.node), p.node);
   for (const n of KIT_NODES) assert.ok(K.placements.some((p) => p.node === n), `${n} is never placed`);
 });
 
 test('every placement stands in a zone, off the west road, clear of landmarks and the dressing solids', () => {
   const marks = [...zones.flatMap((z) => Object.values(z.landmarks)), F.giver.at];
   for (const p of K.placements) {
+    if (FIXED_NODES.has(p.node)) continue;
     assert.ok(zones.some((z) => inZone(z, p.x, p.z)), `${p.node} at ${p.x.toFixed(1)},${p.z.toFixed(1)} is off every zone`);
     assert.ok(!onRoad(F, p.x, p.z), `${p.node} on the west road`);
     for (const m of marks) assert.ok(Math.hypot(m.x - p.x, m.z - p.z) > 6, `${p.node} within 6 m of a landmark`);
@@ -34,4 +36,37 @@ test('the four landmarks stand along the west road, outside the first view, off 
     assert.ok(!inFirstView(F, l.x, l.z, 3.5), `${l.node} in the walker's first view`);
     for (const s of [...B.solids, ...D.solids]) assert.ok(Math.hypot(s.x - l.x, s.z - l.z) > s.r + 3.5, `${l.node} touches a solid`);
   }
+});
+
+test('Zone 5 (the Bone Hollow): its kit is the dungeon kit, every piece a `fixed` row stood at its plan landmark, and the end room keeps clear of the cache', () => {
+  const z5 = loadZone('5'), F5 = frontierPlan(true, '5'), B5 = frontierBuild(F5), K5 = frontierKit(F5, B5, frontierDress(F5, B5), undefined, '5');
+  const fixed = z5.kit.fixed ?? [], hollow = F5.zones.find((z) => z.zone === 'bone-hollow')!, cache = hollow.landmarks['hollow-cache']!, den = hollow.landmarks['hollow-den']!;
+  assert.equal(z5.kit.url, '/world/kit/dungeon-kit.glb');
+  assert.equal(K5.placements.length, fixed.length, 'no scattered kinds: the fixed rows are the whole kit');
+  fixed.forEach((p, i) => {
+    const a = hollow.landmarks[p.at]!, q = K5.placements[i]!;
+    assert.deepEqual([q.node, q.x, q.z], [p.node, a.x + p.dx, a.z + p.dz]);
+    assert.ok(inZone(hollow, q.x, q.z), `${p.node} stands outside the hollow`);
+    assert.ok(Math.hypot(q.x - cache.x, q.z - cache.z) > 1.5 + 0.8 * q.scale, `${p.node} crowds the cache`);   // the fixed ground piece
+    if (p.node === 'bone_pile') assert.ok(Math.hypot(q.x - den.x, q.z - den.z) < 12, 'bone piles ring the den');
+  });
+  assert.equal(fixed.filter((p) => p.node === 'cave_doorway').length, 2, 'a doorway at each end');
+  assert.equal(K5.solids.length, fixed.filter((p) => p.solid > 0).length);
+});
+
+test('the kit is read against the build base, so a /preview/<x>/ build uses its own copy', async () => {
+  const { kitUrlAt } = await import('./frontier-kit-view.ts');
+  assert.equal(kitUrlAt('/world/kit/dungeon-kit.glb', '/preview/dungeon-3101/'), '/preview/dungeon-3101/world/kit/dungeon-kit.glb');
+  assert.equal(kitUrlAt('/world/kit/zone1-kit.glb', '/preview/origins'), '/preview/origins/world/kit/zone1-kit.glb', 'a base without its trailing slash');
+  assert.equal(kitUrlAt('/world/kit/zone1-kit.glb'), '/world/kit/zone1-kit.glb', 'no base (a test, the site root)');
+});
+
+test('the gate arches at the Zone 1 dungeon doors are drawn only on a build that opens unlisted zones (a normal build keeps Zone 1 as it was)', () => {
+  const was = process.env.VITE_UNLISTED_ZONES, arches = () => { const f = frontierPlan(), b = frontierBuild(f); return frontierKit(f, b, frontierDress(f, b)).placements.filter((p) => p.node === 'landmark_ruin_arch'); };
+  try {
+    delete process.env.VITE_UNLISTED_ZONES;
+    assert.deepEqual(arches(), [], 'no arch on a normal build');
+    process.env.VITE_UNLISTED_ZONES = '1';
+    assert.ok(arches().length >= 1, 'the cave door (the crypt door too once the plan itself was built with the opt-in: the plan is cached per process)');
+  } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; }
 });

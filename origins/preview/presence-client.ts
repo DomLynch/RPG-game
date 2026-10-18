@@ -12,7 +12,7 @@ import { previewRule } from './preview-rules.ts';
 export { PROTOCOL, PROTOCOL_V2 };   // the page offers v2 (the whole-world frame, Zone 1 included) and v1 (the town-only fallback); the hello says which one the server chose
 export const POSE_EVERY_MS: number = RULES.tickMs;       // presence's tick (interest.ts RULES.tickMs, a row): one pose a tick is all it reads
 export const GIVE_UP_AFTER = previewRule('presenceGiveUp');        // consecutive sockets that never reached `hello`: the service is off or refusing us, stop trying until the page reloads
-export const presenceWanted = (search: string): boolean => !/[?&]presence=0(?:&|$)/.test(search);   // on for a signed-in page; ?presence=0 is the kill switch
+export const presenceWanted = (search: string, unlistedZone = false): boolean => !unlistedZone && !/[?&]presence=0(?:&|$)/.test(search);   // on for a signed-in page; ?presence=0 is the kill switch; an UNLISTED zone (a sandbox or dungeon preview) never joins: the live server does not list it, so its hello would reset the walker to the Pit
 export const presenceUrl = (origin: string): string => `${origin.replace(/^http/, 'ws')}/origins/presence`;   // https://frankendom.com -> wss://frankendom.com/origins/presence
 
 export type Frame = { centreCm: number; sizeCm: number };   // the hello's frame: world (0,0) at centreCm, positions 0..sizeCm (u16 centimetres)

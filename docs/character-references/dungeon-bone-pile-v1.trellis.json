@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 201102,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": "docs/character-references/dungeon-bone-pile-seed-201102.png",
+  "preprocess_s": 10.7,
+  "image_to_3d_s": 53.3,
+  "extract_glb_s": 49.9,
+  "glb": "src/assets/source/creatures/dungeon-bone-pile-v1.glb",
+  "bytes": 8282648,
+  "sha256": "b81e153b155ab3683101a093693a326538e459ead9be90b29959b3d7d4522c10",
+  "attempts": 1
+}

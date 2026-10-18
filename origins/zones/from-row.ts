@@ -10,8 +10,9 @@ export type ZoneRow = { [k: string]: unknown };
 function withDungeon(n: number, source: ZoneRow): ZoneRow {
   if (source.dungeon === undefined) return source;
   for (const k of ['place', 'spawns', 'look']) if (source[k] !== undefined) throw new Error(`zone ${n} row: "${k}" comes from dungeon "${String(source.dungeon)}", not from the row`);
-  const { dungeon, ...rest } = source;
-  return { ...rest, ...dungeonParts(String(dungeon)) };
+  const { dungeon, ...rest } = source, parts = dungeonParts(String(dungeon));
+  if (parts.kit !== undefined && source.kit !== undefined) throw new Error(`zone ${n} row: "kit" comes from dungeon "${String(dungeon)}" (its theme encloses its rooms), not from the row`);
+  return { ...rest, ...parts };
 }
 
 export function zoneFromRow(n: number, source: ZoneRow): Zone {

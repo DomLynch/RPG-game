@@ -4,11 +4,12 @@
 import { stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
-import { loadZone } from '../zones/loader.ts';
+import { loadZone, unlistedZonesOpen } from '../zones/loader.ts';
+import { radians } from '../zones/dungeon.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type KitNode = string;   // a node name of the zone's kit (origins/zone-rows/zone1.row.json (kit), checked by the loader)
-export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
+export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number; fixed?: true };   // fixed: stood by hand (the zone row's kit.fixed): drawn at exactly (x, z), without the node's own authored offset in the kit file
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
 const LANDMARK_R = stageRule('landmarkR');   // footprint of a landmark, for the first-view margin and its solid
 
@@ -41,6 +42,18 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
         if (kind.solid) solids.push({ x: p.x, z: p.z, r: kind.solid * scale });
       }
     }
+  }
+  // Pieces stood by hand (the zone row's kit.fixed): at a landmark of the plan plus an offset, no density, no free-spot search. Their solids join the walk-blocking circles.
+  const marksById = Object.assign({}, ...f.zones.map((q) => q.landmarks)) as Record<string, { x: number; z: number }>;
+  for (const p of zone.kit.fixed ?? []) {
+    const a = marksById[p.at]; if (!a || (p.unlistedOnly && !unlistedZonesOpen())) continue;
+    let at = { x: a.x + p.dx, z: a.z + p.dz }, rotY = radians(p.rotDeg);
+    if (p.inZoneFrame) {   // the zone's own frame (a dungeon's enclosure): turned into the world by the mount of the zone that owns the landmark (derive.ts toWorld: local +x = (-cos h, sin h), local +d = (sin h, cos h))
+      const h = f.zones.find((q) => q.landmarks[p.at])!.mount.heading, s = Math.sin(h), c = Math.cos(h);
+      at = { x: a.x - p.dx * c + p.dz * s, z: a.z + p.dx * s + p.dz * c }; rotY += h + Math.PI;
+    }
+    if (!p.blockOnly) placements.push({ node: p.node, x: at.x, z: at.z, rotY, scale: p.scale, fixed: true });   // blockOnly: a wall's invisible walk-blocking circle, nothing drawn
+    if (p.solid > 0) solids.push({ x: at.x, z: at.z, r: p.solid * p.scale });
   }
   // The four landmarks stand along the west road just OUTSIDE the walker's first view (frontier-plan.ts inFirstView keeps tall things 10 m + their radius off the road's line), alternating sides:
   // each takes the first free spot walking out from the road's end, at least 10 m from the one before.
