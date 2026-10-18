@@ -6,6 +6,7 @@
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import { stageRule } from '../world/stage-rules.ts';
+import { previewRule } from './preview-rules.ts';
 import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode, type Mob } from '../../src/core/server.ts';
 export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
@@ -28,7 +29,7 @@ export type MobSpec = {
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
-export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
+export const NAMED = { spread: 0, pull: previewRule('namedPull'), roam: previewRule('namedRoam') };   // m: a named creature stands on its spawn point (no spread), is pulled 5 m toward it, roams 2.5 m
 
 // ---- placement ------------------------------------------------------------------------------------------------------------------
 
