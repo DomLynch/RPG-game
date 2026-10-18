@@ -33,3 +33,12 @@ test('a zone row passes exits through, and an exit on a world zone the package d
   assert.ok(zoneProblems(bad).some((p) => /exits\[0\].*not a world zone/.test(p)));
   assert.deepEqual(zoneProblems({ ...z1, exits: [{ ...own, zone: z1.world[0]! }] } as Zone).filter((p) => p.startsWith('exits')), []);
 });
+
+// Zone package gap 2, the other half: a zone row's own `warps` (the rows of presence/warp-landmarks.json) pass through and are shape-checked; presence/warps.ts merges them.
+test('a zone row passes warps through, and a bad warp row is a problem (a repeated id, a unit that is not m, a non-number place)', () => {
+  const z1 = loadZone('1'), warps = [{ id: 'pkg-camp', x: 1, z: 2, unit: 'm' }], row = { name: z1.name, kit: z1.kit, looks: z1.looks, world: z1.world, warps };
+  assert.deepEqual(zoneFromRow(1, row).warps, warps);
+  assert.deepEqual(zoneProblems({ ...z1, warps } as Zone).filter((p) => p.startsWith('warps')), []);
+  const bad = zoneProblems({ ...z1, warps: [warps[0]!, warps[0]!, { id: 'Bad Id', x: 1, z: 2, unit: 'm' }, { id: 'cm', x: 1, z: 2, unit: 'cm' }, { id: 'nan', x: Number.NaN, z: 2, unit: 'm' }] } as Zone).filter((p) => p.startsWith('warps'));
+  assert.deepEqual(bad.map((p) => p.replace(/^warps\[(\d)\].*?(repeated|not a lowercase|unit is m|numbers).*$/, '$1 $2')), ['1 repeated', '2 not a lowercase', '3 unit is m', '4 numbers']);
+});

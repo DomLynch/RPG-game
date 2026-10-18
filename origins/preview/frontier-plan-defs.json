@@ -1,0 +1,38 @@
+{
+  "rules": [
+    { "id": "giverStand", "value": 4.5, "unit": "m" },
+    { "id": "roadInset", "value": 2.5, "unit": "m" },
+    { "id": "roadEnd", "value": 0.5, "unit": "m" },
+    { "id": "roadBody", "value": 0.35, "unit": "m" },
+    { "id": "viewBehind", "value": 10, "unit": "m" },
+    { "id": "viewAhead", "value": 60, "unit": "m" },
+    { "id": "viewSide", "value": 10, "unit": "m" },
+    { "id": "viewRing", "value": 14, "unit": "m" },
+    { "id": "gatePostBack", "value": 0.4, "unit": "m" },
+    { "id": "gatePostSide", "value": 2.4, "unit": "m" },
+    { "id": "gatePostR", "value": 0.5, "unit": "m" },
+    { "id": "ruinPostSide", "value": 2.6, "unit": "m" },
+    { "id": "ruinPostR", "value": 0.8, "unit": "m" },
+    { "id": "centreR", "value": 1.5, "unit": "m" },
+    { "id": "milestoneR", "value": 0.5, "unit": "m" },
+    { "id": "shrineR", "value": 1.3, "unit": "m" },
+    { "id": "cairnR", "value": 0.6, "unit": "m" },
+    { "id": "blockPad", "value": 0.3, "unit": "m" },
+    { "id": "ringHouses", "value": 8, "unit": "houses" },
+    { "id": "ringRadius", "value": 15, "unit": "m" },
+    { "id": "ringPhase", "value": 0.3, "unit": "rad" },
+    { "id": "ringKeepClear", "value": 9, "unit": "m" },
+    { "id": "ringMargin", "value": 6, "unit": "m" }
+  ],
+  "blocks": [
+    { "kind": "hall", "w": 10, "d": 8 },
+    { "kind": "forge", "w": 6, "d": 6 },
+    { "kind": "jail", "w": 5, "d": 5 },
+    { "kind": "healer", "w": 6, "d": 5 },
+    { "kind": "fence", "w": 3, "d": 1.4 },
+    { "kind": "house", "w": 8, "d": 6 },
+    { "kind": "boathouse", "w": 9, "d": 7 },
+    { "kind": "watchtower", "w": 3.5, "d": 3.5 },
+    { "kind": "crypt", "w": 8, "d": 8 }
+  ]
+}

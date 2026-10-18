@@ -17,6 +17,8 @@ import type { ExitRow } from './exits.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
+/** A warp landmark a package brings (the shape of origins/presence/warp-landmarks.json): a place in Concord metres the server moves a player to when the client names its id. */
+export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string };
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
@@ -33,6 +35,7 @@ export type Zone = {
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
+  warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
   presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
@@ -90,7 +93,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
     if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
     if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
-    if (l.scale !== undefined && !(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
+    const lo = stageRule('mobScaleMin'), hi = stageRule('mobScaleMax');   // the bound is stage rows (the Test Zone's salamander is 6, Dom's reference look)
+    if (l.scale !== undefined && !(l.scale >= lo && l.scale <= hi)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (${lo}-${hi})`);
     if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
   }
   if (known) for (const id of [...Object.keys(z.mobLooks?.looks ?? {}), ...Object.keys(z.mobLooks?.spread ?? {})]) if (!known.has(id)) bad.push(`mob look ${id}: no such character (not a spawn row or a region foe)`);
@@ -105,6 +109,13 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (l.body !== undefined && !/^world\/kit\/[\w-]+\.glb$/.test(l.body)) bad.push(`mob look ${id}: body is a world/kit/<name>.glb file`);
   }
   for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
+  const warpIds = new Set<string>();
+  for (const [i, w] of (z.warps ?? []).entries()) {   // the shape only; that a place is inside a presence zone row and clear of the trade areas is the server check's (origins/server/zone-package-check.ts)
+    if (typeof w.id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(w.id)) bad.push(`warps[${i}]: id ${JSON.stringify(w.id)} is not a lowercase id`);
+    else if (warpIds.has(w.id)) bad.push(`warps[${i}]: id ${w.id} is repeated in this package`); else warpIds.add(w.id);
+    if (w.unit !== 'm') bad.push(`warps[${i}] ${w.id}: the unit is m (Concord metres)`);
+    if (!Number.isFinite(w.x) || !Number.isFinite(w.z)) bad.push(`warps[${i}] ${w.id}: x and z are numbers`);
+  }
   for (const [w, p] of Object.entries(z.presence ?? {})) {
     if (!z.world.includes(w)) bad.push(`presence ${w}: not a world zone of this package`);
     if (p.speed !== undefined && !(p.speed > 0 && p.speed <= 10)) bad.push(`presence ${w}: speed ${p.speed} is out of range (0-10]`);

@@ -15,6 +15,7 @@ export type GoblinLook = { readonly id: string; readonly fog: string; readonly f
 export type GoblinBackdrop = { readonly id: string; readonly file: string; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number; readonly repeat: number; readonly texW: number; readonly texH: number; readonly fadeTop: number; readonly fadeFoot: number };
 const RULES = ['palisadeSegments', 'palisadeStakes', 'stakeSpacing', 'stakeHMin', 'stakeHMax', 'stakeR', 'railLow', 'railHigh', 'totemCount', 'totemHMin', 'totemHMax', 'bonePiles', 'boneRibs', 'fireCount', 'fireStones', 'fireRing', 'emberR', 'fireLogs', 'treeClumps', 'treesPerClump', 'treeHMin', 'treeHMax', 'clusterRadius', 'clusterDepth', 'clearOfRoad', 'smokeCount', 'smokeRise', 'smokeSpeed', 'smokeSize0', 'smokeSize1', 'smokeOpacity', 'domeRadius', 'domeHalf', 'ridgeAmp', 'ridgeSeed', 'ridgeFarShift', 'smokeColumns', 'texW', 'texH', 'glowX', 'glowR', 'columnW', 'columnAlpha', 'torchY', 'torchRange', 'torchDecay', 'flickerFast', 'flickerSlow', 'flickerDepth', 'smokeBase', 'smokeDrift', 'smokeFadeIn', 'puffCore', 'campView'] as const;
 const TINTS = ['wood', 'woodDark', 'bone', 'ochre', 'hide', 'ring', 'ember', 'dead', 'rope'] as const, HEX = ['zenith', 'mid', 'horizon', 'glow', 'ridge', 'ridgeFar', 'smoke', 'puff', 'torch'] as const;
+const MIN_BACKDROP_REPEAT = 2, EVEN = 2, VEC3 = 3;   // validation bounds the error text states: a mirrored backdrop repeats an even number of times, at least twice; a sun position and a ground tint are three numbers (exempt: scripts/as-data/allow/origins-world.json)
 /** The one loader: every table keyed by id (a duplicate id or a missing or mistyped field is refused), every named row must exist, numbers positive, colours #rrggbb. */
 export function loadGoblinField(raw: Raw) {
   loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, raw, 'goblin-field-defs.json')));
@@ -26,11 +27,11 @@ export function loadGoblinField(raw: Raw) {
   for (const b of backdrops) {
     const frac = (v: number) => Number.isFinite(v) && v >= 0 && v <= 1;
     if (!(frac(b.x0) && frac(b.x1) && frac(b.y0) && frac(b.y1) && b.x0 < b.x1 && b.y0 < b.y1)) throw Error(`goblin-field backdrop "${b.id}": the crop is fractions of the picture, 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1`);
-    if (!(Number.isInteger(b.repeat) && b.repeat >= 2 && b.repeat % 2 === 0)) throw Error(`goblin-field backdrop "${b.id}": repeat is an even whole number (mirrored copies meet round the dome)`);
+    if (!(Number.isInteger(b.repeat) && b.repeat >= MIN_BACKDROP_REPEAT && b.repeat % EVEN === 0)) throw Error(`goblin-field backdrop "${b.id}": repeat is an even whole number (mirrored copies meet round the dome)`);
     if (!(b.texW > 0 && b.texH > 0 && frac(b.fadeTop) && frac(b.fadeFoot) && b.fadeTop + b.fadeFoot < 1)) throw Error(`goblin-field backdrop "${b.id}": texW/texH > 0, fadeTop + fadeFoot < 1`);
     if (!/^[a-z0-9/_.-]+\.(webp|png|jpg)$/.test(b.file) || b.file.startsWith('/')) throw Error(`goblin-field backdrop "${b.id}": file is a picture path under the page base, no leading slash`);
   }
-  for (const l of looks) { for (const k of ['fog', 'hemiSky', 'hemiGround', 'sunColor'] as const) if (!/^#[0-9a-f]{6}$/i.test(l[k])) throw Error(`goblin-field look "${l.id}" ${k}: hex is #rrggbb`); if (l.sunPos.length !== 3 || l.ground.length !== 3) throw Error(`goblin-field look "${l.id}": sunPos and ground are three numbers`); }
+  for (const l of looks) { for (const k of ['fog', 'hemiSky', 'hemiGround', 'sunColor'] as const) if (!/^#[0-9a-f]{6}$/i.test(l[k])) throw Error(`goblin-field look "${l.id}" ${k}: hex is #rrggbb`); if (l.sunPos.length !== VEC3 || l.ground.length !== VEC3) throw Error(`goblin-field look "${l.id}": sunPos and ground are three numbers`); }
   for (const p of palettes) for (const k of ['backdropPortrait', 'backdropLandscape'] as const) if (p[k] && !backdrops.some((b) => b.id === p[k])) throw Error(`goblin-field palette "${p.id}" ${k}: "${p[k]}" names no backdrop row`);
   for (const h of harmonics) if (!(h.k > 0 && Number.isInteger(h.k) && h.a > 0)) throw Error(`goblin-field harmonic "${h.id}": k is a whole number of periods > 0 (the ridge closes at the seam), a > 0`);
   if (!harmonics.length) throw Error('goblin-field: the dome ridge needs at least one harmonic row');
