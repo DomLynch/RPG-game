@@ -125,10 +125,10 @@
 ],"missileAnswer":[
 {"dodge":40,"guard":35,"run":1}
 ],"bowSpecial":[
-{"skill":"cleave","label":"Power Shot","unlockAfterBossKills":0,"arrows":2,"lanes":[0],"mult":2000,"windup":40,"speed":700,"react":1,"posture":70,"tint":"#fff2c0"},
-{"skill":"reaping","label":"Fan Volley","unlockAfterBossKills":1,"arrows":3,"lanes":[-1,0,1],"mult":600,"windup":36,"speed":900,"tint":"#e8d9a8"},
-{"skill":"stomp","label":"Pinning Shot","unlockAfterBossKills":2,"arrows":1,"lanes":[0],"mult":1000,"windup":36,"speed":900,"pin":90,"posture":90,"tint":"#d8c8ff"},
-{"skill":"lunge","label":"Quick Shot","unlockAfterBossKills":0,"arrows":1,"lanes":[0],"mult":1200,"windup":14,"speed":1400,"tint":"#ffffff"}
+{"skill":"cleave","clip":"Special_BowPower","label":"Power Shot","unlockAfterBossKills":0,"arrows":2,"lanes":[0],"mult":2000,"windup":40,"speed":700,"react":1,"posture":70,"tint":"#fff2c0"},
+{"skill":"reaping","clip":"Special_BowFan","label":"Fan Volley","unlockAfterBossKills":1,"arrows":3,"lanes":[-1,0,1],"mult":600,"windup":36,"speed":900,"tint":"#e8d9a8"},
+{"skill":"stomp","clip":"Special_BowPin","label":"Pinning Shot","unlockAfterBossKills":2,"arrows":1,"lanes":[0],"mult":1000,"windup":36,"speed":900,"pin":90,"posture":90,"tint":"#d8c8ff"},
+{"skill":"lunge","clip":"Special_BowQuick","label":"Quick Shot","unlockAfterBossKills":0,"arrows":1,"lanes":[0],"mult":1200,"windup":14,"speed":1400,"tint":"#ffffff"}
 ],"specialReactFloor":[
 {"id":"lunge","stagger":36}
 ],"specialLook":[
