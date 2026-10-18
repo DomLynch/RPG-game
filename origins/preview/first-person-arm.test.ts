@@ -21,7 +21,15 @@ test('a target out of reach is reached as far as the arm goes, in its direction'
   assert.ok(Math.abs(at(hand).length() - 0.58) < 0.01 && at(hand).normalize().dot(far.clone().normalize()) > 0.999, `fully stretched towards it: ${at(hand).toArray()}`);
 });
 
-const POSE: ArmPose = { handRight: -0.2, handUp: -0.25, handForward: 0.3, poleRight: 0.7, poleUp: -0.9, poleForward: -0.2, bladeRight: -0.3, bladeUp: 0.8, bladeForward: 0.5, rate: 8 };
+const POSE: ArmPose = { handRight: -0.2, handUp: -0.25, handForward: 0.3, poleRight: 0.7, poleUp: -0.9, poleForward: -0.2, bladeRight: -0.3, bladeUp: 0.8, bladeForward: 0.5, rate: 8, kickRest: 1.5 };
+
+test('the camera kick is zero while the hand rests and follows a swing (lateral and forward), then settles', () => {
+  const { rig, root } = arm(), fp = createFirstPersonArm(), eye = new THREE.Matrix4();
+  for (let i = 0; i < 120; i++) fp.update(1 / 60, rig, true, eye, false, POSE); assert.ok(Math.abs(fp.kick().lat) < 1e-6 && Math.abs(fp.kick().fwd) < 1e-6, 'resting: no kick');
+  root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -1.2); rig.updateMatrixWorld(true); fp.update(1 / 60, rig, true, eye, false, POSE);   // the arm swings out to the right
+  assert.ok(Math.abs(fp.kick().lat) > 0.1, `a swing shows: ${JSON.stringify(fp.kick())}`);
+  for (let i = 0; i < 600; i++) fp.update(1 / 60, rig, true, eye, false, POSE); assert.ok(Math.abs(fp.kick().lat) < 0.01, 'held there, the kick settles (the rest follows the hand)');
+});
 
 test('the weight eases in while the hero is ready and back out when he swings; the animation is untouched at weight 0', () => {
   const { rig, root, hand } = arm(), fp = createFirstPersonArm(), eye = new THREE.Matrix4(), animation = root.quaternion.clone();

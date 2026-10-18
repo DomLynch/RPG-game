@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 
 /** The ready pose, all in the eye frame (right, up, ahead of the eye; negative = left, down, behind): where the hand goes, which way the elbow bends (the pole), which way the blade points, and how fast the weight eases. */
-export type ArmPose = { handRight: number; handUp: number; handForward: number; poleRight: number; poleUp: number; poleForward: number; bladeRight: number; bladeUp: number; bladeForward: number; rate: number };
+export type ArmPose = { handRight: number; handUp: number; handForward: number; poleRight: number; poleUp: number; poleForward: number; bladeRight: number; bladeUp: number; bladeForward: number; rate: number; kickRest: number };   // kickRest: per second, how fast the hand's usual place follows it (slow, so a swing stands out from the rest)
 
 const wq = new THREE.Quaternion(), pq = new THREE.Quaternion(), dq = new THREE.Quaternion();
 
@@ -32,11 +32,20 @@ export function solveTwoBone(root: THREE.Object3D, mid: THREE.Object3D, end: THR
 
 export function createFirstPersonArm() {
   let w = 0;   // 0 = the rig's own animation, 1 = the ready pose
+  let restHand: THREE.Vector3 | null = null; const kickNow = { lat: 0, fwd: 0 };   // the hand's usual place in the eye frame (slow average) and how far it is from it now
   return {
+    /** Metres the sword hand is to the right of (lat) and ahead of (fwd) its usual place in the eye frame, this frame: a swing reads as a camera lean (roll/yaw) and a lunge, scaled by the fp.kick-* rows. */
+    kick: (): { lat: number; fwd: number } => kickNow,
     /** `dt`: seconds; `rig`: the hero's anchor; `on`: first person is selected; `eye`: the eye frame (position at the head, rotation = heading about Y); `ready`: the hero is between swings; `pose`: the rows. */
     update(dt: number, rig: THREE.Object3D | undefined, on: boolean, eye: THREE.Matrix4, ready: boolean, pose: ArmPose): void {
       w += (on && ready ? 1 - w : -w) * (1 - Math.exp(-dt * pose.rate));
       const root = rig?.getObjectByName('upperarm_r'), mid = rig?.getObjectByName('lowerarm_r'), hand = rig?.getObjectByName('hand_r'), sword = rig?.getObjectByName('SwordDrawn');
+      if (on && hand) {   // how far the sword hand is from where it usually rests, in the eye frame: the camera follows a swing a little (a head dips into a thrust and leans into a cut), see `kick`
+        rig!.updateWorldMatrix(true, true);
+        const p = hand.getWorldPosition(new THREE.Vector3()).applyMatrix4(new THREE.Matrix4().copy(eye).invert());
+        if (!restHand) restHand = p.clone(); else restHand.lerp(p, 1 - Math.exp(-dt * pose.kickRest));
+        kickNow.lat = -(p.x - restHand.x); kickNow.fwd = p.z - restHand.z;   // right is -x in the eye frame
+      } else { kickNow.lat = 0; kickNow.fwd = 0; restHand = null; }
       if (!on || w < 0.002 || !root || !mid || !hand) return;
       rig!.updateWorldMatrix(true, true);
       const saved = [root, mid, hand].map((b) => b.quaternion.clone());   // the animation's pose this frame
