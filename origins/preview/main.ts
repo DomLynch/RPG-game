@@ -80,6 +80,7 @@ import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { createOutfit, dropSet, groundItemOf } from './outfit.ts';
+import { regenOn, regenRules } from '../../src/fight/hero-regen.ts';
 import { loadLoot, loadShape, lootIds, lootWorn } from '../../src/fight/index.ts';
 import { shapeFor } from '../../src/fight/weapon-shapes.ts';
 import { weaponOf, type LootId } from '../../src/core/loot.ts';
@@ -871,7 +872,9 @@ const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the enga
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
 const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); });   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
+const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
+  regen: () => (regenOn(!!(zoneRow ?? loadZone()).unlisted) ? regenRules(regenSeconds) : null),   // sandbox zones only; the Pit and every listed zone get none (hero-regen.ts)
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { warBandHit(spec); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
