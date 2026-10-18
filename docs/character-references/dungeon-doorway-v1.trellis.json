@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 201103,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": "docs/character-references/dungeon-doorway-seed-201103.png",
+  "preprocess_s": 10.1,
+  "image_to_3d_s": 97.6,
+  "extract_glb_s": 37.5,
+  "glb": "src/assets/source/creatures/dungeon-doorway-v1.glb",
+  "bytes": 5790592,
+  "sha256": "a5e878ca15d45c1ce69a07bffd3f10253b15a4a082f8f3cc76c1134f95cab38e",
+  "attempts": 1
+}

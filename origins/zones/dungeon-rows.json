@@ -13,7 +13,7 @@
         { "id": "hollow-hall", "at": { "u": 0.3, "v": 0.5, "facing": 0 }, "piece": "hall", "links": ["hollow-gate", "hollow-patrol", "hollow-den"] },
         { "id": "hollow-patrol", "at": { "u": 0.55, "v": 0.3, "facing": 0 }, "piece": "patrol", "links": ["hollow-hall", "hollow-den"] },
         { "id": "hollow-den", "at": { "u": 0.9, "v": 0.75, "facing": 180 }, "piece": "den", "links": ["hollow-hall", "hollow-patrol", "hollow-cache"] },
-        { "id": "hollow-cache", "at": { "u": 0.97, "v": 0.95, "facing": 180 }, "piece": "cache", "links": ["hollow-den"] }
+        { "id": "hollow-cache", "at": { "u": 0.75, "v": 0.92, "facing": 180 }, "piece": "cache", "links": ["hollow-den"] }
       ],
       "openers": { "bone-hollow": "character:cinder-scavenger" },
       "creatures": [

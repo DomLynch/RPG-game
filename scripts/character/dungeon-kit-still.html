@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dungeon kit still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// One node of the dungeon kit (public/world/kit/dungeon-kit.glb, meshopt-packed by scripts/pack-world-body.mjs) close up (?node=cave_wall), next to a 1.8 m stand-in for a person, three views. Driven by
+// scripts/character/dungeon-kit-still.mjs (window.ready flips true). Same framing as the fort kit's stills.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(3, 5, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 400);
+const name = new URLSearchParams(location.search).get('node') ?? 'cave_wall';
+const kit = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/public/world/kit/dungeon-kit.glb');
+let node; kit.scene.traverse((o) => { if (o.name === name && !node) node = o; });
+if (!node) throw new Error(`no node ${name}`);
+const piece = node.clone(); piece.position.set(0, 0, 0); scene.add(piece);
+const box = new THREE.Box3().setFromObject(piece), size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
+piece.position.x -= centre.x; piece.position.z -= centre.z; piece.position.y -= box.min.y;
+const person = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.8, 12), new THREE.MeshStandardMaterial({ color: 0x884433 })); person.position.set(size.x / 2 + 0.9, 0.9, 0.4); scene.add(person);
+const mid = new THREE.Vector3(0, size.y / 2, 0), radius = Math.hypot(size.x + 2, size.y) / 2;
+const fit = radius / Math.sin(Math.min(THREE.MathUtils.degToRad(camera.fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)));
+const look = (yaw, pitch) => { camera.position.set(Math.sin(yaw) * Math.cos(pitch) * fit, mid.y + Math.sin(pitch) * fit, Math.cos(yaw) * Math.cos(pitch) * fit); camera.lookAt(mid); };
+const frame = async (n = 3) => { for (let i = 0; i < n; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
+look(0, 0.12); await frame();
+window.result = { name, size: [size.x, size.y, size.z].map((v) => +v.toFixed(2)), programs: renderer.info.programs.length };
+window.view = async (v) => { if (v === 'quarter') look(0.8, 0.2); else if (v === 'side') look(1.57, 0.12); else look(0, 0.12); await frame(); };
+window.ready = true;
+</script>
