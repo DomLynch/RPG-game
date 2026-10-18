@@ -102,11 +102,41 @@ test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the 
   assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('POST_PUBLISH_DETACH'));
 });
 
+test('deploy.sh (IT fix): rows CI never proves (POST_PUBLISH_MAC_ROWS, default 9) run on the Mac inside the hold, only the rest is detached; nothing left to detach takes the old path', () => {
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(deploy, /detach_rows=\$\(_pp_left "\$pp_open" "\$\{POST_PUBLISH_MAC_ROWS:-9\}"\)/);
+  assert.match(deploy, /post_publish=\$\(_pp_left "\$pp_open" "\$detach_rows"\)/, 'the Mac-first rows stay in post_publish, which post_publish_rows runs inside the hold');
+  assert.match(deploy, /post-publish CI tail: rows \$detach_rows for \$revision/, 'the line the publisher reads names ONLY the detached rows');
+  assert.match(deploy, /if \[\[ -n "\$detach_rows" \]\]; then[\s\S]*?else\n      post_publish=\$\(post_publish_ci_collect/, 'no detachable rows: the old, waiting path');
+  // the subtraction itself, with the real helper: 9 is the Mac row, everything else detaches
+  const r = spawnSync('bash', ['-c', 'source scripts/lib/post-publish.sh; open="3,9,10,46"; d=$(_pp_left "$open" "9"); m=$(_pp_left "$open" "$d"); echo "detach=$d mac=$m"; d2=$(_pp_left "9" "9"); echo "only9=[$d2]"'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /detach=3,10,46 mac=9/);
+  assert.match(r.stdout, /only9=\[\]/, 'only the Mac row open: nothing to detach');
+});
+
+test('release-train-publish.sh (IT fix): the tail starts in its OWN session (perl setsid), so launchd ending the tick does not kill it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'setsid-'));
+  const out = join(dir, 'out');
+  const stub = join(dir, 'stub.sh');
+  writeFileSync(stub, `#!/bin/sh\necho "pid=$$ pgid=$(ps -o pgid= -p $$ | tr -d ' ') sid=$(ps -o sess= -p $$ | tr -d ' ')" > "${out}"\n`, { mode: 0o755 });
+  const pub = readFileSync('scripts/release-train-publish.sh', 'utf8');
+  assert.match(pub, /nohup perl -MPOSIX -e 'POSIX::setsid\(\); exec @ARGV' -- \$\{RELEASE_TRAIN_POSTCHECK:-/);
+  // the very wrapper the publisher uses, run from a subshell like the publisher does
+  const r = spawnSync('bash', ['-c', `( nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- "${stub}" > /dev/null 2>&1 & ); for i in $(seq 1 50); do [ -s "${out}" ] && break; sleep 0.1; done; cat "${out}"`], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const m = /pid=(\d+) pgid=(\d+) sid=(\d+)/.exec(r.stdout);
+  assert.ok(m, r.stdout);
+  assert.equal(m[1], m[2], 'a process-group leader of its own group');
+  assert.equal(m[1], m[3], 'and the leader of its own session');
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('release-train-publish.sh: releases the hold, THEN starts the tail from its own checkout, only when deploy.sh printed the tail line', () => {
   const pub = readFileSync('scripts/release-train-publish.sh', 'utf8');
   const release = pub.indexOf('rm -f "$hold" "$hold.stale-told"');
   const marker = pub.indexOf('> "$marker"');
-  const spawn = pub.indexOf('nohup ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"}');
+  const spawn = pub.indexOf('${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"}');
   assert.ok(marker > 0 && marker < release, 'the pending marker is written BEFORE the hold is released');
   assert.ok(release > 0 && spawn > release, 'the tail starts after the hold is released');
   assert.match(pub, /\^post-publish CI tail: rows/);
