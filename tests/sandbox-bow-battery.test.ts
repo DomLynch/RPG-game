@@ -10,6 +10,7 @@ const d = DEFS as unknown as { rules: { id: string; value: number }[]; bands: un
 const sandbox = (ROWS as unknown as { files: Record<string, Record<string, unknown[]>> }).files['sandbox-rules-defs']!;
 for (const r of sandbox.rules as { id: string; value?: number }[]) { const row = d.rules.find((x) => x.id === r.id); if (row && r.value !== undefined) row.value = r.value; }
 for (const k of ['bands', 'missile', 'missileLanes'] as const) (d[k] as unknown[]).push(...(sandbox[k] as unknown[]));
+for (const r of d.missile as { kind?: string; weapon: string }[]) if (r.kind === 'bow') r.weapon = 'knife';   // the entry names the stand-in weapon from the link; here it is the knife
 d.bowSpecial = sandbox.bowSpecial; d.specialReactFloor = sandbox.specialReactFloor;
 const { createFighter, opponentFighter, stepDuel, idleIntent, legal } = await import('../src/fight/duel.ts');
 const { decide, initialAi } = await import('../src/fight/ai.ts');
