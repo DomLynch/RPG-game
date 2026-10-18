@@ -7,7 +7,7 @@ import type { SpecialsCut } from '../../src/core/server.ts';
 const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
-import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
+import { verifyWorldRecord, createVerdictTally, flipReadiness, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../../src/core/server.ts';
@@ -114,6 +114,28 @@ test('kill_report with scorecardOnlyUnverified: no record or a bad one books the
   await assert.rejects(async () => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'x'.repeat(60_001) }), /record/);
 });
 
+test('flipReadiness: a strict flag is ready only with at least minKills kills AND at least minRate of them good (checked reach / a verified record), from the strictFlip row', () => {
+  const rule = { minKills: 50, minRate: 0.95 };
+  assert.deepEqual(flipReadiness({}, {}, rule), { refuseUnchecked: { kills: 0, rate: null, ready: false }, scorecardOnly: { kills: 0, rate: null, ready: false } }, 'no kills: never ready');
+  assert.equal(flipReadiness({ checked: 49 }, {}, rule).refuseUnchecked.ready, false, 'all checked but too few kills');
+  assert.equal(flipReadiness({ checked: 48, offline: 2 }, {}, rule).refuseUnchecked.ready, true, 'exactly 50 at 96 %');
+  assert.equal(flipReadiness({ checked: 47, offline: 2, 'other-zone': 1 }, {}, rule).refuseUnchecked.ready, false, '94 %');
+  const live = flipReadiness({ offline: 5 }, { 'no record': 4, sheet: 1 }, rule);   // the first five live kills (2026-10-18)
+  assert.deepEqual([live.refuseUnchecked.rate, live.scorecardOnly.rate, live.refuseUnchecked.ready, live.scorecardOnly.ready], [0, 0, false, false]);
+  assert.equal(flipReadiness({}, { verified: 95, 'no record': 5 }).scorecardOnly.ready, true, 'the row itself: 100 kills at 95 %');
+});
+
+test('kill_report with scorecardOnlyUnverified: an honest record of ANOTHER creature (a wolf fight claimed on a different spawn kind) books the event only (audit 2026-10-18, case 3 of 4)', async () => {
+  const { text } = await honest(), other = [...all.values()].find((s) => s.spec.character !== wolf.spec.character && s.fight !== wolf.fight) as Spawn;
+  assert.ok(other, 'Zone 1 has a second kind');
+  const posed: Spawn = { ...other, spec: { ...other.spec, id: wolf.spec.id } };   // the token's instance now resolves to the other kind; the record still fights a wolf
+  const s = stub();
+  await mk({ scorecardOnlyUnverified: true, spawns: new Map([[wolf.spec.id, posed]]) }).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'nothing spendable');
+  assert.equal((s.kills[0]!.b[0]!.payload as { cp: number }).cp, 0);
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /^refused: /);
+});
+
 test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified', async () => {
   const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 0 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
@@ -198,10 +220,11 @@ test('the tally: empty has no rate; outcomes accumulate', () => {
 test('the soak counters are wired in the production entry and answer GET /internal/world-records behind the key', async () => {
   const { readFileSync } = await import('node:fs'), { createServer } = await import('node:http'), { internalRoute } = await import('./location.ts');
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
-  assert.match(entry, /const tally = createVerdictTally\(\)/);
-  assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
+  assert.match(entry, /const tally = createVerdictTally\(\), reachTally = createVerdictTally\(\)/);
+  assert.match(entry, /verifyRecord: [^}]*, tally, reachTally[,} ]/, 'the spawn deps count every verdict and every reach');
+  assert.match(entry, /flip: flipReadiness\(r\.outcomes, t\.outcomes\)/, 'the readout judges both against the strictFlip row (audit 2026-10-18)');
   assert.match(entry, /heroOf: \(account, character, version\) => heroLimitOf\(db, account, character, version\)/, 'and bound the hero claim by the held worn set, read at the claim\'s own record version');
-  assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
+  assert.match(entry, /flusher, worldRecords, liveOps/, 'the internal route reads the readout');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });
   const srv = createServer((req, res) => void route(req, res));
