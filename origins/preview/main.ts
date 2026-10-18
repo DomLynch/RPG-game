@@ -87,7 +87,7 @@ import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
-import { waitFrame, type FrameEnv } from './frame-wait.ts';
+import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -618,7 +618,7 @@ renderer.setAnimationLoop(walkLoop);
 // thing the page keeps is its own: the graduation allegiance, under save.ts ALLEGIANCE_KEY (never a `frankendom.*` key).
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
-setInterval(() => { if (document.hidden && !fighting) walkLoop(); }, previewRule('hiddenTickMs'));   // a hidden tab gets no animation frames: a timer drives the walk so [zone ready] still arrives (a visible tab is drawn by rAF as before; a duel owns the canvas while it is up)
+setInterval(hiddenDriver({ hidden: () => document.hidden, held: () => fighting || zoneReadyAt >= 0 }, walkLoop), previewRule('hiddenTickMs'));   // a hidden tab gets no animation frames: a timer drives the walk until [zone ready] so it still arrives, and stops there (a hidden tab never fights or reports kills; a visible tab is drawn by rAF as before; a duel owns the canvas while it is up)
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
 // The daily board (origins/board): a button under the Journal and a dialog; the tasks, their words and their names are rows, the reset is the board rule's.

@@ -7,6 +7,11 @@ export type FrameEnv = {
   timer: (cb: () => void, ms: number) => void;
   hidden: () => boolean;
 };
+/** The hidden tab's walk driver, for the warm-up only: a tick runs `walk` while the page is hidden AND nothing holds it (`held`: a duel owns the canvas, or [zone ready] has been reached). After ready a hidden tab is idle again, as before:
+ *  nothing steps the world (no combat, spawn network or presence ticks, no kill reports) for as long as the tab stays hidden. Pure. */
+export function hiddenDriver(env: { hidden: () => boolean; held: () => boolean }, walk: () => void): () => void {
+  return () => { if (env.hidden() && !env.held()) walk(); };
+}
 export function waitFrame(env: FrameEnv, hiddenTickMs: number, hiddenCheckMs: number): Promise<void> {
   return new Promise<void>((resolve) => {
     let done = false;
