@@ -1,5 +1,16 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~18:1x +04: HANDOFF before /clear. READ FIRST. LIVE = JE b40785691 (verified on #3236); JF #3245 @67d421b5a has candidate PASS + label (publishing)
+
+**Now, in order.**
+1. **JF #3245:** when live, verify the writer/presence/verifier = 67d421b5a, NRestarts 0, flags unset; post on #3245. (No RV bump; #3246's verifier-before-switch isn't in JF yet, so a lag of ~2 min is expected.)
+2. **JG (pipelined, Strategy):** it's cut on JF's merge commit and runs CI while JF deploys. Read it as soon as it appears: each merge vs clean merge-tree, hand unions value-checked (the fx-rows union script pattern: trunk + every PR's copy → final, ids/dups/missing/extra/changed).
+3. **PASS on green (contents already read OK, watcher bmc4y84fk):** #3246 @5a97e1414 (Deploy: verifier before switch; I added auditor:ready), #3229 @d9d1be511 (also asked: restore the glued newline in sandbox-rules.ts), #3228 @8e96d4f26, #3250 @a17d7c477. **#3243 @fe307e782 still needs its first read** (Web camera pitch + fightBack; k7 fixed).
+4. **PASS on green, watcher buitkqfh0:** #3240 @2024bcafb (fx-rows union of 140 exact), #3230 @0f2b987d1 (`===` + 'first' allow entry; on trunk now).
+5. #3233's newer head a54a4ae88 matters only if JF drops #3233 (JF carries 5b9ed91c2).
+**Rulings today (memory):** stacked child = own-diff PASS + hand-run k7/C1/stubs receipt quoted (ruling_stacked_child_pass_2026-10-18); rows/docs/assets-only = 4 thread receipts, no read, named in the candidate PASS (ruling_rows_docs_assets_no_read_2026-10-18).
+**Gotchas.** (bbbb) zsh: `"$T:tests/..."` is a `:t` modifier, so use `"${T}:path"`; `for p in "a b"; set -- $p` doesn't split, so use a function. (cccc) A "both sides kept" union can resurrect a test the other side deleted on purpose (JF's sandbox-rules test): check `git log -S` on the trunk side. (dddd) VPS guard runs: /srv/dev-jobs/cq-2919, `git fetch origin pull/N/head && git checkout --detach FETCH_HEAD`, then back to c3b264982.
+
 ## 2026-10-18 ~16:3x: HANDOFF before /clear (Lead cleared me). READ FIRST. LIVE = JB2 25783c444 (verified on #3208); JC #3219 @556a6bbf3 has candidate PASS + label (publishing)
 
 **UPDATE ~17:3x +04 (Dubai). LIVE = JE b40785691, verified on #3236** (RV77/WSV55; the verifier lagged the site by ~2 min, and deploy installs it after the switch; flagged to Lead). New rule (Strategy): a stacked child's own-diff PASS needs k7 + core-boundary C1 + origins-stubs run by hand on the VPS, output quoted on the thread; a child whose parent is on trunk retargets and runs real CI. PASS: #3244 @35bc26a87 (my receipt 44/44). Waiting on real CI: #3240 @2024bcafb (union of 140 rows exact), #3230 @0f2b987d1 (`===` + allow entry), #3243 @fe307e782. Watchers buitkqfh0 (#3240/#3230).
