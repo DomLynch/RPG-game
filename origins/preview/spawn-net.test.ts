@@ -10,7 +10,7 @@ import { loadEncounterContent } from '../encounters/encounters.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, defaultZoneSpawns } from '../server/world-spawns.ts';
-import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf, retryDelay, OUTBOX_RETRY_MS, OUTBOX_RETRY_MAX_MS, OUTBOX_TRIES, type OutboxEntry, type OutboxStore } from './spawn-net.ts';
+import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf, retryDelay, OUTBOX_RETRY_MS, OUTBOX_RETRY_MAX_MS, OUTBOX_TRIES, type OutboxEntry, type OutboxStore, type ReceiptNote } from './spawn-net.ts';
 import { localOutbox, OUTBOX_KEY } from './outbox-store.ts';
 import { AUTH_KEY, storedAccount } from '../../src/core/index.ts';
 import { CENTRE_CM } from '../presence/zones.ts';
@@ -494,13 +494,13 @@ for (const [name, body, want] of [
   try {
     const lossy: typeof fetch = async (url, init) => { const res = await fetch(url, init); if (String(url).endsWith('/kill_report')) { await res.arrayBuffer(); throw new TypeError('socket hang up'); } return res; };
     assert.deepEqual(await killedOn(clock, spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: lossy, account: () => ACCOUNT, store })), { offline: 'network' });
-    const notes: object[] = [];
+    const notes: ReceiptNote[] = [];
     const next = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: asKind(body), account: () => ACCOUNT, store, onReceipt: (n) => notes.push(n) });
     clock.ms += retryDelay(1); next.tick(); await settle();
     clock.ms += OUTBOX_RETRY_MAX_MS; next.tick(); await settle();   // a second tick: nothing left to send
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid by the first attempt only');
     assert.deepEqual(next.outbox(), []); assert.equal(store.saved.has(ACCOUNT), false);
-    assert.deepEqual(notes.map(({ instance, ...n }: { instance?: string }) => n), want ? [want] : []);
+    assert.deepEqual(notes.map((n) => ({ kind: n.kind, ...(n.receipt ? { receipt: n.receipt } : {}) })), want ? [want] : []);
   } finally { await w.close(); }
 });
 
