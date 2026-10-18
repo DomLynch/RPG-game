@@ -95,8 +95,9 @@ const hitsOf = (v: unknown, need: boolean): number | undefined => {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_HITS) throw new BadRequest('hits: a whole count of landed hits');
   return v;
 };
+const TOKEN_GONE = 'engage token unknown, used or expired';
 const GONE = (e: unknown): never => {
-  if (e instanceof DbError && e.code === 'O0009') throw new Refused(409, 'engage token unknown, used or expired', 'used');
+  if (e instanceof DbError && e.code === 'O0009') throw new Refused(409, TOKEN_GONE, 'used');
   if (e instanceof DbError && e.code === 'O0002') throw new Refused(503, 'stale: the character changed while this kill was paid; report again', 'stale');   // a reward line's version moved: nothing written, the token is still open
   throw e;
 };
@@ -152,11 +153,21 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     return { expiresAt: got.expiresAt };
   };
 
+  // A kill report for a token that is not open (launch gate V5): answer from the account's own stored rows what became of it. 409 `code` stays 'used' and the message stays the old one, so a page that
+  // knows nothing of `kind` behaves as before; `kind` is 'paid' (with the stored `receipt`, never recomputed), 'expired' (closed unpaid) or 'unknown' (not this account's, or never existed: nothing
+  // about the token leaks). A receipt that cannot be read (migration absent, database error) is the plain old 409, never a 500, and nothing is paid on this path.
+  const usedToken = async (db: Parameters<Handler>[0]['db'], account: string, token: string): Promise<never> => {
+    const r = await store.spawnReceipt(db, account, token).catch(() => null);
+    const kind = r === null || r === undefined ? undefined : r === 'unknown' ? 'unknown' : r.kind === 'open' ? undefined : r.kind;
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)}: 409 ${kind ?? 'unread'}`);   // the IM soak counts these by kind
+    const detail = kind === undefined ? undefined : r !== null && r !== 'unknown' && r.kind === 'paid' ? { kind, receipt: { instance: r.instance, killedAt: r.killedAt, cp: r.cp, bronze: r.bronze, loot: r.loot } } : { kind };
+    throw new Refused(409, TOKEN_GONE, 'used', detail);
+  };
   const killReport: Handler = async ({ db, account, where }, body) => {
     const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!, recText = recordOf(body.record);
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
-    if (open === 'none') throw new Refused(409, 'engage token unknown, used or expired', 'used');
+    if (open === 'none') return usedToken(db, account, token);
     const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
@@ -201,7 +212,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
     };
-    const commit = (wear: store.Json[]) => store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }).catch(GONE);
+    const commit = (wear: store.Json[]) => store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
     const got = pays
       ? await settleWithWear({ db, account, ownEventId: `enc:${token}`, wear: () => killWearLines(db, { account, character: open.character, token }, inventory), commit })
       : await commit([]);

@@ -10,7 +10,9 @@ import { loadEncounterContent } from '../encounters/encounters.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, defaultZoneSpawns } from '../server/world-spawns.ts';
-import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
+import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf, retryDelay, OUTBOX_RETRY_MS, OUTBOX_RETRY_MAX_MS, OUTBOX_TRIES, type OutboxEntry, type OutboxStore } from './spawn-net.ts';
+import { localOutbox, OUTBOX_KEY } from './outbox-store.ts';
+import { AUTH_KEY, storedAccount } from '../../src/core/index.ts';
 import { CENTRE_CM } from '../presence/zones.ts';
 
 const loaded = loadEncounterContent();
@@ -240,8 +242,11 @@ test('outbox: a kill whose reply is lost (socket drops after the server paid) is
     assert.deepEqual(await t.killed(ids[0]!), { offline: 'network' }, 'the reply was lost');
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'the server already paid it once');
     assert.deepEqual(t.outbox(), [ids[0]!], 'the report waits in the outbox');
+    t.tick(); await new Promise((r) => setTimeout(r, 50));
+    assert.equal(sent, 1, 'not before its backoff: no re-send on the very next frame');
+    clock.ms += retryDelay(1);
     t.tick(); await new Promise((r) => setTimeout(r, 200));
-    assert.equal(sent, 2, 'tick() re-sent the same report');
+    assert.equal(sent, 2, 'tick() re-sent the same report once the backoff passed');
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'the server never paid a second time (409 used)');
     assert.deepEqual(t.outbox(), [], '409 settles the report');
     t.tick(); await new Promise((r) => setTimeout(r, 50));
@@ -263,6 +268,7 @@ test('outbox: a kill reported with no fresh pose is refused when the flag is on 
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 0, 'nothing paid on an unchecked position');
     assert.deepEqual(t.outbox(), [ids[0]!]);
     w.stand.to = ids[0]!;
+    clock.ms += retryDelay(1);
     t.tick(); await new Promise((r) => setTimeout(r, 200));
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid once on the retry');
     assert.deepEqual(settled, [ids[0]!]);
@@ -289,4 +295,185 @@ test('acceptance (audit 2026-10-18, Strategy: the guest path): a signed-out page
     }
     assert.deepEqual(w.calls, [], 'no spawn function ran: nothing minted, nothing written');
   } finally { await w.close(); }
+});
+
+// The durable outbox (audit 2026-10-18 F3). A store in memory stands in for localStorage; `settle` lets the test await the tracker's own sends.
+const memStore = (): OutboxStore & { saved: Map<string, OutboxEntry[]> } => { const saved = new Map<string, OutboxEntry[]>(); return { saved, load: (a) => [...(saved.get(a) ?? [])], save: (a, e) => { if (e.length) saved.set(a, [...e]); else saved.delete(a); } }; };
+const settle = () => new Promise((r) => setTimeout(r, 200));
+const memStoreShared = (s: ReturnType<typeof memStore>): OutboxStore => ({ load: (a) => s.load(a), save: (a, e) => s.save(a, e) });   // a second tab's handle on the same storage
+const OTHER = '9f1e2d3c-4b5a-4968-8776-655443322110';
+async function killedOn(clock: { ms: number }, t: ReturnType<typeof spawnTracker>) {
+  await t.engaged(ids[0]!);
+  for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t.hit(ids[0]!);
+  clock.ms += 60_000;
+  return t.killed(ids[0]!);
+}
+
+test('outbox backoff: a failed report is re-sent only after retryDelay (2 s, doubling, capped at a minute), never once per frame; the try cap still ends it', async () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8].map(retryDelay), [2000, 4000, 8000, 16_000, 32_000, 60_000, 60_000, 60_000]);
+  assert.equal(retryDelay(1), OUTBOX_RETRY_MS); assert.equal(retryDelay(99), OUTBOX_RETRY_MAX_MS);
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    let reports = 0;
+    const down: typeof fetch = async (url, init) => (String(url).endsWith('/kill_report') ? (reports++, new Response('{}', { status: 503 })) : fetch(url, init));
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: down });
+    assert.deepEqual(await killedOn(clock, t), { offline: 'http-503' });
+    for (let f = 0; f < 120; f++) t.tick();   // two seconds of frames at 60 fps, the clock frozen: the old loop sent 12 here
+    await settle();
+    assert.equal(reports, 1, 'no re-send inside the backoff');
+    for (let n = 1; n < OUTBOX_TRIES; n++) { clock.ms += retryDelay(n); t.tick(); await settle(); }
+    assert.equal(reports, OUTBOX_TRIES, 'one send per backoff step');
+    assert.deepEqual(t.outbox(), [], 'the try cap still ends a report the server never takes');
+  } finally { await w.close(); }
+});
+
+test('outbox across a reload: a report that never reached the writer is saved per account and sent by the NEXT page on the same token, paid exactly once', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    const cut: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) throw new TypeError('network down'); return fetch(url, init); };
+    const first = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: cut, account: () => ACCOUNT, store });
+    assert.deepEqual(await killedOn(clock, first), { offline: 'network' });
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 0, 'the writer never saw it');
+    assert.deepEqual(store.saved.get(ACCOUNT)?.map((e) => e.instance), [ids[0]!], 'saved under the account that engaged it');
+    // the page reloads: a new tracker, the same store, the network back
+    const settled: string[] = [];
+    const next = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, account: () => ACCOUNT, store, onSettled: (k) => settled.push(k.instance) });
+    clock.ms += retryDelay(1); next.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'the next page paid it, once');
+    assert.deepEqual(settled, [ids[0]!]);
+    assert.equal(store.saved.has(ACCOUNT), false, 'settled: nothing left saved');
+    clock.ms += OUTBOX_RETRY_MAX_MS; next.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'never a second payment');
+  } finally { await w.close(); }
+});
+
+test('outbox across a reload when the writer DID pay and only the reply was lost: the next page re-sends, gets 409 used, drops it, and nothing is paid twice', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    const lossy: typeof fetch = async (url, init) => { const res = await fetch(url, init); if (String(url).endsWith('/kill_report')) { await res.arrayBuffer(); throw new TypeError('socket hang up'); } return res; };
+    assert.deepEqual(await killedOn(clock, spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: lossy, account: () => ACCOUNT, store })), { offline: 'network' });
+    const next = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, account: () => ACCOUNT, store });
+    clock.ms += retryDelay(1); next.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid by the first attempt only');
+    assert.deepEqual(next.outbox(), []); assert.equal(store.saved.has(ACCOUNT), false, '409 settles and clears the saved copy');
+  } finally { await w.close(); }
+});
+
+test('outbox is bound to its account: after an account switch the old report is never sent with the new session; the old account\'s next page sends it', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    let who = ACCOUNT, reports = 0;
+    const counting: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) { reports++; if (reports === 1) throw new TypeError('network down'); } return fetch(url, init); };
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: counting, account: () => who, store });
+    await killedOn(clock, t);
+    who = OTHER;   // another account signs in on this page
+    clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await settle();
+    assert.equal(reports, 1, 'not sent with the other account\'s session');
+    assert.deepEqual(store.saved.get(ACCOUNT)?.length, 1, 'still saved for its own account'); assert.equal(store.saved.has(OTHER), false);
+    const back = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, account: () => ACCOUNT, store });
+    back.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'its own account\'s page pays it once');
+  } finally { await w.close(); }
+});
+
+test('outbox (Web\'s review): an account switch BETWEEN engage and kill keeps the report with the engaging account, saved under it and never sent with the new session', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    let who = ACCOUNT, reports = 0;
+    const counting: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) reports++; return fetch(url, init); };
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: counting, account: () => who, store });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t.hit(ids[0]!);
+    who = OTHER;   // another account signs in mid-fight
+    clock.ms += 60_000;
+    assert.deepEqual(await t.killed(ids[0]!), { offline: 'other-account' });
+    clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await settle();
+    assert.equal(reports, 0, 'never sent with the other session');
+    assert.deepEqual(store.saved.get(ACCOUNT)?.map((e) => e.instance), [ids[0]!], 'saved under the engaging account'); assert.equal(store.saved.has(OTHER), false);
+    who = ACCOUNT; clock.ms += OUTBOX_RETRY_MS; t.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid once its own account is back');
+  } finally { await w.close(); }
+});
+
+test('outbox restore: a saved nextAt from a clock that went back is held at most one max backoff; two tabs of one account keep each other\'s saved reports', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, store = memStore();
+  let reports = 0;
+  const down: typeof fetch = async () => { reports++; return new Response('{}', { status: 503 }); };
+  const far: OutboxEntry = { instance: ids[0]!, token: 'F'.repeat(32), hits: 3, record: null, drop: null, tries: 1, nextAt: clock.ms + 30 * 24 * 3600_000 };   // a month ahead
+  store.save(ACCOUNT, [far]);
+  const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store });
+  t.tick(); await settle();
+  assert.equal(reports, 0, 'restored, inside the clamp');
+  clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await settle();
+  assert.equal(reports, 1, 'sent once the clamp (one max backoff) passed, not a month later');
+  // two tabs: each saves a report; neither save drops the other's
+  const tabA = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store: memStoreShared(store) });
+  const tabB = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: 'http://127.0.0.1:9/origins', fetch: down, account: () => ACCOUNT, store: memStoreShared(store) });
+  tabA.tick(); tabB.tick(); await settle();   // both read the store before either adds
+  store.saved.set(ACCOUNT, [...(store.saved.get(ACCOUNT) ?? []), { ...far, token: 'A'.repeat(32), nextAt: clock.ms + OUTBOX_RETRY_MAX_MS }]);   // tab A's new report lands in the store
+  clock.ms += OUTBOX_RETRY_MAX_MS; tabB.tick(); await settle();   // tab B saves after its own send
+  assert.ok(store.saved.get(ACCOUNT)?.some((e) => e.token === 'A'.repeat(32)), 'tab B\'s save kept tab A\'s report (re-read before save)');
+});
+
+test('outbox reload: a report whose window was dropped keeps its reason across a page reload and sends it', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    const down: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) throw new TypeError('network down'); return fetch(url, init); };
+    const t1 = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: down, account: () => ACCOUNT, store });
+    await t1.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t1.hit(ids[0]!);
+    clock.ms += 60_000;
+    assert.deepEqual(await t1.killed(ids[0]!, null, 'gear-change'), { offline: 'network' });
+    assert.equal(store.saved.get(ACCOUNT)?.[0]?.drop, 'gear-change', 'saved with its reason');
+    const bodies: string[] = [];
+    const spy: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report')) bodies.push(String(init?.body)); return fetch(url, init); };
+    const t2 = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: spy, account: () => ACCOUNT, store });   // the reloaded page
+    clock.ms += OUTBOX_RETRY_MAX_MS; t2.tick(); await settle();
+    assert.equal(bodies.length, 1);
+    assert.equal(JSON.parse(bodies[0]!).drop, 'gear-change', 'the reloaded report still says why it has no record');
+  } finally { await w.close(); }
+});
+
+test('outbox with an expired sign-in: nothing is sent and no try is spent; once a session is back the report goes', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    let session: string | null = 'tok', dropped = false;
+    const cut: typeof fetch = async (url, init) => { if (String(url).endsWith('/kill_report') && !dropped) { dropped = true; throw new TypeError('network down'); } return fetch(url, init); };
+    const t = spawnTracker({ token: () => session, character: () => PC, now: () => clock.ms, base: w.base, fetch: cut });
+    await killedOn(clock, t);
+    session = null;
+    for (let n = 0; n < OUTBOX_TRIES + 3; n++) { clock.ms += OUTBOX_RETRY_MAX_MS; t.tick(); await new Promise((r) => setTimeout(r, 5)); }
+    assert.deepEqual(t.outbox(), [ids[0]!], 'still waiting: a missing session is not a try');
+    session = 'tok'; clock.ms += OUTBOX_RETRY_MS; t.tick(); await settle();
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1);
+    assert.deepEqual(t.outbox(), []);
+  } finally { await w.close(); }
+});
+
+test('outbox-store: one localStorage entry per account, malformed entries never come back, an empty outbox removes the key; storedAccount reads the session\'s user id only', () => {
+  const kv = new Map<string, string>(), storage = { getItem: (k: string) => kv.get(k) ?? null, setItem: (k: string, v: string) => void kv.set(k, v), removeItem: (k: string) => void kv.delete(k) };
+  const store = localOutbox(storage), entry: OutboxEntry = { instance: ids[0]!, token: 'T'.repeat(32), hits: 3, record: null, drop: null, tries: 1, nextAt: 5 };
+  store.save(ACCOUNT, [entry]);
+  assert.deepEqual([...kv.keys()], [`${OUTBOX_KEY}:${ACCOUNT}`]);
+  assert.deepEqual(store.load(ACCOUNT), [entry]); assert.deepEqual(store.load(OTHER), []);
+  kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, JSON.stringify([entry, { ...entry, token: 5 }, { instance: 'x' }, null, 'junk']));
+  assert.deepEqual(store.load(ACCOUNT), [entry], 'only well-formed entries');
+  kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, '{"not":"a list"}'); assert.deepEqual(store.load(ACCOUNT), []);
+  const dropped: OutboxEntry = { ...entry, drop: 'gear-change' };
+  store.save(ACCOUNT, [dropped]); assert.deepEqual(store.load(ACCOUNT), [dropped], 'the drop reason survives a reload');
+  const legacy: Partial<OutboxEntry> = { ...entry }; delete legacy.drop;
+  kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, JSON.stringify([legacy, { ...entry, drop: 5 }]));
+  assert.deepEqual(store.load(ACCOUNT), [entry], 'an entry saved before drop existed reads back with none; a non-string drop is never read');
+  store.save(ACCOUNT, []); assert.equal(kv.size, 0, 'nothing left behind');
+  assert.equal(storedAccount(storage), null, 'no session');
+  kv.set(AUTH_KEY, JSON.stringify({ access_token: 'x', expires_at: 1, user: { id: ACCOUNT.toUpperCase() } }));
+  assert.equal(storedAccount(storage), ACCOUNT, 'the id, lower-cased, even when the token has expired');
+  kv.set(AUTH_KEY, JSON.stringify({ user: { id: 'not-a-uuid' } })); assert.equal(storedAccount(storage), null);
+  kv.set(AUTH_KEY, '{'); assert.equal(storedAccount(storage), null);
+});
+
+test('main.ts gives the tracker the session\'s account and the localStorage outbox', () => {
+  const line = readFileSync(new URL('./main.ts', import.meta.url), 'utf8').split('\n').find((l) => l.startsWith('const spawnNet = spawnTracker({')) ?? '';
+  assert.match(line, /account: \(\) => storedAccount\(storage\)/);
+  assert.match(line, /store: storage \? localOutbox\(storage\) : undefined/);
 });
