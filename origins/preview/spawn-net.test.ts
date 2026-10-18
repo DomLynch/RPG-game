@@ -486,8 +486,8 @@ test('V5 page copy: the receipt note is rows (kill-text.json), shows the stored 
   assert.equal(note({ kind: 'paid', instance: 'x', receipt: RECEIPT }), 'An earlier kill was already paid: +12 CP · +3 bronze · 2 items.');
   assert.equal(note({ kind: 'paid', instance: 'x', receipt: { ...RECEIPT, cp: 0, bronze: 0, loot: 1 } }), 'An earlier kill was already paid: 1 item.');
   assert.equal(note({ kind: 'paid', instance: 'x', receipt: { ...RECEIPT, cp: 0, bronze: 0, loot: 0 } }), 'An earlier kill was already paid.');
-  assert.equal(note({ kind: 'expired', instance: 'x' }), 'An earlier kill report was closed without a payout.');
-  assert.equal(note({ kind: 'unknown', instance: 'x' }), 'An earlier kill report was closed without a payout.');
+  assert.equal(note({ kind: 'expired', instance: 'x' }), 'An earlier kill report was not recorded.');
+  assert.equal(note({ kind: 'unknown', instance: 'x' }), 'An earlier kill report was not recorded.');
   assert.equal(killToast({ offline: 'http-409', code: 'used', kind: 'paid', receipt: RECEIPT }, (i) => i, 'Wolf'), 'Wolf is down. An earlier kill was already paid: +12 CP · +3 bronze · 2 items.');
   assert.equal(killToast({ offline: 'http-409', code: 'used' }, (i) => i, 'Wolf'), 'Wolf is down. Not saved: the server did not answer.', 'the plain old 409 reads as before');
   assert.match(readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), /onReceipt: \(n\) => worldToast\(receiptToast\(n\)\)/);
