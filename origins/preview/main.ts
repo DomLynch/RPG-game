@@ -94,7 +94,8 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneFightBack, zoneHour } from './look.ts';
+import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { gfxOn } from './gfx-flag.ts';
@@ -459,7 +460,7 @@ function applyCombatView() {
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
