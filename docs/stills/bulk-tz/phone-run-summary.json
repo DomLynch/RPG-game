@@ -1,0 +1,64 @@
+{
+  "load_s": 8.7,
+  "fpsIdleStart": {
+    "frames": 300,
+    "fpsMean": 60,
+    "p95ms": 18,
+    "worstMs": 18.6
+  },
+  "goblinsWithLoadout": 6,
+  "chosenGoblin": {
+    "id": "z90:test-t-13-goblin-1",
+    "clearOfOthersM": 16
+  },
+  "killedFirstGoblin": true,
+  "fellAt": {
+    "x": -32.78,
+    "z": -384
+  },
+  "fpsFight": {
+    "frames": 179,
+    "fpsMean": 59.7,
+    "p95ms": 18.5,
+    "worstMs": 33.7
+  },
+  "selfWornBefore": [
+    "goblinBodySteel",
+    "goblinHelmetSteel",
+    "goblinBodyAntique_brass",
+    "goblinBodyLeather",
+    "goblinBodyBone",
+    "goblinBodyGambeson_goblin"
+  ],
+  "selfWornAfter": [
+    "goblinBodySteel",
+    "goblinGreavesSteel",
+    "goblinHelmetSteel",
+    "goblinBodyAntique_brass",
+    "goblinBodyLeather",
+    "goblinBootsWrap",
+    "goblinBodyBone",
+    "goblinBodyGambeson_goblin"
+  ],
+  "toastsSeen": [
+    "runs for the horn",
+    "horn sounds",
+    "You take"
+  ],
+  "pitFight": "started",
+  "fpsPit": {
+    "frames": 240,
+    "fpsMean": 60,
+    "p95ms": 18.6,
+    "worstMs": 18.7
+  },
+  "pitDuelNow": "duel running",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "notFound": [
+    "/game/img/fighter.webp"
+  ],
+  "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+  "totalS": 59
+}
