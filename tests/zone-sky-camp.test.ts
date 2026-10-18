@@ -71,7 +71,7 @@ test('setFightBack scales the LOCKED camera back and up (same angle); 1 and the 
 });
 test('camera.landscapeZoom: a wide screen can look closer; unset, below 1 or above 3 is no zoom; the goblin-fortress biome asks for 1.3 and Zones 1-4 for nothing', () => {
   assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 1.3 })), 1.3); assert.equal(zoneLandscapeZoom(zf({})), 1); assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 0.5 })), 1); assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 9 })), 1);
-  assert.equal(field('camera.landscapeZoom')?.default, 1); assert.equal(field('camera.landscapeZoom')?.wired, true);
+  assert.equal(field('camera.landscapeZoom')?.default, 1); assert.equal(field('camera.landscapeZoom')?.wired, false);   // no page reader yet (BULK-TZ, Auditor 2026-10-18): the rule is tested here, the field stays unwired (pin 61) until Web's camera work calls zoneLandscapeZoom
   assert.equal(zoneFightBack(zf({ 'camera.fightBack': 1.2 })), 1.2); assert.equal(zoneFightBack(zf({})), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 0.5 })), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 9 })), 1);
   assert.equal(field('camera.fightBack')?.default, 1); assert.equal(field('camera.fightBack')?.wired, true);
   assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 1.1 })), 1.1); assert.equal(zoneFightBackPortrait(zf({})), 1); assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 0.5 })), 1); assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 9 })), 1);
