@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "frontier-rule", "file": "frontier-plan-defs.json", "at": "rules", "key": "id", "required": { "value": "number", "unit": "string" } },
+    { "table": "frontier-block", "file": "frontier-plan-defs.json", "at": "blocks", "key": "kind", "required": { "w": "number", "d": "number" } }
+  ]
+}

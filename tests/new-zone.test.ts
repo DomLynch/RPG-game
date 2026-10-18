@@ -11,6 +11,7 @@ import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
 import { resolveSpec } from '../origins/zones/resolve.ts';
 import biomesData from '../origins/zones/biomes.json' with { type: 'json' };
+import biomesPackages from '../origins/zones/biomes.packages.json' with { type: 'json' };
 
 const rowOf = (id: string) => JSON.parse(readFileSync(`${ROWS_DIR}zone${id}.row.json`, 'utf8')) as Record<string, any>;
 const scratchDir = (tag: string) => mkdtempSync(`${tmpdir()}/newzone-${tag}-`);
@@ -76,7 +77,7 @@ test('a bad row is refused BEFORE anything is written: a level key, unknown key,
   const scratch = scratchDir('rowbad'), d = `${scratch}/`;
   try {
     const ok = rowOf('2');
-    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /unknown key "level"/, 'the zone number IS its level: a row cannot set another');
+    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /"level" is only for an unlisted sandbox zone/, 'the zone number IS its level: only an unlisted zone row may set another (A0)');
     assert.throws(() => newZone({ n: 2, row: { ...ok, hp: 9 }, dir: d }), /unknown key "hp"/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, id: '3' }, dir: d }), /id 3 is not zone 2/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, name: '' }, dir: d }), /name is empty/);
@@ -94,8 +95,8 @@ test('zoneFromRow builds exactly what the registry holds, and a row is the zone:
   assert.deepEqual([z.id, z.level, z.name], ['2', 2, 'The Ash Reach']);
 });
 
-test('the biome presets are the data file, and the default biome is one of them', () => {
-  assert.equal(BIOMES, biomesData.biomes);
+test('the biome presets are the data file plus the generated package presets, and the default biome is one of them', () => {
+  assert.deepEqual(BIOMES, { ...biomesData.biomes, ...biomesPackages.biomes });   // biomes.ts merges the two (a package may not redefine a shared preset: tests/package-biome.test.ts)
   assert.ok(Object.hasOwn(BIOMES, DEFAULT_BIOME));
 });
 

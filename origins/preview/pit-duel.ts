@@ -88,7 +88,7 @@ let world = false;
 const idle = (() => {
   const rest = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: false } as unknown as Parameters<typeof stepPractice>[1];
   let p = stepPractice(initialPractice(), { ...rest, action: 'light' });
-  for (let i = 0; i < 240 && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
+  for (let i = 0; i < previewRule('pitSettleTicks') && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
   return p;
 })();
 const paused = () => world ? document.hidden || !!journal?.open : !running || !stage?.ready || document.hidden || !!journal?.open;
@@ -245,13 +245,13 @@ let wsim: Practice = idle, wacc = 0;
 const frozen = (): Intent => idleIntent();
 export type WorldMove = { dx: number; dz: number; phase: string; stamina: number; facing: number };   // facing: the way the fighter faces (a roll turns him)
 export function worldStep(dt: number, heading: number, i: ControlIntent): WorldMove {
-  wacc = Math.min(wacc + dt, STEP * 6);
+  wacc = Math.min(wacc + dt, STEP * previewRule('pitStepCap'));
   let dx = 0, dz = 0;
   const rolling = (p: Practice) => p.phase === 'roll' || p.phase === 'backstep';
   while (wacc >= STEP) {
     wacc -= STEP;
     const [me, foe] = wsim.duel.fighters, from = rolling(wsim) ? me.body : { ...me.body, x: 0, z: 0 };
-    const ahead = { ...foe.body, x: Math.sin(heading) * 6, z: Math.cos(heading) * 6 };
+    const foeAt = previewRule('pitFoeAhead'), ahead = { ...foe.body, x: Math.sin(heading) * foeAt, z: Math.cos(heading) * foeAt };
     wsim = { ...wsim, duel: { ...wsim.duel, fighters: [{ ...me, body: rolling(wsim) ? me.body : { ...from, heading }}, { ...foe, body: ahead }] as unknown as Duel['fighters'] } };
     const before = wsim.duel.fighters[0].body, action = i.action === 'dodge' || i.action === 'backstep' ? i.action : null;
     wsim = stepPractice(wsim, { move: { x: i.x, z: i.z, yaw: heading + Math.PI, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: false, lock: false }, PROFILES.normal, frozen);
@@ -284,7 +284,7 @@ export function closeDuel() {
 
 function frame(now: number) {
   if (!running || !stage || !match) return;
-  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < 60 ? raw : 0, previewRule('pitDtMax'));
+  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < previewRule('pitFrameMaxS') ? raw : 0, previewRule('pitDtMax'));
   last = now;
   if (!paused()) {
     accumulator += dt;

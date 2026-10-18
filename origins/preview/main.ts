@@ -32,7 +32,7 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast, receiptToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -57,7 +57,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { wideCombatCam } from './combat-cam.ts';
@@ -523,13 +523,25 @@ async function kitSlice(until: number) {
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
 let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
-// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after [zone ready]. The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
+// the threshold used to answer differently from the next. Storage may be blocked: then it is the per-load measure, as before.
+const SLOW_KEY = 'origins-preview-slow-device';
 let deviceSlow: boolean | undefined;
 async function slowDevice(): Promise<boolean> {
   if (deviceSlow !== undefined) return deviceSlow;
+  let kept: boolean | undefined;
+  try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs')); } catch { /* storage blocked: measure */ }
+  if (kept !== undefined) return (deviceSlow = kept);
+  // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).
+  const visibleAtStart = document.visibilityState === 'visible'; let hiddenSeen = false;
+  const onVisibility = () => { if (document.visibilityState !== 'visible') hiddenSeen = true; };
+  document.addEventListener('visibilitychange', onVisibility);
   const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
   for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
-  return (deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')));
+  document.removeEventListener('visibilitychange', onVisibility);
+  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs'));
+  if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now())); } catch { /* storage blocked: not kept */ }
+  return deviceSlow;
 }
 // On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
 // On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
@@ -875,7 +887,7 @@ const shopScreen = mountShop(document.getElementById('shop-dialog') as HTMLDialo
     return character ? buyOne(storedToken(storage, Date.now()), character, EXCHANGE_PROVISIONER, item, revision, newOp(item, Date.now()), shopBase) : { offline: 'no-session' };
   } });
 play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
-const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search), account: () => storedAccount(storage), store: storage ? localOutbox(storage) : undefined });   // the kill outbox is durable per account (outbox-store.ts)
+const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search), account: () => storedAccount(storage), store: storage ? localOutbox(storage) : undefined, onReceipt: (n) => worldToast(receiptToast(n)) });   // the kill outbox is durable per account (outbox-store.ts)
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)

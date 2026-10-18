@@ -5,14 +5,24 @@
       "file": "vendor-economy.json",
       "at": "classes",
       "key": "id",
-      "required": { "stockSlope": "integer", "priceFloor": "integer", "priceCeil": "integer", "sellPct": "integer", "salesSlope": "integer", "salesFloor": "integer", "salesRecoverySeconds": "integer", "restockSeconds": "integer", "stockCap": "integer" }
+      "required": {
+        "stockSlope": { "type": "integer", "min": 0 },
+        "priceFloor": "integer",
+        "priceCeil": "integer",
+        "sellPct": "integer",
+        "salesSlope": { "type": "integer", "min": 0 },
+        "salesFloor": { "type": "integer", "min": 1, "max": 100 },
+        "salesRecoverySeconds": { "type": "integer", "min": 1 },
+        "restockSeconds": { "type": "integer", "min": 1 },
+        "stockCap": { "type": "integer", "min": 1 }
+      }
     },
     {
       "table": "zoneTax",
       "file": "vendor-economy.json",
       "at": "zoneTax",
       "key": "id",
-      "required": { "buyTaxPct": "integer", "sellTaxPct": "integer" }
+      "required": { "buyTaxPct": { "type": "integer", "min": 0, "max": 99 }, "sellTaxPct": { "type": "integer", "min": 0, "max": 99 } }
     }
   ]
 }

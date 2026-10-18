@@ -4,6 +4,7 @@
 // rolls exactly as before. `variantFor` is a seeded draw per spawn: the same spawn id and seed always roll the same variant. Rows only; applying the multipliers to a fight and the tint to the
 // model are separate wiring steps, and no sim file reads this yet. Pure: no DOM, no clock, no storage.
 import { loadRegistry, mixSeed, nextRandom, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { layoutRule } from './layout-rules.ts';
 import DEFS from './variants.json' with { type: 'json' };
 import MANIFEST from './variants.manifest.json' with { type: 'json' };
 
@@ -11,6 +12,7 @@ export type VariantRow = { readonly order: number; readonly weight: number; read
 export type VariantTable = Readonly<Record<string, VariantRow>>;
 export type Rolled = { readonly id: string } & VariantRow;
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const MAX_MULTIPLIER = layoutRule('variantMultiplierMax'), FNV_PRIME = 16777619;   // the multiplier bound ((0, max]) is a layout row (a gameplay bound); FNV-1a's prime (exempt: scripts/as-data/allow/origins-world.json)
 
 /** The one loader: the registry's duplicate/missing/mistyped checks, then the row rules (a positive weight and multipliers in (0, 4], a #rrggbb tint, an eligible id that is a real catalogue creature, and a `plain` row that changes nothing). */
 export function loadVariants(raw: { variants?: unknown }, catalogueIds: Iterable<string>): VariantTable {
@@ -18,7 +20,7 @@ export function loadVariants(raw: { variants?: unknown }, catalogueIds: Iterable
   const rows = raw.variants as VariantTable, known = new Set(catalogueIds);
   for (const [id, r] of Object.entries(rows)) {
     if (!(Number.isFinite(r.weight) && r.weight > 0)) throw Error(`variants "${id}": weight is a number > 0`);
-    for (const k of ['health', 'damage', 'scale'] as const) if (!(Number.isFinite(r[k]) && r[k] > 0 && r[k] <= 4)) throw Error(`variants "${id}": ${k} is a multiplier in (0, 4]`);
+    for (const k of ['health', 'damage', 'scale'] as const) if (!(Number.isFinite(r[k]) && r[k] > 0 && r[k] <= MAX_MULTIPLIER)) throw Error(`variants "${id}": ${k} is a multiplier in (0, ${MAX_MULTIPLIER}]`);
     if (r.tint != null && !HEX.test(r.tint)) throw Error(`variants "${id}": tint is #rrggbb or null`);
     for (const e of r.eligible) if (!known.has(e)) throw Error(`variants "${id}": ${e} is not a catalogue creature`);
   }
@@ -28,7 +30,7 @@ export function loadVariants(raw: { variants?: unknown }, catalogueIds: Iterable
 }
 export const VARIANTS: VariantTable = DEFS.variants as unknown as VariantTable;   // validated against the real catalogue by origins/mobs/variants.test.ts
 
-const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), FNV_PRIME); return h >>> 0; };
 /** The variants a creature (a catalogue id) may roll, in table order: its own eligible rows plus every row open to all. */
 export const eligibleFor = (creature: string, table: VariantTable = VARIANTS): Rolled[] => Object.entries(table).sort((a, b) => a[1].order - b[1].order).filter(([, r]) => !r.eligible.length || r.eligible.includes(creature)).map(([id, r]) => ({ id, ...r }));
 /** The variant one spawn rolls: a seeded weighted draw over its eligible rows (same creature, spawn id and seed = same variant). */

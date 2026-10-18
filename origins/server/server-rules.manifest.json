@@ -151,6 +151,18 @@
         "minRate": "number",
         "note": "string"
       }
+    },
+    {
+      "table": "strictRevert",
+      "file": "server-rules.json",
+      "at": "strictRevert",
+      "key": "id",
+      "required": {
+        "firstKills": "integer",
+        "minRate": "number",
+        "maxUncheckedRun": "integer",
+        "note": "string"
+      }
     }
   ]
 }

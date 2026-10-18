@@ -6,4 +6,5 @@ export const PROTOCOL_V2 = 'frankendom.presence.v2';   // the whole-world frame 
 export const CENTRE_CM = 40000;
 export const FRAME_CM = 65535;
 export const LEGACY_CENTRE_CM = 15000;
+export const CM_PER_M = 100;   // a unit fact (the frame is u16 centimetres, the world is metres), not a tuning
 export const LEGACY_SPAN_CM = 30000;   // the v1 square's side: a v1 pose is clamped to 0..30000

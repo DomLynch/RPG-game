@@ -156,6 +156,21 @@ try {
   // a compare, a + / - or a % is never excluded: that is where a tuning hides.
   const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
   const TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
+  // The percent/permille scale class (Strategy 2026-10-18, tightened by Lead): the scale is an operand of * or / IN CODE (not inside a string or template literal, not inside a console/log call) and the OTHER operand is a
+  // roll expression: an identifier, member chain or call named like roll / draw / chance / rng / random (`draw() * 100`, `e.chancePct / 100`), or a parenthesised group holding one (`(100 - e.chance) / 100`). A roll word merely on the same line is not enough.
+  const PERCENT_SCALE = new Set(['100', '10_000', '10000']);
+  const ROLL_NAME = '\\w*(?:roll|draw|chance|rng|random)\\w*', ROLL_OPERAND = `(?:[\\w$]+\\.)*${ROLL_NAME}(?:\\([^()]*\\))?`, ROLL_GROUP = `\\([^()]*${ROLL_NAME}[^()]*\\)`;
+  const rollBefore = new RegExp(`(?:${ROLL_OPERAND}|${ROLL_GROUP})\\s*[*/]$`, 'i'), rollAfter = new RegExp(`^[*/]\\s*(?:${ROLL_OPERAND}|${ROLL_GROUP})`, 'i');
+  const insideStringOrLog = (before: string): boolean => {   // a quote left open before the literal (' " or `, with escapes) puts it in a string or template; a console/log call puts it in a message
+    let open: string | null = null;
+    for (let i = 0; i < before.length; i++) { const c = before[i]!; if (open) { if (c === '\\') i++; else if (c === open) open = null; } else if (c === '\'' || c === '"' || c === '`') open = c; }
+    return open !== null || /\b(?:console\.\w+|logger?\.\w+|log\w*)\s*\(/.test(before);
+  };
+  // The half-extent class (Auditor's rule, Lead-approved 2026-10-18): `<extent> / 2`, the centre or half-size of a width / depth / size, is a geometric identity nobody tunes. ONLY the literal 2, ONLY the `/ 2` form
+  // (`* 0.5` stays counted, so neither can be traded for the other), and ONLY when the operand's last name is on this CLOSED list (a member or a bare identifier: `z.width / 2`, `plan.depth / 2`, `size / 2`).
+  // Halving a range, a reach or a timing (`aggro / 2`, `windup / 2`) is a design choice and stays counted. Growing the list is a Lead/Strategy ruling, not a PR's choice.
+  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)';
+  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent)\s*\/$/;
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -175,9 +190,13 @@ try {
       if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
       if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
       if (/\*$/.test(before) && /^-\s*1\b/.test(after) && /\b(?:Math\.random\(\)|(?:random|rand|rng|roll|draw|seedUnit|hash|unit|k|t|u)(?:\([^()]*\))?)\s*\*$/.test(before)) return 'math: the * 2 - 1 remap of a unit draw';   // level * 2 - 1 is a count, not a draw: it stays counted
+      if (HALF_EXTENT_BEFORE.test(before)) return HALF_EXTENT_CLASS;
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
+    // The one named scale class (Strategy 2026-10-18): 100 or 10_000 as the UNIT of a roll (`draw() * 100 < chance`, a percent chance read against a draw): see PERCENT_SCALE above. A compare (`< 100`), a + / - (`100 - tax`),
+    // any other number (a 250 beside a roll), a percent in a log string or a template, and plain price, tax or share maths (no roll operand) stay counted: that is where a tuning hides.
+    if (beside && PERCENT_SCALE.has(text) && !insideStringOrLog(before) && (rollBefore.test(before) || rollAfter.test(after))) return 'percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)';
     return null;
   };
   const excludedInline: Record<string, number> = {};

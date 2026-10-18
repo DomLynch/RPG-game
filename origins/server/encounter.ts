@@ -18,6 +18,7 @@ import { expectedSpell, type SpellClaim } from './spell-check.ts';
 import { careerState, levelOfCredit } from '../../src/core/server.ts';
 import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
+import { qaOf } from './qa-account.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
@@ -130,10 +131,11 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
     const eventId = `enc:${token}`;
     const fight = fightOfToken(token);
-    const rewards = verdict.ok && result === 'won' && deps.rewards ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
+    const qaState = await qaOf(db, account);   // the QA account (fighter_profiles.is_test): the fight is checked and settled as for anyone, but its rewards are not persisted
+    const rewards = verdict.ok && result === 'won' && deps.rewards && qaState !== 'yes' ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
     // `fight` and `paid` are what origins_last_paid_kill (202610080006) reads back: the respawn window is the time since this account's last PAID kill of this fight,
     // and it commits in this same transaction, so a settle that aborts leaves no window behind.
-    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) } }, ...rewards];
+    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(qaState === 'yes' ? { qa: true } : {}), ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) } }, ...rewards];
     // Practice (migration 0026): only a VERIFIED win practises the weapon's skill; the lines ride this one settle, so a retry pays once (key practice:enc:<token>:<skill>).
     let practice: store.Json[] = [];
     if (verdict.ok && result === 'won') {

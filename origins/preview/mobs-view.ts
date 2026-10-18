@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { actorPose, buildWarriors, createZoneFinisher, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
+import { actorPose, buildWarriors, createZoneFinisher, MissingClip, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
 import { catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, builtScale, easeStandBack, FIGHTER_TEXTURE_CAP, standBackWant } from '../../src/fight/index.ts';
@@ -131,7 +131,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const weapon = (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[s.body]?.weapon ?? 'longsword', look = mobVariant(s.character, s.id);
     let actor: Actor;
     try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [weapon, weapon], true).player; }
-    catch (error) { console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(s.body, 'failed'); failedKinds.add(s.body); return; }
+    catch (error) {
+      // A body missing its weapon's clip pack is a content bug that tests/creature-clips.test.ts fails in CI; in the player's frame it is logged once and the kind stays a stand-in for the session (marked failed, so it is not retried every frame).
+      if (error instanceof MissingClip) console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); else console.warn(`${s.body} actor did not build; the capsule stays`, error);
+      bodies.set(s.body, 'failed'); failedKinds.add(s.body); return;
+    }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours

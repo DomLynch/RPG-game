@@ -6,6 +6,7 @@
 // so `won` is never reached. Talk is an `npc-talk` record, loaded by origins/talk like Orla's.
 import { HAZARD_ROWS, type Twist } from '../region1/load.ts';
 import type { Giver } from './frontier-plan.ts';
+import { previewRule } from './preview-rules.ts';
 
 const none = () => ({ loot: null, standing: [] });
 // The twist as the player reads it (region1 §3's Bounties table wording, from the flag's own fields).
@@ -43,10 +44,10 @@ export function giverTalk(g: Giver) {
   return {
     kind: 'npc-talk', schemaVersion: 1, npc: g.character,
     lines: [
-      line('work', 10, true, 'Any work?', `${g.foe} has taken ${g.where.split(' in ')[0]} and fights anyone who comes. Put him down and I pay ${g.bounty.metal} bronze.`,
+      line('work', previewRule('bountyOrderWork'), true, 'Any work?', `${g.foe} has taken ${g.where.split(' in ')[0]} and fights anyone who comes. Put him down and I pay ${g.bounty.metal} bronze.`,
         [at(null), { kind: 'tier-at-least', tier: 'Gladiator' }], [{ kind: 'quest', quest: Q, stage: 'posted', choice: null }]),
-      line('where', 20, false, `Where is ${g.foe}?`, `${g.where[0]!.toUpperCase()}${g.where.slice(1)}. ${twistText(g.bounty.twist)}. Keep moving.`, [at('posted')]),
-      line('farewell', 99, false, 'Farewell.', 'Mind the ash out there.', [], [{ kind: 'end' }]),
+      line('where', previewRule('bountyOrderWhere'), false, `Where is ${g.foe}?`, `${g.where[0]!.toUpperCase()}${g.where.slice(1)}. ${twistText(g.bounty.twist)}. Keep moving.`, [at('posted')]),
+      line('farewell', previewRule('bountyOrderFarewell'), false, 'Farewell.', 'Mind the ash out there.', [], [{ kind: 'end' }]),
     ],
   };
 }
