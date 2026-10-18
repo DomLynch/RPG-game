@@ -33,7 +33,7 @@ const archer = (useSpecial: boolean) => (x: Duel, me: 0 | 1): Intent => {
 const start = (archerSide: 0 | 1, foeWeapon: string): Duel => {
   const bow = { ...createFighter({ x: 0, z: GAP, heading: Math.PI, distance: 0 }, 'ready', 'knife' as never), skill: 'cleave' as never, specialShare: SHARE, skillCooldown: 0 };
   const other = archerSide === 0 ? opponentFighter(opponentAt(OPPONENTS.veteran, 12), { x: 0, z: 0, heading: 0, distance: 0 }) : createFighter({ x: 0, z: GAP, heading: Math.PI, distance: 0 }, 'ready', foeWeapon as never);
-  return archerSide === 0 ? { tick: 0, fighters: [bow, other], finish: null } as never : { tick: 0, fighters: [other, { ...bow, body: { x: 0, z: 0, heading: 0, distance: 0 } }], finish: null } as never;
+  return archerSide === 0 ? { tick: 0, fighters: [bow, other], finish: null, events: [] } as never : { tick: 0, fighters: [other, { ...bow, body: { x: 0, z: 0, heading: 0, distance: 0 } }], finish: null, events: [] } as never;
 };
 const rotateKit = ['cleave', 'reaping', 'stomp', 'lunge'] as const;
 
@@ -60,16 +60,17 @@ test('an archer hero with the four specials wins at most half its fights against
 test('the scripted melee strategies against an archer bot: the table (bands judged on the archer side) [slow]', () => {
   const rows: string[] = []; let archerWins = 0, fights = 0;
   for (const [name, strategy] of Object.entries(STRATEGIES)) {
-    let wins = 0, losses = 0, stalls = 0;
+    let wins = 0, losses = 0, stalls = 0, shots = 0, landed = 0;
     for (let s = 1; s <= SEEDS; s++) {
       let x = start(1, 'longsword'); const bot = archer(true);
       for (let i = 0; i < TICKS && !x.finish; i++) {
         const hero = strategy(x), g = gapOf(x), move = g > 1.6 && x.fighters[0].phase === 'ready' ? walk(x, 0, 0.6) : hero.move;
         x = stepDuel(x, [{ ...hero, move }, bot(x, 1)]);
+        shots += x.events.filter((e) => e.type === 'MissileLaunched' && e.actor === 1).length; landed += x.events.filter((e) => e.type === 'Hit' && e.actor === 1).length;
       }
       if (!x.finish) stalls++; else if (x.finish.draw) losses++; else if (x.finish.victim === 1) wins++; else losses++;
     }
-    archerWins += losses; fights += SEEDS; rows.push(`${name}: hero ${wins}W ${losses}L ${stalls}S`);
+    archerWins += losses; fights += SEEDS; rows.push(`${name}: hero ${wins}W ${losses}L ${stalls}S; archer loosed ${shots}, landed ${landed}`);
   }
   console.log(`melee strategies vs archer bot (normal)\n  ${rows.join('\n  ')}\n  archer bot won ${archerWins}/${fights}`);
   assert.ok(archerWins / fights <= 0.6, `the archer bot beat the melee strategies in ${archerWins}/${fights} fights\n  ${rows.join('\n  ')}`);
