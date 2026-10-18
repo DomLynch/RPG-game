@@ -18,7 +18,9 @@ create function public.origins_spawn_receipt(p_account uuid, p_token text) retur
   left join public.origins_beta_ledger l on l.event_id = 'enc:' || e.token and l.account = p_account
   where e.token = p_token and e.account = p_account
 $$;
--- Supabase's default privileges grant EXECUTE to anon and authenticated on creation: revoke them. The WRITER role only: the verifier's role has no business reading engage rows.
+-- Supabase's default privileges grant EXECUTE to anon and authenticated on creation: revoke them, then grant the two writer roles only (as every origins_* function does). The writer's REAL login role is
+-- frankendom_verifier (202610080001; scripts/origins-writer-check.mjs requires every origins_* function the writer calls to be executable by it): a grant to frankendom_origins alone would be
+-- "permission denied" in production and the lookup would silently fall back to the plain 409. The function is SECURITY DEFINER and reads only this account's rows, so the grant exposes no table.
 revoke all on function public.origins_spawn_receipt(uuid, text) from public, anon, authenticated;
-grant execute on function public.origins_spawn_receipt(uuid, text) to frankendom_origins;
+grant execute on function public.origins_spawn_receipt(uuid, text) to frankendom_origins, frankendom_verifier;
 commit;
