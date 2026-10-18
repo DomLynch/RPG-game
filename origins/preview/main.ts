@@ -151,7 +151,7 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 let frontierGroup: THREE.Group | null = null;
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => { frontierGroup?.add(g); g.children.forEach((c) => { const im = c as THREE.InstancedMesh; if (/ruin_arch/.test(im.name)) { const mm = new THREE.Matrix4(), v = new THREE.Vector3(), out: number[][] = []; for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, mm); v.setFromMatrixPosition(mm); out.push([Math.round(v.x), +v.y.toFixed(1), Math.round(v.z), +mm.elements[0]!.toFixed(2)]); } console.info('[kit-debug2]', im.name, im.count, JSON.stringify(out), JSON.stringify(im.boundingSphere), im.visible, frontierGroup?.visible); } }); }).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
