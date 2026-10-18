@@ -109,6 +109,26 @@ test('optional fields: absent is fine, present and the wrong type is wrong-type'
   assert.deepEqual(rules(t([{ id: 'smith', shop: 'yes' }, { id: 'baker', order: 1.5 }, { id: 'x', kit: { walls: 'tall' } }])), ['t.json:0:smith wrong-type', 't.json:1:baker wrong-type', 't.json:2:x wrong-type']);
 });
 
+test('a field with min/max: the string form still works, an in-range row loads, an out-of-range row is out-of-range naming file:row:id and the bound', () => {
+  const m: Manifest = { table: 'flee', file: 'f.json', key: 'id', required: { percent: { type: 'integer', min: 1, max: 99 }, plain: 'integer', 'catch[]': { type: 'number', min: 0.5 } }, optional: { still: { type: 'integer', max: 30 } } };
+  const run = (rows: Record<string, unknown>[]) => checkTables([{ manifest: m, rows }]).problems.map((p) => `${p.file}:${p.row}:${p.id} ${p.rule}${p.rule === 'out-of-range' ? ` ${p.message}` : ''}`);
+  const ok = { id: 'a', percent: 50, plain: 7_000_000, catch: [0.5, 2] };
+  assert.deepEqual(run([ok, { ...ok, id: 'b', percent: 1, still: 30 }, { ...ok, id: 'c', percent: 99 }]), []);   // both bounds inclusive; plain has no range; an optional bound holds when present
+  assert.deepEqual(run([{ ...ok, percent: 0 }]), ['f.json:0:a out-of-range percent = 0 is outside 1..99']);
+  assert.deepEqual(run([{ ...ok, percent: 100 }]), ['f.json:0:a out-of-range percent = 100 is outside 1..99']);
+  assert.deepEqual(run([{ ...ok, still: 31 }]), ['f.json:0:a out-of-range still = 31 is outside -inf..30']);
+  assert.deepEqual(run([{ ...ok, catch: [1, 0.4] }]), ['f.json:0:a out-of-range catch[] = 0.4 is outside 0.5..inf']);   // every element of an array field
+  assert.deepEqual(run([{ ...ok, percent: 'x' }]), ['f.json:0:a wrong-type']);                                          // a wrong type is never also out of range
+  assert.deepEqual(run([{ ...ok, still: undefined }]), []);                                                               // optional + absent is fine
+});
+
+test('a manifest with a range on a non-number field, or min above max, is bad-manifest', () => {
+  const bad = (spec: unknown) => checkTables([{ manifest: { table: 't', file: 't.json', key: 'id', required: { x: spec as never } }, rows: [] }]).problems.map((p) => `${p.rule}: ${p.message}`);
+  assert.deepEqual(bad({ type: 'string', max: 4 }), ['bad-manifest: x: min/max need a number or integer field, not string']);
+  assert.deepEqual(bad({ type: 'integer', min: 5, max: 1 }), ['bad-manifest: x: min 5 is above max 1']);
+  assert.deepEqual(bad({ type: 'integer', min: 1, max: 5 }), []);
+});
+
 test('unique fields: a second row claiming the same value is duplicate-value naming the first owner', () => {
   const m: Manifest = { table: 'trade', file: 't.json', key: 'id', required: {}, unique: ['order'] };
   const r = checkTables([{ manifest: m, rows: [{ id: 'smith', order: 0 }, { id: 'baker', order: 1 }, { id: 'tanner', order: 0 }, { id: 'none' }, { id: 'none2' }] }]);
