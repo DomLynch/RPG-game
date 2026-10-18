@@ -91,7 +91,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       if (next.missilePlan === 'dodge' && canAct && self.stamina >= RULES.rollCost && left <= RULES.safeEnd - MISSILE_ANSWER.dodgeEarly && left >= RULES.safeStart) return { intent: { ...intent, action: 'dodge', move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: false } }, ai: next };
       if (next.missilePlan === 'guard' && canAct && left <= MISSILE_ANSWER.guardLead) return { intent: { ...intent, guard: true }, ai: next };
     }
-    if (MISSILE_ANSWER.run && canAct && missileOf(opponent.weapon)?.kind === 'bow' && gap > missileMinGap()) return { intent: { ...intent, move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: true } }, ai: next };
+    if (MISSILE_ANSWER.run && canAct && missileOf(opponent.weapon)?.archer && gap > missileMinGap()) return { intent: { ...intent, move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: true } }, ai: next };
   }
   // Special Moves (RULES.special, only when the fight has them: withSpecials): cast whenever it is ready and in reach. No roll is drawn, so a
   // fight without specials steps exactly as before.

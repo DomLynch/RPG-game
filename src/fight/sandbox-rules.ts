@@ -46,17 +46,15 @@ export const shardRows = (): number => sandboxRows('specialShards').length;
 export type SpecialSoundRow = { id: string; skill: string; cue: string; gain: number; room: number; delay: number; on?: 'start' | 'land' };
 export const specialSoundOf = (skill: string): SpecialSoundRow[] => (sandboxRows('specialSound') as unknown as SpecialSoundRow[]).filter((r) => r.skill === skill);
 
-// RV79, the bow (Donor: the combat sandbox @93b1138c7; Lead's split: bow only, the bands TABLE is read here for the missile gap and nothing else; band damage / glance / AI hold are RV80, staff bolts and spell flight ride mana, RV81).
+// RV79, the bow (Donor: the combat sandbox @93b1138c7; Lead's split: bow only, the missile gap is its own row (missileMinGap), no bands table here; the reach bands (damage, glance, AI hold) are RV80, staff bolts and spell flight ride mana, RV81).
 //   perMille / ticksPerSecond: the unit rows (1000 and 60) the per-mille rows and the speed rows convert by, so no unit literal sits in the sim.
 const SANDBOX_PER_MILLE = sandboxRule('perMille'), TICKS_PER_SECOND = sandboxRule('ticksPerSecond');
-//   bands (Dom 2026-10-14): rows { id, upTo (cm) }, the reach bands from the nearest out; the last has no real limit. Here only the missile gap reads them.
-type BandRow = { id: string; upTo: number };
-const SANDBOX_BANDS = sandboxRows('bands') as unknown as readonly BandRow[];
-/** The nearest a missile can be thrown from: the inner edge of the outer band (Strategy: the bow is helpless up close). 0 with no band rows. */
-export const missileMinGap = (): number => (SANDBOX_BANDS.length > 1 ? SANDBOX_BANDS[SANDBOX_BANDS.length - 2]!.upTo / CENTIMETRES_PER_METRE : 0);
-//   missile rows { weapon, kind (bow), speed (cm/s), share (per-mille of the move's damage), windup / recovery (percent added to every move's timing: a bow draws), ammo (the quiver, 0 = infinite), pierce (per-mille of a guarded arrow that goes through), chipKills (1: chip through a guard can finish a man) }
+//   missileMinGap (cm; the sandbox's 180 is the inner edge of its outer reach band): the nearest an arrow can be loosed from (Strategy: the bow is helpless up close). A row, not the bands table, so RV79 does not depend on the reach bands (RV80); 0 = no gap.
+/** The nearest a missile can be thrown from, in metres. */
+export const missileMinGap = (): number => sandboxRule('missileMinGap') / CENTIMETRES_PER_METRE;
+//   missile rows { weapon, archer (1: its special is arrows), speed (cm/s), share (per-mille of the move's damage), windup / recovery (percent added to every move's timing: a bow draws), ammo (the quiver, 0 = infinite), pierce (per-mille of a guarded arrow that goes through), chipKills (1: chip through a guard can finish a man) }
 //   name a weapon whose moves throw an arrow instead of striking; `missileLanes` rows { move, lane (-1 left, 0 forward, 1 right), mult } say which move throws which lane. No rows = nothing flies.
-type MissileRow = { kind?: string; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
+type MissileRow = { archer?: number; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
 type LaneRow = { move: string; lane: number; mult: number };
 export const missileRows = (): number => sandboxRows('missile').length;
 export const missileOf = (weapon: string): MissileRow | undefined => sandboxRows('missile').find((r) => r.weapon === weapon) as MissileRow | undefined;
@@ -91,7 +89,7 @@ const BOW_SPECIALS = sandboxRows('bowSpecial') as unknown as readonly BowSpecial
 export const bowSpecialRows = (): readonly BowSpecialRow[] => BOW_SPECIALS;
 /** The bow special a caster of `weapon` casts for picker skill `skill` from `gap` metres with `ammo` arrows left, or undefined (the melee special instead). `gap` of Infinity asks for the row alone. */
 export const bowSpecialOf = (weapon: string, skill: string | null | undefined, gap: number, ammo: number | undefined): BowSpecialRow | undefined => {
-  if (!skill || !BOW_SPECIALS.length || missileOf(weapon)?.kind !== 'bow') return undefined;
+  if (!skill || !BOW_SPECIALS.length || !missileOf(weapon)?.archer) return undefined;
   const r = BOW_SPECIALS.find((x) => x.skill === skill);
   return r && gap >= missileMinGap() && (ammo === undefined || ammo >= r.arrows) ? r : undefined;
 };
