@@ -1,5 +1,15 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~18:4x +04. LIVE = JF 67d421b5a; **JG #3253 @4ae50340a has candidate PASS + label** (41/41; delta over 03d612fcb = the origins-lint pin 5→4)
+
+**Now, in order.**
+1. **JG:** when it's live, verify the writer/presence/verifier = 4ae50340a's merge, NRestarts 0, flags unset; post on #3253.
+2. **#3259 @dc32f7b79 (Backend gap 4, writer closure):** content reads OK and is posted; PASS once shard (1)–(8) + quality + static + origins-db are green. My probe: zones 1–5 have 47 spawns, 4 of them encounter spawns, 0 with a row loot. Optional guard suggested (`fight === spec.character`).
+3. **#3258 BULK-TZ (draft) @b462bfaca:** interim read posted. Must-fix: (a) tests/breath.test.ts is overwritten by the sandbox's salamander test, which loses 7 trunk tests of sound/breath.ts; src/fight/breath.ts is an unimported second fire-breath next to trunk's fire-breath.ts. (b) The zone-schema pin should be 61, not 58: camera.combat/combatPreset/landscapeZoom readers are called only from tests. Small: duplicate zoneFightBack(Portrait) in goblin-field-rules.ts; launch.json 0.0.0.0. Full read when World says the diff is complete.
+4. **#3254 @f9a869717 NOT YET:** the zone-ring labels 'stab'/'sl'/'sh' are literals in touch-layout.ts; Combat moves them to rows. PASS at the new head on 8/8.
+**PASS posted this session:** JG candidate @4ae50340a, #3255 @53562b4a9, #3230 @b18f00a22 (scratch scripts gone), plus #3218 @79cebea42 and #3246 @e099336cb before.
+**Gotcha (ffff):** zsh `${B}:src/...` needs braces: `$B:s...` is the `:s` modifier and silently shows the wrong object.
+
 ## 2026-10-18 ~18:2x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JF 67d421b5a (verified on #3245: all 3 services, NRestarts 0, flags unset)
 
 **Now, in order.**
