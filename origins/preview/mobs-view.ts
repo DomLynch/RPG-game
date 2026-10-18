@@ -10,7 +10,7 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
-import type { Tier } from '../../src/core/grades.ts';
+import type { Tier } from '../../src/core/index.ts';
 import { loadLoot, lootWorn, loadRankLook, loadShape, fitPieces, NotHeroRig, type RankLook } from '../../src/fight/index.ts';
 import { shapeFor } from '../../src/fight/weapon-shapes.ts';
 import { TITLES } from '../../src/core/server.ts';
