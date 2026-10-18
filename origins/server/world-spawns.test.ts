@@ -16,6 +16,7 @@ import { CENTRE_CM, LEGACY_SHIFT_CM, zoneAt } from '../presence/zones.ts';
 import { createPresence, PROTOCOL_V2 } from '../presence/server.ts';
 import { encodeUp } from '../presence/wire.ts';
 import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, defaultZoneSpawns, zoneSpawns, type Spawn } from './world-spawns.ts';
+import { createVerdictTally } from './world-verify.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -150,7 +151,7 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
 });
 
 test('kill_report logs WHY a kill is unchecked and what its record was, and an unchecked kill pays in full while refuseUnchecked is off (Auditor 2026-10-18: every live kill was unchecked, cause unseen)', async () => {
-  const logs: string[] = [], ops = worldSpawnOps({ content, spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l) => logs.push(l) });
+  const reachTally = createVerdictTally(), logs: string[] = [], ops = worldSpawnOps({ content, spawns, reachTally, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l) => logs.push(l) });
   const killed = () => stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   const elsewhere: WhereFn = async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 });
   const cases: [WhereFn | null, string][] = [[null, 'no-presence'], [async () => { throw new Error('presence: HTTP 404'); }, 'presence-error: presence: HTTP 404'], [async () => ({ online: false as const }), 'offline'], [elsewhere, `other-zone: elsewhere not ${wolf.spec.zone}`]];
@@ -165,6 +166,7 @@ test('kill_report logs WHY a kill is unchecked and what its record was, and an u
   assert.ok(logs.some((l) => /refused unchecked \(offline\)/.test(l)), 'a refusal names its why too');
   logs.length = 0; await ops.kill_report!(ctx(killed().db), { token: TOKEN, hits: 50 });
   assert.ok(logs.some((l) => /reach=checked record=none/.test(l)), 'a checked kill names no why');
+  assert.deepEqual(reachTally.snapshot().outcomes, { 'no-presence': 1, 'presence-error': 1, offline: 1, 'other-zone': 1, checked: 1 }, 'the flip readout counts every report by reach kind');
 });
 
 test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance), not the form\'s: a level-1 spawn pays level-1 CP and loot, a level-2 spawn pays level-2 (Auditor, #1900; priced against level 2, not the form: the Zone 1 form level is 1 now)', async () => {

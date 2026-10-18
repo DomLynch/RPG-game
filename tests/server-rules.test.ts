@@ -17,6 +17,7 @@ test('server rules: the exports keep the numbers they had in code', () => {
   assert.deepEqual(rules.encounterToken.map((r) => r.randomBytes), [24]);
   assert.deepEqual([rules.worldKill[0]!.maxHits, rules.worldKill[0]!.engageTokenBytes, rules.worldKill[0]!.windowSlackTicks], [10_000, 24, 120], 'the world-kill literals the writer used to hold');
   assert.equal(rules.mobPayout[0]!.capReached, Number.MAX_SAFE_INTEGER, 'the caps a kill cannot read yet count as reached');
+  assert.deepEqual([rules.strictFlip[0]!.minKills, rules.strictFlip[0]!.minRate], [50, 0.95], 'the strict-flip gate (audit 2026-10-18, Strategy): 50 kills at 95 %');
   const m = gearRules.multiplier[0]!;
   assert.deepEqual([m.scale, m.attackPerPoint, m.resPerPoint], [90000, 15, 20], 'the gear multipliers keep the literals they had');
   assert.deepEqual(loadoutFor({}), { attack: 1, res: 1 }, 'naked is the identity');
