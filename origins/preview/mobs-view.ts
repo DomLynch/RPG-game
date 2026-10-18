@@ -14,8 +14,7 @@ import { loadoutRow } from '../world/loadouts-rules.ts';
 import { TITLES, type Tier } from '../../src/core/index.ts';
 import { calmStep, type Calm } from './calm-step.ts';   // (named so the world-sim list in tests/core-boundary.test.ts C7 does not grow)
 import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/index.ts';
-import { fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
-import { fitPieces, unweightedBones } from './piece-fit.ts';
+import { fitPieces, fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
@@ -40,7 +39,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { claw?: { body: THREE.SkinnedMesh; idx: number[]; shapes: THREE.Object3D[] }; group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
 
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -93,35 +92,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const keyOf = (s: MobSpec): string => s.body;   // one body per kind: the rank look is the Pit's armour SET fitted onto it (wearLook), not a replacement body
   const rankLooks = new Map<string, Promise<RankLook>>();   // each look file fetched once (the Pit's loadRankLook), fitted to every creature that wears it
   const weaponShapes = new Map<string, Promise<THREE.Mesh | undefined>>();   // each graded weapon file fetched once (the Pit's loadShape)
-  // The grip: a weapon hangs on the hand bone. A body whose skin never uses its hand bone (the troll: its claws are skinned to the forearm) shows the weapon floating away from the visible claw, so the weapon is moved onto the forearm bone
-  // that does carry the claw, at the claw's own place (the far quarter of that bone's skin along the forearm), keeping the orientation it had at the hand. Detected from the skin (piece-fit.ts unweightedBones), no row; a goblin is untouched.
-  const gripToClaw = (v: View) => {
-    if (!v.actor || !v.model) return;
-    let body: THREE.SkinnedMesh | undefined; v.model.traverse((o) => { if (!body && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') body = o as THREE.SkinnedMesh; });
-    const carry = body ? unweightedBones(body).get('hand_r') : undefined, holder = carry ? body!.skeleton.bones.find((b) => b.name === carry) : undefined, hand = v.actor.boneWorld('hand_r');
-    if (!body || !holder || !hand) { console.info('grip: nothing to move', { body: !!body, carry, holder: !!holder, hand: !!hand }); return; }
-    v.model.updateMatrixWorld(true);
-    // The claw: the arm skin (the right arm's own bones, whichever of them the body skins: the troll's whole arm hangs on its upper-arm bone) farthest from the shoulder. Its vertices are remembered and tracked every frame (followClaw).
-    const si = body.geometry.getAttribute('skinIndex'), sw = body.geometry.getAttribute('skinWeight'), arm = new Set(body.skeleton.bones.map((b, n) => [b.name, n] as const).filter(([name]) => /^(upperarm|lowerarm|hand)_r$|^(index|middle|ring|pinky|thumb)_0\d_r$/.test(name)).map(([, n]) => n));
-    const shoulder = new THREE.Vector3().setFromMatrixPosition((body.skeleton.bones.find((b) => b.name === 'upperarm_r') ?? holder).matrixWorld), mine: { j: number; d: number }[] = [], p = new THREE.Vector3();
-    for (let j = 0; j < si.count; j++) for (let c = 0; c < 4; c++) if (arm.has(si.getComponent(j, c)) && sw.getComponent(j, c) > fxNum('fit.skin-min-weight')) { body.getVertexPosition(j, p); p.applyMatrix4(body.matrixWorld); mine.push({ j, d: p.distanceTo(shoulder) }); break; }
-    if (mine.length < 8) { console.info('grip: too few arm vertices', mine.length); return; }
-    mine.sort((a, b) => b.d - a.d); const picked = mine.slice(0, Math.max(6, Math.floor(mine.length * fxNum('grip.claw-fraction')))).map((x) => x.j);
-    const shapes: THREE.Object3D[] = []; v.model.traverse((o) => { if (o.userData.weaponShape && o.parent && new THREE.Vector3().setFromMatrixPosition(o.matrixWorld).distanceTo(hand) <= Math.max(1, hand.distanceTo(shoulder) * 3)) shapes.push(o); });   // the drawn weapon only (a sheathed copy on the back stays)
-    v.claw = { body, idx: picked, shapes }; followClaw(v);
-  };
-  // Every frame: the weapon's origin is moved from the hand bone to the centroid of the remembered claw vertices (as the animation skins them right now), in the weapon node's own units and axes. A few dozen vertices per troll.
-  const followClaw = (v: View) => {
-    const c = v.claw, hand = v.actor?.boneWorld('hand_r'); if (!c || !hand) return;
-    const centre = new THREE.Vector3(), p = new THREE.Vector3(); for (const j of c.idx) { c.body.getVertexPosition(j, p); centre.add(p.applyMatrix4(c.body.matrixWorld)); } centre.divideScalar(c.idx.length);
-    const delta = centre.sub(hand);
-    for (const o of c.shapes) { const node = o.parent; if (!node) continue; const scale = new THREE.Vector3().setFromMatrixScale(node.matrixWorld).x || 1; o.position.copy(delta.clone().applyQuaternion(node.getWorldQuaternion(new THREE.Quaternion()).invert()).divideScalar(scale)); }
-  };
   const reshapeWeapon = (v: View, weapon: WeaponId, rung: string | undefined) => {   // the Pit's per-rank weapon shape (weapon-shapes.ts shapeFor: plain 1-3, crafted 4-7, ornate 8-10) at the loadout's rung
     const level = rung ? TITLES.indexOf(rung as (typeof TITLES)[number]) + 1 : 0, url = level > 0 ? shapeFor(weapon, level) : undefined;
     if (!url) return;
     const p = weaponShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load; the plain part stays`, error); return undefined; }); weaponShapes.set(url, p);
-    void p.then((mesh) => { if (mesh && v.actor) { v.actor.reshape(mesh.clone()); gripToClaw(v); } });
+    void p.then((mesh) => { if (mesh && v.actor) v.actor.reshape(mesh.clone()); });
   };
   const wearRankLook = (v: View, file: string) => {
     const p = rankLooks.get(file) ?? loadRankLook(file); rankLooks.set(file, p);
@@ -141,7 +116,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
     const bodyMesh = (() => { let m: THREE.SkinnedMesh | undefined; v.actor!.anchor.traverse((o) => { if (!m && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') m = o as THREE.SkinnedMesh; }); return m; })(), rig = bodyMesh?.skeleton;   // the body's own skeleton: the pieces are fitted to ITS proportions (piece-fit.ts), and re-skinned off any bone its skin never uses (the troll's hands)
-    const fitted = rig && bodyMesh && !fitOff ? (fitCache.get(rig) ?? (fitCache.set(rig, (() => { const t0 = performance.now(), out = fitPieces(pieces, rig, unweightedBones(bodyMesh)); fitMs += performance.now() - t0; fitRuns++; return out; })()), fitCache.get(rig)!)) : pieces;   // fitted ONCE per body skeleton (a body's creatures share it per kind), never per frame; ?fit=0 = the engine's plain retarget, for a before/after
+    const fitted = rig && bodyMesh && !fitOff ? (fitCache.get(rig) ?? (fitCache.set(rig, (() => { const t0 = performance.now(), out = fitPieces(pieces, rig); fitMs += performance.now() - t0; fitRuns++; return out; })()), fitCache.get(rig)!)) : pieces;   // fitted ONCE per body skeleton (a body's creatures share it per kind), never per frame; ?fit=0 = the engine's plain retarget, for a before/after
     try { v.actor.wear(fitted.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
   };
@@ -207,7 +182,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     catch (error) {
       // A body missing its weapon's clip pack is a content bug that tests/creature-clips.test.ts fails in CI (trunk keeps it LOUD: the sandbox's silent fallback to the default weapon's clips is not ported); in the player's frame it is logged once and the kind stays a stand-in for the session (marked failed, so it is not retried every frame).
       if (error instanceof MissingClip) console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); else console.warn(`${s.body} actor did not build; the capsule stays`, error);
-      bodies.set(keyOf(s), 'failed'); failedKinds.add(keyOf(s)); return;
+      bodies.set(s.body, 'failed'); failedKinds.add(s.body); return;
     }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     const row = loadoutRow(look?.loadout);
@@ -273,7 +248,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
-        v.label.visible = (opts.markers?.name ?? true) && s.id !== hideLabel && nearestOf.get(s.name) === i;   // the info card (creature-card.ts) carries this creature's name and level while it is up
+        v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i && (opts.markers?.name ?? true);   // the info card (creature-card.ts) carries this creature's name and level while it is up
         v.bang.visible = aggro && (opts.markers?.alert ?? true); mat.opacity = aggro ? 0.34 : 0.1; mat.color.set(aggro ? '#e0553a' : '#d8c9a8');
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.actor) {
@@ -284,7 +259,6 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
           const tick = (step: number) => v.actor!.update(v.speed, step, posed.pose, posed.progress, posed.attack, posed.contact, 0);
           if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; tick(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
           else { v.pending += dt; if (++v.skip % 4 === 0) { tick(v.pending); v.pending = 0; } }
-          if (v.claw) followClaw(v);   // a body whose hand bones carry no skin (the troll): the weapon follows its drawn claw
           if (dv?.fall) zoneFinisher.frame(s.id, s, v.actor as unknown as CutRig, dv.fall, dv.finisher, { x: m.x, z: m.z }, hero);
         }
       }
