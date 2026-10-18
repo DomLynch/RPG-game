@@ -24,7 +24,7 @@ const step = (d: D, a0: 'skill' | null) => stepDuel(d as never, [{ ...idle(), ..
 test('the heal is cast from any distance, paid in mana, and restores 25% of max health at the release (a 2 s windup)', () => {
   let d = step(start(5, 60), 'skill');   // 5 m away: a melee root would be refused "far"
   assert.ok(d.events.some((e) => e.type === 'SpecialStarted'), 'cast started far from the foe');
-  assert.ok(!d.events.some((e) => e.type === 'SpellRefused'), 'no range refusal');
+  assert.ok(!d.events.some((e) => e.type === 'SpecialRefused'), 'no range refusal');
   assert.ok(d.fighters[0]!.mana < 100, 'paid in mana');
   assert.equal(d.fighters[0]!.special! >= 100 && d.fighters[0]!.special! <= 120, true, `windup is the row's 120 ticks, not the melee root's 60 (counter ${d.fighters[0]!.special})`);
   assert.equal(d.fighters[0]!.health, 60, 'nothing yet');

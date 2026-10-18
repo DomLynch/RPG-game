@@ -6,12 +6,11 @@ import { offDefs } from './lib/sandbox-defs-off.ts';
 offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 import RANGE from '../sandbox/rows.json' with { type: 'json' };
 
-const defs = DEFS as unknown as { rules: { id: string; value: number }[]; bands: object[]; spellRange: object[]; spellCue: object[] };
+const defs = DEFS as unknown as { rules: { id: string; value: number }[]; bands: object[]; spellRange: object[]; specialCue: object[] };
 const rule = (id: string) => defs.rules.find((r) => r.id === id)!;
 rule('manaMax').value = 100; rule('manaRegen').value = 60; rule('manaDelay').value = 90; rule('manaCostMult').value = 1000;
 defs.bands.push({ id: 'inner', upTo: 135 }, { id: 'mid', upTo: 180 }, { id: 'outer', upTo: 100000 });
 defs.spellRange.push({ root: 'theWord', band: 'inner', kind: 'melee', windup: 60 }, { root: 'longShadow', band: 'mid', kind: 'magic' }, { root: 'gale', band: 'outer', kind: 'magic', speed: 900, tint: '#9fd0ff' });
-defs.spellCue.push({ id: 'far', text: 'too far' });
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 const { resolveSpell } = await import('../src/fight/spell-cast.ts');
 const { legal } = await import('../src/fight/duel.ts');
@@ -45,7 +44,7 @@ test('mana is no use to a melee spell, and stamina is no use to a magic one', ()
   assert.equal(can(duelAt(MAGIC, 1.5, 0, 100)), false, 'plenty of stamina does not pay for magic');
 });
 test('a melee spell is cast up close only: out past the close band it is refused', () => {
-  assert.equal(press(duelAt(MELEE, 1.5)).events.find((e) => e.type === 'SpellRefused')?.cue, 'far');
+  assert.equal(press(duelAt(MELEE, 1.5)).events.find((e) => e.type === 'SpecialRefused')?.cue, 'far');
 });
 test('a melee cast is quicker than a magic one: 1 s (60 ticks) against the 2 s (120 ticks) special windup', () => {
   const melee = press(duelAt(MELEE, 0.8)).fighters[0]!.special!, magic = press(duelAt(MAGIC, 1.5)).fighters[0]!.special!;

@@ -5,12 +5,11 @@ import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import { offDefs } from './lib/sandbox-defs-off.ts';
 offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
-const defs = DEFS as unknown as { rules: { id: string; value: number }[]; bands: object[]; spellRange: object[]; spellCue: object[] };
+const defs = DEFS as unknown as { rules: { id: string; value: number }[]; bands: object[]; spellRange: object[]; specialCue: object[] };
 const rule = (id: string) => defs.rules.find((r) => r.id === id)!;
 rule('manaMax').value = 100; rule('manaRegen').value = 60; rule('manaDelay').value = 90; rule('manaCostMult').value = 1000;
 defs.bands.push({ id: 'inner', upTo: 135 }, { id: 'mid', upTo: 180 }, { id: 'outer', upTo: 100000 });
 defs.spellRange.push({ root: 'theWord', band: 'inner' }, { root: 'longShadow', band: 'mid' }, { root: 'gale', band: 'outer', speed: 900, tint: '#9fd0ff' });
-defs.spellCue.push({ id: 'far', text: 'too far' });
 const { initialPractice } = await import('../src/fight/combat.ts');
 const { decide, initialAi } = await import('../src/fight/ai.ts');
 const { resolveSpell } = await import('../src/fight/spell-cast.ts');

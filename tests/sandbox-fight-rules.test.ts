@@ -34,10 +34,4 @@ test('plate takes a cut at 600 per mille, robes at 1300: the same swing hurts th
   assert.ok(Math.abs(witch.damage! / vet.damage! - 1300 / 600) < 0.35, `ratio ${witch.damage! / vet.damage!} near 2.17`);
 });
 
-test('a swing from inside the sword\'s band is a clean hit; from the inner band it is a glance at 400 per mille', () => {
-  const inBand = firstHit('witch', 1.5), inner = firstHit('witch', 1.2);
-  assert.ok(inBand && inner);
-  assert.equal(inBand.glance, undefined);
-  assert.equal(inner.glance, true);
-  assert.ok(inner.damage! < inBand.damage! * 0.6, `inner ${inner.damage} well under in-band ${inBand.damage}`);
-});
+// (the sandbox's reach-band test moved with the mechanism: bands.ts, tests/bands.test.ts and tests/bands-edges.test.ts)

@@ -2,6 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import BAND_DEFS from '../src/fight/band-defs.json' with { type: 'json' };
+import SANDBOX_DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(SANDBOX_DEFS);   // the fractions pin fights with the sandbox rules OFF, as trunk did
 
 // BULK-CS (ruling B): this file pins the span-FRACTIONS mode (edgesMode 0), byte for byte what trunk fought with; the shipped rows default to the fixed-cm mode (tests/bands-edges.test.ts). The mode is a row read at load, so it is set
 // before the sim loads.
