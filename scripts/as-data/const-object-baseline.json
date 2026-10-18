@@ -2,12 +2,6 @@
  "origins/feuds/feuds.ts": {
   "BAND_RANK": 1
  },
- "origins/preview/frontier-dress.ts": {
-  "TOP": 1
- },
- "origins/preview/look.ts": {
-  "PRESETS": 1
- },
  "origins/preview/main.ts": {
   "TOWN_RESPAWN": 1
  },
