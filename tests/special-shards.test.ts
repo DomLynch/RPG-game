@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from 'three';
 import { createSpecialShards } from '../src/fight/special-shards.ts';
-import { shardCapacity, shardRows, type ShardRow } from '../src/fight/sandbox-rules.ts';
+import { shardRows, type ShardRow } from '../src/fight/sandbox-rules.ts';
+import { shardCapacity } from '../src/fight/special-shards-rows.ts';
 
 // special-shards.ts (Donor: World of Claudecraft's solid impact fragments, MIT): presentation only. As shipped (no `specialShards` rows) nothing is built; the pool itself is tested with a row made here.
 const row: ShardRow = { id: 'skullcrack-stone', skill: 'cleave', kind: 'stone', count: 6, tint: '#8a7a68', power: 1000, forward: 1500, lift: 1800, size: 90, life: 900, gravity: 9800, bounce: 350, slide: 400, shrink: 700 };
