@@ -56,6 +56,11 @@ test('creatureHash is the FNV-1a the page held inline, to the bit (no creature c
   for (const id of IDS) assert.equal(variantIndex(id, 'goblin'), wasInline(`${id}|goblin`) % VARIANTS, id);
 });
 
+test('zone-instance ids are ASCII (the hash keeps one UTF-16 unit per code point, so a non-BMP id would differ from a per-unit FNV): pinned for the ids the zone rows build', () => {
+  for (const id of IDS.filter((i) => /^[\x20-\x7e]*$/.test(i))) assert.equal(creatureHash(id), wasInline(id), id);
+  assert.ok(IDS.filter((i) => /^[\x20-\x7e]*$/.test(i)).length >= 10, 'the ASCII ids are most of the pinned set');
+});
+
 test('pickLoadout: no spread list means the look\'s own loadout; variant 0 is the base; variant v takes [base, ...spread][v % length]; deterministic', () => {
   assert.equal(pickLoadout('g1', 'goblin', 'goblin.scrapper', undefined), 'goblin.scrapper');
   assert.equal(pickLoadout('g1', 'goblin', 'goblin.scrapper', []), 'goblin.scrapper');
