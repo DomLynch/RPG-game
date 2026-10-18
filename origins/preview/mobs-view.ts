@@ -57,6 +57,7 @@ export type Mobs = {
   nearest(x: number, z: number, within: number): MobPick | null;
   within(x: number, z: number, r: number): MobNear[];   // every drawn creature inside r metres, each marked hunting or passive
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
+  setAggro(id: string, aggro: number): number | null;   // a creature's notice radius for now (the war band's rally); returns the one it had so the caller can restore it, null for an unknown creature
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
   warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
@@ -227,6 +228,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     },
     within(x, z, r) { const out: MobNear[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r && !specs[i]!.legend) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d, hunting: driven.has(i) || mobs[i]!.mode === 'aggro' }); } return out; },
     drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else driven.delete(i); },
+    setAggro(id, aggro) { const i = specs.findIndex((s) => s.id === id); if (i < 0) return null; const was = specs[i]!.aggro; specs[i]!.aggro = aggro; return was; },
     anchorOf(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 ? null : views.get(i)?.model ?? null; },
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
