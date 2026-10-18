@@ -15,6 +15,9 @@ test('server rules: the exports keep the numbers they had in code', () => {
   assert.deepEqual(rules.encounterPose.map((r) => r.scaleFloor), [0.5]);
   assert.deepEqual(rules.encounterPose.map((r) => r.maxCoordM), [1000], 'the pose coordinate bound the writer used to hold as 1e3');
   assert.deepEqual(rules.encounterToken.map((r) => r.randomBytes), [24]);
+  const i = rules.inputLimits[0]!, c = rules.callTimeouts[0]!;
+  assert.deepEqual([i.characterIdChars, i.pieceIdChars, i.instanceIdChars, i.lootIdChars, i.questIdChars, i.npcIdChars, i.stageIdChars, i.choiceIdChars, i.lineIdChars], [80, 80, 120, 40, 120, 120, 64, 64, 64], 'the field caps the handlers used to hold');
+  assert.deepEqual([c.authFetchMs, c.psqlMs, c.verifyQueueMax, c.verifyJobMs], [5000, 30_000, 16, 3000], 'the timeouts and queue the writer used to hold');
   assert.deepEqual([rules.worldKill[0]!.maxHits, rules.worldKill[0]!.engageTokenBytes, rules.worldKill[0]!.windowSlackTicks], [10_000, 24, 120], 'the world-kill literals the writer used to hold');
   assert.equal(rules.mobPayout[0]!.capReached, Number.MAX_SAFE_INTEGER, 'the caps a kill cannot read yet count as reached');
   assert.deepEqual([rules.strictFlip[0]!.minKills, rules.strictFlip[0]!.minRate], [50, 0.95], 'the strict-flip gate (audit 2026-10-18, Strategy): 50 kills at 95 %');
