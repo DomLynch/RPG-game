@@ -12,7 +12,8 @@ export type SkinPart = { readonly id: string; readonly skin: string; readonly ki
 export type SkinModel = { readonly id: string; readonly url: string; readonly nodes: readonly string[] };   // a model file (served by URL, one material) and the nodes it holds
 export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number; readonly min: number; readonly max: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
 type Raw = { skins?: readonly unknown[]; parts?: readonly unknown[]; models?: readonly unknown[]; fits?: readonly unknown[] };
-const SHAPE_ARGS: Record<SkinShape, number> = { box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
+const VEC3 = 3;   // components of a position (x, y, z): the loader's shape check (exempt: scripts/as-data/allow/origins-world.json)
+const SHAPE_ARGS: Record<SkinShape, number> ={ box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
 
 /** The one loader: the shared registry checks ids, required fields and the skin ref; this adds what a type cannot say (shapes, their argument counts, tints named, a skin has a `default`). */
 export function loadSkins(raw: Raw) {
@@ -26,7 +27,7 @@ export function loadSkins(raw: Raw) {
   for (const p of parts) {
     if (!(p.shape in SHAPE_ARGS)) throw Error(`building skin part "${p.id}": shape is box, cylinder, cone or sphere`);
     if (p.size.length !== SHAPE_ARGS[p.shape] || !p.size.every((n) => typeof n === 'number' && n > 0)) throw Error(`building skin part "${p.id}": a ${p.shape} has ${SHAPE_ARGS[p.shape]} sizes, all > 0`);
-    if (p.at.length !== 3 || !p.at.every((n) => typeof n === 'number' && Number.isFinite(n))) throw Error(`building skin part "${p.id}": at is three numbers`);
+    if (p.at.length !== VEC3 || !p.at.every((n) => typeof n === 'number' && Number.isFinite(n))) throw Error(`building skin part "${p.id}": at is three numbers`);
     if (p.layer !== undefined && p.layer !== 'stone' && p.layer !== 'plain') throw Error(`building skin part "${p.id}": layer is stone or plain`);
     try { propTint(p.tint); } catch { throw Error(`building skin part "${p.id}": tint "${p.tint}" is not a props tint row`); }
   }

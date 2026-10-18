@@ -15,7 +15,8 @@ export type Recipe = { readonly id: string; readonly kit: string; readonly kind:
 export type Dress = { readonly id: string; readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number; readonly walls: number };
 export type Ambience = { readonly id: string; readonly windGain: number; readonly windFreq: number; readonly windQ: number; readonly windSweepHz: number; readonly windSweepDepth: number; readonly crackleGain: number; readonly crackleRate: number; readonly crackleFreq: number; readonly fireRange: number; readonly crackleMs: number };
 type Raw = { tints?: readonly unknown[]; props?: readonly unknown[]; kits?: readonly unknown[]; recipes?: readonly unknown[]; dress?: readonly unknown[]; ambience?: readonly unknown[] };
-const SHAPE_ARGS: Record<PartShape, number> = { box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
+const VEC3 = 3, MIN_RING_N = 2, MAX_DRESS_MULT = 8;   // loader bounds the error text states: a position has x, y, z; a ring has at least two members; a dress multiplier is 0 to 8 (exempt: scripts/as-data/allow/origins-world.json)
+const SHAPE_ARGS: Record<PartShape, number> ={ box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
 const KINDS = ['scatter', 'ring', 'cluster', 'rim'];
 
 /** The one loader: the shared registry checks ids, required fields and refs; this adds what a type cannot say (part shapes, tints named, weights, kinds, a kit's recipes name its own props). */
@@ -31,10 +32,10 @@ export function loadProps(raw: Raw) {
     for (const [i, q] of p.parts.entries()) {
       if (!(q.shape in SHAPE_ARGS)) throw Error(`props prop "${p.id}" part ${i}: shape is box, cylinder, cone or sphere`);
       if (q.size.length !== SHAPE_ARGS[q.shape] || !q.size.every((n) => Number.isFinite(n) && n > 0)) throw Error(`props prop "${p.id}" part ${i}: a ${q.shape} takes ${SHAPE_ARGS[q.shape]} sizes, all > 0`);
-      if (q.at.length !== 3 || !q.at.every(Number.isFinite)) throw Error(`props prop "${p.id}" part ${i}: at is x, y, z`);
+      if (q.at.length !== VEC3 || !q.at.every(Number.isFinite)) throw Error(`props prop "${p.id}" part ${i}: at is x, y, z`);
       if (q.layer !== undefined && !['stone', 'coal', 'plain'].includes(q.layer)) throw Error(`props prop "${p.id}" part ${i}: layer is stone, coal or plain`);
       if (!tints.some((t) => t.id === q.tint)) throw Error(`props prop "${p.id}" part ${i}: tint "${q.tint}" has no row`);
-      if (q.ring && !(Number.isInteger(q.ring.n) && q.ring.n >= 2 && q.ring.radius > 0)) throw Error(`props prop "${p.id}" part ${i}: ring is n >= 2 (whole) and radius > 0`);
+      if (q.ring && !(Number.isInteger(q.ring.n) && q.ring.n >= MIN_RING_N && q.ring.radius > 0)) throw Error(`props prop "${p.id}" part ${i}: ring is n >= 2 (whole) and radius > 0`);
     }
   }
   const glbs = props.flatMap((p) => (p.glb ? [p.glb] : [])); if (new Set(glbs).size !== glbs.length) throw Error('props: two props name the same glb node');
@@ -48,7 +49,7 @@ export function loadProps(raw: Raw) {
     if (r.chance !== undefined && !(r.chance > 0 && r.chance <= 1)) throw Error(`props recipe "${r.id}": chance is in (0, 1]`);
     if (r.near !== undefined && !(r.near > 0 && r.near <= 1)) throw Error(`props recipe "${r.id}": near is in (0, 1]`);
   }
-  for (const d of dress) for (const [f, v] of Object.entries(d)) if (typeof v === 'number' && !(v >= 0 && v <= 8)) throw Error(`props dress "${d.id}" ${f}: a multiplier from 0 to 8`);
+  for (const d of dress) for (const [f, v] of Object.entries(d)) if (typeof v === 'number' && !(v >= 0 && v <= MAX_DRESS_MULT)) throw Error(`props dress "${d.id}" ${f}: a multiplier from 0 to 8`);
   if (!dress.some((d) => d.id === 'default' && Object.entries(d).every(([f, v]) => f === 'id' || v === 1))) throw Error('props: the "default" dress set is all 1s (the base clutter as it was)');
   for (const a of ambience) for (const [f, v] of Object.entries(a)) if (typeof v === 'number' && !(Number.isFinite(v) && v > 0)) throw Error(`props ambience "${a.id}" ${f}: a number > 0`);
   return { tints, props, kits, recipes, dress, ambience };
