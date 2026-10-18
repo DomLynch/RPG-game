@@ -10,6 +10,7 @@ import { REGISTRY } from './registry.ts';
 import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
 import { stageRule } from '../world/stage-rules.ts';
+import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
 
@@ -101,6 +102,11 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
+    if (sp.loadouts && !(Array.isArray(sp.loadouts) && sp.loadouts.every((l) => loadoutRow(l)))) bad.push(`mob spread ${id}: loadouts is a list of loadout row ids (origins/world/loadouts.json)`);
+  }
+  for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
+    if (l.loadout && !loadoutRow(l.loadout)) bad.push(`mob look ${id}: loadout "${l.loadout}" is not a loadout row`);
+    if (l.body !== undefined && !/^world\/kit\/[\w-]+\.glb$/.test(l.body)) bad.push(`mob look ${id}: body is a world/kit/<name>.glb file`);
   }
   for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
   const warpIds = new Set<string>();
