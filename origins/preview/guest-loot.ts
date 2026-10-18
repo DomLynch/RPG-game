@@ -6,9 +6,10 @@ import { rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 export type GuestLoot = { loot: { item: string; quantity: number }[]; bronze: number };
 
 /** The loot a guest's kill of `fight` (the creature's character id) at `level` drops for `seed`, or null when its row has no loot table or the roll is refused. The table is the creature row's own (content.local.creatureLoot, what the server's payout rolls), so the same table, seed and level give the same drops the server would pay. */
-export function guestKillLoot(content: EncounterContent, fight: string, level: number, seed: number): GuestLoot | null {
-  const table = content.local.creatureLoot[fight];
-  if (!table) return null;
+export function guestKillLoot(content: EncounterContent, fight: string, level: number, seed: number, spawnLoot?: string): GuestLoot | null {
+  const own = content.local.creatureLoot[fight];
+  if (!own) return null;   // a kill that pays no loot never gains one (the server's mobBatch rule)
+  const table = spawnLoot ? (spawnLoot as typeof own) : own;   // `spawnLoot`: the zone's spawn row names its own loot table (backend #3259 rolls it in place of the character's): it picks WHICH table is rolled and nothing else
   const rolled = rollLoot(table, seed, content, { foeLevel: level });
   return rolled.ok ? { loot: rolled.value.items.map((d) => ({ item: d.item, quantity: d.quantity })), bronze: rolled.value.metal } : null;
 }

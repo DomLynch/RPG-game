@@ -36,7 +36,6 @@
  },
  "origins/world/goblin-field-rules.ts": {
   "'palette'": 2,
-  "'kit'": 1,
   "'zone'": 1
  },
  "src/arena.ts": {
