@@ -1,6 +1,15 @@
 {
   "tables": [
     {
+      "table": "props-shape",
+      "file": "props-defs.json",
+      "at": "shapes",
+      "key": "id",
+      "required": {
+        "args": "number"
+      }
+    },
+    {
       "table": "props-tint",
       "file": "props-defs.json",
       "at": "tints",

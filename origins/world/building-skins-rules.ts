@@ -5,7 +5,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './building-skins.json' with { type: 'json' };
 import MANIFEST from './building-skins.manifest.json' with { type: 'json' };
-import { propTint } from './props-rules.ts';
+import { propTint, shapeArgs } from './props-rules.ts';
 
 export type SkinShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type SkinPart = { readonly id: string; readonly skin: string; readonly kind: string; readonly shape: SkinShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'plain' };
@@ -13,7 +13,6 @@ export type SkinModel = { readonly id: string; readonly url: string; readonly no
 export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number; readonly min: number; readonly max: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
 type Raw = { skins?: readonly unknown[]; parts?: readonly unknown[]; models?: readonly unknown[]; fits?: readonly unknown[] };
 const VEC3 = 3;   // components of a position (x, y, z): the loader's shape check (exempt: scripts/as-data/allow/origins-world.json)
-const SHAPE_ARGS: Record<SkinShape, number> ={ box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
 
 /** The one loader: the shared registry checks ids, required fields and the skin ref; this adds what a type cannot say (shapes, their argument counts, tints named, a skin has a `default`). */
 export function loadSkins(raw: Raw) {
@@ -25,8 +24,8 @@ export function loadSkins(raw: Raw) {
     if (!(f.w > 0 && f.d > 0 && f.min > 0 && f.max >= f.min)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0 and 0 < min <= max`);
   }
   for (const p of parts) {
-    if (!(p.shape in SHAPE_ARGS)) throw Error(`building skin part "${p.id}": shape is box, cylinder, cone or sphere`);
-    if (p.size.length !== SHAPE_ARGS[p.shape] || !p.size.every((n) => typeof n === 'number' && n > 0)) throw Error(`building skin part "${p.id}": a ${p.shape} has ${SHAPE_ARGS[p.shape]} sizes, all > 0`);
+    if (shapeArgs(p.shape) === undefined) throw Error(`building skin part "${p.id}": shape is one of the props shape rows`);
+    if (p.size.length !== shapeArgs(p.shape) || !p.size.every((n) => typeof n === 'number' && n > 0)) throw Error(`building skin part "${p.id}": a ${p.shape} has ${shapeArgs(p.shape)} sizes, all > 0`);
     if (p.at.length !== VEC3 || !p.at.every((n) => typeof n === 'number' && Number.isFinite(n))) throw Error(`building skin part "${p.id}": at is three numbers`);
     if (p.layer !== undefined && p.layer !== 'stone' && p.layer !== 'plain') throw Error(`building skin part "${p.id}": layer is stone or plain`);
     try { propTint(p.tint); } catch { throw Error(`building skin part "${p.id}": tint "${p.tint}" is not a props tint row`); }
