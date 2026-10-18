@@ -125,6 +125,17 @@ try {
   eq(await code(O, TAKE(B, I4, 1, 3600, JSON.stringify([{ op: 'metal', account: B, delta_bronze: 5, reason: 'award', event_id: 'x' }]))), 'O0002', 'qa: only event and mint ops, even for the marked account');
   const q2 = await val(O, TAKE(B, I5, 1, 3600, batch(B, pcB, I5, 1, 3)));
   eq([q2.result, minted(pcB)], ['taken', String(Number(before) + 1)], 'qa: a marked account sent a normal one-mint batch (the writer\'s lookup was blind) is paid as normal: accepted');
+  // an UNREADABLE mark fails CLOSED: with the column made unreadable (renamed, so the function errors when it runs) the marked account is treated as unmarked and its zero-mint take is refused,
+  // writing nothing; a one-mint take never asks for the mark and still works; the mark comes back and the zero-mint take is accepted again
+  const claimsOf = inst => psql(`select count(*) from public.origins_ground_takes where instance = '${inst}'`);
+  psql(`alter table public.fighter_profiles rename column is_test to is_test_unreadable;`);
+  eq((await as(O, IS(B))).code !== 0, true, 'qa fail-closed: the mark function itself errors while the column is unreadable (the premise)');
+  eq(await code(O, TAKE(B, 'ground:zone1.qa-5', 1, 3600, eventOnly(B, pcB, 'ground:zone1.qa-5', 1))), 'O0002', 'qa fail-closed: a zero-mint take is REFUSED when the mark cannot be read');
+  eq([claimsOf('ground:zone1.qa-5'), eventsOf('ground:zone1.qa-5', B, 1)], ['0', '0'], 'qa fail-closed: the refused take wrote nothing');
+  eq((await val(O, TAKE(B, 'ground:zone1.qa-6', 1, 3600, batch(B, pcB, 'ground:zone1.qa-6', 1, 5)))).result, 'taken', 'qa fail-closed: a normal one-mint take never asks for the mark and is unaffected');
+  eq((await val(O, TAKE(A, 'ground:zone1.qa-6a', 1, 3600, batch(A, pcA, 'ground:zone1.qa-6a', 1, 6)))).result, 'taken', 'qa fail-closed: an UNMARKED account\'s normal one-mint take succeeds while the lookup is forced to raise (the lookup is only asked for a zero-mint batch)');
+  psql(`alter table public.fighter_profiles rename column is_test_unreadable to is_test;`);
+  eq((await val(O, TAKE(B, 'ground:zone1.qa-5', 1, 3600, eventOnly(B, pcB, 'ground:zone1.qa-5', 1)))).result, 'taken', 'qa fail-closed: with the mark readable again the zero-mint take is accepted');
   psql(readFileSync(join(dir, '..', 'down', QA_DOWN), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_account_is_test(uuid)') is null)::text`), 'true', 'qa down: the mark function is gone');
   eq(await code(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, eventOnly(B, pcB, 'ground:zone1.qa-4', 1))), 'O0002', 'qa down: the previous body is back: exactly one mint for everyone');

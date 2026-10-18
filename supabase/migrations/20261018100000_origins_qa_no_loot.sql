@@ -18,7 +18,7 @@ revoke all on function public.origins_account_is_test(uuid) from public, anon, a
 grant execute on function public.origins_account_is_test(uuid) to frankendom_origins, frankendom_verifier;
 
 create or replace function public.origins_ground_take(p_account uuid, p_instance text, p_expected_n int, p_respawn_s int, p_batch jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
-declare t public.origins_ground_takes; out jsonb; key text; window_end timestamptz; mints int;
+declare t public.origins_ground_takes; out jsonb; key text; window_end timestamptz; mints int; qa boolean := false;
 begin
   if not public.origins_allowed(p_account) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
   if p_instance !~ '^ground:[a-z0-9._-]{1,60}$' or p_expected_n < 1 or p_expected_n > 9999 or p_respawn_s < 1 then raise exception 'a ground take names a ground instance, a claim number and a respawn window' using errcode = 'O0002'; end if;
@@ -26,7 +26,11 @@ begin
   if jsonb_typeof(p_batch) <> 'array' or exists (select 1 from jsonb_array_elements(p_batch) l where l ->> 'op' is null or l ->> 'op' not in ('event', 'mint')) then
     raise exception 'a ground batch carries only event and mint ops' using errcode = 'O0002'; end if;
   select count(*) into mints from jsonb_array_elements(p_batch) l where l ->> 'op' = 'mint';
-  if (mints <> 1 and not (mints = 0 and public.origins_account_is_test(p_account)))
+  -- The QA mark is read ONLY for a zero-mint batch (a one-mint take never asks), and an unreadable mark FAILS CLOSED: any error reading it leaves qa = false, so the take is refused like an unmarked account's.
+  if mints = 0 then
+    begin qa := public.origins_account_is_test(p_account); exception when others then qa := false; end;
+  end if;
+  if (mints <> 1 and not qa)
      or exists (select 1 from jsonb_array_elements(p_batch) l where l ->> 'op' = 'mint' and (l -> 'item' ->> 'mint_key') is distinct from key) then
     raise exception 'a ground take mints exactly one item, under its own key' using errcode = 'O0002'; end if;
   select * into t from public.origins_ground_takes where account = p_account and instance = p_instance for update;
