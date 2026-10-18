@@ -1,5 +1,14 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~18:2x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JF 67d421b5a (verified on #3245: all 3 services, NRestarts 0, flags unset)
+
+**Now, in order.**
+1. **JG #3253 @b83a1cc26** (= JF + #3249 68978e936, #3229 d9d1be511, #3228 8e96d4f26, #3250 a17d7c477, #3240 2024bcafb, #3235 c0fd82393; all my PASS heads). Merges bba76fe21..351bf6a4f equal clean merge-trees. **Still to check:** the two hand unions, 45879de8b (fx-rows.json + inline-number-scope.json) and b83a1cc26 (fx-rows.json). Value-check fx-rows (trunk + every PR's copy → final: dups/missing/extra/changed) and check the scope list = union of the presentation files. Also: index.ts must carry ONE `export { fxNum }` line (#3240 + #3235 both add it). Then candidate PASS + label on 8/8 + rows + browser gates.
+2. **Not passed:** #3246 @5a97e1414 (a real red: deploy tests 67/68 pin the old switch handler; Deploy updates them), #3230 @0f2b987d1 (CONFLICTING, no auditor:ready; Web merges trunk).
+3. **Queued:** #3218 @79cebea42 (Backend QA/organic cohort; unit-ci 39126216384 green) after JG. #3243 has PASS @fe307e782 but isn't in JG: when it's cut, its unwired pin must read **70** (with #3244 + #3249).
+**Rulings today (memory):** ruling_stacked_child_pass_2026-10-18 (own diff + hand-run k7/C1/stubs receipt quoted), ruling_rows_docs_assets_no_read_2026-10-18 (4 thread receipts; plain line `Auditor: PASS @<head9> (rows/docs/assets, covered by candidate)`). Trains are pipelined: the next candidate is cut on the last one's merge.
+**Gotchas** are in the entry below (bbbb–dddd); also (eeee) Deploy's picker needs a plain `Auditor: PASS @<head9>` line on each PR thread or the PR isn't cut (JG first went out with only #3249).
+
 ## 2026-10-18 ~18:1x +04: HANDOFF before /clear. READ FIRST. LIVE = JE b40785691 (verified on #3236); JF #3245 @67d421b5a has candidate PASS + label (publishing)
 
 **Now, in order.**
