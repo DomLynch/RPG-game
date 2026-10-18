@@ -1,7 +1,7 @@
 import { STAB_ON } from './stab-rule.ts';
 import { RULES, SKILL_ROWS, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
 import { LATE_NOTICE } from './play-radius.ts';
-import { meleeSpecialReach } from './sandbox-rules.ts';
+import { meleeSpecialReach, MISSILE_ANSWER, missileMinGap, missileOf, percentOf } from './sandbox-rules.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { READ_ROWS } from './ai-read-rows.ts';   // rows: ai-read-defs.json
@@ -53,6 +53,7 @@ export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
 export type AiState = {
   seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1;
   decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null;
+  missileSeen?: number; missilePlan?: 'dodge' | 'guard' | 'take';   // sandbox missileAnswer (RV79): the foe's arrow in flight (its launch tick) and what this fighter decided to do about it, rolled once per arrow
   jitter: number; retreatUntil: number; hold: boolean; feint: boolean;
   disengageUntil: number;   // the tick until which a landed blow is followed by a hop back out (profile.disengage)
   brace?: boolean;   // this threat is met in a guard that stops heavies (profile.braceHeavy), rolled once per threat
@@ -82,6 +83,16 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const inside = gap < (mine.thrust.minReach ?? 0);   // inside a pole's point: the thrust meets nothing here; the answer is the kick, then a step back out
   next.lastGap = gap; next.lastTravel = opponent.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = self.phase === 'ready' || self.phase === 'guard';
+  if (MISSILE_ANSWER) {   // sandbox missileAnswer (RV79): an arrow in flight at me is rolled, guarded or taken (decided once per arrow, seeded); an archer standing beyond the missile gap is run down. No row = no answer, and no roll is drawn
+    const bolt = opponent.missile;
+    if (bolt) {
+      if (next.missileSeen !== bolt.launched) { const r = percentOf(roll()); next.missileSeen = bolt.launched; next.missilePlan = r < MISSILE_ANSWER.dodge ? 'dodge' : r < MISSILE_ANSWER.dodge + MISSILE_ANSWER.guard ? 'guard' : 'take'; }
+      const left = bolt.arrives - tick;
+      if (next.missilePlan === 'dodge' && canAct && self.stamina >= RULES.rollCost && left <= RULES.safeEnd - MISSILE_ANSWER.dodgeEarly && left >= RULES.safeStart) return { intent: { ...intent, action: 'dodge', move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: false } }, ai: next };
+      if (next.missilePlan === 'guard' && canAct && left <= MISSILE_ANSWER.guardLead) return { intent: { ...intent, guard: true }, ai: next };
+    }
+    if (MISSILE_ANSWER.run && canAct && missileOf(opponent.weapon)?.kind === 'bow' && gap > missileMinGap()) return { intent: { ...intent, move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: true } }, ai: next };
+  }
   // Special Moves (RULES.special, only when the fight has them: withSpecials): cast whenever it is ready and in reach. No roll is drawn, so a
   // fight without specials steps exactly as before.
   if (self.specialShare !== undefined && gap <= (self.spell ? RULES.special.reach : meleeSpecialReach(RULES.special.reach)) && legal(self, 'skill')) return { intent: { ...intent, action: 'skill' }, ai: next };

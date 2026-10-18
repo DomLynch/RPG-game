@@ -14,7 +14,7 @@ import { crowdPercent, percentOf, rolledDamage, rollUnit, swarmBand, type CrowdK
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { bandFactor } from './bands.ts';
-import { SPECIAL_MELEE_REACH, meleeSpecialReach, meleeSpecialRelease, percentScaled, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
+import { ammoOf, bowSpecialOf, laneOf, MISSILE_GUARD_POSTURE, MISSILE_HOMING, MISSILE_STUN, missileChip, missileHalfway, missileLaneAngle, missileMinGap, missileRadiusM, missileOf, missileTicks, missileTiming, perMille, SPECIAL_MELEE_REACH, meleeSpecialReach, meleeSpecialRelease, percentScaled, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
 import { SHARED_COOLDOWN } from './spell-rows.ts';
 import { castOutcome, outcomeMult, splitDamage, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
@@ -64,6 +64,9 @@ export type Fighter = {
   ccGuard?: CcGuard;   // its own immuneTier / resist rows (cc-ladder.ts, from the creature's catalogue fields); absent = none
   specialShare?: number;   // the share of the target's max health this fighter's special takes
   specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
+  bowSpecial?: string;   // sandbox bowSpecial (RV79): the picker skill of the bow special being cast (its arrows leave at the release); stays set through the recovery so the renderer plays the loose clip
+  missile?: { lanes?: number[]; react?: boolean; pin?: number; posture?: number; launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox missiles: the one arrow (or volley) this fighter has in flight
+  ammo?: number;   // sandbox missiles: arrows left in the quiver (absent = infinite)
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   skill2?: SkillId;   // slot b as a MELEE special (the specials PR, RV75): an existing class skill, fought through its own move-defs row (reach, windup, stagger, knockback, stamina, posture) on skillCooldown2, never the flat special share; absent = slot b is a spell (or empty)
@@ -101,10 +104,10 @@ export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
 
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'SpecialStarted' | 'SpecialRefused' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
+type EventType = 'MissileLaunched' | 'SpecialStarted' | 'SpecialRefused' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { cue?: string; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { missile?: boolean; lane?: number; cue?: string; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -131,7 +134,7 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(ammoOf(weapon) ? { ammo: ammoOf(weapon) } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(o.sheet ? { sheet: o.sheet } : {}) });   // a row's `sheet` (the Cave Troll's attack dial 20 = +20% damage): the creature's own dials, read like a hero's
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
@@ -197,7 +200,8 @@ export const walled = (body: State, dx: number, dz: number, radius: number = RAD
 // Ticks since the current phase began. `age` is the animation clock (a chambered swing rewinds it); `charge` counts the parked ticks,
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
-export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
+const baseTiming = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
+export const timing = (f: Fighter): Timing => { const t = baseTiming(f), mt = missileTiming(f.weapon); return mt ? { ...t, windup: t.windup + Math.round(percentScaled(t.windup, mt.windup)), recovery: t.recovery + Math.round(percentScaled(t.recovery, mt.recovery)) } : t; };   // sandbox missiles (RV79): a bow draws, so its row lengthens every move's windup and recovery by a percent; no row = the move's own timing
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 const baseGuard = (f: Fighter, R: typeof RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
 // A stance never moves the parry window (v52, stance-era.ts: timing is sacred). Only while a record BELOW v52 replays does the old Defensive window (a quarter longer, stance.ts LEGACY) apply.
@@ -256,6 +260,7 @@ export function legal(f: Fighter, action: Action): boolean {
   const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
   const standing = (f.phase === 'ready' || f.phase === 'guard') && !committed;   // a guard yields to any action; it never eats an input
   const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
+  if ((isLight(action) || action === 'heavy' || action === 'thrust') && f.ammo !== undefined && f.ammo <= 0 && missileOf(f.weapon)) return false;   // sandbox missiles (RV79): an empty quiver has nothing to loose
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
@@ -331,10 +336,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && !(action === 'skill2' && me.skill2 !== undefined)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       const gap = distance(me.body, foe.body), cast = action === 'skill2' ? me.spell2 : me.spell, reach = cast ? R.special.reach : meleeSpecialReach(R.special.reach);   // sandbox specialMeleeReach: a melee special (no spell) is pressed only inside its own, shorter reach
-      if (SPECIAL_MELEE_REACH && !cast && gap > reach) events.push({ tick, type: 'SpecialRefused', actor: i, cue: 'far' });   // nothing is spent: the HUD floats the specialCue row's text over the caster
-      else if (gap <= reach) {
+      const bowRow = cast ? undefined : bowSpecialOf(me.weapon, action === 'skill2' ? me.skill2 : me.skill, gap, me.ammo);   // sandbox bowSpecial (RV79): beyond the missile gap a bow's special is arrows, at any distance
+      if (SPECIAL_MELEE_REACH && !cast && !bowRow && gap > reach) events.push({ tick, type: 'SpecialRefused', actor: i, cue: 'far' });   // nothing is spent: the HUD floats the specialCue row's text over the caster
+      else if (gap <= reach || bowRow) {
         if (action === 'skill2') next.castSlot = 1; else delete next.castSlot;
-        next.special = !cast && SPECIAL_MELEE_WINDUP ? SPECIAL_MELEE_WINDUP : R.special.windup; delete next.castHurt;   // sandbox specialMeleeWindup (Dom 2026-10-17: "same speed as the stab, slash or heavy"): a melee special (no spell) is committed for that many ticks, not the spell's delay
+        if (bowRow) { next.bowSpecial = bowRow.skill; if (next.ammo !== undefined) next.ammo -= bowRow.arrows; } else delete next.bowSpecial;   // the arrows are spent at the commit, like a spell's cost
+        next.special = bowRow ? bowRow.windup : !cast && SPECIAL_MELEE_WINDUP ? SPECIAL_MELEE_WINDUP : R.special.windup; delete next.castHurt;   // sandbox specialMeleeWindup (Dom 2026-10-17: "same speed as the stab, slash or heavy"): a melee special (no spell) is committed for that many ticks, not the spell's delay
         next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         if (cast) spend(i, cast.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(cast ? { spell: cast.id } : {}) });
@@ -476,6 +483,23 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (a.phase !== 'attack' || a.landed || !a.move) continue;
     const def = movesOf(a)[a.move], t = timing(a), pathId = a.chained ? def.chainPath : def.path, charged = a.charged, weapon = weaponOf(a.weapon);
     if (a.age === t.windup) events.push({ tick, type: 'AttackActive', actor: i, move: a.move });
+    const mrow = missileOf(a.weapon);
+    if (mrow) {   // sandbox missiles (RV79): the swing throws an arrow instead of striking; nothing is struck in melee
+      const lane = laneOf(a.move);
+      if (a.age === t.windup && lane) {
+        const gap = a.attackFrom?.gap ?? distance(a.body, d.body);
+        if (A.ammo !== undefined && A.ammo <= 0) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
+        else {
+          if (A.ammo !== undefined) A.ammo--;
+          if (gap >= missileMinGap() && !A.missile) {
+            const ang = MISSILE_HOMING ? aim(a.body, d.body) : a.body.heading + missileLaneAngle(lane.lane), range = distance(a.body, d.body);
+            A.missile = { launched: tick, arrives: tick + missileTicks(mrow, range), x: a.body.x, z: a.body.z, dx: M.sin(ang), dz: M.cos(ang), range, damage: Math.round(perMille(perMille(def.damage, mrow.share), lane.mult)), move: a.move, lane: lane.lane };
+            events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move: a.move, lane: lane.lane });
+          } else events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });   // inside the inner band (a hard miss) or an arrow already in flight
+        }
+      }
+      continue;
+    }
     let location: HitLocation | null = null;
     if (pathId) {
       if (a.age < t.windup || a.age >= t.windup + t.active) continue;
@@ -586,6 +610,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const spell = castOf(A);   // slot a or b: the cooldown below is that slot's own (spell-slot-defs sharedCooldown 1 = both)
     A.special = 0; delete A.castHurt; coolSlot(A, R.special.cooldown); A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
+    const bowRow = A.bowSpecial && !spell ? bowSpecialOf(A.weapon, A.bowSpecial, Infinity, undefined) : undefined;   // A.bowSpecial stays set through the recovery (the renderer plays the bow's loose clip off it); the next cast sets or clears it
+    if (bowRow && A.missile) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // one volley in flight at a time
+    if (bowRow) {   // sandbox bowSpecial (RV79): the special's arrows fly through the one missile model (a roll dodges them all, a guard blocks the lanes it covers)
+      const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!, range = distance(A.body, D.body);
+      A.missile = { launched: tick, arrives: tick + missileTicks({ speed: bowRow.speed }, range), x: A.body.x, z: A.body.z, dx: M.sin(aim(A.body, D.body)), dz: M.cos(aim(A.body, D.body)), range, damage: Math.round(perMille(A.specialShare! * D.maxHealth, bowRow.mult)), move, lane: 0, lanes: bowRow.lanes, ...(bowRow.react ? { react: true } : {}), ...(bowRow.pin ? { pin: bowRow.pin } : {}), ...(bowRow.posture ? { posture: bowRow.posture } : {}) };
+      events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move, lane: 0 });
+      continue;
+    }
     if (SPECIAL_MELEE_REACH && !spell && distance(A.body, D.body) > meleeSpecialRelease()) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // sandbox specialMeleeReach: the foe stepped out of reach during the windup, the swing finds nothing
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
     const cone = CONE_ON && !spell ? coneOf(A.specialName) : undefined;
@@ -642,6 +674,53 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
     events.push({ tick, type: 'Killed', actor: i, target: j, move, location: 'torso', heading: A.body.heading });
+  }
+  // 4d. Missiles (sandbox missiles, RV79): an arrow arrives `missileTicks` after it was loosed and is judged against where the body stands NOW, so a sidestep dodges it: a roll in its window dodges, a same-side raised guard blocks (a chip and posture),
+  // a body within `missileRadius` of the line is hit. Deterministic: detmath only, integer rows. No rows (as shipped) = nothing is ever in flight.
+  for (const i of [0, 1] as const) {
+    const A = fighters[i]!, m = A.missile;
+    if (!m || tick < m.arrives) continue;
+    const j = (1 - i) as Side, D = fighters[j]!, weapon = weaponOf(A.weapon); delete A.missile;
+    if (!D.health) continue;
+    if (D.phase === 'roll' && D.age >= R.safeStart && D.age <= R.safeEnd) { events.push({ tick, type: 'Dodged', actor: j, target: i, move: m.move }); continue; }
+    const rx = D.body.x - m.x, rz = D.body.z - m.z, along = rx * m.dx + rz * m.dz, lateral = rx * m.dz - rz * m.dx;
+    if (!MISSILE_HOMING && (along < missileHalfway(m.range) || Math.abs(lateral) > missileRadiusM())) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
+    const g = guardOf(D, R), facing = Math.abs(wrapAngle(aim(D.body, A.body) - D.body.heading)) <= g.arc;
+    const lanes = m.lanes ?? [m.lane], dirOf = (l: number): Direction => (l === 0 ? 'thrust' : l > 0 ? 'right' : 'left');
+    const open = D.phase === 'guard' && facing ? lanes.filter((l) => !covers(D, dirOf(l), R)) : lanes;   // the arrows no raised guard covers
+    const posture = m.posture ?? MISSILE_GUARD_POSTURE;
+    if (m.lanes && open.length && open.length < lanes.length) {   // a volley the guard only partly covers: each covered arrow chips the stamina, the rest land
+      const cost = Math.max(1, missileChip((lanes.length - open.length) * m.damage)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material });
+      shake(j, posture * (lanes.length - open.length));
+    }
+    if (open.length === 0) {
+      const cost = Math.max(1, missileChip(lanes.length * m.damage)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
+      shake(j, posture * lanes.length);   // a wall of guard wears down: guarded arrows take posture, and a break opens it
+      const mrow = missileOf(A.weapon), through = Math.round(perMille(m.damage * lanes.length, mrow?.pierce ?? 0)); if (through) D.health = Math.max(mrow?.chipKills ? 0 : 1, D.health - through);   // part of an arrow is hard to guard: it goes through (a row with chipKills can finish a man hiding behind his guard)
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material, ...(through ? { damage: through } : {}) });
+      if (!D.health) {
+        D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+        finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move: m.move, heading: A.body.heading };
+        events.push({ tick, type: 'Killed', actor: i, target: j, move: m.move, location: 'torso', heading: A.body.heading });
+      }
+      continue;
+    }
+    const dealt = m.damage * open.length;   // a bow volley: every arrow no guard covered
+    D.health = Math.max(0, D.health - dealt);
+    events.push({ tick, type: 'Hit', actor: i, target: j, move: m.move, damage: dealt, location: 'torso', heading: A.body.heading, weapon: weapon.id, material: weapon.material, missile: true, lane: m.lane });
+    if (D.health && (m.react || m.pin)) {   // sandbox bowSpecial: a landed power or pinning arrow reacts like a landed melee special (specialReact rows); a pin is crowd control through the cc ladder (a creature's immuneTier takes the posture break only)
+      const def = movesOf(A)[m.move], away = aim(D.body, A.body) + Math.PI, pinned = m.pin ? stunned(D, 'pinShot', m.pin) : 0;
+      if (m.react) for (let k = 0; k < Math.round(percentScaled(def.knockback, SPECIAL_REACT_KNOCK)); k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
+      D.phase = 'hurt'; D.age = 0; D.stun = Math.max(1, MISSILE_STUN, pinned, m.react ? Math.round(percentScaled(def.stagger, SPECIAL_REACT_STAGGER)) : 0); D.buffer = null; D.counterWindow = 0; D.charge = 0; D.charged = false;
+      events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
+      shake(j, percentScaled(def.posture, SPECIAL_REACT_POSTURE));
+      continue;
+    }
+    if (D.health) { D.phase = 'hurt'; D.age = 0; D.stun = Math.max(1, MISSILE_STUN); D.buffer = null; events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun }); continue; }
+    D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+    finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move: m.move, heading: A.body.heading };
+    events.push({ tick, type: 'Killed', actor: i, target: j, move: m.move, location: 'torso', heading: A.body.heading });
   }
   for (const i of [0, 1] as const) {
     const A = fighters[i];

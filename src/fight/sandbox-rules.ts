@@ -45,3 +45,54 @@ export const shardRows = (): number => sandboxRows('specialShards').length;
 //   specialSound (the hit must sound like bone and weight): rows { id (row id), skill, cue (a CueName), gain, room, delay, on? } played in order when that melee special lands; `on`: 'start' plays at the commit, 'land' (default) on the foe. No rows = no sound added.
 export type SpecialSoundRow = { id: string; skill: string; cue: string; gain: number; room: number; delay: number; on?: 'start' | 'land' };
 export const specialSoundOf = (skill: string): SpecialSoundRow[] => (sandboxRows('specialSound') as unknown as SpecialSoundRow[]).filter((r) => r.skill === skill);
+
+// RV79, the bow (Donor: the combat sandbox @93b1138c7; Lead's split: bow only, the bands TABLE is read here for the missile gap and nothing else; band damage / glance / AI hold are RV80, staff bolts and spell flight ride mana, RV81).
+//   perMille / ticksPerSecond: the unit rows (1000 and 60) the per-mille rows and the speed rows convert by, so no unit literal sits in the sim.
+const PER_MILLE = sandboxRule('perMille'), TICKS_PER_SECOND = sandboxRule('ticksPerSecond');
+//   bands (Dom 2026-10-14): rows { id, upTo (cm) }, the reach bands from the nearest out; the last has no real limit. Here only the missile gap reads them.
+type BandRow = { id: string; upTo: number };
+const BANDS = sandboxRows('bands') as unknown as readonly BandRow[];
+/** The nearest a missile can be thrown from: the inner edge of the outer band (Strategy: the bow is helpless up close). 0 with no band rows. */
+export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.length - 2]!.upTo / CENTIMETRES_PER_METRE : 0);
+//   missile rows { weapon, kind (bow), speed (cm/s), share (per-mille of the move's damage), windup / recovery (percent added to every move's timing: a bow draws), ammo (the quiver, 0 = infinite), pierce (per-mille of a guarded arrow that goes through), chipKills (1: chip through a guard can finish a man) }
+//   name a weapon whose moves throw an arrow instead of striking; `missileLanes` rows { move, lane (-1 left, 0 forward, 1 right), mult } say which move throws which lane. No rows = nothing flies.
+type MissileRow = { kind?: string; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
+type LaneRow = { move: string; lane: number; mult: number };
+export const missileRows = (): number => sandboxRows('missile').length;
+export const missileOf = (weapon: string): MissileRow | undefined => sandboxRows('missile').find((r) => r.weapon === weapon) as MissileRow | undefined;
+export const laneOf = (move: string | null): LaneRow | undefined => (move ? sandboxRows('missileLanes').find((r) => r.move === move) as LaneRow | undefined : undefined);
+export const MISSILE_HOMING = sandboxRule('missileHoming');   // 1 = auto-aim (Dom 2026-10-15): the shot flies at the foe and only a roll or a guard answers it
+export const MISSILE_GUARD_POSTURE = sandboxRule('missileGuardPosture');   // posture a GUARDED arrow takes off the blocker (a wall of guard breaks inside the fight clock, Strategy 2026-10-18); a bow special's own `posture` replaces it. 0 = off
+export const MISSILE_RADIUS = sandboxRule('missileRadius'), MISSILE_STUN = sandboxRule('missileStun'), MISSILE_FAN = sandboxRule('missileFan');   // cm near the line a body is hit; ticks a hit staggers; degrees of the side lanes
+/** Travel time in whole ticks over `range` metres at the row's cm/s speed. */
+export const missileTicks = (row: { speed: number }, range: number): number => Math.max(1, Math.ceil((range * CENTIMETRES_PER_METRE * TICKS_PER_SECOND) / row.speed));
+//   quiver (Strategy: a bow carries a finite quiver; a row flag for the A/B): 1 = a missile weapon's `ammo` is the arrows it carries, 0 = infinite.
+export const QUIVER = sandboxRule('quiver');
+export const ammoOf = (weapon: string): number => { const r = missileOf(weapon); return QUIVER && r?.ammo ? r.ammo : 0; };
+export const missileTiming = (weapon: string): { windup: number; recovery: number } | undefined => { const r = missileOf(weapon); return r && (r.windup || r.recovery) ? { windup: r.windup ?? 0, recovery: r.recovery ?? 0 } : undefined; };
+//   Geometry helpers for the arrow's flight, all from rows: the side lane's angle (missileFan degrees per lane, over halfTurnDegrees), the point past which a fixed-aim arrow can still find the body (half its range), the hit radius in metres, and the stamina a guard
+//   spends on the arrow (half its damage). halfTurnDegrees (180) and halves (2) are unit rows.
+const HALF_TURN_DEGREES = sandboxRule('halfTurnDegrees'), HALVES = sandboxRule('halves');
+export const missileLaneAngle = (lane: number): number => (lane * sandboxRule('missileFan') * Math.PI) / HALF_TURN_DEGREES;
+export const missileHalfway = (range: number): number => range / HALVES;
+export const missileRadiusM = (): number => MISSILE_RADIUS / CENTIMETRES_PER_METRE;
+export const missileChip = (damage: number): number => Math.round(damage / HALVES);
+//   missileAnswer (Strategy 2026-10-18, after the bow battery: the warden AI had no answer to an arrow and lost 16/16 to a plain archer): one row { id, dodge, guard, run } for the AI. When the foe has an arrow in flight at it, it decides ONCE per arrow (seeded):
+//   roll in the arrival window with `dodge` percent, else raise its guard with `guard` percent, else take it; `run` = 1 sends it running at an archer who stands beyond the missile gap. No row = no answer, as before.
+//   dodgeEarly: ticks before the roll's safe window closes that the AI starts it; guardLead: ticks before arrival it raises its guard.
+export type MissileAnswerRow = { id: string; dodge: number; guard: number; run?: number; dodgeEarly: number; guardLead: number };
+export const percentOf = (unit: number): number => unit * PERCENT;
+export const MISSILE_ANSWER: MissileAnswerRow | undefined = sandboxRows('missileAnswer')[0] as unknown as MissileAnswerRow | undefined;
+//   bowSpecial (Dom 2026-10-18: four bow specials; Strategy approved the design and the unlock order): a caster whose weapon has a `bow` missile row and who stands beyond the missile gap resolves the picker special `skill` as arrows through the one missile model
+//   instead of the melee special (inside the gap, or out of arrows, the melee special stays). One row per picker skill { skill, label, unlockAfterBossKills (DATA ONLY), arrows (the quiver cost), lanes (one arrow each: -1 left, 0 forward, 1 right), mult (per-mille of the special's damage per arrow),
+//   windup (ticks, replaces specialMeleeWindup), speed (cm/s), react (1 = a landed arrow shoves and staggers like a melee special), pin (ticks of a `pinShot` crowd-control stun through the cc ladder), posture, clip (the special-clips.json role the archer plays) }. No rows = a bow has no specials.
+export type BowSpecialRow = { skill: string; label: string; unlockAfterBossKills: number; arrows: number; lanes: number[]; mult: number; windup: number; speed: number; react?: number; pin?: number; clip?: string; posture?: number };
+const BOW_SPECIALS = sandboxRows('bowSpecial') as unknown as readonly BowSpecialRow[];
+export const bowSpecialRows = (): readonly BowSpecialRow[] => BOW_SPECIALS;
+/** The bow special a caster of `weapon` casts for picker skill `skill` from `gap` metres with `ammo` arrows left, or undefined (the melee special instead). `gap` of Infinity asks for the row alone. */
+export const bowSpecialOf = (weapon: string, skill: string | null | undefined, gap: number, ammo: number | undefined): BowSpecialRow | undefined => {
+  if (!skill || !BOW_SPECIALS.length || missileOf(weapon)?.kind !== 'bow') return undefined;
+  const r = BOW_SPECIALS.find((x) => x.skill === skill);
+  return r && gap >= missileMinGap() && (ammo === undefined || ammo >= r.arrows) ? r : undefined;
+};
+export const perMille = (value: number, mille: number): number => (value * mille) / PER_MILLE;

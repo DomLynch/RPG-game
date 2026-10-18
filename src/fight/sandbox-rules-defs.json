@@ -8,7 +8,17 @@
     { "id": "specialReact", "value": 0 },
     { "id": "specialReactStagger", "value": 160 },
     { "id": "specialReactKnock", "value": 450 },
-    { "id": "specialReactPosture", "value": 150 }
+    { "id": "specialReactPosture", "value": 150 },
+    { "id": "perMille", "value": 1000 },
+    { "id": "ticksPerSecond", "value": 60 },
+    { "id": "halfTurnDegrees", "value": 180 },
+    { "id": "halves", "value": 2 },
+    { "id": "missileHoming", "value": 0 },
+    { "id": "missileGuardPosture", "value": 0 },
+    { "id": "missileRadius", "value": 0 },
+    { "id": "missileFan", "value": 0 },
+    { "id": "missileStun", "value": 0 },
+    { "id": "quiver", "value": 0 }
   ],
   "specialCue": [
     { "id": "far", "text": "too far" }
@@ -20,5 +30,10 @@
   "specialLook": [],
   "specialTrail": [],
   "specialShards": [],
-  "specialSound": []
+  "specialSound": [],
+  "bands": [],
+  "missile": [],
+  "missileLanes": [],
+  "missileAnswer": [],
+  "bowSpecial": []
 }
