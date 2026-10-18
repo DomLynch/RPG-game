@@ -158,7 +158,8 @@ marker="$state/post-publish-pending-${rev:0:8}"
 rm -f "$hold" "$hold.stale-told"
 if [ -n "$tail_rows" ]; then
   log "post-publish CI tail for $rev: rows $tail_rows (postcheck log $state/release-train-postcheck-${rev:0:8}.log)"
-  ( nohup ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"} "$rev" "$tail_rows" "$pr" > "$state/release-train-postcheck-${rev:0:8}.log" 2>&1 & )
+  # Its own session (perl setsid; macOS has no setsid binary): the first detached cycle (IT, 2026-10-18) lost its tail to a SIGTERM when launchd ended the tick and killed the job's process group.
+  ( nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"} "$rev" "$tail_rows" "$pr" > "$state/release-train-postcheck-${rev:0:8}.log" 2>&1 & )
 fi
 # Publish-to-publish minutes (Lead 2026-10-18, target <= 15), one line per cycle.
 last="$state/release-train-last-publish"; now=$(date +%s)

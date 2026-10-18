@@ -16,7 +16,7 @@ import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS, decodeWorldRecord } from '../../src/fight/server.ts';
-import { ROLL_BAND } from '../../src/fight/server.ts';
+import { ROLL_BAND, DROP_REASONS } from '../../src/fight/server.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
@@ -76,19 +76,29 @@ export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
   for (const id of listedZoneIds()) {
     if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
-    const f = frontierPlan(false, id), prefix = zoneKeyPrefix(id);
-    for (const spec of mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows)) {
-      if (zoneOfKey(spec.id) !== id) problems.push(`${spec.id} reads as zone ${zoneOfKey(spec.id)}, not ${id}`);
-      else if (prefix === '' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(prefix)) problems.push(`${spec.id}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
-      if (!/^[a-z0-9._:-]{1,96}$/.test(spec.id)) problems.push(`${spec.id} does not fit the table's key check`);
-      if (seen.has(spec.id)) problems.push(`${spec.id} is in zone ${seen.get(spec.id)} and zone ${id}`);
-      seen.set(spec.id, id);
-    }
+    const f = frontierPlan(false, id);
+    problems.push(...keyProblemsOf(id, mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows).map((s) => s.id), seen));
+  }
+  return problems;
+}
+/** The key rule for ONE zone's creature ids (zoneKeyProblems runs it over every listed zone; the zone package check runs it over a package, listed or not). `seen` carries the ids of the zones already read, so a key in two zones is named. */
+export function keyProblemsOf(id: string, keys: readonly string[], seen: Map<string, string> = new Map()): string[] {
+  const problems: string[] = [], prefix = zoneKeyPrefix(id);
+  for (const key of keys) {
+    if (zoneOfKey(key) !== id) problems.push(`${key} reads as zone ${zoneOfKey(key)}, not ${id}`);
+    else if (prefix === '' ? /^z[0-9]/.test(key) : !key.startsWith(prefix)) problems.push(`${key}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
+    if (!/^[a-z0-9._:-]{1,96}$/.test(key)) problems.push(`${key} does not fit the table's key check`);
+    if (seen.has(key)) problems.push(`${key} is in zone ${seen.get(key)} and zone ${id}`);
+    seen.set(key, id);
   }
   return problems;
 }
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^[a-z0-9._:-]{1,96}$/;
+// Why the page sent a kill without a record (#3151's `drop`): a label for the readout only, never trusted for anything (a kill without a verified record is unverified whatever it says).
+// Only the reasons src/fight/record-drop-defs.json lists get their own tally key; anything else the page sends is 'other' (the label is the client's, so an open set would add a key per value
+// to the in-memory tally: Lead, #3155). Beside a record it is ignored; absent, the kill is plain 'no record'. Never refused, so a label can never cost an honest kill its report.
+export const dropOf = (v: unknown, rec: string | undefined): string | null => (rec !== undefined || v === undefined ? null : typeof v === 'string' && DROP_REASONS.has(v) ? v : 'other');
 const recordOf = (v: unknown): string | undefined => { if (v === undefined) return undefined; if (typeof v !== 'string' || v.length === 0 || v.length > MAX_RECORD_CHARS) throw new BadRequest('record: a packed world record'); return v; };
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {
@@ -165,7 +175,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     throw new Refused(409, TOKEN_GONE, 'used', detail);
   };
   const killReport: Handler = async ({ db, account, where }, body) => {
-    const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!, recText = recordOf(body.record);
+    const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!, recText = recordOf(body.record), drop = dropOf(body.drop, recText);
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
     if (open === 'none') return usedToken(db, account, token);
@@ -191,7 +201,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // The record (BASE): replayed on the server. During the soak every kill pays as before whatever the record says (verdict logged, with its reason); with scorecardOnlyUnverified
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
     let record = recText === undefined ? 'none' : 'unverified';
-    if (recText === undefined) deps.tally?.add('no record');
+    if (recText === undefined) deps.tally?.add(drop ? `dropped: ${drop}` : 'no record');   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
     if (recText !== undefined) {
       const tag = `kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
@@ -220,7 +230,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record} qa=${qaState}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

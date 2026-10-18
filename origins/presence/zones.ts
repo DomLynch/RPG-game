@@ -10,9 +10,7 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import TOWN from './town-zones.json' with { type: 'json' };
 import TOWN_MANIFEST from './town-zones.manifest.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
-import { CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
-
-const CM_PER_M = 100;   // a unit fact (the frame is u16 centimetres, the world is metres), not a tuning
+import { CENTRE_CM, CM_PER_M, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
 
 // The frame (docs/specs/origins/frontier-presence.md §2): u16 centimetres, world (0,0) at CENTRE_CM, so the town square (+-150 m) AND the Ash Frontier (x -334..25 m, z -205..150 m) fit.
 // v1 clients and the saved-location columns speak the old frame (centre 15000, town square only): LEGACY_SHIFT_CM converts. East of +255 m, or wider than 655 m, needs a v3 frame.

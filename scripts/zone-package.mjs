@@ -22,17 +22,17 @@ export function loadTables(root = ROOT) { return Object.fromEntries(SHARED.map((
 export const zoneRowText = (n, root = ROOT) => readFileSync(join(root, `origins/zone-rows/zone${n}.row.json`), 'utf8');
 
 /** Gather zone N's package from the shared tables: { files: { name: text }, manifest }. Pure over its inputs. */
-export function exportPackage(n, zoneText, tables) {
+export function exportPackage(n, zoneText, tables, biome = /** @type {{ id: string, spec: object } | null} */ (null)) {   // `biome`: { id, spec }, a preset the package brings (the CLI's --own-biome); null = the zone uses a preset that already exists
   const zone = JSON.parse(zoneText), dungeon = tables.dungeons.find((d) => d.id === zone.dungeon), usedTheme = dungeon && tables.themes.find((t) => t.id === dungeon.theme);
   // a theme two dungeons share is OWNED by the one whose id sorts first; the other only USES it (manifest uses.theme), so the generated table holds the row once
   const owner = usedTheme && tables.dungeons.filter((d) => d.theme === usedTheme.id).map((d) => d.id).sort()[0] === dungeon.id, theme = owner ? usedTheme : undefined;
   if (zone.dungeon && !dungeon) throw new Error(`zone ${n} names dungeon "${zone.dungeon}", which is not a row`);
   const worlds = new Set([...(zone.world ?? []), ...(dungeon ? [dungeon.world] : [])]);
   const owned = tables.exits.filter((e) => worlds.has(e.zone)), inbound = tables.exits.filter((e) => e.to === String(n) && !worlds.has(e.zone));
-  const files = { 'zone.row.json': zoneText, ...(dungeon ? { 'dungeon.row.json': canon(dungeon) } : {}), ...(theme ? { 'theme.row.json': canon(theme) } : {}), 'exits.json': canon({ owned, inbound }) };
+  const files = { 'zone.row.json': zoneText, ...(dungeon ? { 'dungeon.row.json': canon(dungeon) } : {}), ...(theme ? { 'theme.row.json': canon(theme) } : {}), ...(biome ? { 'biome.row.json': canon(biome) } : {}), 'exits.json': canon({ owned, inbound }) };
   const kitUrls = [...new Set([zone.kit?.url, usedTheme?.enclosure?.kit?.url].filter(Boolean))];
   const characters = (dungeon?.creatures ?? zone.spawns?.rows ?? []).map((c) => c.id).sort(), loot = (dungeon?.creatures ?? zone.spawns?.rows ?? []).map((c) => c.loot).filter(Boolean).sort();
-  const manifest = { schema: SCHEMA, id: dungeon?.id ?? `zone${n}`, zone: Number(n), unlisted: zone.unlisted === true, world: [...worlds].sort(), owns: { exits: owned.map((e) => e.id).sort(), dungeon: dungeon?.id ?? null, theme: theme?.id ?? null, warps: [] }, inbound: { exits: inbound.map((e) => e.id).sort() }, uses: { kit: kitUrls, theme: usedTheme?.id ?? null, characters, loot }, files: Object.fromEntries(Object.entries(files).map(([f, t]) => [f, { bytes: Buffer.byteLength(t), sha256: sha(t) }])) };
+  const manifest = { schema: SCHEMA, id: dungeon?.id ?? `zone${n}`, zone: Number(n), unlisted: zone.unlisted === true, world: [...worlds].sort(), owns: { exits: owned.map((e) => e.id).sort(), dungeon: dungeon?.id ?? null, theme: theme?.id ?? null, biome: biome?.id ?? null, warps: [] }, inbound: { exits: inbound.map((e) => e.id).sort() }, uses: { kit: kitUrls, theme: usedTheme?.id ?? null, characters, loot }, files: Object.fromEntries(Object.entries(files).map(([f, t]) => [f, { bytes: Buffer.byteLength(t), sha256: sha(t) }])) };
   return { files: { ...files, 'package.json': canon(manifest) }, manifest };
 }
 
@@ -65,7 +65,11 @@ export function roundTrip(n, root = ROOT) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [cmd, n, dir] = process.argv.slice(2);   // `check <N> [root]`: root is another checkout (the Test Zone's branch), read only
-  if (cmd === 'export') { const { files } = exportPackage(n, zoneRowText(n), loadTables()); mkdirSync(dir, { recursive: true }); for (const [f, t] of Object.entries(files)) writeFileSync(join(dir, f), t); console.log(`wrote ${Object.keys(files).length} files to ${dir}`); }
+  if (cmd === 'export') {
+    const zoneText = zoneRowText(n), own = process.argv.includes('--own-biome'), name = JSON.parse(zoneText).biome;   // --own-biome: carry the zone's biome row in the package (a preset only this zone uses)
+    const spec = own && name ? JSON.parse(readFileSync(join(ROOT, 'origins/zones/biomes.json'), 'utf8')).biomes[name] : null;
+    if (own && !spec) { console.error(`--own-biome: zone ${n} names no biome, or biomes.json has no "${name}" row`); process.exit(2); }
+    const { files } = exportPackage(n, zoneText, loadTables(), spec ? { id: name, spec } : null); mkdirSync(dir, { recursive: true }); for (const [f, t] of Object.entries(files)) writeFileSync(join(dir, f), t); console.log(`wrote ${Object.keys(files).length} files to ${dir}`); }
   else if (cmd === 'check') { const r = roundTrip(n, dir ? `${dir.replace(/\/$/, '')}/` : ROOT); console.log(JSON.stringify(r, null, 2)); process.exit(r.ok ? 0 : 1); }
   else { console.error('usage: node scripts/zone-package.mjs export <N> <dir> | check <N> [root]'); process.exit(2); }
 }
