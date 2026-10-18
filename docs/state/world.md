@@ -3,7 +3,32 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
-## 2026-10-18 (+04, ~00:30) — HANDOFF #59 (READ FIRST; supersedes #58's Now): dungeon framework #3101 and two small PRs are with the Auditor, the origins/world inline-number ratchet (126) is next
+## 2026-10-18 (+04, ~10:00) — HANDOFF #60 (READ FIRST; supersedes #59's Now): dungeon walls #3131 + dungeon preview live, origins/world ratchet PRs stacked, the hidden-tab / Pit-first load fix is next
+
+Lane is **World & Audio**. Trunk read 4ee9aff6f (release II live) at my last look.
+
+**Now (first act, in this order):**
+1. **Read the Auditor/Lead threads on #3131 first** (enclosure PR, head 0c803c4b5 on `world/dungeon-rooms`, worktree `/private/tmp/claude-501/rooms`): a theme's `enclosure` row (dungeon-themes.json: kit, wall, doorway, room) walls every room in the ZONE's frame (`inZoneFrame` kit.fixed, `encloseRooms` in origins/zones/dungeon.ts); Sample Crypt on the `nightborn-halls` theme (cold look); Characters' #3021/#3033 merged in (authorship kept; they close theirs once this lands); Zone 1 gate arches (`landmark_ruin_arch` at cave-mouth and crypt-mouth, kit.fixed `unlistedOnly`, drawn only on a build with VITE_UNLISTED_ZONES=1); kit.fixed pieces drop the glb node's authored offset (the arch sat 59 m off its door); the preview build now emits `public/world/kit/*.glb` under `world/kit/` and `loadKit` reads them against the build's base (`kitUrlAt`); an unlisted-zone page never joins presence (the live server reset a guest to the Pit). Re-pin/answer whatever the Auditor says; merge trunk, never rebase.
+2. **Dungeon preview:** https://frankendom.com/preview/dungeon-3101/?region=1 (Deploy built it from 0c803c4b5; it re-copies after each release). Enter by walking through the stone gate 20 m from the Zone 1 start (crypt) or 79 m west (Bone Hollow). Verified live in a visible tab at 375 (script `live.mjs` pattern: Playwright, `window.originsPreview.place(x,z,heading)`, `__zoneReady`). Not verified live: the Bone Hollow gate arch on the published build.
+3. **Hidden-tab / Pit-first load PR (Lead's order, its own PR):** (a) in a hidden or background tab rAF stops so `[zone ready]` never fires and the page sits on the Pit shell (reproduced in the in-app pane); (b) cold load staging measured on the Mac, cache off, 375: Pit HUD 0.8 s, Zone 1 with an unstyled HUD and capsule walker 2.3 s, `[zone ready]` 8.9 s, 191 requests, ~8.3 MB. Fix shape: a loading cover until the first styled frame, a visibility-aware ready check. Read `zoneReadyCheck` in origins/preview/main.ts before promising a size.
+4. **Ratchet (all `origins/world`, stacked, each with auditor:ready):** #3125 town.ts -> #3128 relief.ts -> #3135 generate.ts -> #3138 the eight small files. After all merge the directory's inline-number baseline is 3 (helper bodies). Output proven byte-identical by hashing trunk vs branch (scripts in my scratchpad, not in repo). Retarget each to trunk as the one below merges.
+5. **#3122 (zone-exit-return, head 61e5e37e3) and #3123 (slow-verdict, head 783f0e09c)** were merged with trunk and relabelled; after IK (#3119) lands the preview-rules count pin in #3123 becomes 99/100: merge trunk again and re-pin.
+6. **#3142** (MobRow.form; mobs.ts reads it; branch-id baseline 'mob' 2 -> 0) is with the Auditor. Web was told I did both sides.
+7. **Nightborn Halls (Lead/Dom ruling):** theme row exists; creature rows (skeleton.glb, wraith.glb lesser; Nightborn elites/boss from the trunk Nightborn archetype/looks/bosses rows) and room design wait for Dom's layout. Placeholder stat rows must be named in the PR. Dungeon stays UNLISTED, main game only.
+
+**Done today (verified):** #3101 live in II. PRs opened: #3125, #3128, #3131, #3135, #3138, #3142 (above). Hollow/crypt stills in ~/Desktop/dungeon-preview-shots/ (v2-v4-live).
+
+**Open / waiting on others:** the Auditor on #3122/#3123/#3125/#3128/#3131/#3135/#3138/#3142; Deploy re-copying preview/dungeon-3101 after IK's publish; Characters closing #3021/#3033; Dom's room design for the dungeons.
+
+**Gotchas (cost time today):**
+- **Hooks:** Bash cannot edit files (no `sed -i`, heredoc writes, node writes): Read/Edit/Write only; run the repo's own writers (`check.ts --write-inline-number-baseline`, `--write-branch-id-baseline`) from Bash. zsh: `$B:scripts` parses as a modifier, write `${B}:path`; `timeout` does not exist on the Mac.
+- **Shared scratch:** `/private/tmp/claude-501/dg` and `zx` belong to other work: check `git worktree list` before `worktree add` (my dirs: zr, rooms, sv, zx2, form). A stale local branch can be ahead of its remote (zone-exit-return carried an unpushed commit): `checkout -B <b> origin/<b>`.
+- **Kit nodes carry an authored offset** in the glb (landmark_ruin_arch sat 37 m off its origin at scale 1.6): the old landmarks render displaced; fixed pieces now drop it. Do not 'fix' the scatter/landmark path without a Zone 1 before/after.
+- **Previews:** a build's absolute `/world/...` URLs hit the site root, not the preview folder; the live presence server resets a guest in any unlisted zone (now skipped client-side); `publicDir: false` in origins/preview/vite.config.mjs, so anything under public/ must be emitted by a plugin there.
+- **VPS:** my clone is /opt/frankendom-shadow/work/world-asdata (artifacts/origins-preview was moved to origins-preview.pre-rooms; rooms1..rooms9 builds under origins/preview/artifacts/). `ssh -f ... setsid nohup` for builds; the zone-exit-check run takes ~10 min with EXIT_CARRY=1.
+- **Camera:** the follow camera clips into kit walls in small rooms (no camera-collision row exists): follow-up named in #3131.
+
+## 2026-10-18 (+04, ~00:30) — HANDOFF #59 (superseded by #60's Now): dungeon framework #3101 and two small PRs are with the Auditor, the origins/world inline-number ratchet (126) is next
 
 Lane is now **World & Audio** (session "Frankendom - World & Audio"). Trunk was 4cd41912f (release IH live) when I stopped.
 
