@@ -2,6 +2,9 @@
  "origins/npcs/row.ts": {
   "'shop'": 1
  },
+ "origins/preview/mobs.ts": {
+  "'mob'": 2
+ },
  "origins/region1/load.ts": {
   "'common'": 1,
   "'world-boss'": 1,
