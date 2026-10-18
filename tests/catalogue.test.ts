@@ -133,7 +133,7 @@ test('the engine reads a row by id with no per-character code: a new character i
 test('the new fields are what their sources say: render scale, weapon, home stance, voice, rank looks, finisher timing, ladder order', () => {
   for (const row of BODIES) {
     const id = row.id as OpponentId;
-    assert.equal(row.render.scale, beastRenderScale(id), `${id}: render scale`);
+    assert.equal(row.render.scale, id === 'goblin' ? 1.25 : beastRenderScale(id), `${id}: render scale`);   // RV77 (Dom 2026-10-18): goblins are 1.25 scale everywhere; he is no beast, so the one number lives on his catalogue row
     assert.equal(row.fields.weapon, ROSTER[id].weapon, `${id}: weapon`);
     assert.equal(row.home, homePick(id), `${id}: home stance`);
     assert.equal(row.voice, THROATS[ROSTER[id].body] ? ROSTER[id].body : null, `${id}: voice`);

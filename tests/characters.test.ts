@@ -36,7 +36,8 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 // OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him), the Nightborn and the goblin (the rig re-proportioned and
 // scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood), and the Plague Doctor (a TRELLIS.2 body on the player's own rig and longsword, scale 1).
 const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb', 'plaguedoctor.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.scale };
+const GOBLIN_DRAWN = 1.25;   // RV77 (Dom 2026-10-18): the goblin is drawn at 1.25 of his rig (catalogue render.scale, held by tests/opponents.test.ts); the shipped file is the rig at native size, whose ratio to a man is OPPONENTS.goblin.scale / this
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale / GOBLIN_DRAWN, 'executioner.glb': OPPONENTS.executioner.scale, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
@@ -442,7 +443,7 @@ test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a
   const root = (a: typeof hero) => a.scene.children[0];
   for (const axis of ['x', 'y', 'z'] as const) near(root(goblin).scale[axis] / root(hero).scale[axis], GOBLIN.root, 1e-3, `root scale ${axis}`);
   near(root(goblin).userData.stride, GOBLIN.stride, 1e-6, 'stride');
-  const ratio = standingTop(goblin) / standingTop(hero), k = OPPONENTS.goblin.scale;
+  const ratio = standingTop(goblin) / standingTop(hero), k = OPPONENTS.goblin.scale / GOBLIN_DRAWN;
   assert.ok(Math.abs(ratio - k) <= .02, `standing height ratio ${ratio.toFixed(3)} for OPPONENTS.goblin.scale ${k} (${standingTop(goblin).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
   // The floor clamp: the roll's longer arms on lower shoulders would otherwise plant the hands 10 cm under the floor.
   const mixer = new AnimationMixer(goblin.scene), roll = goblin.animations.find(a => a.name === 'Roll')!, point = new Vector3(); let lowest = 9;

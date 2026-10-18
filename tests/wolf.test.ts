@@ -73,8 +73,10 @@ function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24
   }
   return n;
 }
+// RV77 (goblins are 1.25 scale): the yardstick is the Goblin at the body the wolf was calibrated against (capsule 0.78); his bigger capsule moves the hero normal brain's result against him 4 -> 11 of 24, which is the Goblin's own change, not the wolf's (the wolf row is untouched).
+const GOBLIN_YARDSTICK: Opponent = { ...OPPONENTS.goblin, scale: 0.78 };
 test('against the hero\'s brain the wolf is neither a pushover nor a wall (the Goblin\'s band)', () => {
-  const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(OPPONENTS.goblin, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(OPPONENTS.goblin, PROFILES.normal, 'normal')] };
+  const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(GOBLIN_YARDSTICK, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(GOBLIN_YARDSTICK, PROFILES.normal, 'normal')] };
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
   for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
 });
