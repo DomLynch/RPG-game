@@ -453,3 +453,42 @@ test('main.ts gives the tracker the session\'s account and the localStorage outb
   assert.match(line, /account: \(\) => storedAccount\(storage\)/);
   assert.match(line, /store: storage \? localOutbox\(storage\) : undefined/);
 });
+
+// Launch gate V5 (Backend's #3160): a kill_report 409 may carry `kind` = paid (+ the stored receipt) | expired | unknown. The next page's retry settles the outbox entry either way, never re-sends, and tells the page
+// once (onReceipt). The real writer here answers the plain 409 used; `asKind` rewrites that one body the way #3160's writer will.
+const RECEIPT = { instance: 'wolves-1', killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 };
+const asKind = (body: object): typeof fetch => async (url, init) => { const res = await fetch(url, init); return String(url).endsWith('/kill_report') && res.status === 409 ? new Response(JSON.stringify({ ok: false, error: 'used', code: 'used', ...body }), { status: 409 }) : res; };
+for (const [name, body, want] of [
+  ['paid', { kind: 'paid', receipt: RECEIPT }, { kind: 'paid', receipt: RECEIPT }],
+  ['expired', { kind: 'expired' }, { kind: 'expired' }],
+  ['unknown', { kind: 'unknown' }, { kind: 'unknown' }],
+  ['the plain old 409 (no kind)', {}, null],
+  ['a paid kind without a well-formed receipt', { kind: 'paid', receipt: { instance: 1 } }, null],
+  ['an unknown kind word', { kind: 'refunded' }, null],
+] as const) test(`outbox V5: a retried report's 409 ${name} settles the entry, is never re-sent, and ${want ? 'tells the page once' : 'stays quiet'}`, async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock), store = memStore();
+  try {
+    const lossy: typeof fetch = async (url, init) => { const res = await fetch(url, init); if (String(url).endsWith('/kill_report')) { await res.arrayBuffer(); throw new TypeError('socket hang up'); } return res; };
+    assert.deepEqual(await killedOn(clock, spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: lossy, account: () => ACCOUNT, store })), { offline: 'network' });
+    const notes: object[] = [];
+    const next = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: asKind(body), account: () => ACCOUNT, store, onReceipt: (n) => notes.push(n) });
+    clock.ms += retryDelay(1); next.tick(); await settle();
+    clock.ms += OUTBOX_RETRY_MAX_MS; next.tick(); await settle();   // a second tick: nothing left to send
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid by the first attempt only');
+    assert.deepEqual(next.outbox(), []); assert.equal(store.saved.has(ACCOUNT), false);
+    assert.deepEqual(notes.map(({ instance, ...n }: { instance?: string }) => n), want ? [want] : []);
+  } finally { await w.close(); }
+});
+
+test('V5 page copy: the receipt note is rows (kill-text.json), shows the stored numbers only, and the first send\'s own 409 reads the same', async () => {
+  const { receiptToast, killToast } = await import('./kill-apply.ts');
+  const note = (n: Parameters<typeof receiptToast>[0]) => receiptToast(n);
+  assert.equal(note({ kind: 'paid', instance: 'x', receipt: RECEIPT }), 'An earlier kill was already paid: +12 CP · +3 bronze · 2 items.');
+  assert.equal(note({ kind: 'paid', instance: 'x', receipt: { ...RECEIPT, cp: 0, bronze: 0, loot: 1 } }), 'An earlier kill was already paid: 1 item.');
+  assert.equal(note({ kind: 'paid', instance: 'x', receipt: { ...RECEIPT, cp: 0, bronze: 0, loot: 0 } }), 'An earlier kill was already paid.');
+  assert.equal(note({ kind: 'expired', instance: 'x' }), 'An earlier kill report was closed without a payout.');
+  assert.equal(note({ kind: 'unknown', instance: 'x' }), 'An earlier kill report was closed without a payout.');
+  assert.equal(killToast({ offline: 'http-409', code: 'used', kind: 'paid', receipt: RECEIPT }, (i) => i, 'Wolf'), 'Wolf is down. An earlier kill was already paid: +12 CP · +3 bronze · 2 items.');
+  assert.equal(killToast({ offline: 'http-409', code: 'used' }, (i) => i, 'Wolf'), 'Wolf is down. Not saved: the server did not answer.', 'the plain old 409 reads as before');
+  assert.match(readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), /onReceipt: \(n\) => worldToast\(receiptToast\(n\)\)/);
+});

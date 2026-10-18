@@ -2,7 +2,14 @@
   "toast": {
     "guestNoLoot": "Sign in to earn loot you keep.",
     "guestLoot": "{paid} (this session only).",
-    "notSaved": "Not saved: the server did not answer."
+    "notSaved": "Not saved: the server did not answer.",
+    "receiptPaid": "An earlier kill was already paid: {paid}.",
+    "receiptPaidNothing": "An earlier kill was already paid.",
+    "receiptClosed": "An earlier kill report was closed without a payout.",
+    "receiptCp": "+{n} CP",
+    "receiptBronze": "+{n} bronze",
+    "receiptItemOne": "{n} item",
+    "receiptItemMany": "{n} items"
   },
   "guest": {
     "signInLoss": "Signing in starts fresh: loot you hold as a guest is not kept."

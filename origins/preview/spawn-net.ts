@@ -14,6 +14,7 @@
 import { call } from './encounter-net.ts';
 import { DEFAULT_ZONE } from '../zones/loader.ts';
 import type { Offline } from './save.ts';
+import type { KillReceipt, RefusalKind } from '../../src/core/index.ts';
 import type { WorldRecord } from '../../src/fight/index.ts';
 import { previewRule } from './preview-rules.ts';
 
@@ -33,6 +34,8 @@ export const retryDelay = (tries: number): number => Math.min(OUTBOX_RETRY_MS * 
 // and read back on the next page of that account, so a reload, a crash or a closed tab inside the engage grace still reports the kill on its own token (the writer pays a token once). Never sent with
 // another account's session: an account switch leaves the old account's reports saved for it.
 export type OutboxEntry = { instance: string; token: string; hits: number; record: string | null; tries: number; nextAt: number };
+// What a RETRIED report's 409 said (launch gate V5): the outbox entry is settled either way and never re-sent; the page shows the note (kill-apply.ts receiptToast). Not raised for the first send, whose answer goes to killed()'s caller.
+export type ReceiptNote = { kind: RefusalKind; instance: string; receipt?: KillReceipt };
 export type OutboxStore = { load(account: string): OutboxEntry[]; save(account: string, entries: readonly OutboxEntry[]): void };
 const settledOffline = (r: Offline): boolean => r.offline === 'http-409' || r.offline === 'http-400' || r.offline === 'http-404';   // the server answered and will not change its mind
 
@@ -49,7 +52,7 @@ export function killedOf(r: unknown): Killed | null {
 }
 const touchedOf = (r: unknown): { expiresAt: string } | null => (r && typeof r === 'object' && typeof (r as { expiresAt?: unknown }).expiresAt === 'string' ? { expiresAt: (r as { expiresAt: string }).expiresAt } : null);
 
-type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; encode?: (r: WorldRecord) => Promise<string>; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void;
+type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; encode?: (r: WorldRecord) => Promise<string>; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void; onReceipt?: (n: ReceiptNote) => void;
   account?: () => string | null; store?: OutboxStore };   // account: the signed-in account the session belongs to (writer-call.ts storedAccount); with `store`, the outbox is durable per account
 type Open = { engage: Promise<Engaged | Offline>; hits: number; touchedAt: number; account: string | null };   // account: whose session asked for the engage, so its kill is reported for that account only
 export type SpawnTracker = {
@@ -101,7 +104,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
     return engage;
   };
-  const send = async (token: string): Promise<Killed | Offline> => {
+  const send = async (token: string, note = false): Promise<Killed | Offline> => {
     const p = pending.get(token);
     if (!p) return { offline: 'settled' };
     if (p.busy) return { offline: 'busy' };
@@ -112,6 +115,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (!isOffline(r)) { drop(token); d.onSettled?.(r); }
     else if (r.offline === 'no-session') p.nextAt = d.now() + OUTBOX_RETRY_MS;   // nothing was sent (the sign-in expired): not a try, asked again once a session is back
     else { p.tries++; if (settledOffline(r) || p.tries >= OUTBOX_TRIES) drop(token); else p.nextAt = d.now() + retryDelay(p.tries); }
+    if (note && isOffline(r) && r.offline === 'http-409' && r.kind) d.onReceipt?.({ kind: r.kind, instance: p.instance, ...(r.receipt ? { receipt: r.receipt } : {}) });
     persist(p.account);
     return r;
   };
@@ -131,7 +135,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
       for (const o of live.values()) if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
       const account = accountNow();
       if (account) restore(account);
-      for (const p of [...pending.values()]) if (!p.busy && d.now() >= p.nextAt) void send(p.token);   // only once its backoff has passed: never a send per frame
+      for (const p of [...pending.values()]) if (!p.busy && d.now() >= p.nextAt) void send(p.token, true);   // only once its backoff has passed: never a send per frame
     },
     async killed(instance, record) {
       const o = live.get(instance);
