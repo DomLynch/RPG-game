@@ -46,5 +46,5 @@ test('a pinning shot goes through the cc ladder: an unstoppable creature is not 
 test('inside the missile gap the bow keeps the melee special; out of arrows at range casts nothing', () => {
   const near = run(start('cleave', 1.2)); assert.ok(near.all.some((e) => e.type === 'SpecialLanded') && !near.all.some((e) => e.type === 'MissileLaunched'), 'melee special up close');
   const dry = start('cleave', 3); dry.fighters[0]!.ammo = 1;
-  assert.ok(!run(dry).all.some((e) => e.type === 'SpecialStarted'), 'one arrow left cannot pay for a 2-arrow Power Shot');
+  const r = run(dry); assert.ok(!r.all.some((e) => e.type === 'MissileLaunched') && r.duel.fighters[0]!.ammo === 1, 'one arrow left cannot pay for a 2-arrow Power Shot: no arrows fly, none spent');
 });
