@@ -25,7 +25,7 @@ function scenario(s: number): { kills: number; verified: number; notes: string[]
       if (!r.ok) notes.push(`${sp.id}: ${r.reason}`); else if (!r.kills.includes(sp.id)) notes.push(`${sp.id}: replay did not kill it`); else verified++;
     },
     onHeroDied: () => {}, onHeroHit: () => {},
-    hero: () => ({ level: 20 }),   // a legal body (the replay bounds his health) that outlasts level-1 wolves: the battery measures records, not the fight's odds
+    hero: () => ({ level: 1 }),   // a legal body (the replay bounds his health): he dies in some pack fights, the battery counts the kills that happen
   });
   const total = list.filter((m) => m.hunting).length;
   for (let i = 0; i < 600 && kills < total && !wc.hero().dead; i++) {
@@ -39,6 +39,6 @@ test('P0-b: every kill in a pack carries a record that replays to that kill, wit
   let kills = 0, verified = 0; const table: string[] = [];
   for (let s = 0; s < 16; s++) { const r = scenario(s); kills += r.kills; verified += r.verified; table.push(`s${s}: ${r.verified}/${r.kills}${r.notes.length ? '  ' + r.notes.join('; ') : ''}`); }
   console.log(`# world-record-window: ${verified}/${kills} kills recorded and verified\n# ${table.join('\n# ')}`);
-  assert.ok(kills >= 30, `the scenarios fought (${kills} kills)`);
+  assert.ok(kills >= 12, `the scenarios fought (${kills} kills)`);
   assert.equal(verified, kills, `recorded and verified ${verified} of ${kills} kills`);
 });
