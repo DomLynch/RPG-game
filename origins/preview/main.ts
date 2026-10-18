@@ -79,7 +79,7 @@ import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
-import { createOutfit, dropSet } from './outfit.ts';
+import { createOutfit, dropSet, groundItemOf } from './outfit.ts';
 import { loadLoot, loadShape, lootIds, lootWorn } from '../../src/fight/index.ts';
 import { shapeFor } from '../../src/fight/weapon-shapes.ts';
 import { weaponOf, type LootId } from '../../src/core/loot.ts';
@@ -148,7 +148,7 @@ const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ?
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
 const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
 // Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
-const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
+const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc,maul,warhammer,scythe,trident}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
 const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: async (url) => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; } });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
@@ -768,7 +768,7 @@ function dressHero() {
   const p = heroShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load`, error); return undefined; }); heroShapes.set(url, p);
   void p.then((mesh) => { if (mesh && warriors) warriors.player.reshape(mesh); });
 }
-const killDrops = createKillDrops({ scene, groundAt: groundY, found, reach: fxNum('drop.reach'), onPick: (d) => { outfit.take(d.piece, d.rung ?? 'Recruit'); dressHero(); worldToast(`Picked up and wearing: ${d.label} (from ${d.from})`); }, onChange: () => drawFound() });
+const killDrops = createKillDrops({ scene, view: groundItems, itemOf: groundItemOf, groundAt: groundY, found, reach: fxNum('drop.reach'), onPick: (d) => { outfit.take(d.piece, d.rung ?? 'Recruit'); dressHero(); worldToast(`Picked up and wearing: ${d.label} (from ${d.from})`); }, onChange: () => drawFound() });
 const foundChip = document.createElement('button'); foundChip.id = 'found-chip'; foundChip.className = 'glass'; foundChip.type = 'button';
 foundChip.style.cssText = 'position:fixed;left:8px;top:64px;z-index:5;padding:6px 10px;font:600 13px/1 Georgia,serif;border:0;border-radius:14px;color:inherit;display:none';
 const foundPanel = document.createElement('div'); foundPanel.id = 'found-panel'; foundPanel.className = 'glass';

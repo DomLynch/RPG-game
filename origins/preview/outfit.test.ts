@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOutfit, dropSet, weaponPiece } from './outfit.ts';
+import { createOutfit, dropSet, groundItemOf, weaponPiece } from './outfit.ts';
+import { groundLook } from './ground-looks.ts';
 import type { Loadout } from '../world/loadouts-rules.ts';
 
 const row = { id: 'x', label: 'X', tier: 'medium', weapon: 'gladius', pieces: ['goblin.Helmet', 'goblin.Body', 'goblin.Boots'] } as unknown as Loadout;
@@ -33,6 +34,16 @@ test('outfit: one piece per slot (a new take replaces the old, keeping its own r
   assert.equal(o.weapon()?.id, 'goblin.Gladius');
   assert.ok(!o.ids().includes('goblin.Gladius'));
   assert.deepEqual(createOutfit(store).ids().sort(), ['goblin.Body', 'knight.Helmet']);
+});
+
+test('every piece the loadouts can drop has a ground look row (armour by its id, a weapon by its slot)', async () => {
+  const { loadoutIds, loadoutRow } = await import('../world/loadouts-rules.ts');
+  assert.equal(groundItemOf('goblin.Helmet'), 'loot:goblin.Helmet');
+  assert.equal(groundItemOf('goblin.Warhammer'), 'loot:weapon.Warhammer');
+  assert.equal(groundItemOf('executioner.Maul'), 'loot:weapon.Maul');
+  const missing: string[] = [];
+  for (const id of loadoutIds()) for (const piece of dropSet(loadoutRow(id), 'x', 0)) { try { groundLook(groundItemOf(piece)); } catch { missing.push(piece); } }
+  assert.deepEqual([...new Set(missing)].sort(), ['goblin.Gloves', 'executioner.Gloves', 'pitborn.Gloves'].sort(), 'only the gloves (no draw of their own in loot.glb) lack a lying model; they keep the marker');
 });
 
 test('outfit: a broken or missing store is an empty outfit, never an error', () => {

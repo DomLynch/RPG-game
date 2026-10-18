@@ -22,6 +22,9 @@ export function dropSet(row: Loadout | undefined, creatureId: string, limit: num
   return [...all.slice(Math.max(at, 0)), ...all.slice(0, Math.max(at, 0))].slice(0, limit);
 }
 
+/** The ground-looks.json row a dropped piece lies by: an armour piece by its own id (loot:goblin.Helmet), a weapon by its slot whatever body carried it (loot:weapon.Warhammer). */
+export const groundItemOf = (piece: string): string => (isWeaponLoot(piece as LootId) ? `loot:weapon.${slotOf(piece as LootId)}` : `loot:${piece}`);
+
 export type Worn = { id: string; tier: string };
 
 /** The hero's outfit: one piece per paperdoll slot, a new take of the same slot replaces the old one (each piece keeps the rung it was won at). Persisted in `storage` (this device only). */
