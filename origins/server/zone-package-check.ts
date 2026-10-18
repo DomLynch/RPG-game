@@ -24,7 +24,9 @@ export type PackageCtx = {
 export function loadoutDropProblems(zone: Zone, content: EncounterContent): string[] {
   const bad: string[] = [], tables = content.region.registry.lootTables;
   for (const [character, look] of Object.entries(zone.mobLooks?.looks ?? {})) {
-    const ids = [look.loadout, ...(zone.mobLooks?.spread[character]?.loadouts ?? [])].filter((x): x is string => x !== undefined);
+    // `loadout` / `loadouts` are the mob-look row's loadout keys (the Test Zone's rows carry them; their TS types are World's mob-looks.ts, not widened here), so they are read structurally.
+    const base = (look as { loadout?: string }).loadout, spread = (zone.mobLooks?.spread[character] as { loadouts?: readonly string[] } | undefined)?.loadouts ?? [];
+    const ids = [base, ...spread].filter((x): x is string => x !== undefined);
     if (!ids.length) continue;
     const row = zone.spawns.rows.find((r) => r.id === character), table = row ? tables.get(row.loot as never) : undefined;
     if (!row || !table) continue;   // no spawn row (or no table: check 1 names that) = nothing rolls, so nothing to compare
