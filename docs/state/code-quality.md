@@ -1,5 +1,7 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~19:xx +04. UPDATE: **BULK-TZ #3258 PASS @ee92443c4** (Deploy cuts it alone), #3259 PASS @dc32f7b79. JG #3253 candidate PASS @4ae50340a stands (publish, then verify the 3 services). Open: #3254 (labels to rows, Combat). #3257 BULK-CS is a morning read (Strategy).
+
 ## 2026-10-18 ~18:4x +04. LIVE = JF 67d421b5a; **JG #3253 @4ae50340a has candidate PASS + label** (41/41; delta over 03d612fcb = the origins-lint pin 5→4)
 
 **Now, in order.**
