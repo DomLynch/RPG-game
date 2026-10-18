@@ -124,6 +124,9 @@
  "origins/presence/worn.ts": {
   "8": 1
  },
+ "origins/presence/zones.ts": {
+  "2": 9
+ },
  "origins/preview/bounty.ts": {
   "10": 1,
   "20": 1,
