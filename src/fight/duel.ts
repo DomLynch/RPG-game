@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } fro
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, specialReactFloorOf, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, bowSpecialOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, specialReactFloorOf, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, bowSpecialOf, MISSILE_GUARD_POSTURE, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -46,7 +46,7 @@ export type Fighter = {
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   bowSpecial?: string;   // sandbox bowSpecial: the picker skill of the bow special being cast (its arrows leave at the release)
-  missile?: { lanes?: number[]; react?: boolean; pin?: number; launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number; spell?: string; outcome?: CastOutcome; tint?: string };   // spell, outcome, tint: a long-range SPELL flying through the same model (sandbox spellRange); sandbox-mech missiles: the one bolt this fighter has in flight
+  missile?: { lanes?: number[]; react?: boolean; pin?: number; posture?: number; launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number; spell?: string; outcome?: CastOutcome; tint?: string };   // spell, outcome, tint: a long-range SPELL flying through the same model (sandbox spellRange); sandbox-mech missiles: the one bolt this fighter has in flight
   healUses?: number;   // sandbox spellHeal: heals cast this fight, against the row's `uses` cap
   spell2?: Spell; skillCooldown2?: number; spellHome?: Spell; slot2Active?: boolean;   // sandbox-mech spell slot 2: the second spell, its own cooldown, and the slot-1 spell parked while the second is cast
   skill2?: SkillId; skillHome?: SkillId | null;   // sandbox-mech special slot 2 as a melee special (an existing class skill row): the skill parked while it is cast
@@ -637,7 +637,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (bowRow && A.missile) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // one volley in flight at a time
     if (bowRow) {   // sandbox bowSpecial: the special's arrows fly through the one missile model (a roll dodges them all, a guard blocks the lanes it covers)
       const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!, range = distance(A.body, D.body);
-      A.missile = { launched: tick, arrives: tick + missileTicks({ speed: bowRow.speed }, range), x: A.body.x, z: A.body.z, dx: M.sin(aim(A.body, D.body)), dz: M.cos(aim(A.body, D.body)), range, damage: Math.round((A.specialShare! * D.maxHealth * bowRow.mult) / 1000), move, lane: 0, lanes: bowRow.lanes, ...(bowRow.react ? { react: true } : {}), ...(bowRow.pin ? { pin: bowRow.pin } : {}), ...(bowRow.tint ? { tint: bowRow.tint } : {}) };
+      A.missile = { launched: tick, arrives: tick + missileTicks({ speed: bowRow.speed }, range), x: A.body.x, z: A.body.z, dx: M.sin(aim(A.body, D.body)), dz: M.cos(aim(A.body, D.body)), range, damage: Math.round((A.specialShare! * D.maxHealth * bowRow.mult) / 1000), move, lane: 0, lanes: bowRow.lanes, ...(bowRow.react ? { react: true } : {}), ...(bowRow.pin ? { pin: bowRow.pin } : {}), ...(bowRow.posture ? { posture: bowRow.posture } : {}), ...(bowRow.tint ? { tint: bowRow.tint } : {}) };
       events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move, lane: 0 });
       continue;
     }
@@ -741,9 +741,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (m.lanes && open.length && open.length < lanes.length) {   // a volley the guard only partly covers: each covered arrow chips the stamina, the rest land
       const cost = Math.max(1, Math.round(((lanes.length - open.length) * m.damage) / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material });
+      shake(j, (m.posture ?? MISSILE_GUARD_POSTURE) * (lanes.length - open.length));
     }
     if (open.length === 0) {
       const cost = Math.max(1, Math.round((lanes.length * m.damage) / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
+      shake(j, (m.posture ?? MISSILE_GUARD_POSTURE) * lanes.length);   // a wall of guard wears down: guarded arrows take posture, and a break opens it
       const through = Math.round((m.damage * (missileOf(A.weapon)?.pierce ?? 0)) / 1000); if (through) D.health = Math.max(1, D.health - through);   // a crossbow bolt is hard to guard: part of it goes through
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material, ...(through ? { damage: through } : {}) });
       continue;
