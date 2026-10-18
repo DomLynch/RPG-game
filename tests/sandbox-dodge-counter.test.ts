@@ -5,8 +5,8 @@ import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import { offDefs } from './lib/sandbox-defs-off.ts';
 offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
-const shipped = (DEFS.rules.find((r) => r.id === 'dodgeCounter') as { window: number }).window;
-(DEFS.rules.find((r) => r.id === 'dodgeCounter') as { window: number }).window = 20;
+const shipped = (DEFS.rules.find((r) => r.id === 'dodgeCounter') as { value: number }).value;
+(DEFS.rules.find((r) => r.id === 'dodgeCounter') as { value: number }).value = 20;
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 type Duel = Parameters<typeof stepDuel>[0];
 

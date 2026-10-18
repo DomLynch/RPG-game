@@ -2,7 +2,7 @@
  "rules": [
   {
    "id": "dodgeCounter",
-   "window": 0
+   "value": 0
   },
   {
    "id": "interruptEarly",

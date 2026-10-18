@@ -16,7 +16,7 @@ test('with no rows (trunk) a special adds no sound', () => {
 });
 
 test('start rows whoosh when the special is committed; land rows sound when it lands', () => {
-  rows.push({ id: 'reaping', cue: 'whoosh_heavy', gain: 600, room: 200, delay: 120, on: 'start' }, { id: 'reaping', cue: 'whoosh_heavy', gain: 750, room: 200, delay: 300, on: 'start' }, { id: 'reaping', cue: 'hit_heavy', gain: 750, room: 300, delay: 0 }, { id: 'reaping', cue: 'flesh_cut', gain: 550, room: 200, delay: 0 });
+  rows.push({ id: 'reaping-1', skill: 'reaping', cue: 'whoosh_heavy', gain: 600, room: 200, delay: 120, on: 'start' }, { id: 'reaping-2', skill: 'reaping', cue: 'whoosh_heavy', gain: 750, room: 200, delay: 300, on: 'start' }, { id: 'reaping-3', skill: 'reaping', cue: 'hit_heavy', gain: 750, room: 300, delay: 0 }, { id: 'reaping-4', skill: 'reaping', cue: 'flesh_cut', gain: 550, room: 200, delay: 0 });
   const swing = cuesFor([started()]), hit = cuesFor([landed()]);
   assert.deepEqual(swing.map((c) => c.name), ['whoosh_heavy', 'whoosh_heavy']);
   assert.deepEqual(swing.map((c) => c.delay), [0.12, 0.3]);
