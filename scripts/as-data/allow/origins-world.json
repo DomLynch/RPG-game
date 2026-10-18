@@ -35,6 +35,24 @@
     {"file": "origins/world/relief.ts", "name": "FNV_OFFSET", "kind": "exempt", "reason": "FNV-1a 32-bit offset basis: the hash's published parameter, not tuning", "owner": "World & Audio"},
     {"file": "origins/world/relief.ts", "name": "FNV_PRIME", "kind": "exempt", "reason": "FNV-1a 32-bit prime: the hash's published parameter, not tuning", "owner": "World & Audio"},
     {"file": "origins/world/relief.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the centre of a unit interval, a mathematical constant, not tuning", "owner": "World & Audio"},
-    {"file": "origins/world/relief.ts", "name": "SIGNED_SPAN", "kind": "exempt", "reason": "the width of [-1, 1): stretches a [0,1) noise value to a signed one, a mathematical constant, not tuning", "owner": "World & Audio"}
+    {"file": "origins/world/relief.ts", "name": "SIGNED_SPAN", "kind": "exempt", "reason": "the width of [-1, 1): stretches a [0,1) noise value to a signed one, a mathematical constant, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "STEP", "kind": "exempt", "reason": "mulberry32 state increment: part of the PRNG's definition, changing it re-rolls every generated zone, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MIX_A", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MIX_B", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MIX_OR", "kind": "exempt", "reason": "mulberry32 output-mix OR mask: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MIX_C", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "UINT32", "kind": "exempt", "reason": "2^32: scales the PRNG's unsigned 32-bit output to [0,1), a number of the integer width, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "UINT32_MAX", "kind": "exempt", "reason": "2^32 - 1: the largest seed, the integer width's own limit (the error text says so), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "SIGNED_SPAN", "kind": "exempt", "reason": "the width of [-1, 1): stretches a [0,1) draw to a signed one, a mathematical constant, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "SEED_SALT", "kind": "exempt", "reason": "salt that separates a region's link draws from its zone draws: part of the seed format (changing it re-rolls every generated region), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "ZONE_SEED_STRIDE", "kind": "exempt", "reason": "multiplier that gives each zone of a region its own seed: part of the seed format (changing it re-rolls every generated region), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "VARY_STEP", "kind": "exempt", "reason": "a varied field is rounded to a hundredth: part of the output format the generate tests pin, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "LAYOUT_STEP", "kind": "exempt", "reason": "a layout u/v is rounded to a ten-thousandth: part of the output format the generate tests pin, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MAX_JITTER", "kind": "exempt", "reason": "the template validation bound (the error text states it: layout jitter is 0..0.5 of the zone), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "MAX_ZONES", "kind": "exempt", "reason": "the template validation bound (the error text states it: a region has 1..10000 zones), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "EDGES", "kind": "exempt", "reason": "a zone is a rectangle: four edges a link can leave by, geometry, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "FACING_OUT_OF_V0", "kind": "exempt", "reason": "facing (degrees) of a landmark on the v = 0 edge, facing out of the zone: part of the layout convention, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "FACING_OUT_OF_U0", "kind": "exempt", "reason": "facing (degrees) of a landmark on the u = 0 edge, facing out of the zone: part of the layout convention, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/generate.ts", "name": "FACING_OUT_OF_U1", "kind": "exempt", "reason": "facing (degrees) of a landmark on the u = 1 edge, facing out of the zone: part of the layout convention, not tuning", "owner": "World & Audio"}
   ]
 }
