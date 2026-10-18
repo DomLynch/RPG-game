@@ -13,8 +13,10 @@ export const BEAR_RENDER_SCALE = fxNum('beast-scale.bear');
 export const CAVE_TROLL_RENDER_SCALE = fxNum('beast-scale.cave-troll');
 // The Giant Salamander is a quadruped on the wolf's bone names (1 m long, 0.31 m tall as built); drawn ~2.8 m by 0.85 m.
 export const GIANT_SALAMANDER_RENDER_SCALE = fxNum('beast-scale.giant-salamander');
-// By roster id: what the duel draws a beast at. Absent = not a beast, drawn as built (1).
-export const BEAST_RENDER_SCALE: Readonly<Record<string, number>> = { wolf: WOLF_RENDER_SCALE, boar: BOAR_RENDER_SCALE, bear: BEAR_RENDER_SCALE, 'cave-troll': CAVE_TROLL_RENDER_SCALE, 'giant-salamander': GIANT_SALAMANDER_RENDER_SCALE };
+// The Goblin is no beast but is drawn bigger than his rig (Dom 2026-10-18: "goblins are 1.25 scale everywhere"): the same row-and-catalogue pattern, so the Pit and the field draw him alike. RENDER ONLY: his sim capsule and reach stay as they were.
+export const GOBLIN_RENDER_SCALE = fxNum('beast-scale.goblin');
+// By roster id: what the duel draws a beast at (and the Goblin). Absent = drawn as built (1).
+export const BEAST_RENDER_SCALE: Readonly<Record<string, number>> = { wolf: WOLF_RENDER_SCALE, boar: BOAR_RENDER_SCALE, bear: BEAR_RENDER_SCALE, 'cave-troll': CAVE_TROLL_RENDER_SCALE, 'giant-salamander': GIANT_SALAMANDER_RENDER_SCALE, goblin: GOBLIN_RENDER_SCALE };
 export const beastRenderScale = (opponentId: string): number => BEAST_RENDER_SCALE[opponentId] ?? 1;
 // The beasts whose duel body is NOT in the src/assets glob (it would ride every player's download and TOTAL) but a file under public/beasts/, fetched on demand by URL (Lead's ruling 2026-10-08, the carrierUrls pattern):
 // when the creature is near (World's preload warms the browser cache with this same URL) or the duel starts. The wolf stays in src/assets: it shipped that way. scripts/check-budget.mjs gives the folder its own line.

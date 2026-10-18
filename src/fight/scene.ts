@@ -21,7 +21,8 @@ import { levelOf, type Tier } from '../core/grades.ts';
 import { kitWorn } from '../core/loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
+import { ON_DEMAND_BEASTS, beastBodyUrl, beastRenderScale } from './beast-scale.ts';
+import { builtScale, easeStandBack, standBackWant } from './stand-back.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, type OpponentId, type WeaponId } from './moves.ts';
 import { finisherRow, type FinisherId } from './finishers.ts';
 import { anyOfTemplate, isPlainDeath, isShelved, isTemplate } from './finisher-look.ts';
@@ -222,6 +223,7 @@ export function createScene(
     return group;
   }
   const player = capsule(0, 4, metal);
+  const standOff = { x: 0, z: 0 }, standOffSeen = { v: false };   // the foe's eased stand-back (src/fight/stand-back.ts): presentation only
   const opponent = capsule(
     TARGET.x,
     TARGET.z,
@@ -865,16 +867,21 @@ export function createScene(
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
-        ex = practice.enemy.x - opponent.position.x,
-        ez = practice.enemy.z - opponent.position.z;
+        ex = practice.enemy.x - (opponent.position.x - standOff.x),   // the engine's step (the stand-back, src/fight/stand-back.ts, is presentation: gait and travel read the sim's own motion)
+        ez = practice.enemy.z - (opponent.position.z - standOff.z);
       const travel =
         rig.started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       const enemyTravel =
         rig.started && dt > 0
-          ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt
+          ? Math.hypot(ex, ez) / dt
           : 0;
       player.position.set(state.x, 0, state.z);
-      opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
+      {   // a body drawn bigger than its rig was built stands back along the line to the hero so its mouth clears him (the Test Zone's solution, src/fight/stand-back.ts); the sim's distance is untouched
+        const drawn = beastRenderScale(opponentId), want = standBackWant(practice.enemy.x, practice.enemy.z, state.x, state.z, opponentId, drawn, builtScale(opponentId, drawn));
+        if (!standOffSeen.v) { standOff.x = want.x; standOff.z = want.z; standOffSeen.v = true; }
+        easeStandBack(standOff, want, dt);
+        opponent.position.set(practice.enemy.x + standOff.x, 0, practice.enemy.z + standOff.z);
+      }
       const playerDefence = defenceReaction(practice),
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.

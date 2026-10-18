@@ -8,7 +8,8 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobVariant } from './mob-looks.ts';
+import { bodyScale, mobVariant } from './mob-looks.ts';
+import { builtScale, easeStandBack, standBackWant } from '../../src/fight/stand-back.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
@@ -68,6 +69,7 @@ const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSph
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
   const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
+  const backOff = new Map<number, { x: number; z: number }>();   // each creature's eased stand-back vector (src/fight/stand-back.ts): the drawn body only, the engine's position is untouched
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
   // One soft contact shadow under every creature (they cast no real shadow, for phone perf): a radial gradient that is darkest at the feet and gone before the rim, so no disc edge is ever visible (Dom 2026-10-08: "a circle stand that looks fake").
@@ -176,7 +178,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.group.visible = v.ring.visible = !hiddenInFight(s.id, engaged);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
-        v.group.position.set(m.x, gy, m.z); v.group.rotation.y = m.facing;
+        const look = mobVariant(s.character, s.id);   // presentation only (src/fight/stand-back.ts, from the Test Zone): a body drawn bigger than built stands back so its mouth clears the hero; the sim's contact distance and the ring stay where the engine put them
+        const want = look ? standBackWant(m.x, m.z, hero.x, hero.z, look.opponent, look.scale, builtScale(look.opponent, bodyScale(look.opponent))) : { x: 0, z: 0 }, cur = easeStandBack(backOff.get(i) ?? { ...want }, want, dt); backOff.set(i, cur);
+        v.group.position.set(m.x + cur.x, gy, m.z + cur.z); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
