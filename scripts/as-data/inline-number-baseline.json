@@ -46,14 +46,14 @@
   "0.5": 2
  },
  "origins/encounters/encounters.ts": {
-  "100": 7
+  "100": 4
  },
  "origins/feuds/feuds.ts": {
   "-1": 1
  },
  "origins/gear/wear-repair.ts": {
   "10": 1,
-  "100": 13
+  "100": 12
  },
  "origins/mobs/populate.ts": {
   "2": 1,
