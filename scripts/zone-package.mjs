@@ -3,7 +3,7 @@
 //   export(N) -> import into the tables WITHOUT the package's rows -> the tables hold the same rows (compared as canonical JSON, by id) and export(N) again is the same bytes.
 // This is the step-1 prototype (no loader change): it reads and writes the existing row files only. Usage: node scripts/zone-package.mjs export <N> <dir> | check <N>
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -17,7 +17,8 @@ export const canon = (v) => `${JSON.stringify(v, null, 2)}\n`;   // the package'
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const SCHEMA = 1;
 
-export function loadTables(root = ROOT) { return Object.fromEntries(SHARED.map((t) => [t.name, JSON.parse(readFileSync(join(root, t.file), 'utf8'))[t.at]])); }
+// a checkout that predates a shared table (the Test Zone's branch has no exit or dungeon rows yet) has none of its rows: an empty table, not an error
+export function loadTables(root = ROOT) { return Object.fromEntries(SHARED.map((t) => [t.name, existsSync(join(root, t.file)) ? JSON.parse(readFileSync(join(root, t.file), 'utf8'))[t.at] : []])); }
 export const zoneRowText = (n, root = ROOT) => readFileSync(join(root, `origins/zone-rows/zone${n}.row.json`), 'utf8');
 
 /** Gather zone N's package from the shared tables: { files: { name: text }, manifest }. Pure over its inputs. */
@@ -63,8 +64,8 @@ export function roundTrip(n, root = ROOT) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [cmd, n, dir] = process.argv.slice(2);
+  const [cmd, n, dir] = process.argv.slice(2);   // `check <N> [root]`: root is another checkout (the Test Zone's branch), read only
   if (cmd === 'export') { const { files } = exportPackage(n, zoneRowText(n), loadTables()); mkdirSync(dir, { recursive: true }); for (const [f, t] of Object.entries(files)) writeFileSync(join(dir, f), t); console.log(`wrote ${Object.keys(files).length} files to ${dir}`); }
-  else if (cmd === 'check') { const r = roundTrip(n); console.log(JSON.stringify(r, null, 2)); process.exit(r.ok ? 0 : 1); }
-  else { console.error('usage: node scripts/zone-package.mjs export <N> <dir> | check <N>'); process.exit(2); }
+  else if (cmd === 'check') { const r = roundTrip(n, dir ? `${dir.replace(/\/$/, '')}/` : ROOT); console.log(JSON.stringify(r, null, 2)); process.exit(r.ok ? 0 : 1); }
+  else { console.error('usage: node scripts/zone-package.mjs export <N> <dir> | check <N> [root]'); process.exit(2); }
 }

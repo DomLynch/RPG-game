@@ -116,4 +116,26 @@ export function generate(root = ROOT) {
 }
 export const writeGenerated = (root = ROOT) => { const out = generate(root); for (const [f, t] of Object.entries(out)) { mkdirSync(join(root, f, '..'), { recursive: true }); writeFileSync(join(root, f), t); } return Object.keys(out); };
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) { for (const f of writeGenerated()) console.log(`wrote ${f}`); }
+/** What already exists in the repo at `root`: the zone numbers (every zone row file), and the exit, dungeon, theme and warp ids of the shared tables and of the warp table. */
+export function existingIds(root = ROOT) {
+  const table = (file, at) => (existsSync(join(root, file)) ? (JSON.parse(readFileSync(join(root, file), 'utf8'))[at] ?? []) : []);
+  const ids = (list, key = 'id') => new Set(list.map((r) => r[key]));
+  const zoneDir = join(root, 'origins/zone-rows');
+  return { zones: new Set(readdirSync(zoneDir).map((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1]).filter(Boolean)), exits: ids(table('origins/zones/exit-rows.json', 'exits')), dungeons: ids(table('origins/zones/dungeon-rows.json', 'dungeons')), themes: ids(table('origins/zones/dungeon-themes.json', 'themes')), warps: ids(table('origins/presence/warp-landmarks.json', 'landmarks')) };
+}
+/** The import tool: validate the folder `src` against the repo at `root` (import mode: a new package unlisted, a clash only when named in `replace`), copy it to origins/packages/<id>/ and regenerate. Returns the problems, or [] when done. */
+export function importFolder(src, root = ROOT, replace = new Set()) {
+  const files = readFolder(src), bad = validatePackage(files, { rules: loadRules(JSON.parse(readFileSync(join(root, 'origins/zones/package-rules.json'), 'utf8'))), mode: 'import', existing: existingIds(root), replace, publicHas: (u) => existsSync(join(root, 'public', u)) });
+  if (bad.length) return bad;
+  const id = JSON.parse(files['package.json']).id, dest = join(PACKAGES(root), id);
+  mkdirSync(dest, { recursive: true }); for (const [f, t] of Object.entries(files)) writeFileSync(join(dest, f), t);
+  writeGenerated(root); return [];
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const [cmd, src, ...rest] = process.argv.slice(2);   // `import <dir> [--replace id,id]`; no argument: regenerate (npm run packages)
+  if (cmd === 'import') {
+    const at = rest.indexOf('--replace'), problems = importFolder(src, ROOT, new Set(at >= 0 ? (rest[at + 1] ?? '').split(',').filter(Boolean) : []));
+    if (problems.length) { console.error(`refused:\n- ${problems.join('\n- ')}`); process.exit(1); } console.log('imported; generated files rewritten (a cut with a writer and presence restart lists it)');
+  } else for (const f of writeGenerated()) console.log(`wrote ${f}`);
+}

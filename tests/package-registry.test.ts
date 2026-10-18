@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, cpSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generate, loadRules, NAMED_RULES, readPackages, writeGenerated } from '../scripts/gen-packages.mjs';
+import { generate, importFolder, loadRules, NAMED_RULES, readPackages, writeGenerated } from '../scripts/gen-packages.mjs';
 import { roundTrip } from '../scripts/zone-package.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -26,6 +26,23 @@ test('a hand edit of a generated file is caught, and regenerating repairs it', (
     assert.notEqual(readFileSync(file, 'utf8'), (generate(scratch) as unknown as Record<string, string>)['origins/zones/exit-rows.json'], 'the edit differs from a fresh generation');
     writeGenerated(scratch);
     assert.equal(readFileSync(file, 'utf8'), good, 'regenerating puts it back');
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('the import tool refuses a clash unless every id is named in --replace, writes nothing when it refuses, and regenerates identically when it replaces', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'pkgimport-'));
+  try {
+    for (const d of ['origins/packages', 'origins/zones', 'origins/zone-rows', 'origins/presence', 'public/world/kit']) { mkdirSync(join(scratch, d), { recursive: true }); cpSync(join(ROOT, d), join(scratch, d), { recursive: true }); }
+    const before = (generate(scratch) as unknown as Record<string, string>)['origins/zones/exit-rows.json'];
+    const src = join(scratch, 'incoming'); cpSync(join(scratch, 'origins/packages/crypt-sample'), src, { recursive: true });
+    const refused = importFolder(src, scratch) as string[];
+    assert.ok(refused.some((p) => /zone "6" already exists/.test(p)) && refused.some((p) => /exit "crypt-door" already exists/.test(p)), refused.join(';'));
+    assert.equal(readFileSync(join(scratch, 'origins/zones/exit-rows.json'), 'utf8'), before, 'a refused import writes nothing');
+    assert.match((importFolder(src, scratch, new Set(['6', 'crypt-sample', 'crypt-mouth'])) as string[]).join(';'), /exit "crypt-door" already exists/, 'naming some ids does not replace the rest');
+    assert.deepEqual(importFolder(src, scratch, new Set(['6', 'crypt-sample', 'crypt-mouth', 'crypt-door'])), []);
+    assert.equal(readFileSync(join(scratch, 'origins/zones/exit-rows.json'), 'utf8'), before, 'replacing a package with itself changes nothing');
+    writeFileSync(join(src, 'zone.row.json'), '{}');
+    assert.match((importFolder(src, scratch, new Set(['6', 'crypt-sample', 'crypt-mouth', 'crypt-door'])) as string[]).join(';'), /does not match its manifest hash/, 'the hash check runs on import too');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
