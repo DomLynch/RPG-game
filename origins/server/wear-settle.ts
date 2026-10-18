@@ -3,6 +3,7 @@
 // piece wears by its tier's killWear row (wearAfter); a fresh piece starts at the weight class's wearMax (gear-defs.json). The line is ONE event `wear:<instance>:<seq>` in the
 // settle's own batch (seq = the wear it was read at + 1, the same write guard gear_repair uses), so it commits or aborts with the kill. No ledger (migration 0032 absent) = no wear.
 import { createHash } from 'node:crypto';
+import { UINT32_BYTES, UINT32_RANGE } from './units.ts';
 import type { EncounterContent } from '../encounters/encounters.ts';
 import { lookupOf } from '../encounters/encounters.ts';
 import type { Inventory } from '../../src/core/server.ts';
@@ -22,7 +23,7 @@ export const wearMaxOf = (tier: WearTier): number => {
 // Two rolls in [0, 1) from the token: which slot is bitten, and whether the event bites at all (a kill's chance row is 100).
 export const rollsOf = (account: string, token: string, salt = ''): [number, number] => {   // salt: the kill's own rolls use none; each blow taken adds `hit:<n>`
   const h = createHash('sha256').update(`${account}|wear|${token}${salt ? `|${salt}` : ''}`).digest();
-  return [h.readUInt32BE(0) / 2 ** 32, h.readUInt32BE(4) / 2 ** 32];
+  return [h.readUInt32BE(0) / UINT32_RANGE, h.readUInt32BE(UINT32_BYTES) / UINT32_RANGE];
 };
 
 export async function killWearLines(db: Db, kill: { account: string; character: string; token: string; hits?: number }, inventory: Inventory): Promise<store.Json[]> {

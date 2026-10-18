@@ -30,9 +30,11 @@ test('building the world with a level-1 or a level-16 hero leaves the troll the 
   assert.deepEqual([a.maxHealth, a.poise, a.level], [b.maxHealth, b.poise, b.level]);
 });
 
-test('the troll spawns at its zone row\'s level 3, and an L16 sheeted hero beats that troll in the real world loop on every seed', () => {
+test('the troll spawns at its zone row\'s level 3, and an L16 rung-4 sheeted hero beats that troll in the real world loop on at least 90 % of 16 seeds', () => {
   assert.equal(troll.level, 3, 'the spawn list pins the troll at level 3 (mobs.golden.json)');
-  const results = Array.from({ length: 8 }, (_, i) => fight(16, 4, i + 1));
+  const results = Array.from({ length: 16 }, (_, i) => fight(16, 4, i + 1));
   assert.ok(results.every((r) => r.trollLevel === 3));
-  assert.equal(results.filter((r) => r.won).length, 8, 'an L16 hero with a rung-4 set wins ~always against the level-3 troll');
+  // The troll's bar is two-sided (Strategy via Lead, 2026-10-17, RV76 balance): the Recruit starter beats the L3 troll in 35-55 % of 64 seeds (scripts/kite-farm.ts, KIND=cave-troll LEVEL=3 SEEDS=64 CASES=stand) AND this geared L16 hero (Dom's own account) wins at least 90 % here.
+  // Measured at the shipped rows (health 680, sheet attack 45): starter 30/64 (47 %), this hero 15/16 (30/32 over 32 seeds). 15 of 16 is the ceiling the rows give; 14.4 is the bar.
+  assert.ok(results.filter((r) => r.won).length >= 15, `an L16 rung-4 hero must win >= 90 % against the level-3 troll (${results.filter((r) => r.won).length}/16)`);
 });

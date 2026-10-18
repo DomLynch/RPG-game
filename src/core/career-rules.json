@@ -10,7 +10,8 @@
       "restedCapCp": 3000,
       "partyGapFloor": 5,
       "topTier": 10,
-      "boardMax": 50
+      "boardMax": 50,
+      "partyStep": 200
     }
   ],
   "typeWeight": [
@@ -83,6 +84,14 @@
   ],
   "betaCut": [
     { "id": "beta", "titles": 2, "maxLootRung": 4, "spellsOff": 1, "specialsFromVersion": 75, "specialSlots": 2, "utilitySpells": [], "specialPick": ["lunge", "ironrush", "pommel", "shove", "cleave", "stomp"], "specialRoles": { "lunge": "opener", "ironrush": "opener", "pommel": "control", "shove": "control", "cleave": "heavy", "stomp": "posture break" }, "spells": ["brokkr", "scylla-pup", "baobhan-sith", "rubezahl", "eitri", "goibniu", "andvari", "kobold", "calydonian-boar", "nemean-cub", "tatzelwurm", "barghest", "cu-sith", "banshee", "black-annis", "dullahan", "puck", "puca", "kelpie", "melusine"] }
+  ],
+  "falloff": [
+    { "id": "far-above", "minDiff": 3, "permille": 1250 },
+    { "id": "above", "minDiff": 1, "permille": 1100 },
+    { "id": "even", "minDiff": 0, "permille": 1000 },
+    { "id": "slightly-below", "minDiff": -2, "permille": 900 },
+    { "id": "below", "minDiff": -4, "permille": 500 },
+    { "id": "title-below", "minDiff": -5, "permille": 200 }
   ],
   "respecRule": [
     { "id": "respec", "freeRespreadLevel": 10 }

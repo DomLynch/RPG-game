@@ -78,14 +78,9 @@ export const isType = (types: TypeTable, t: unknown): t is string => typeof t ==
 // Level-difference falloff, permille, by d = target level − your level. CAP-INDEPENDENT by construction: it reads only the
 // difference d, never an absolute level. The one ladder fact it uses is the title width (src/core/career-ladder.ts RANK_STEPS, five sub-ranks a
 // title): exactly one title below you pays a fifth, and anything more than a whole title below you is grey and pays nothing.
+const FALLOFF = [...CAREER_RULES.falloff].sort((a, b) => b.minDiff - a.minDiff);   // the falloff rows of career-rules.json, steepest gain first (tests/career-rules.test.ts pins every step)
 export function falloffPermille(d: number): number {
-  if (d >= 3) return 1250;
-  if (d >= 1) return 1100;
-  if (d === 0) return 1000;
-  if (d >= -2) return 900;
-  if (d >= -4) return 500;
-  if (d >= -RANK_STEPS) return 200;
-  return 0; // grey
+  return FALLOFF.find((r) => d >= r.minDiff)?.permille ?? 0; // below the last row: grey
 }
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
@@ -94,7 +89,7 @@ export const MAX_PARTY = RULE.maxParty;
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;
-  const g = 1000 + 200 * (n - 1);
+  const g = 1000 + RULE.partyStep * (n - 1);
   return Math.floor((1000 + g / 2) / n); // n=2 800, n=3 566, n=4 450
 }
 // A member is eligible for party credit only if within the level gap of the party's highest member: gap ≤ max(5, floor(L/2)).

@@ -2,12 +2,6 @@
  "origins/feuds/feuds.ts": {
   "BAND_RANK": 1
  },
- "origins/preview/exchange-plan.ts": {
-  "FORGE_HALF": 1
- },
- "origins/preview/frontier-camp.ts": {
-  "CAMP_KIT": 1
- },
  "origins/preview/frontier-dress.ts": {
   "TOP": 1
  },
@@ -16,12 +10,6 @@
  },
  "origins/preview/main.ts": {
   "TOWN_RESPAWN": 1
- },
- "origins/preview/mobs-view.ts": {
-  "HIT": 1
- },
- "origins/preview/mobs.ts": {
-  "NAMED": 1
  },
  "origins/server/encounter-fixtures.ts": {
   "RESOLVED": 1
@@ -37,9 +25,6 @@
  },
  "src/core/grades.ts": {
   "GRADES": 1
- },
- "src/core/loot.ts": {
-  "PACK": 1
  },
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
