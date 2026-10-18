@@ -81,6 +81,7 @@ import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { fxNum } from '../../src/fight/fx-rows.ts';
 import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
+import { createWarBand, pickRoles } from './war-band.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
@@ -366,7 +367,7 @@ function step(dt: number) {
       const others = mobs.within(g.x, g.z, 1000).filter((m) => m.spec.id !== g.spec.id);   // stand on the side of it that is farthest from every other creature, so a test fight is one on one (Dom: dropped next to a salamander and got two on him)
       let best = { x: g.x + 3.2, z: g.z, far: -1 };
       for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2, x = g.x + Math.sin(a) * 3.2, z = g.z + Math.cos(a) * 3.2, far = Math.min(Infinity, ...others.map((m) => Math.hypot(m.x - x, m.z - z))); if (far > best.far) best = { x, z, far }; }
-      mobs.fellOthers(g.spec.id);   // and send every other creature away for the test, drawn or not (the headless phone run saw a salamander walk up and breathe fire on a 'goblin only' fight): one creature, one fight
+      if (!/[?&;]alone=0\b/.test(location.search)) mobs.fellOthers(g.spec.id);   // (?alone=0 keeps the camp: the war band test) and send every other creature away for the test, drawn or not (the headless phone run saw a salamander walk up and breathe fire on a 'goblin only' fight): one creature, one fight
       state.x = best.x; state.z = best.z; heading = Math.atan2(g.x - state.x, g.z - state.z); followCam.snap(); wc.press('light'); }
   }
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
@@ -511,7 +512,7 @@ const walkLoop = () => {
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }
   ambience?.update(dt);
   goblinDome?.follow(camera); goblinSmoke?.update(dt);
-  killDrops.update(dt, state);
+  killDrops.update(dt, state); warBandTick(dt);
   if (gfx) gfx.render(); else renderer.render(scene, camera);
 };
 renderer.setAnimationLoop(walkLoop);
@@ -759,7 +760,31 @@ function drawFound() {
   foundPanel.replaceChildren(...(found.list().length ? found.list().map((i) => { const r = document.createElement('div'); r.textContent = `${i.n}× ${i.label} (${i.from})`; return r; }) : [Object.assign(document.createElement('div'), { textContent: 'Nothing yet: kill a creature and walk onto what it drops.' })]));
 }
 drawFound();
+// The goblin war band (war-band.ts, Strategy's #1 for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox only.
+const warBand = createWarBand({ hornRunSpeed: fxNum('warband.horn-run-speed'), hornReach: fxNum('warband.horn-reach'), rallyCount: fxNum('warband.rally-count'), rallySeconds: fxNum('warband.rally-seconds') });
+let warBandRoles = false; const rallyAggro = new Map<string, number>();
+function warBandTick(dt: number) {
+  if (!mobs || !(zoneRow ?? loadZone()).unlisted) return;
+  const list = (mobs.debug() as { mobs: { id: string; body: string; x: number; z: number; loadout?: string; drawn: boolean }[] }).mobs.filter((m) => m.body === 'goblin');
+  if (!warBandRoles && list.length >= 2) {
+    const centre = goblinKit?.centre ?? { x: state.x, z: state.z };
+    warBand.assign(pickRoles(list.map((m) => ({ id: m.id, loadout: m.loadout, x: m.x, z: m.z })), (l) => loadoutRow(l)?.pieces.length ?? 0), { x: centre.x + fxNum('warband.horn-dx'), z: centre.z + fxNum('warband.horn-dz') }); warBandRoles = true;
+  }
+  const at = (id: string) => { const m = mobs!.find(id); return m ? { x: m.x, z: m.z } : null; };
+  const near = (x: number, z: number, n: number) => list.filter((m) => mobs!.find(m.id)).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)).slice(0, n).map((m) => m.id);
+  const step = warBand.update(dt, at, near), blower = warBand.blower();
+  if (step.walk && blower && wc.target()?.id !== blower) mobs.drive(blower, { x: step.walk.x, z: step.walk.z, facing: step.walk.facing, moving: true });
+  if (step.rally) {
+    if (blower) mobs.drive(blower, null);
+    for (const id of new Set([...step.rally, ...(warBand.captain() ? [warBand.captain()!] : [])])) { const was = mobs.setAggro(id, fxNum('warband.rally-aggro')); if (was !== null && !rallyAggro.has(id)) rallyAggro.set(id, was); }
+    worldToast('A horn sounds! The war band rallies!');
+  }
+  if (warBand.phase() === 'rallied' && warBand.rallyLeft() <= 0 && rallyAggro.size) { for (const [id, was] of rallyAggro) mobs.setAggro(id, was); rallyAggro.clear(); }
+}
+let warBandAlarmed = false;
+function warBandHit(spec: MobSpec) { if (spec.body !== 'goblin') return; warBand.hit(spec.id); if (!warBandAlarmed && warBand.phase() === 'alarm') { warBandAlarmed = true; worldToast('A goblin runs for the horn!'); } }
 function creatureFell(spec: MobSpec) {
+  if (spec.body === 'goblin') { warBand.fell(spec.id); if (warBand.phase() === 'silenced' && spec.id === warBand.blower()) worldToast('The horn-blower is down: no horn!'); }
   const fellAt = (mobs?.debug() as { mobs: { id: string; x: number; z: number }[] } | undefined)?.mobs.find((m) => m.id === spec.id);   // where it stands now, before it is released
   mobs?.fell(spec.id);
   const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
@@ -768,7 +793,9 @@ function creatureFell(spec: MobSpec) {
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
   // The sandbox only (an unlisted zone the server never sees): a creature that wore a loadout drops ONE of the pieces it wore (loadouts-rules.ts droppedPiece), named on screen after the kill toast. Nothing is saved; the real item is the backend's loot-table work.
   const worn = (zoneRow ?? loadZone()).unlisted ? droppedPiece(loadoutRow(mobVariant(spec.character, spec.id)?.loadout), spec.id) : undefined;
-  if (worn) setTimeout(() => { worldToast(`${spec.name} drops what it wore: ${pieceLabel(worn)}`); killDrops.drop(worn, pieceLabel(worn), spec.name, fellAt?.x ?? state.x, fellAt?.z ?? state.z); drawFound(); }, 3600);
+  const loadout = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), isCaptain = spec.id === warBand.captain();   // the war band's captain drops more: `warband.captain-drops` of the pieces he wore, starting at the one a normal kill would drop
+  const extras = isCaptain && worn && loadout ? loadout.pieces.filter((p) => p !== worn).slice(0, Math.max(0, fxNum('warband.captain-drops') - 1)) : [];
+  if (worn) setTimeout(() => { worldToast(isCaptain ? `The captain falls! He drops ${[worn, ...extras].map(pieceLabel).join(' and ')}` : `${spec.name} drops what it wore: ${pieceLabel(worn)}`); [worn, ...extras].forEach((p, i) => killDrops.drop(p, pieceLabel(p), spec.name, (fellAt?.x ?? state.x) + i * 0.8, fellAt?.z ?? state.z)); drawFound(); }, 3600);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
@@ -815,7 +842,7 @@ const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, sear
 loadOwnBuild(10);
 const wc = createWorldCombat({
   canPlay: canPlayFinisher,
-  onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
+  onCreatureHit: (spec, hit) => { warBandHit(spec); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
@@ -835,6 +862,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   fpPose: (p?: Partial<ArmPose>) => { fpTry = p; },
+  warband: () => ({ phase: warBand.phase(), blower: warBand.blower(), captain: warBand.captain(), rallyLeft: +warBand.rallyLeft().toFixed(1), horn: warBand.hornAt(), rallied: [...rallyAggro.keys()] }),
   goblinCentre: () => goblinKit?.centre ?? null, goblinFires: () => goblinKit?.fires ?? [], goblinDomeProbe: (flat?: boolean) => { const m = goblinDome?.mesh; if (!m) return null; if (flat) { const mt = m.material as THREE.MeshBasicMaterial; mt.map = null; mt.color.set('#ff00ff'); mt.needsUpdate = true; } return { visible: m.visible, inScene: scene.children.includes(m), pos: m.position.toArray(), renderOrder: m.renderOrder, camY: camera.position.y, far: camera.far }; }, goblinDomeImage: () => { const t = (goblinDome?.mesh.material as THREE.MeshBasicMaterial | undefined)?.map?.image as HTMLCanvasElement | undefined; return t ? t.toDataURL('image/png') : null; },   // ?look=goblin: where the kit's camp stands, for the look stills
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
