@@ -432,7 +432,7 @@ const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { retu
 const fpArm = createFirstPersonArm();
 let headCollapsed = false;   // the head is collapsed only while the view is first person
 const fpPose = (): ArmPose => ({ handRight: fxNum('fp.hand-right'), handUp: fxNum('fp.hand-up'), handForward: fxNum('fp.hand-forward'), poleRight: fxNum('fp.pole-right'), poleUp: fxNum('fp.pole-up'), poleForward: fxNum('fp.pole-forward'), bladeRight: fxNum('fp.blade-right'), bladeUp: fxNum('fp.blade-up'), bladeForward: fxNum('fp.blade-forward'), rate: fxNum('fp.arm-rate'), kickRest: fxNum('fp.kick-rest') });
-const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return /^first$/.test(localStorage.getItem(VIEW_KEY) ?? ''); } catch { return false; } })());
+const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());
 const foeSizes = new Map<string, number>();
 const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
   let s = foeSizes.get(id); if (s !== undefined) return s;
