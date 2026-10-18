@@ -100,7 +100,7 @@ test('a hurt hero\'s record replays: the header carries the wound state, a bad o
   const base: WorldRecord = { rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { level: 1, weapon: 'longsword', health: 100, stamina: 50, posture: 0, exhausted: false }, joins: [], releases: [], steps: [{ pose: { x: 0, z: 0, f: 0 } }] as never };
   assert.ok(!('hurt' in base.hero));
   for (const hurt of [{ wound: 3, site: 'legs', leg: true, cap: 80 }, { wound: 0, site: 'torso', leg: false, cap: 60 }]) assert.ok(replayWorldRecord({ ...base, hero: { ...base.hero, hurt: hurt as never } }).ok, JSON.stringify(hurt));
-  for (const hurt of [{ wound: -1, site: 'legs', leg: true, cap: 80 }, { wound: 3, site: 'knee', leg: true, cap: 80 }, { wound: 3, site: 'legs', leg: true, cap: 999 }, { wound: 3, site: 'legs', leg: true, cap: 40 }, null]) assert.ok(!replayWorldRecord({ ...base, hero: { ...base.hero, hurt: hurt as never } }).ok, JSON.stringify(hurt));
+  for (const hurt of [{ wound: -1, site: 'legs', leg: true, cap: 80 }, { wound: 3, site: 7, leg: true, cap: 80 }, { wound: 3, site: 'legs', leg: true, cap: 999 }, { wound: 3, site: 'legs', leg: true, cap: 40 }, null]) assert.ok(!replayWorldRecord({ ...base, hero: { ...base.hero, hurt: hurt as never } }).ok, JSON.stringify(hurt));
 });
 
 test('the world loop feeds a special only when the step carries a cast, and never a skill: the live input is {attack, guard, roll} plus the gated cast', async () => {
