@@ -2,8 +2,9 @@
 
 ## 2026-10-18 ~16:3x: HANDOFF before /clear (Lead cleared me). READ FIRST. LIVE = JB2 25783c444 (verified on #3208); JC #3219 @556a6bbf3 has candidate PASS + label (publishing)
 
+**UPDATE ~16:4x: JC 556a6bbf3 is LIVE and verified on #3219** (verifier = JC; the writer and presence stay on JB2 by design, since `--if-changed` and JC touch nothing in their closure).
 **Now, in order.**
-1. **JC #3219 @556a6bbf3** (= JB2 + #3211 @209005356 + #3206 @4d39cae50; no game, server or migration change): once it's live, check release.json and that the writer/presence/verifier = 556a6bbf3 with NRestarts 0 and the flags unset; post on #3219. (#3211, my half-extent class, ships in JC.)
+1. **JD #3223 @ff74de687, Dom's critical path (the Test Zone goes into the game):** = JC + #3213 227f11584 + #3202 3e67ff0ee + #3214 b72857c82 + #3204 1bb8fa725, every merge exactly the clean merge-tree of its parent and the PASSed head (checked). Post `Auditor: PASS @ff74de687 (candidate JD)` + candidate:pass once the shards (1)–(8), rows, quality and static are green. After it publishes, check all 3 services. #3213's zone rows are under origins/, so the writer and presence probably reinstall; confirm against release.json.
 2. **#3212 (Web dome port), after JC is live:** Lead's order is on the thread: Web merges trunk and regenerates, then I re-approve at the new head.
 3. **#3210 (Combat regen) @9751318:** the clamp fix reads OK (`lastHero && dt > 0 ? … / dt : 0`). It CONFLICTS with trunk in src/fight/fx-rows.json, so no pull_request CI runs; Combat owns the trunk merge. PASS at the new head on 8/8 + quality. (The logic read was OK at e87456765: off by default, no tick while specs.size > 0.)
 4. **#3216 (loadouts, Characters) NOT YET @a77a10a2d:** core-boundary C1 (loadouts-rules.ts → src/core/career-ladder.ts must go through src/core/server.ts) + no origins test stub for loadouts-rules.test.ts. Content read OK (the hash is unchanged bit for bit). PASS at the new head on 8/8.
