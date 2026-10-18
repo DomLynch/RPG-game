@@ -30,9 +30,12 @@ test('no skin: the build is what it was (Zone 1 pins) and has no models', () => 
   assert.equal(JSON.stringify(frontierBuild(f, null)), JSON.stringify(base), 'null skin = default');
 });
 
-test('a skin that answers null to everything changes nothing', () => {
+test('a skin with no models, parts or gate changes nothing but the plain landmarks it leaves bare', () => {
   const c = fresh(), b = frontierBuild(f, skin(c, {}));
-  assert.equal(JSON.stringify({ ...b, models: [] }), JSON.stringify({ ...base, models: [] }));
+  const cairn = (p: Piece) => p.shape[0] === 'box' && p.shape[1] === 0.8 && p.shape[2] === 1 && p.shape[3] === 0.8, cairnR = frontierRule('cairnR');
+  assert.equal(JSON.stringify(b.pieces), JSON.stringify(base.pieces.filter((p) => !cairn(p))), 'every piece but the stone cairns');
+  assert.equal(JSON.stringify(b.solids), JSON.stringify(base.solids.filter((s) => s.r !== cairnR)), 'every solid but the cairns\'');
+  assert.deepEqual([b.people, b.boards, b.models], [base.people, base.boards, []]);
   assert.ok(c.model.length > 0 && c.parts.length > 0 && c.landmark.length > 0, 'the plan asked the skin about blocks, ways on and landmarks');
 });
 
