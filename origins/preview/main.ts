@@ -152,7 +152,7 @@ let frontierGroup: THREE.Group | null = null;
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
 const settled = { hero: false, kit: !zoneKit };
 const coverEl = document.getElementById('cover');
-const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); } }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
+const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
@@ -611,7 +611,7 @@ const walkLoop = () => {
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
-  if (!cover.lifted()) cover.frame(performance.now(), Object.entries(settled).filter(([, done]) => !done).map(([what]) => what));   // the first frame drawn with everything settled lifts the cover
+  if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 renderer.setAnimationLoop(walkLoop);
 
