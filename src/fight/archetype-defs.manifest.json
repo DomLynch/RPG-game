@@ -22,6 +22,7 @@
       },
       "optional": {
         "guard": "object",
+        "reachScale": "number",
         "regen": "number",
         "sheet": "object",
         "speed": "number"
