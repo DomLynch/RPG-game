@@ -46,14 +46,14 @@ export type SpawnTracker = {
   tokenOf(instance: string): string | null;   // the engage token once the server answered, else null (world-combat's bout seed, bout-seed.ts: no token = no roll)
   hit(instance: string): void;
   tick(): void;
-  killed(instance: string, record?: WorldRecord | null): Promise<Killed | Offline>;
+  killed(instance: string, record?: WorldRecord | null, drop?: string | null): Promise<Killed | Offline>;
   evaded(instance: string): void;
   open(): string[];
   outbox(): string[];
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; drop: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
   const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
@@ -77,7 +77,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (!p) return { offline: 'settled' };
     if (p.busy) return { offline: 'busy' };
     p.busy = true; p.tries++;
-    const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : {}) }, d.token(), killedOf, opts);
+    const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : p.drop ? { drop: p.drop } : {}) }, d.token(), killedOf, opts);
     p.busy = false;
     if (!isOffline(r)) { pending.delete(instance); d.onSettled?.(r); }
     else if (settledOffline(r) || p.tries >= OUTBOX_TRIES) pending.delete(instance);
@@ -96,14 +96,15 @@ export function spawnTracker(d: Deps): SpawnTracker {
       if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
     },
     tick() { for (const o of live.values()) if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o); for (const instance of pending.keys()) void send(instance); },
-    async killed(instance, record) {
+    async killed(instance, record, drop) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
       live.delete(instance); tokens.delete(instance); retried.delete(instance); spent.set(instance, d.now());
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
       const packed = record && d.encode ? await d.encode(record).catch(() => null) : null;   // gzip failing or a record past the limit: the kill is still reported, without it
-      pending.set(instance, { token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, busy: false });
+      const kept = packed && packed.length <= MAX_RECORD_CHARS ? packed : null;
+      pending.set(instance, { token: e.token, hits: o.hits, record: kept, drop: kept ? null : drop ?? null, tries: 0, busy: false });   // drop: why there is no record (a record-drop row's reason), only sent when there is none
       return send(instance);
     },
     evaded(instance) { live.delete(instance); tokens.delete(instance); retried.delete(instance); },
