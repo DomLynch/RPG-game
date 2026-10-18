@@ -18,7 +18,7 @@ export const ROWS: Record<string, readonly [number, Own]> = {
   speeds: [4, 'K2'],
   input: [5, 'K2'],
   characters: [6, 'K2'],
-  mobkit: [7, 'K11'], 'beast-scale': [7, 'K11'], 'stand-back': [7, 'K11'],
+  mobkit: [7, 'K11'], 'beast-scale': [7, 'K11'],
   gore: [8, 'P1/P2'], 'blood-style': [8, 'P1/P2'], 'blood-edge': [8, 'P1/P2'], 'finisher-blood': [8, 'P1/P2'],
   finishers: [9, 'P1/P2'], execution: [9, 'P1/P2'], hamstrung: [9, 'P1/P2'], 'severed-head': [9, 'P1/P2'], 'dropped-weapon': [9, 'P1/P2'],
   'hit-impact': [10, 'P1/P2'], armfeel: [10, 'P1/P2'], 'armfeel-fx': [10, 'P1/P2'], 'clash-sparks': [10, 'P1/P2'], 'foot-dust': [10, 'P1/P2'], scene: [10, 'P1/P2'],
