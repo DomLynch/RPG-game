@@ -8,6 +8,7 @@
 import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
+import { variantIndex } from '../world/creature-hash.ts';
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
 const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
@@ -45,8 +46,7 @@ export function variantLook(id: string, v: number, zone: Zone = loadZone()): Mob
     dressing: { soot: clamp01(base.dressing.soot + unit(5) * spread.soot), burnt: clamp01(base.dressing.burnt + unit(7) * spread.burnt) } };
   memo.set(key, look); return look;
 }
-/** The look one creature wears: its kind's variant picked by a stable hash of the creature's own id (FNV-1a), so it is the same on the map and in its duel. */
+/** The look one creature wears: its kind's variant picked by a stable hash of the creature's own id (FNV-1a, origins/world/creature-hash.ts variantIndex, the same pick the loadout and the server make), so it is the same on the map and in its duel. */
 export function mobVariant(id: string, creature: string, zone: Zone = loadZone()): MobLook | null {
-  let h = 2166136261; for (const c of `${id}|${creature}`) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  return variantLook(id, h % VARIANTS, zone);
+  return variantLook(id, variantIndex(id, creature), zone);
 }

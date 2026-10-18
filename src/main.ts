@@ -1587,7 +1587,7 @@ function frame(now: number) {
         let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
       }
-      if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
+      if (!quiet) hud.floatDamage(practice.events, practice.duel.fighters, view.project, damageNumbersOn);
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
