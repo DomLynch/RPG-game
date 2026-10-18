@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import CROWD from '../src/audio/crowd-defs.json' with { type: 'json' };
-import { momentsOf } from '../src/audio/arena.ts';
+import { momentsOf } from '../src/audio/crowd-rows.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
 test('trunk ships no roars', () => assert.deepEqual(CROWD.roars, []));
