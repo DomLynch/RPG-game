@@ -43,7 +43,7 @@ test('every piece the loadouts can drop has a ground look row (armour by its id,
   assert.equal(groundItemOf('executioner.Maul'), 'loot:weapon.Maul');
   const missing: string[] = [];
   for (const id of loadoutIds()) for (const piece of dropSet(loadoutRow(id), 'x', 0)) { try { groundLook(groundItemOf(piece)); } catch { missing.push(piece); } }
-  assert.deepEqual([...new Set(missing)].sort(), ['goblin.Gloves', 'executioner.Gloves', 'pitborn.Gloves'].sort(), 'only the gloves (no draw of their own in loot.glb) lack a lying model; they keep the marker');
+  assert.deepEqual([...new Set(missing)], [], 'every droppable piece lies as itself (the gloves are the kit-wide ~kit.Gloves draws)');
 });
 
 test('outfit: a broken or missing store is an empty outfit, never an error', () => {

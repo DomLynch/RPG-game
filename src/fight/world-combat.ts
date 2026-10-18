@@ -106,6 +106,7 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
   }
   return {
     /** Browser checks only: take `amount` of the hero's health (never below 1), so a check can time the regeneration from a known hurt without a fight. */
+    regenQuiet: (): number => +quiet.s.toFixed(2),   // browser checks: seconds since the last hit or notice (the regeneration starts after the world's out-of-combat delay)
     debugHurt(amount: number) { const m = me(); m.health = Math.max(1, m.health - amount); },
     /** An attack press (STAB / SLASH / a tap on a creature): the cut starts on the next step if he is free. */
     press(kind: 'light' | 'heavy' | 'thrust' | 'kick' = 'light') { pendingAttack = kind; },
