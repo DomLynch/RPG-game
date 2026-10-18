@@ -19,7 +19,7 @@ test('nothing changes for an offline answer, an offline page (preview career), o
   assert.equal(applyServerKill(session, { saved: career }, killed(0)), null);
 });
 
-import { killToast, NOT_SAVED, SIGN_IN_TO_KEEP } from './kill-apply.ts';
+import { killToast, loadSandboxKillLine, NOT_SAVED, SIGN_IN_TO_KEEP } from './kill-apply.ts';
 const name = (id: string) => (id === 'pelt' ? 'Wolf pelt' : id);
 const withLoot: Killed = { ...killed(20), loot: [{ item: 'pelt', quantity: 2 }] };
 test('the toast names the creature and shows the server\'s answer (cp, bronze, its loot), never a page number', () => {
@@ -29,10 +29,12 @@ test('the toast names the creature and shows the server\'s answer (cp, bronze, i
   assert.equal(killToast({ ...withLoot, bronze: 0 }, name, 'Wolf', true), 'Wolf is down. +20 CP · Wolf pelt ×2. Bounty done.', 'no bronze: still Bounty done');
   assert.equal(killToast({ ...killed(0), bronze: 0 }, name, 'Wolf'), 'Wolf is down. Nothing paid.');
 });
-test('a zone the server never sees (sandbox) just says the creature is down: no sign-in, no not-saved line, whatever the server answered', () => {
-  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, true), 'Wolf is down.');
-  assert.equal(killToast({ offline: 'http-500' }, name, 'Wolf', false, true), 'Wolf is down.');
-  assert.equal(killToast(withLoot, name, 'Wolf', true, true), 'Wolf is down. Bounty done.');
+test('a zone the server never sees (sandbox) shows the sandbox-lines row, whatever the server answered: no sign-in line, no server line', () => {
+  const line = 'Wolf is down. Not saved in the Test Zone.';
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, true), line);
+  assert.equal(killToast({ offline: 'http-500' }, name, 'Wolf', false, true), line);
+  assert.equal(killToast(withLoot, name, 'Wolf', true, true), `${line} Bounty done.`);
+  assert.throws(() => loadSandboxKillLine({ sandboxLines: [{ id: 'kill', fields: { line: 'no name here' } }] }), /names the \{creature\}/);
 });
 test('a guest keeps no loot and is told to sign in; a signed-in page the server did not answer says nothing was saved; neither shows a number', () => {
   assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf'), `Wolf is down. ${SIGN_IN_TO_KEEP}`);

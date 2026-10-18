@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { actorPose, buildWarriors, createZoneFinisher, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
-import { catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
+import { catalogueBodyUrl, DEFAULT_WEAPON, OPPONENTS, WEAPON_CLIPS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
@@ -116,10 +116,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(kind) ?? URLS[kind];
   };
   // The loadout's armour pieces (loot ids `<opponent>.<slot>`) come from the roster's carrier file, once per kind, and are worn on the bare body with the engine's own `wear` (the Pit's machinery).
-  const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-goblin.glb', { eager: true, query: '?url', import: 'default' });
+  const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   const carriers = new Map<string, THREE.SkinnedMesh[] | 'loading'>();
+  const kitOf = (ids: readonly string[] | undefined): string | undefined => ids?.[0]?.split('.')[0];   // the carrier set a loadout's pieces come from: the body id its loot ids start with (executioner.Helmet -> carriers-executioner)
   const putOn = (v: View) => {
-    const pieces = v.actor && v.wearIds ? carriers.get('goblin') : undefined;
+    const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
     try { v.actor.wear(pieces.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
@@ -183,7 +184,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     // The shared fight engine's actor (src/fight/characters.ts, the one the Pit plays) on the creature's own body: its clips (idle, walk, bite, hurt, death) are posed by the engine's actorPose, solo = one actor, no opponent built.
     const look = mobVariant(s.character, s.id), weapon = look?.gear ?? (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[s.body]?.weapon ?? 'longsword';   // a variant's loadout weapon (the zone row's spread.gear), else the body's own
     let actor: Actor;
-    try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [weapon, weapon], true).player; }
+    // A two-handed weapon plays its own clip set (Maul_Idle, Warhammer_Walk ...) that a creature body does not carry (fighterClips throws and the capsule stayed): such a body is built on the default weapon's clips, and the graded weapon shape (reshapeWeapon) is what he is seen holding.
+    const clipsOwn = (w: WeaponId) => Object.values(WEAPON_CLIPS[w] ?? {}).every((name) => body.clips.some((c) => c.name === name)), built = clipsOwn(weapon) ? weapon : DEFAULT_WEAPON;
+    try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [built, built], true).player; }
     catch (error) { console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(keyOf(s), 'failed'); failedKinds.add(keyOf(s)); return; }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     const row = loadoutRow(look?.loadout);
@@ -191,7 +194,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
     if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
-    else if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
+    else if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v); reshapeWeapon(v, weapon, row.rung); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {

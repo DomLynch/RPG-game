@@ -5,7 +5,19 @@
     { "id": "goblin.Arms", "label": "Goblin arm guards" },
     { "id": "goblin.Gloves", "label": "Goblin gloves" },
     { "id": "goblin.Greaves", "label": "Goblin greaves" },
-    { "id": "goblin.Boots", "label": "Goblin boots" }
+    { "id": "goblin.Boots", "label": "Goblin boots" },
+    { "id": "executioner.Helmet", "label": "Executioner hood" },
+    { "id": "executioner.Body", "label": "Executioner harness" },
+    { "id": "executioner.Arms", "label": "Executioner arm guards" },
+    { "id": "executioner.Gloves", "label": "Executioner gloves" },
+    { "id": "executioner.Greaves", "label": "Executioner greaves" },
+    { "id": "executioner.Boots", "label": "Executioner boots" },
+    { "id": "pitborn.Helmet", "label": "Pitborn skull cap" },
+    { "id": "pitborn.Body", "label": "Pitborn sash" },
+    { "id": "pitborn.Arms", "label": "Pitborn arm wraps" },
+    { "id": "pitborn.Gloves", "label": "Pitborn gloves" },
+    { "id": "pitborn.Greaves", "label": "Pitborn leg wraps" },
+    { "id": "pitborn.Boots", "label": "Pitborn boots" }
   ],
   "loadouts": [
     { "id": "goblin.scrapper", "label": "Scrapper", "tier": "light", "weapon": "knife", "pieces": ["goblin.Body", "goblin.Boots"] },
@@ -19,6 +31,10 @@
     { "id": "goblin.t6.warhammer", "label": "Praetorian warhammer", "tier": "heavy", "weapon": "warhammer", "rung": "Praetorian", "look": "/looks/goblin-L6.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] },
     { "id": "goblin.t6.maul", "label": "Praetorian maul", "tier": "heavy", "weapon": "maul", "rung": "Praetorian", "look": "/looks/goblin-L6.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Greaves", "goblin.Boots"] },
     { "id": "goblin.t7.longsword", "label": "Master longsword", "tier": "heavy", "weapon": "longsword", "rung": "Master", "look": "/looks/goblin-L7.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] },
-    { "id": "goblin.t7.estoc", "label": "Master estoc", "tier": "heavy", "weapon": "estoc", "rung": "Master", "look": "/looks/goblin-L7.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] }
+    { "id": "goblin.t7.estoc", "label": "Master estoc", "tier": "heavy", "weapon": "estoc", "rung": "Master", "look": "/looks/goblin-L7.glb", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] },
+    { "id": "troll.exec.t5.maul", "label": "Champion maul (executioner kit)", "tier": "heavy", "weapon": "maul", "rung": "Champion", "pieces": ["executioner.Helmet", "executioner.Body", "executioner.Arms", "executioner.Gloves", "executioner.Greaves", "executioner.Boots"] },
+    { "id": "troll.exec.t7.warhammer", "label": "Master warhammer (executioner kit)", "tier": "heavy", "weapon": "warhammer", "rung": "Master", "pieces": ["executioner.Helmet", "executioner.Body", "executioner.Arms", "executioner.Gloves", "executioner.Greaves", "executioner.Boots"] },
+    { "id": "troll.pit.t5.maul", "label": "Champion maul (pitborn kit)", "tier": "heavy", "weapon": "maul", "rung": "Champion", "pieces": ["pitborn.Helmet", "pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] },
+    { "id": "troll.pit.t7.cleaver", "label": "Master cleaver (pitborn kit)", "tier": "heavy", "weapon": "cleaver", "rung": "Master", "pieces": ["pitborn.Helmet", "pitborn.Body", "pitborn.Arms", "pitborn.Gloves", "pitborn.Greaves", "pitborn.Boots"] }
   ]
 }

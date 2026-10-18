@@ -816,7 +816,8 @@ function creatureFell(spec: MobSpec) {
   if (inWarBand(spec)) { warBand.fell(spec.id); if (warBand.phase() === 'silenced' && spec.id === warBand.blower()) worldToast('The horn-blower is down: no horn!'); }
   const fellAt = (mobs?.debug() as { mobs: { id: string; x: number; z: number }[] } | undefined)?.mobs.find((m) => m.id === spec.id);   // where it stands now, before it is released
   mobs?.fell(spec.id);
-  const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
+  const sandbox = !!(zoneRow ?? loadZone()).unlisted;   // an unlisted zone: the server cannot know it, so no kill_report goes out at all (Strategy 2026-10-18)
+  const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken, !!(zoneRow ?? loadZone()).unlisted)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
