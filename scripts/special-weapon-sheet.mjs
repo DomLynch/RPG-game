@@ -9,7 +9,7 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const BASE = arg('base', 'https://frankendom.com/preview/sandbox/'), OUT = arg('out', 'out/sheets'), WEAPON = arg('weapon', 'maul'), WAIT = Number(arg('wait', '260'));
-const ORBIT = Number(arg('orbit', '0')), CROP = ORBIT ? 'crop=330:400:22:200' : 'crop=250:330:62:250', TAG = ORBIT ? '-side' : '';
+const BOW = arg('bow', '') === '1', ORBIT = Number(arg('orbit', '0')), CROP = ORBIT ? 'crop=330:400:22:200' : 'crop=250:330:62:250', TAG = ORBIT ? '-side' : '';
 const SPECIALS = ['cleave', 'reaping', 'stomp', 'lunge'].filter((s) => !arg('only', '') || arg('only', '').split(',').includes(s));
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 await fs.mkdir(OUT, { recursive: true });
@@ -18,7 +18,7 @@ for (const special of SPECIALS) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
   await context.addInitScript(() => { try { localStorage.removeItem('frankendom.sandbox.loadout'); } catch { /* none */ } });
   const page = await context.newPage();
-  await page.goto(`${BASE}?spar=1&weapon=${WEAPON}&difficulty=dummy&skill=${special === 'lunge' ? 'lunge' : 'pommel'}&opponent=Centurion&special2=${special === 'lunge' ? 'pommel' : special}&debug=1`);
+  await page.goto(`${BASE}?spar=1&weapon=${WEAPON}${BOW ? `&bow=${WEAPON}` : ''}&difficulty=dummy&skill=${special === 'lunge' ? 'lunge' : 'pommel'}&opponent=Centurion&special2=${special === 'lunge' ? 'pommel' : special}&debug=1`);
   await page.getByRole('button', { name: 'Fight', exact: true }).first().click({ timeout: 600000 });
   await page.waitForFunction(() => globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]?.phase === 'ready', null, { timeout: 120000, polling: 500 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
@@ -28,6 +28,7 @@ for (const special of SPECIALS) {
   await skipDraws(page, false); await run(17);
   await page.waitForTimeout(2500); await run(17); await page.waitForTimeout(500);   // the special's clip is fetched on the first draw, in real time: let it land first
   if (ORBIT) { await page.evaluate((dx) => globalThis.__view?.orbit?.(dx, 0), ORBIT); for (let n = 0; n < 60; n++) await run(n % 3 === 2 ? 16 : 17); }   // --orbit <dx>: turn the camera (yaw -= dx * 0.005 rad; -314 is a quarter turn, the character seen from the side), then let it settle
+  if (BOW) await page.evaluate((gap) => { const d = globalThis.__sandboxMatch?.practice?.duel, f = d?.fighters; if (f) f[0].body = { ...f[0].body, z: f[1].body.z + gap, heading: Math.PI }; }, 3.5);   // --bow 1: stand the archer 3.5 m from the foe (past the missile gap), facing him, so the special flies as arrows
   await page.locator(special === 'lunge' ? '#skill-button' : '#sbx-spell2').tap();
   await skipDraws(page, true);
   const state = () => page.evaluate(() => { const f = globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]; return { special: f?.special ?? 0, recover: f?.specialRecover ?? 0, clip: (globalThis.__view?.playing?.() ?? '').split(' ')[0] }; });
