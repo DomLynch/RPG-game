@@ -159,9 +159,14 @@ test('kill_report 409 (launch gate V5): a paid token reads back as paid with its
 test('kill_report for the QA account (fighter_profiles.is_test): every check and every soak tally counts it, but it persists nothing (event only, qa marked, answered with zero payout); the QA state is logged and a blind lookup pays as normal', async () => {
   const logs: string[] = [], tally = createVerdictTally(), reachTally = createVerdictTally();
   const ops = worldSpawnOps({ content, spawns, tally, reachTally, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l: string) => logs.push(l) });
+  // a creature whose ordinary kill really pays something at this seed, so "pays nothing" below is a real difference
+  const priced = (s: Spawn) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: s.fight, seed: 7, enemy: s.spec.body, level: s.spec.level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z', { level: s.spec.level }).batch;
+  const payer = [...spawns.values()].find((s) => priced(s).length > 0) as Spawn;
+  assert.ok(payer, 'some Zone 1 creature pays at this seed');
+  const wolf = payer, open = { token: TOKEN, character: PC, instance: payer.spec.id, generation: 0, issuedAt: '2026-10-08T10:00:00Z', expiresAt: '2026-10-08T10:02:00Z' };
   const run = async (qa: unknown) => {
     const s = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: qa });
-    const out = await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }) as { result: string; cp: number; bronze: number; loot: number };
+    const out = await ops.kill_report!(ctx(s.db, poseAt(wolf)), { token: TOKEN, hits: 50 }) as { result: string; cp: number; bronze: number; loot: number };
     return { s, out, opsOf: s.kills[0]!.b.map((l) => l.op), payload: s.kills[0]!.b[0]!.payload as Record<string, unknown> };
   };
   const no = await run(false), yes = await run(true), blind = await run(new Error('db down')), absent = await run('absent');
