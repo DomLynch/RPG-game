@@ -16,11 +16,11 @@ export function placementsByFile(models: readonly ModelPlacement[]): Map<string,
 }
 
 /** Fetch each needed file once and stand its placements as instanced meshes. A failed file leaves its buildings undrawn, never the zone. */
-export async function loadSkinModels(models: readonly ModelPlacement[], base: string, groundAt?: (x: number, z: number) => number): Promise<THREE.Group> {
+export async function loadSkinModels(models: readonly ModelPlacement[], groundAt?: (x: number, z: number) => number): Promise<THREE.Group> {
   const group = new THREE.Group(); group.name = 'skin-models';
   await Promise.all([...placementsByFile(models)].map(async ([url, list]) => {
     try {
-      const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${base}${url}`);
+      const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`/${url}`);   // public/world is served from the site root, like the kit (frontier-kit-view.ts KIT_URL), not under the preview's base
       group.add(kitGroup(gltf.scene, { placements: list as unknown as KitPlacement[], landmarks: [] }, groundAt));
     } catch { /* this file only: its buildings stay undrawn */ }
   }));

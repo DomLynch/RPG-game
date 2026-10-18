@@ -162,7 +162,7 @@ const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transit
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
-  if (frontierParts.models.length) void loadSkinModels(frontierParts.models, import.meta.env.BASE_URL, groundY).then((g) => frontierGroup?.add(g));   // the skin's buildings: each model file is fetched only now, on entering this zone
+  if (frontierParts.models.length) void loadSkinModels(frontierParts.models, groundY).then((g) => frontierGroup?.add(g));   // the skin's buildings: each model file is fetched only now, on entering this zone
   { const sky = zoneSky(loadZone()); if (sky) { zoneDome = createHorizonDome(scene, sky, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; } }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
