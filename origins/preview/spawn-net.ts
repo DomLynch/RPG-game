@@ -32,7 +32,7 @@ export const retryDelay = (tries: number): number => Math.min(OUTBOX_RETRY_MS * 
 // One pending kill report as the outbox keeps it, and the durable store a page may give it (outbox-store.ts: localStorage): the outbox is saved under the account whose session engaged the kill
 // and read back on the next page of that account, so a reload, a crash or a closed tab inside the engage grace still reports the kill on its own token (the writer pays a token once). Never sent with
 // another account's session: an account switch leaves the old account's reports saved for it.
-export type OutboxEntry = { instance: string; token: string; hits: number; record: string | null; tries: number; nextAt: number };
+export type OutboxEntry = { instance: string; token: string; hits: number; record: string | null; drop: string | null; tries: number; nextAt: number };   // drop: why there is no record (a record-drop row's reason), kept so a reloaded report still carries it
 export type OutboxStore = { load(account: string): OutboxEntry[]; save(account: string, entries: readonly OutboxEntry[]): void };
 const settledOffline = (r: Offline): boolean => r.offline === 'http-409' || r.offline === 'http-400' || r.offline === 'http-404';   // the server answered and will not change its mind
 
@@ -57,14 +57,14 @@ export type SpawnTracker = {
   tokenOf(instance: string): string | null;   // the engage token once the server answered, else null (world-combat's bout seed, bout-seed.ts: no token = no roll)
   hit(instance: string): void;
   tick(): void;
-  killed(instance: string, record?: WorldRecord | null): Promise<Killed | Offline>;
+  killed(instance: string, record?: WorldRecord | null, drop?: string | null): Promise<Killed | Offline>;
   evaded(instance: string): void;
   open(): string[];
   outbox(): string[];
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  const opts ={ fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
   type Pending = OutboxEntry & { account: string | null; busy: boolean };
   const pending = new Map<string, Pending>(), loaded = new Set<string>(), done = new Set<string>();   // pending: by engage TOKEN (a respawned creature's next kill is a new token, never this one); loaded: accounts whose saved outbox this page has read; done: tokens this page settled or gave up
   const accountNow = (): string | null => d.account?.() ?? null;
@@ -72,7 +72,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
   const persist = (account: string | null): void => {   // the store's copy of one account's outbox; a store that throws (quota, private mode) leaves the in-memory outbox as it is
     if (!d.store || !account) return;
     restore(account);   // never overwrite reports an earlier page saved and this one has not read yet
-    const mine = [...pending.values()].filter((p) => p.account === account).map(({ instance, token, hits, record, tries, nextAt }) => ({ instance, token, hits, record, tries, nextAt }));
+    const mine = [...pending.values()].filter((p) => p.account === account).map(({ instance, token, hits, record, drop, tries, nextAt }) => ({ instance, token, hits, record, drop, tries, nextAt }));
     const others = loadSaved(account).filter((s) => !pending.has(s.token) && !done.has(s.token));   // re-read: another tab of this account may have saved a report since (the writer still pays a token once if both send it)
     try { d.store.save(account, [...others, ...mine]); } catch { /* kept in memory */ }
   };
@@ -107,7 +107,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (p.busy) return { offline: 'busy' };
     if (d.account && p.account !== accountNow()) return { offline: 'other-account' };   // never sent with another account's session: it waits, saved, for its own account
     p.busy = true;
-    const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : {}) }, d.token(), killedOf, opts);
+    const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : p.drop ? { drop: p.drop } : {}) }, d.token(), killedOf, opts);
     p.busy = false;
     if (!isOffline(r)) { drop(token); d.onSettled?.(r); }
     else if (r.offline === 'no-session') p.nextAt = d.now() + OUTBOX_RETRY_MS;   // nothing was sent (the sign-in expired): not a try, asked again once a session is back
@@ -133,7 +133,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
       if (account) restore(account);
       for (const p of [...pending.values()]) if (!p.busy && d.now() >= p.nextAt) void send(p.token);   // only once its backoff has passed: never a send per frame
     },
-    async killed(instance, record) {
+    async killed(instance, record, why) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
       live.delete(instance); tokens.delete(instance); retried.delete(instance); spent.set(instance, d.now());
@@ -141,7 +141,8 @@ export function spawnTracker(d: Deps): SpawnTracker {
       if (isOffline(e)) return e;
       const packed = record && d.encode ? await d.encode(record).catch(() => null) : null;   // gzip failing or a record past the limit: the kill is still reported, without it
       const account = o.account;   // the ENGAGE's account (Web's review of #3146): an account switch between engage and kill leaves the report with the account that earned it, held until that account is back
-      pending.set(e.token, { instance, token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, nextAt: d.now(), account, busy: false });
+      const kept = packed && packed.length <= MAX_RECORD_CHARS ? packed : null;
+      pending.set(e.token, { instance, token: e.token, hits: o.hits, record: kept, drop: kept ? null : why ?? null, tries: 0, nextAt: d.now(), account, busy: false });   // drop: why there is no record (a record-drop row's reason), only sent when there is none
       persist(account);   // saved BEFORE the first send: a page closed mid-request still has it
       return send(e.token);
     },
