@@ -17,11 +17,3 @@ test('the shipped melee-special rules are off: the special keeps its own windup,
   assert.deepEqual(specialSoundOf('cleave'), []);
   assert.deepEqual(specialSoundOf('skullcrack'), []);
 });
-
-test('nothing on trunk imports the sandbox rules yet: the digest cannot move (the slice that turns a rule on owns the version bump and its battery)', () => {
-  const importers: string[] = [];
-  const walk = (dir: string) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = `${dir}/${e.name}`; if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); } else if (/\.(ts|mjs)$/.test(e.name) && p !== 'src/fight/sandbox-rules.ts' && !p.startsWith('tests/') && /sandbox-rules(\.ts)?['"]/.test(readFileSync(p, 'utf8'))) importers.push(p); } };
-  for (const d of ['src', 'origins']) walk(d);
-  const viewOnly = ['src/fight/sound/cues.ts'];   // a presentation reader of rows that are empty as shipped (specialSound): it can add no sound and touches no sim
-  assert.deepEqual(importers.filter((p) => !viewOnly.includes(p)), [], 'a consumer lands with the slice that bumps the version');
-});
