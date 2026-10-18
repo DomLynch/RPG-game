@@ -26,3 +26,17 @@ test('when it lands the victim is staggered, shoved back and loses health and ga
   assert.ok(foe.health < hp0, 'lost health');
   assert.ok(foe.posture > 0, 'gained posture');
 });
+
+test('specialReactFloor: a lunge (move row stagger 0) still staggers the victim by its floor row, and no row means none', () => {
+  const run = (skill: string) => {
+    let d = { ...duelOf(), fighters: [{ ...duelOf().fighters[0]!, skill: skill as never }, duelOf().fighters[1]!] } as ReturnType<typeof duelOf>;
+    d = stepDuel(d as never, [{ ...idle(), action: 'skill' }, idle()]) as never;
+    for (let i = 0; i < 60 && !d.events.some((e) => e.type === 'SpecialLanded'); i++) d = stepDuel(d as never, [idle(), idle()]) as never;
+    return d.fighters[1]!.stun;
+  };
+  const rows = (DEFS as unknown as { specialReactFloor: { id: string; stagger: number }[] }).specialReactFloor;
+  assert.equal(run('lunge'), 0, 'no floor row: the percent of a zero row is zero');
+  rows.push({ id: 'lunge', stagger: 36 });
+  assert.ok(run('lunge') >= 35, 'the floor row gives the lunge its stagger');
+  rows.length = 0;
+});

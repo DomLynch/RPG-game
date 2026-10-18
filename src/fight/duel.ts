@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } fro
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_STAGGER, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, specialReactFloorOf, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -658,7 +658,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (SPECIAL_REACT && !A.spell && D.health) {   // sandbox specialReact: a landed melee special staggers, shoves and shakes the victim by its move row, like a landed blow (no canned animation: the sim decides)
       const def = movesOf(A)[move], away = aim(D.body, A.body) + Math.PI;
       for (let k = 0; k < Math.round(def.knockback * SPECIAL_REACT_KNOCK / 100); k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
-      D.phase = 'hurt'; D.age = 0; D.stun = Math.max(D.stun, Math.round(def.stagger * SPECIAL_REACT_STAGGER / 100)); D.buffer = null; D.counterWindow = 0; D.charge = 0; D.charged = false;
+      D.phase = 'hurt'; D.age = 0; D.stun = Math.max(D.stun, Math.round(def.stagger * SPECIAL_REACT_STAGGER / 100), specialReactFloorOf(String(move).replace(/^skill_/, ''))); D.buffer = null; D.counterWindow = 0; D.charge = 0; D.charged = false;
       events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
       shake(j, def.posture * SPECIAL_REACT_POSTURE / 100);
     }

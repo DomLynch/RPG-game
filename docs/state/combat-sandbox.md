@@ -1,5 +1,10 @@
 # Combat Sandbox (Dom's lane) — state
 
+## 2026-10-18 afternoon: LUNGE reaction row (for Dom to test)
+- Lunge plays Special_Lunge (UAL2 Sword_Dash, strike 0.4) on the shared 32-tick windup and its three `specialSound` rows. Its move row has stagger 0 and damage 11, so the shared percent rows gave the victim NO reaction. New sandbox row `specialReactFloor` {id lunge, stagger 36}: the least stagger a landed melee special of that skill gives (sandbox-rules.ts specialReactFloorOf, duel.ts specialReact). Knock 3 x 450% and posture 20 x 150% already apply.
+- Checked on the VPS: tsc clean, 8/8 (special-react incl. new floor test, special-sound, spell-pick). NOT seen by me: the lunge clip recording was made but I did not review its frames. `check:as-data --gate` fails on two NEW inline clamps that are not from this change: src/fight/characters.ts:877 (24) and src/fight/skill-impact.ts:65 (1.6); owed to move into rows.
+- Link: `?spar=1&weapon=longsword&difficulty=dummy&skill=lunge&opponent=Centurion` then Fight, SPECIAL 1 (lunge must be in slot 1).
+
 ## 2026-10-18 midday: GROUND SLAM APPROVED (read first)
 - Dom tested Ground Slam on his phone: "works, good". No code change for it: it plays Special_GroundSlam (Mixamo run-jump slam, strike 0.46) on the shared specialMeleeWindup 32 / specialReact rows, with its three `specialSound` rows (whoosh, hit_heavy, guard_break). Before approval Dom saw a green magic background on his phone that I could not reproduce (VPS clip, wiped loadout, no effect); likely a remembered spell/heal pick in his saved loadout, never confirmed. If it returns: ask which button, check the Special 2 picker for the heal, and make a link's special2 beat any remembered spell2.
 - LIVE: sandbox preview from sandbox/page, picker labels Skull Crack / Whirlwind / Ground Slam / Lunge, `unlockAfterBossKills` 0/0/1/2 as data only (nothing reads it). Mixamo retarget session is done; its branch sandbox/special-clips is contained in sandbox/page (worktree ~/Developer/frankendom-sandbox-clips can go).

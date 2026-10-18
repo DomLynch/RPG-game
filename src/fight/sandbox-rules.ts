@@ -103,6 +103,8 @@ export const SPECIAL_MELEE_WINDUP = num('specialMeleeWindup', 'value');
 export const SPECIAL_REACT = num('specialReact', 'value');
 //   specialReactStagger / specialReactKnock / specialReactPosture (percent of the move row's own stagger, knockback and posture; 100 = as the row says): how hard a landed melee special hits the victim. Dom 2026-10-17: "there's no reaction".
 export const SPECIAL_REACT_STAGGER = num('specialReactStagger', 'value'), SPECIAL_REACT_KNOCK = num('specialReactKnock', 'value'), SPECIAL_REACT_POSTURE = num('specialReactPosture', 'value');
+//   specialReactFloor (Dom 2026-10-18: Lunge showed no reaction, its move row has stagger 0 so a percent of it is 0): rows { id (skill id), stagger (ticks) }, the least stagger a landed melee special of that skill gives, whatever its move row says. No row = the percent alone.
+export const specialReactFloorOf = (skill: string): number => ((DEFS as unknown as { specialReactFloor?: { id: string; stagger: number }[] }).specialReactFloor ?? []).find((r) => r.id === skill)?.stagger ?? 0;
 export const bandOf = (distance: number): string | undefined => BANDS.find((b) => distance * 100 < b.upTo)?.id ?? BANDS[BANDS.length - 1]?.id;
 export const bandPerMille = (weapon: string, distance: number): number => {
   if (!BAND_OFF || !BANDS.length) return 1000;
