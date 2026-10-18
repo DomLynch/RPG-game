@@ -158,7 +158,7 @@ test('kill_report 409 (launch gate V5): a paid token reads back as paid with its
 
 test('kill_report for the QA account (fighter_profiles.is_test): every check and every soak tally counts it, but it persists nothing (event only, qa marked, answered with zero payout); the QA state is logged and a blind lookup pays as normal', async () => {
   const logs: string[] = [], tally = createVerdictTally(), reachTally = createVerdictTally();
-  const ops = worldSpawnOps({ content, spawns, tally, reachTally, log: (l: string) => logs.push(l) });
+  const ops = worldSpawnOps({ content, spawns, tally, reachTally, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l: string) => logs.push(l) });
   const run = async (qa: unknown) => {
     const s = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: qa });
     const out = await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }) as { result: string; cp: number; bronze: number; loot: number };
@@ -297,7 +297,7 @@ test('the registry obeys the key rule the database column reads (zoneKeyProblems
 
 // The allow-list of what a reported hit may write: the scorecard event and the career's world credit row, loot lines and nothing else. Anything else (an XP pool, a level, a spell, boss gear, a new currency) fails.
 const BATCH_OPS = new Set(['event', 'career_set', 'put', 'mint']);
-const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'record', 'cp', 'cpReason', 'paid', 'beta']);
+const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'record', 'cp', 'cpReason', 'paid', 'beta', 'qa']);   // 'qa' marks the QA account's event (it pays event-only); it grants nothing
 const CAREER_KEYS = new Set(['op', 'account', 'expected_version', 'world_credit', 'rested', 'rested_at', 'heat', 'story', 'beaten']);
 function guardBatch(batch: Json[]): void {
   for (const o of batch as Record<string, unknown>[]) {
