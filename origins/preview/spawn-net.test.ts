@@ -461,7 +461,7 @@ test('outbox-store: one localStorage entry per account, malformed entries never 
   kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, '{"not":"a list"}'); assert.deepEqual(store.load(ACCOUNT), []);
   const dropped: OutboxEntry = { ...entry, drop: 'gear-change' };
   store.save(ACCOUNT, [dropped]); assert.deepEqual(store.load(ACCOUNT), [dropped], 'the drop reason survives a reload');
-  const { drop: _old, ...legacy } = entry;
+  const legacy: Partial<OutboxEntry> = { ...entry }; delete legacy.drop;
   kv.set(`${OUTBOX_KEY}:${ACCOUNT}`, JSON.stringify([legacy, { ...entry, drop: 5 }]));
   assert.deepEqual(store.load(ACCOUNT), [entry], 'an entry saved before drop existed reads back with none; a non-string drop is never read');
   store.save(ACCOUNT, []); assert.equal(kv.size, 0, 'nothing left behind');
