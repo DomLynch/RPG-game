@@ -66,5 +66,13 @@
       "presenceFreshMs": 5000,
       "note": "gear import: most LootIds a body may list (it only bounds a hostile body); an open settles at most this many Pit claims, the rest wait for the next open; requests that may wait behind one account's queue before 'busy' (503); how old (ms) a presence pose may be for the Exchange bank to count the player as there"
     }
+  ],
+  "strictFlip": [
+    {
+      "id": "flip",
+      "minKills": 50,
+      "minRate": 0.95,
+      "note": "when the world-reward strict flags may go on (audit 2026-10-18, Strategy: a beta-opening gate): ORIGINS_SPAWN_REFUSE_UNCHECKED once at least minKills kills since the writer started were reach-checked at minRate or better; ORIGINS_WORLD_RECORD_SCORECARD_ONLY once at least minKills kills carried a record that verified at minRate or better. Read by the writer's /internal/world-records readout; the flags themselves are set by Deploy on Lead's word"
+    }
   ]
 }
