@@ -12,7 +12,7 @@ import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Tier } from '../../src/core/grades.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
-import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
+import { loadLoot, lootWorn, loadRankLook, type RankLook } from '../../src/fight/characters.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
@@ -96,9 +96,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   // A creature whose loadout row names a main-game rank look (`look`, e.g. /looks/goblin-L5.glb) is drawn in that whole fitted figure (the Pit's own armour): its body key is `<kind>@<file>`, so each rank look is fetched, warmed and shared once.
-  const keyOf = (s: MobSpec): string => { const f = loadoutRow(mobVariant(s.character, s.id)?.loadout)?.look; return f ? `${s.body}@${f}` : s.body; };
+  const keyOf = (s: MobSpec): string => s.body;   // one body per kind: the rank look is the Pit's armour SET fitted onto it (wearLook), not a replacement body
+  const rankLooks = new Map<string, Promise<RankLook>>();   // each look file fetched once (the Pit's loadRankLook), fitted to every creature that wears it
+  const wearRankLook = (v: View, file: string) => {
+    const p = rankLooks.get(file) ?? loadRankLook(file); rankLooks.set(file, p);
+    void p.then((look) => { if (v.actor) v.actor.wearLook(look); }).catch((error: unknown) => { rankLooks.delete(file); console.warn(`rank look ${file} did not fit; the goblin stays as it is`, error); });
+  };
   const urlOfKind = (kind: string): string | undefined => {   // a zone look's own bare body
-    if (kind.includes('@')) return kind.slice(kind.indexOf('@') + 1);   // a rank look: a site-root file the main game serves (`look.body`, a file in the preview's world/kit/) wins over the baked world body and the roster body
     const own = specs.map((x) => (x.body === kind ? mobLook(x.character)?.body : undefined)).find(Boolean);
     return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(kind) ?? URLS[kind];
   };
@@ -174,10 +178,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     catch (error) { console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(keyOf(s), 'failed'); failedKinds.add(keyOf(s)); return; }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     const row = loadoutRow(look?.loadout);
-    if (look) dressMob(actor.anchor, row?.look ? { ...look, tint: 0xffffff, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
+    if (look) dressMob(actor.anchor, row?.look ? { ...look, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
-    if (row && look?.body && !row.look) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
+    if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
+    else if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {
