@@ -63,12 +63,6 @@ export type ZoneLookFields = { readonly fields?: Readonly<Record<string, unknown
 const zoneSet = (z: ZoneLookFields, path: string): unknown => (z.set?.includes(path) ? z.fields?.[path] : undefined);
 /** The dome a zone row asks for: `look.sky` set to a palette id (EQEmu zone.sky), else null (no dome: every zone that does not set it is unchanged). */
 export const zoneSky = (z: ZoneLookFields): GoblinPalette | null => { const id = zoneSet(z, 'look.sky'); return LOADED.palettes.find((p) => p.id === id) ?? null; };
-/** The kit a zone row asks for (`look.props.kit`, an id in props-defs.json) and the world zone it stands in (`look.props.camp`, a world zone of this zone, else its first); null = none. */
-export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean } | null {
-  const kit = zoneSet(z, 'look.props.kit'); if (typeof kit !== 'string' || !kitIds().includes(kit)) return null;
-  const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
-  return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;   // rim: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too
-}
 /** The kit a zone row asks for (`look.props.kit`, an id in props-defs.json) and the world zone it stands in (`look.props.camp`, a world zone of this zone, else its first); null = none. `rim`: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too. */
 export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean } | null {
   const kit = zoneSet(z, 'look.props.kit'); if (typeof kit !== 'string' || !kitIds().includes(kit)) return null;
@@ -84,8 +78,6 @@ export const zoneRim = (z: ZoneLookFields): { margin: number; slow: number; line
   const m = zoneSet(z, 'boundary.margin'), s = zoneSet(z, 'boundary.slow'), l = zoneSet(z, 'boundary.line');
   return { margin: typeof m === 'number' && m > 0 && m <= 30 ? m : 0, slow: typeof s === 'number' && s >= 0.05 && s <= 1 ? s : 1, line: typeof l === 'string' ? l : '' };
 };
-/** The clutter multipliers a zone asks for (`look.dress`, a dress set id); unset = the base clutter as it was. */
-export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress') as string | undefined);
 /** The ground a zone asks for (`look.ground.material` naming a ground row; an id with no row, like the biomes' old "ash", leaves the Frontier's own dirt). */
 export const zoneGround = (z: ZoneLookFields): GoblinGround | null => LOADED.grounds.find((g) => g.id === zoneSet(z, 'look.ground.material')) ?? null;
 /** How much closer the camera looks when the phone is held wide (landscape): `camera.landscapeZoom`, 1 = as before. Portrait is never changed. */
