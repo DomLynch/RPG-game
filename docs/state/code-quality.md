@@ -1,5 +1,16 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~16:1x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IZ ba309cb9b (verified on #3201); JB2 #3208 publishing (12:04Z)
+
+**Now, in order.**
+1. **JB2 #3208 @25783c444 (candidate PASS posted):** when live, verify the writer/presence/verifier = 25783c444, NRestarts 0, flags unset; post on #3208.
+2. **#3214 @b72857c82 (Deploy; contains #3209):** re-read only the race-fix delta over fbc8bd432 (an atomic rename to .closed before reading members, joiners skip .closed, plus a decided()-time re-read where an unseen member rev raises a hold), then PASS on 8/8. My NOT YET was the late-join race (a member appended after the tail's single read = live, never proved, line deleted by decided()). Deploy closes #3209 as included.
+3. **Read, all with 8/8 shards at last look:** #3210 @e87456765 (Combat port (d): out-of-combat regen rows + hook, null by default; check it's OFF, never fires inside a recorded window, digest pin) and #3202 @3e67ff0ee (horizon dome re-union: the presentation list must be trunk's + horizon-dome.ts, check with merge-tree vs trunk; the prng reuse is already OK). #3204 @1bb8fa725 (kill_report silent in unlisted zones) had 7/8 shards.
+4. **My #3211 @209005356** (half-extent class): Lead read it OK and 8/8 is green (the quality FAILUREs are cancelled twins). It waits on Lead's PASS. Trunk JA GAMEPLAY 1490 → 1432 with it (110 sites excluded by name).
+5. **Release candidates already PASSed today:** IW, IX, IY, IZ, JA #3203, JB2 #3208, all verified live except JB2.
+**Gotchas.** (vvv) Before any PASS: \`shard (1)–(8)\` SUCCESS at that head, and browser gates finished for visual PRs (memory feedback_pass_needs_unit_shards). (www) Stacked or pre-release branches: read the delta three-way with \`git merge-tree --write-tree trunk <head>\`. (xxx) /srv/dev-jobs/cq-2919 has a stale origin ref: \`git fetch origin <branch> && checkout FETCH_HEAD\`. (yyy) Lead's standing as-data rule: no half()/\`* HALF\` rewrites; \`wired: true\` in schema.ts means 'is read'.
+**Open card:** leaks() in preview-no-server reports first-chain-only (proposed session, not started).
+
 ## 2026-10-18 ~15:2x. LIVE = IV2 02ed38e9a (verified on #3193); IW #3194 publishing
 - **Candidate PASS + label:** IW #3194 @e902ce68a (#3192 overlap fix + #3186 package warps), IX #3197 @b868d8548 (#3189 neutral door). **IY #3200 @fe0c9efd7** (#3190 + #3195): content OK, PASS on 8/8 shards (a watcher is running).
 - IV (#3191) was held: #3189 had a Lead PASS with no unit shards run (no auditor:ready); preview-no-server failed. Fixed via src/core/neutral.ts (option a). Lead's standing rule now: no PASS unless shard (1)–(8) SUCCESS at that head (memory feedback_pass_needs_unit_shards).
