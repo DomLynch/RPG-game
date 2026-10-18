@@ -930,7 +930,7 @@ function creatureFell(spec: MobSpec) {
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
-    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
+    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0, loadZone().spawns.rows.find((r) => r.id === spec.character)?.loot) : null;
     if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
     worldToast(killToast(k, itemName, spec.name, bountyTaken, guest, sandbox));
   });
