@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# The CI tail of a published release (Lead GO 2026-10-18, citing Dom: overlapping publishes). `bash scripts/release-train-postcheck.sh <revision> <rows csv> <PR number>`.
+# deploy.sh with POST_PUBLISH_DETACH=1 does the live read-backs and the rollback-capable Mac group inside the hold, then leaves the CI-routed post-publish rows open and
+# says so on one line ("post-publish CI tail: rows <csv> for <rev>"). The train publisher releases the hold and starts THIS script detached, from the train's own checkout
+# (never a release slot: the next publish rewrites those). It waits for the release-checks run of the tree, then:
+#   - every row proved on CI  -> one "green" line in its log and one comment on the PR, nothing held;
+#   - anything else (a red row, a row CI cannot prove, CI down, the wait ran out) -> deploy_hold is written (unless one exists) with the rows and the revision, the notify hook
+#     and a PR comment say so. The next publish does not start until a person looks; one already in flight is fix-forward by its owner (Lead's rule 3): this script never rolls back
+#     and never re-trusts a red row.
+# Log: $STATE/release-train-postcheck-<rev8>.log. Publish-to-publish minutes are the train log's job (the published lines carry the times).
+# Env: RELEASE_TRAIN_STATE, POST_PUBLISH_TRUSTED_CMD (default: node scripts/ci-trusted-checks.mjs), POST_PUBLISH_CI_WAIT_S (default 1500), RELEASE_TRAIN_NOTIFY.
+set -uo pipefail
+rev="${1:?revision}"; rows="${2:?rows csv}"; pr="${3:-}"
+state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"; hold="$state/deploy_hold"
+dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+say() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train-postcheck: $*"; }
+note() {   # one PR comment, best effort (POSTCHECK_COMMENT replaces gh in tests)
+  [ -n "$pr" ] || return 0
+  if [ -n "${POSTCHECK_COMMENT:-}" ]; then $POSTCHECK_COMMENT "$1" >/dev/null 2>&1 || true; else gh pr comment "$pr" --body "$1" >/dev/null 2>&1 || true; fi
+}
+raise() {   # $1 = why: hold the NEXT publish and tell a person
+  say "RED: $1"
+  [ -e "$hold" ] || printf 'post-publish CI tail failed for a live release; remove this file after looking\nrows %s revision %s: %s at %s\n' "$rows" "$rev" "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"
+  note "release-train post-publish: rows $rows for live $rev NOT proved on CI ($1). deploy_hold written; the release stays live. Owner fixes forward on the next publish's thread."
+  [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI rows failed for $rev ($1)" || true
+  exit 1
+}
+trust="${POST_PUBLISH_TRUSTED_CMD:-node $dir/ci-trusted-checks.mjs}"
+sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the dispatched run must exist before ci-trusted-checks can wait on it
+trusted=$(cd "$dir/.." && CI_ROWS_WAIT_S="${POST_PUBLISH_CI_WAIT_S:-1500}" $trust "$rev" 2>/dev/null) || raise "the trust lookup failed"
+left=$(node "$dir/lib/row-placement.mjs" subtract "$rows" "$trusted" 2>/dev/null) || left="$rows"   # fail closed: a failed subtract leaves every row open
+[ -z "$left" ] || raise "rows $left not green on CI for the tree"
+say "post-publish rows $rows for $rev: all CI-trusted"
+note "release-train post-publish: rows $rows for live $rev all green on CI."
+exit 0

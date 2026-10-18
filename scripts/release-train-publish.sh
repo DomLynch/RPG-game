@@ -139,6 +139,13 @@ rc=$?
 [ "$rc" -eq 0 ] || stop "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"
 grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Published $rev line; log $logf"
 rm -f "$hold" "$hold.stale-told"
+# POST_PUBLISH_DETACH=1 in the env file: deploy.sh left the CI-routed post-publish rows to a tail (one "post-publish CI tail: rows <csv> for <rev>" line). The hold is released above; the tail runs
+# from THIS checkout, detached, and re-holds the next publish only if CI does not prove the rows (scripts/release-train-postcheck.sh).
+tail_rows=$(sed -n -E "s/^post-publish CI tail: rows ([0-9,]+) for $rev .*/\1/p" "$logf" | head -n 1)
+if [ -n "$tail_rows" ]; then
+  log "post-publish CI tail for $rev: rows $tail_rows (postcheck log $state/release-train-postcheck-${rev:0:8}.log)"
+  ( nohup bash "$(dirname "$0")/release-train-postcheck.sh" "$rev" "$tail_rows" "$pr" > "$state/release-train-postcheck-${rev:0:8}.log" 2>&1 & )
+fi
 summary=$(sed -n "/^Published $rev/,\$p" "$logf" | head -n 40)
 net_gh 30 pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
 # Every open PR whose head live now contains is done (forward-only publish; DI 2026-10-13 left its stacked members #2430/#2442/#2444/#2447/#2426 open): close it with a pointer.
