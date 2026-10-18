@@ -19,7 +19,7 @@ export function createFound(storage: Pick<Storage, 'getItem' | 'setItem'> | null
   };
 }
 
-export type Drop = { id: number; piece: string; label: string; from: string; x: number; z: number; age: number };
+export type Drop = { id: number; piece: string; label: string; from: string; x: number; z: number; age: number; rung?: string };
 type Deps = { scene: THREE.Scene; groundAt: (x: number, z: number) => number; found: ReturnType<typeof createFound>; reach: number; onPick: (d: Drop) => void; onChange: () => void };
 
 /** Markers on the ground: `drop` puts one where the creature fell, `update` bobs them and takes the one the hero walks onto (within `reach` metres). */
@@ -28,10 +28,10 @@ export function createKillDrops(deps: Deps) {
   const geo = new THREE.OctahedronGeometry(0.22), ringGeo = new THREE.RingGeometry(0.42, 0.5, 28).rotateX(-Math.PI / 2);
   const live = new Map<number, { drop: Drop; group: THREE.Group }>(); let next = 1;
   return {
-    drop(piece: string, label: string, from: string, x: number, z: number): void {
+    drop(piece: string, label: string, from: string, x: number, z: number, rung?: string): void {
       const group = new THREE.Group(), gem = new THREE.Mesh(geo, bone), halo = new THREE.Mesh(ringGeo, ring); gem.position.y = 0.55; group.add(gem, halo);
       group.position.set(x, deps.groundAt(x, z) + 0.05, z); deps.scene.add(group);
-      const d: Drop = { id: next++, piece, label, from, x, z, age: 0 }; live.set(d.id, { drop: d, group });
+      const d: Drop = { id: next++, piece, label, from, x, z, age: 0, rung }; live.set(d.id, { drop: d, group });
     },
     update(dt: number, hero: { x: number; z: number }): void {
       for (const [id, e] of live) {

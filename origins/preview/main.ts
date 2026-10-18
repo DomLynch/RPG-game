@@ -20,7 +20,7 @@ import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
-import { droppedPiece, loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
+import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
@@ -79,6 +79,12 @@ import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
+import { createOutfit, dropSet } from './outfit.ts';
+import { loadLoot, loadShape, lootIds, lootWorn } from '../../src/fight/index.ts';
+import { shapeFor } from '../../src/fight/weapon-shapes.ts';
+import { weaponOf, type LootId } from '../../src/core/loot.ts';
+import { TITLES } from '../../src/core/server.ts';
+import lootGlbUrl from '../../src/assets/loot.glb?url';
 import { fxNum } from '../../src/fight/fx-rows.ts';
 import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
 import { createWarBand, pickRoles } from './war-band.ts';
@@ -204,7 +210,7 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); dressHero(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -748,7 +754,21 @@ function heroDeathSequence() {
 }
 // Kill drops (kill-drop.ts; sandbox only, local to this device): the piece a creature wore falls where it fell and goes into the "Found" list when the hero walks onto it.
 const found = createFound((() => { try { return localStorage; } catch { return null; } })());
-const killDrops = createKillDrops({ scene, groundAt: groundY, found, reach: fxNum('drop.reach'), onPick: (d) => worldToast(`Picked up: ${d.label} (from ${d.from})`), onChange: () => drawFound() });
+const outfit = createOutfit((() => { try { return localStorage; } catch { return null; } })());   // what the hero wears of what he found: one piece per slot, each at the rung it was won at (outfit.ts)
+let heroLoot: Awaited<ReturnType<typeof loadLoot>> | undefined, heroLootAsked = false;
+const heroShapes = new Map<string, Promise<THREE.Mesh | undefined>>();
+// Put the outfit on the hero with the Pit's own calls (loadLoot -> actor.wear, as gear-stage.ts and scene.ts do); a taken weapon shows as its per-rank shape on the hero's weapon (visual only: the fight is still the longsword).
+function dressHero() {
+  if (!warriors) return;
+  if (!heroLoot) { if (!heroLootAsked) { heroLootAsked = true; void loadLoot(lootGlbUrl).then((l) => { heroLoot = l; dressHero(); }).catch((error: unknown) => console.warn('the loot pieces did not load; the hero stays as he is', error)); } return; }
+  const ids = outfit.ids();
+  warriors.player.wear(heroLoot.filter((piece) => lootWorn(piece, ids)), (id, error) => console.warn(`${id} did not fit`, error), (piece) => outfit.tierOf(lootIds(piece).find((id) => ids.includes(id)) ?? '') as Tier);
+  const w = outfit.weapon(), level = w ? TITLES.indexOf(w.tier as (typeof TITLES)[number]) + 1 : 0, url = w && level > 0 ? shapeFor(weaponOf(w.id as LootId), level) : undefined;
+  if (!url) { warriors.player.reshape(undefined); return; }
+  const p = heroShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load`, error); return undefined; }); heroShapes.set(url, p);
+  void p.then((mesh) => { if (mesh && warriors) warriors.player.reshape(mesh); });
+}
+const killDrops = createKillDrops({ scene, groundAt: groundY, found, reach: fxNum('drop.reach'), onPick: (d) => { outfit.take(d.piece, d.rung ?? 'Recruit'); dressHero(); worldToast(`Picked up and wearing: ${d.label} (from ${d.from})`); }, onChange: () => drawFound() });
 const foundChip = document.createElement('button'); foundChip.id = 'found-chip'; foundChip.className = 'glass'; foundChip.type = 'button';
 foundChip.style.cssText = 'position:fixed;left:8px;top:64px;z-index:5;padding:6px 10px;font:600 13px/1 Georgia,serif;border:0;border-radius:14px;color:inherit;display:none';
 const foundPanel = document.createElement('div'); foundPanel.id = 'found-panel'; foundPanel.className = 'glass';
@@ -801,11 +821,11 @@ function creatureFell(spec: MobSpec) {
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
   // The sandbox only (an unlisted zone the server never sees): a creature that wore a loadout drops ONE of the pieces it wore (loadouts-rules.ts droppedPiece), named on screen after the kill toast. Nothing is saved; the real item is the backend's loot-table work.
-  const worn = (zoneRow ?? loadZone()).unlisted ? droppedPiece(loadoutRow(mobVariant(spec.character, spec.id)?.loadout), spec.id) : undefined;
-  const loadout = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), isCaptain = spec.id === warBand.captain();   // the war band's captain drops more: `warband.captain-drops` of the pieces he wore, starting at the one a normal kill would drop
-  const extras = isCaptain && worn && loadout ? loadout.pieces.filter((p) => p !== worn).slice(0, Math.max(0, fxNum('warband.captain-drops') - 1)) : [];
-  const dropLabel = (p: string): string => `${loadout?.rung ? `${loadout.rung} ` : ''}${pieceLabel(p)}`;   // the rung the piece was taken at (a Champion helmet), so a pick-up counts at its level
-  if (worn) setTimeout(() => { worldToast(isCaptain ? `The captain falls! He drops ${[worn, ...extras].map(dropLabel).join(' and ')}` : `${spec.name} drops what it wore: ${dropLabel(worn)}`); [worn, ...extras].forEach((p, i) => killDrops.drop(p, dropLabel(p), spec.name, (fellAt?.x ?? state.x) + i * 0.8, fellAt?.z ?? state.z)); drawFound(); }, 3600);
+  // Dom 2026-10-18 (alpha): take EVERYTHING the body wore and carried, mix and match (row `zoneloot.take-limit`: the Pit takes 1, this zone 0 = all; outfit.ts dropSet). Laid in a ring where it fell.
+  const loadout = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), isCaptain = spec.id === warBand.captain();
+  const pieces = (zoneRow ?? loadZone()).unlisted ? dropSet(loadout, spec.id, fxNum('zoneloot.take-limit')) : [];
+  const dropLabel = (p: string): string => `${loadout?.rung ? `${loadout.rung} ` : ''}${pieceLabel(p) === p ? p.split('.')[1] : pieceLabel(p)}`;   // the rung the piece was won at (a Champion helmet), so a pick-up counts at its level
+  if (pieces.length) setTimeout(() => { worldToast(isCaptain ? `The captain falls! He drops ${pieces.map(dropLabel).join(', ')}` : `${spec.name} drops everything: ${pieces.map(dropLabel).join(', ')}`); pieces.forEach((p, i) => { const a = (i / pieces.length) * Math.PI * 2; killDrops.drop(p, dropLabel(p), spec.name, (fellAt?.x ?? state.x) + Math.cos(a) * fxNum('zoneloot.ring-m'), (fellAt?.z ?? state.z) + Math.sin(a) * fxNum('zoneloot.ring-m'), loadout?.rung); }); drawFound(); }, 3600);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
