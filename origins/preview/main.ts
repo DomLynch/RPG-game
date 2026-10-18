@@ -11,7 +11,7 @@ import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Fin
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
+import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
@@ -30,7 +30,11 @@ import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { zoneBuildings, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { propKit, withPropKit } from './prop-kit.ts';
+import { createAmbience } from './ambience.ts';
+import { createGoblinSmoke } from './goblin-smoke.ts';
+import { goblinDirtMaterial } from './goblin-ground.ts';
 import { buildingSkin } from './building-skin.ts';
 import { loadSkinModels } from './skin-models.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
@@ -132,10 +136,13 @@ const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(lo
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
-const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields (Test Zone port). Zones 1-4 set none of them, so they are unchanged
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // a zone row's look.props.kit stands its camp props (prop-kit.ts) on the dressed ground
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
-const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
+const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!, zoneRow?.set?.includes('look.props.density') ? Number(zoneRow.fields?.['look.props.density']) : undefined) : null;
 if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 // The hills (frontier-relief.ts): flat pads under everything the plan and the dressing put down, hills in the open ground between; ?relief=0 is the kill switch. groundY is the ground under a world point (0 off the Frontier).
@@ -154,16 +161,20 @@ const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (i
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
-let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null;
+const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
+let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
 const settled = { hero: false, kit: !zoneKit };
 const coverEl = document.getElementById('cover');
 const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 if (frontier && frontierParts) {
-  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
+  const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
+  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
-  if (frontierParts.models.length) void loadSkinModels(frontierParts.models, groundY).then((g) => frontierGroup?.add(g));   // the skin's buildings: each model file is fetched only now, on entering this zone
-  { const sky = zoneSky(loadZone()); if (sky) { zoneDome = createHorizonDome(scene, sky, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; } }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; if (standing.length) void loadSkinModels(standing, groundY).then((g) => frontierGroup?.add(g)); }   // the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
+  if (ZONE_SKY) { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
+  if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
@@ -251,7 +262,10 @@ const measureHud = () => {
   labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));   // the Pit's bars (.combat-hud) sit under the HUD stack (index.html)
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level);
+const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag and the info card style this page's zone asks for
+const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
+const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
@@ -343,7 +357,11 @@ function step(dt: number) {
     const i = duel!.worldIntent(), k = i.run ? 2 : 1;
     forward = Math.max(-previewRule('walkBackMax'), Math.min(previewRule('stickRange'), -i.z)) * k; strafe = Math.max(-previewRule('stickRange'), Math.min(previewRule('stickRange'), i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
-    if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
+    if (lockOn) {   // the Pit's lock: the camera swings behind the hero to face it. 'soft' (the zone's look.creatures.lock): a gentler pull that lets go while he runs away (stick pushed back) or looks round (a drag), for lockPauseSec
+      const soft = MARKERS.lock === 'soft', now = performance.now();
+      if (soft && forward < -previewRule('lockAwayStick')) lockPausedUntil = now + previewRule('lockPauseSec') * 1000;
+      if (!soft || now >= lockPausedUntil) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-previewRule(soft ? 'lockPullSoft' : 'lockPull') * dt));
+    }
     const a = i.action;
     if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
     else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
@@ -362,7 +380,9 @@ function step(dt: number) {
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
   // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
-  const px = state.x, pz = state.z, ground = running ? RUN / 2 : WALK;   // Intent.running, not a guess from the stick size
+  const rimZone = RIM.margin && frontier ? frontierZoneAt(frontier, state.x, state.z) : null, rim = rimZone ? rimScale(edgeDistance(rimZone, state.x, state.z), RIM.margin, RIM.slow) : 1;   // the soft rim (boundary.* on the zone): slower near the edge, with one line
+  if (rim < 1 && forward) { rimUntil = performance.now() + 3000; hint.textContent = RIM.line; hint.hidden = !RIM.line; } else if (rimUntil && performance.now() > rimUntil) { rimUntil = 0; hint.hidden = true; }
+  const px = state.x, pz = state.z, ground = (running ? RUN / 2 : WALK) * rim;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
@@ -389,7 +409,7 @@ function step(dt: number) {
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true;
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
@@ -626,6 +646,8 @@ const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
   step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
+  ambience?.update(dt); goblinSmoke?.update(dt);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
