@@ -22,7 +22,7 @@ import { presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
-import { createVerdictTally, flipReadiness } from '../origins/server/world-verify.ts';
+import { createVerdictTally, flipReadiness, strictRevert } from '../origins/server/world-verify.ts';
 import { createVerifyPool } from '../origins/server/world-verify-pool.ts';
 import { worldSpawnOps, zoneKeyProblems } from '../origins/server/world-spawns.ts';
 import { groundOps } from '../origins/server/ground-take.ts';
@@ -34,9 +34,9 @@ import { killWear } from '../origins/server/wear-settle.ts';
 // Zone 1 world spawns (202610080014): ON unless ORIGINS_SPAWNS=0 (the kill switch); without the migration every op answers 503.
 // Ground loot (20261015120000): ON unless ORIGINS_GROUND=0; without the migration its ops answer 503.
 const verifyPool = createVerifyPool();
-const tally = createVerdictTally(), reachTally = createVerdictTally();   // kills by record outcome, and by reach (checked, or why not): the strict-flip readout (server-rules strictFlip)
-const worldRecords = { snapshot: () => { const t = tally.snapshot(), r = reachTally.snapshot(); return { ...t, reach: r, flip: flipReadiness(r.outcomes, t.outcomes) }; } };   // GET /internal/world-records
-setInterval(() => { const t = worldRecords.snapshot(); if (t.total || t.reach.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}; reach ${JSON.stringify(t.reach.outcomes)}; flip ${JSON.stringify(t.flip)}`); }, 3_600_000).unref();
+const tally = createVerdictTally(), reachTally = createVerdictTally(undefined, 'checked');   // kills by record outcome, and by reach (checked, or why not), each split organic / qa: the strict-flip readout (server-rules strictFlip) and the revert rule (strictRevert, organic reach only)
+const worldRecords = { snapshot: () => { const t = tally.snapshot(), r = reachTally.snapshot(); return { ...t, reach: r, flip: flipReadiness(r.outcomes, t.outcomes), revert: strictRevert(r.cohorts.organic) }; } };   // GET /internal/world-records
+setInterval(() => { const t = worldRecords.snapshot(); if (t.total || t.reach.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}; reach ${JSON.stringify(t.reach.outcomes)}; flip ${JSON.stringify(t.flip)}; revert ${JSON.stringify(t.revert)}`); }, 3_600_000).unref();
 const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, reachTally, heroOf: (account, character, version) => heroLimitOf(db, account, character, version) }; };
 const regionWear = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return killWear(c.value); };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
