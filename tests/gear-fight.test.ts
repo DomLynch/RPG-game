@@ -134,7 +134,7 @@ test('the first differing tick of a sheet fight against the same intents without
 
 test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25 spread by weights); light / medium / heavy are three preset rows; a worn set resolves to dial deltas; the loader refuses a bad table', () => {
   assert.deepEqual(Object.values(GEAR.sets).map((t) => [t.id, t.shape]), [['plate', { armour: 25, magicResist: -25 }], ['robes', { magicResist: 25, armour: -25 }], ['leathers', { stamina: 25, armour: -25 }]]);
-  assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'leathers'], [true, null], [true, 'plate']]);
+  assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'robes'], [true, 'leathers'], [true, 'plate']]);   // RV79 (sandbox gear-defs, Dom-approved 2026-10-18): the light preset is robes and the medium preset leathers (were leathers and none)
   assert.equal(GEAR.owners.veteran, 'plate'); assert.equal(GEAR.owners.witch, 'robes');
   const quality = (d: Record<string, number>, set: string, c = 1) => Object.entries(d).reduce((n, [dial, v]) => n + v - Math.sign(GEAR.sets[set]!.shape[dial] ?? 0) * Math.round(Math.abs(GEAR.sets[set]!.shape[dial] ?? 0) * c), 0) + Math.round(GEAR.weights[GEAR.sets[set]!.weightClass]!.castPenalty * c);   // what is left of the deltas after the (scaled) shape, with the weight class's cast penalty added back
   assert.deepEqual(gearDeltas('plate', 1, 0), { armour: 25, magicResist: -25, spellPower: -20 }, 'a full COMMON set is all shape and no quality; heavy takes 20 off spellPower');

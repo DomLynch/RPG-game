@@ -1,6 +1,6 @@
 // Positioning bands, the FIXED-cm edges mode (BULK-CS, ruling B; Dom's sandbox numbers): inner under 135 cm, mid up to 180 cm, outer beyond, for every weapon; an off-band blow lands x0.4 (offBandMultCm). The span-FRACTIONS mode is pinned in
 // tests/bands.test.ts (edgesMode 0). Both stay behind `Duel.bands` (default off: no flag, no change).
-import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
+import './lib/era-on.ts';   // RV79: the fixed-cm edges are the sandbox era's (bands.ts edgesFixed reads SANDBOX_ON), so this file runs the shipped rules; era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BANDS, OFF_BAND, bandAt, bandFactor, bestRange } from '../src/fight/bands.ts';
