@@ -151,7 +151,7 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
   try {
     const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
     const m = await importEraOn(file);
-    assert.equal(m.RECORD_VERSION, 81); assert.equal(m.NO_PATRON_VERSION, 81); assert.equal(m.PATRON_VERSION, 81);
+    assert.equal(m.RECORD_VERSION, 82); assert.equal(m.NO_PATRON_VERSION, 82); assert.equal(m.PATRON_VERSION, 82);
     setPlayScale(playScaleFor('goblin', 43)); setLateNotice(true); setStab(true);
     const fightOf = (patron?: number) => {
       const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}) });
@@ -159,16 +159,16 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
       return rec.finish('draw');
     };
     const none = fightOf(), withPatron = fightOf(5);
-    assert.equal(none.v, 81, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
-    assert.equal(m.packRecord(none)[2], 81);
+    assert.equal(none.v, 82, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
+    assert.equal(m.packRecord(none)[2], 82);
     assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v38 record with patron byte 0 round-trips with no patron');
-    assert.equal(withPatron.v, 81); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
+    assert.equal(withPatron.v, 82); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
     for (const opponent of ['cave-troll'] as const) {   // RV76's reach (cave-troll): at a ceiling bump a fight against it must still pack and round-trip
       setPlayScale(playScaleFor(opponent, 43));
       const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent, level: 3, seed: 7 });
       for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
       const f = rec.finish('draw');
-      assert.equal(f.v, 81, `a ${opponent} fight stamps the new ceiling`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `a ${opponent} fight packs and round-trips at the next bump`);
+      assert.equal(f.v, 82, `a ${opponent} fight stamps the new ceiling`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `a ${opponent} fight packs and round-trips at the next bump`);
     }
     const v32 = m.packRecord(withPatron).slice(); v32[2] = 32;
     const at = v32.length - 6 * 20 - 4 - 4 - 1 - 1 - 1 - 1; assert.equal(v32[at], 5); v32[at] = 0;   // v53 adds the second flag byte, one more from the end
@@ -187,7 +187,7 @@ test('RV80 simulated with the real recipe (thresholds move too): a cave-troll fi
   try {
     const file = join(dir, 'record80.ts'); writeFileSync(file, bumped);
     const m = await importEraOn(file);
-    assert.equal(m.RECORD_VERSION, 81); assert.equal(m.NO_PATRON_VERSION, 31);
+    assert.equal(m.RECORD_VERSION, 82); assert.equal(m.NO_PATRON_VERSION, 31);
     const fight = (opponent: OpponentId, level: number) => { setPlayScale(playScaleFor(opponent, 43)); setLateNotice(true); setStab(true); const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent, level, seed: 7 }); for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('draw'); };
     for (const [opponent, level] of [['cave-troll', 3]] as const) { const f = fight(opponent, level); assert.equal(f.v, 76, `${opponent}: stamped at the reaching bump`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `${opponent}: packs and round-trips at RV77`); }
     for (const [opponent, level] of [['veteran', 18], ['goblin', 6]] as const) { const plain = fight(opponent, level); assert.equal(plain.v, 31, `${opponent} is not reached by RV76: still v31`); assert.deepEqual(m.unpackRecord(m.packRecord(plain)), plain); }
