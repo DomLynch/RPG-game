@@ -1,6 +1,7 @@
 // scripts/account-browser-check.mjs: the sign-in merge restarts the page (src/core/account.ts refresh(merge) ends in location.replace), so the
 // check must not read the page between the code-return goto and the restart's own load. J4a run 1 (row 14, load 30) read it in between:
 // "Execution context was destroyed ... navigation". Pin the order: load counter attached, goto, wait for the second load, then anything else.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

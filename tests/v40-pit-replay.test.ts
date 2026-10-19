@@ -2,6 +2,7 @@
 // tests/fixtures/v40-pit-records.json was written by scripts/record-replay-check.mjs --write on trunk 28a7cea6 (RECORD_VERSION 40), before the ladder existed: five reference fights against the Veteran.
 // The gate is the check script itself (record-replay-check.mjs): same final tick, outcome and Killed tick for every record; on Linux x64 (where the fixture was written and CI runs) the fighters' final-state digest too,
 // which is the byte-for-byte promise (the digest drifts by a float ulp on arm64, see the script's header).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +15,7 @@ const repo = process.cwd(), file = join(repo, 'tests', 'fixtures', 'v40-pit-reco
 const fixture = JSON.parse(readFileSync(file, 'utf8')) as { records: { name: string; encoded: string; expect: { digest: string } }[] };
 
 test('RV41 reads every record the RV40 build wrote (the stamped versions are all still readable)', async () => {
-  assert.equal(RECORD_VERSION, 77); assert.ok(fixture.records.length >= 5);   // 77 (2026-10-18, melee-special rules, shipped off: digest only); 76 (2026-10-17, balance RV76, Strategy targets: the number moves with every bump); 75 (2026-10-17, the sim batch: rows with identical values, so every old record still replays to the same fight); 74 (2026-10-17, leathers set era): READABLE_VERSIONS only widens, so every version the RV40 build stamped is still readable
+  assert.equal(RECORD_VERSION, 78); assert.ok(fixture.records.length >= 5);   // 77 (2026-10-18, melee-special rules, shipped off: digest only); 76 (2026-10-17, balance RV76, Strategy targets: the number moves with every bump); 75 (2026-10-17, the sim batch: rows with identical values, so every old record still replays to the same fight); 74 (2026-10-17, leathers set era): READABLE_VERSIONS only widens, so every version the RV40 build stamped is still readable
   for (const r of fixture.records) { const rec = await decodeRecord(r.encoded); assert.ok((READABLE_VERSIONS as readonly number[]).includes(rec.v) && rec.v <= 40, `${r.name} is a v${rec.v} record`); }
 });
 

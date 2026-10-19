@@ -1,4 +1,5 @@
 // The Goblin's, the Dwarf shield's and the Executioner's effect pools and tunes as rows (special-fx-goblin.ts, special-fx-dwarf-shield.ts, special-fx-executioner.ts): every default is the literal the code held before (special-fx-body-rows.json).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -6,6 +6,7 @@
 //   C4  k7-engine-parity's LEDGER_UI list is empty and stays empty.
 //   C5  the bank and the smith panel (origins/preview/play.ts) keep no item or coin of their own (no inventory or economy module, no inv/coin/receipts state), and no mode calls the save server directly (fetch, a database client's rpc/from).
 // Each rule is a pure function of (read, files) so a mutation case can feed it a bad file.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';

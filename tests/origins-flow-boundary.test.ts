@@ -1,6 +1,7 @@
 // Rule 1 (Dom, 2026-10-09): the open world (origins/) runs the Pit's shared fight CORE (duel, ai, sim, moves, input, hud, characters, scene, gore ...) and never the Pit's FLOW: the arena, the ladder,
 // the match / trial / scorecard / sparring scenes that start and end a Pit fight. A test (like sim-boundary.test.ts, for the same reason: no-restricted-imports cannot say "except these") fails when
 // any non-test file under origins/ imports a flow module. Imports that exist today are pinned in KNOWN as debt: a NEW one fails, and a listed one that has been removed fails too, so the list only shrinks.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

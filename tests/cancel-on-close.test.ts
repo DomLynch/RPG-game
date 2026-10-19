@@ -1,5 +1,6 @@
 // .github/workflows/cancel-on-close.yml cancels a closed PR's unfinished runs, but only when it closed UNMERGED (Lead + Strategy 2026-10-12: CO #2331
 // merged and its release-checks + unit-ci runs on 7ac7e0e6b were cancelled, the receipt deploy.sh needed). The job's own `if:` evaluated for both events.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

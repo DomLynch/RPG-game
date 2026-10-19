@@ -1,5 +1,6 @@
 // ops/install-journald.sh: Frankendom's persistent-journal drop-in (2026-10-13: the journal sat at its 500M cap and rotated every ~3 days, so the 102 presence restarts could not be explained).
 // Run against a scratch root with a stub systemctl; the installer is for the Linux VPS (GNU install -D), so the script tests skip elsewhere.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

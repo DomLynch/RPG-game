@@ -1,5 +1,6 @@
 // The mob kit's version tag (src/core/world/kit-version.ts): any change to the kit tables changes the tag, and the kit CODE is pinned by its text, like SIM_DIGEST in record-version-guard.test.ts, so a
 // behaviour change in code (which no table hash can see) cannot slip through without somebody deciding whether KIT_LOGIC_VERSION must be bumped.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

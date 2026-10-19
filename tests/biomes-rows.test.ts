@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';

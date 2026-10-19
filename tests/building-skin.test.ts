@@ -1,4 +1,5 @@
 // A building skin on the ground (Test Zone B3): a skin is fractions of the building, never changes where a town stands, and its model nodes are fetched per file.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { skinParts } from '../origins/world/building-skins-rules.ts';

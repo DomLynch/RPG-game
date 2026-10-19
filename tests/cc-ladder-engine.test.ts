@@ -1,6 +1,7 @@
 // Proof 3: the shared crowd-control ladder in the engine (src/fight/duel.ts stunned(), src/fight/cc-ladder.ts). A fighter that carries a ladder (Fighter.cc) steps full -> half -> quarter -> immune on its
 // posture breaks, whoever lands them; a fighter without one is the Pit's fight, unchanged. Both ways: three attackers on the hero (one ladder threaded through three separate duels, as the open world threads
 // the hero's), and the hero on a boss. The landings are spaced past the stun kind's post-CC immunity (cc-defs.json: 120 ticks after a stun ends), which the shipped rows now apply.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, type Action, type Duel, type Intent } from '../src/fight/duel.ts';

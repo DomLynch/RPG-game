@@ -1,6 +1,7 @@
 // scripts/ci-trusted-checks.mjs (run by deploy.sh to decide which release rows CI already proved) bounds every gh/git call: a hung gh
 // used to hold deploy.sh indefinitely (2026-10-16, with the train's own hung fetch/push/poll). It now names the call, trusts nothing it
 // could not check (the conservative empty list: every row runs locally) and exits.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

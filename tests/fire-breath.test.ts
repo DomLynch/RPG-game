@@ -1,4 +1,5 @@
 // The Giant Salamander's fire breath (Dom 2026-10-16/17): the row is the switch, the stream runs from the mouth along the line to the hero within its reach, shows separate tongues, and ends by itself.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

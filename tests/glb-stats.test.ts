@@ -1,4 +1,5 @@
 // The shared triangle counter (scripts/lib/glb-stats.mjs): an indexed mesh counts its indices, a NON-indexed mesh counts its positions (it used to read as zero), and the shipped bodies still read what the pins say.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { glbStats, trianglesOf } from '../scripts/lib/glb-stats.mjs';

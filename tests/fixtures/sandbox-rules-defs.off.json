@@ -1,0 +1,216 @@
+{
+ "rules": [
+  {
+   "id": "dodgeCounter",
+   "value": 0
+  },
+  {
+   "id": "interruptEarly",
+   "value": 0
+  },
+  {
+   "id": "castPushback",
+   "value": 0
+  },
+  {
+   "id": "castPushbackMax",
+   "value": 0
+  },
+  {
+   "id": "executeMult",
+   "value": 0
+  },
+  {
+   "id": "executeBelow",
+   "value": 0
+  },
+  {
+   "id": "bandOff",
+   "value": 0
+  },
+  {
+   "id": "castTellOff",
+   "value": 0
+  },
+  {
+   "id": "spellsOff",
+   "value": 0
+  },
+  {
+   "id": "healOff",
+   "value": 0
+  },
+  {
+   "id": "specialMeleeWindup",
+   "value": 0
+  },
+  {
+   "id": "specialMeleeReach",
+   "value": 0
+  },
+  {
+   "id": "specialMeleeSlack",
+   "value": 0
+  },
+  {
+   "id": "specialReact",
+   "value": 0
+  },
+  {
+   "id": "specialReactStagger",
+   "value": 100
+  },
+  {
+   "id": "specialReactKnock",
+   "value": 100
+  },
+  {
+   "id": "specialReactPosture",
+   "value": 100
+  },
+  {
+   "id": "spellBuffer",
+   "value": 0
+  },
+  {
+   "id": "spellReach",
+   "value": 0
+  },
+  {
+   "id": "spellSkillFloor",
+   "value": 0
+  },
+  {
+   "id": "spellFx",
+   "value": 0
+  },
+  {
+   "id": "vfxGroundCm",
+   "value": 0
+  },
+  {
+   "id": "vfxScaleNear",
+   "value": 0
+  },
+  {
+   "id": "vfxScaleFar",
+   "value": 0
+  },
+  {
+   "id": "vfxScaleMax",
+   "value": 0
+  },
+  {
+   "id": "glanceGain",
+   "value": 0
+  },
+  {
+   "id": "glanceRate",
+   "value": 1000
+  },
+  {
+   "id": "flankDamage",
+   "value": 0
+  },
+  {
+   "id": "flankPosture",
+   "value": 0
+  },
+  {
+   "id": "armourYou",
+   "value": 0
+  },
+  {
+   "id": "armourFoe",
+   "value": 0
+  },
+  {
+   "id": "manaMax",
+   "value": 0
+  },
+  {
+   "id": "manaRegen",
+   "value": 0
+  },
+  {
+   "id": "manaDelay",
+   "value": 0
+  },
+  {
+   "id": "manaCostMult",
+   "value": 1000
+  },
+  {
+   "id": "missileRadius",
+   "value": 0
+  },
+  {
+   "id": "missileHoming",
+   "value": 0
+  },
+  {
+   "id": "missileFan",
+   "value": 0
+  },
+  {
+   "id": "missileStun",
+   "value": 0
+  },
+  {
+   "id": "quiver",
+   "value": 0
+  },
+  {
+   "id": "percentScale",
+   "value": 100
+  },
+  {
+   "id": "centimetresPerMetre",
+   "value": 100
+  },
+  {
+   "id": "hitImpactSpecial",
+   "value": 0
+  },
+  {
+   "id": "hitImpactGlance",
+   "value": 0
+  }
+ ],
+ "bands": [],
+ "bandBest": [],
+ "spellRange": [],
+ "spellLook": [],
+ "spellEffect": [],
+ "spellPick": [],
+ "specialPick": [],
+ "specialLook": [],
+ "specialTrail": [],
+ "specialShards": [],
+ "specialSound": [],
+ "specialReactFloor": [
+  {
+   "id": "lunge",
+   "stagger": 36
+  }
+ ],
+ "spellHeal": [],
+ "blowKinds": [],
+ "armourVs": [],
+ "commit": [],
+ "ward": [],
+ "brace": [],
+ "poison": [],
+ "bind": [],
+ "missile": [],
+ "missileLanes": [],
+ "missileAnswer": [],
+ "bowSpecial": [],
+ "castPenalty": [],
+ "specialCue": [
+  {
+   "id": "far",
+   "text": "too far"
+  }
+ ]
+}

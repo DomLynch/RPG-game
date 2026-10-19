@@ -1,4 +1,5 @@
 // The zone package prototype (scripts/zone-package.mjs): a zone exports to a folder of rows and imports back with nothing lost (docs/specs/zone-package.md, Design v1).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

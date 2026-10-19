@@ -1,5 +1,6 @@
 // The catalogue is the Pit's runtime source (20a): the roster, OPPONENTS and the ladder order are built from src/fight/catalogue-data.ts, so a new opponent is one row there.
 // The proof is end to end: a child process loads the game's own modules with the data file swapped (by a resolve hook) for a copy plus ONE extra row, and prints what the Pit sees.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

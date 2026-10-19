@@ -1,5 +1,6 @@
 // The PvP verifier (duel step 2): a room's result is re-derived from BOTH pages' PvpRecords. An honest duel passes; a forged winner, a
 // forged fingerprint, an intent column changed on one page, and a room with one record are each refused (the last as unverified).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/fight/ai.ts';

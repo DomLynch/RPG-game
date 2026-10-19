@@ -1,4 +1,5 @@
 // The Dwarf quake's, the wind's and the class special's effect pools and tunes as rows (special-fx-quake.ts, special-fx-wind.ts, special-fx-class.ts): every default is the literal the code held before (special-fx-field-rows.json).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

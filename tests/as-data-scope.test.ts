@@ -1,5 +1,6 @@
 // The inline-number ratchet (as-data rule (h), scripts/as-data/inline-number.yml) scans only the files named in inline-number-scope.json. A new file in the record sim (tests/record-version-guard.test.ts SIM_FILES) or the
 // world sim (tests/world-sim-guard.test.ts WORLD_SIM_FILES) must not escape it: every .ts file of those two lists is in the scope, or in its `excluded` list (generated or data files, each with the reason in the file's note).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

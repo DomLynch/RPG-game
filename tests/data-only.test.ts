@@ -1,4 +1,5 @@
 // Data-only PRs (scripts/lib/data-only.mjs): which files may skip the Auditor, and the proof that a zone module is data, not code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

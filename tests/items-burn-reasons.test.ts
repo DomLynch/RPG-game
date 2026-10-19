@@ -1,4 +1,5 @@
 // Burn reasons are ROWS (src/core/items/burn-reasons.json): a new reason is one row and no code; an unknown reason still refuses; the story-item rule is a row flag.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

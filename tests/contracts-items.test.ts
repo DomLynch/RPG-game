@@ -1,5 +1,6 @@
 // O1 items: ItemDefinition, ItemInstance (one canonical location, permanent provenance, append-only history, the reserved upgrade
 // level), custody and one-of-each, rank-to-equip, the Attack/RES spine, and LootTable.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { levelOfMarks as levelOf } from '../src/core/career-ladder.ts';

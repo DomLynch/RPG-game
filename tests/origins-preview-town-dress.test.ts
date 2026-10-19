@@ -1,5 +1,6 @@
 // Townspeople clothes (origins/preview/town-dress.ts): the garments of public/world/town/clothes.glb ride the warrior world body's OWN bones by name, so they
 // play the body's clips; the file carries the Talk clip and no body. Parsed in Node with images dropped, as tests/rank-look.test.ts does.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

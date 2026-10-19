@@ -1,6 +1,7 @@
 // Router PR 2: the release unit suite runs on the VPS (prepaid) when the box is quiet, Hugging Face only as spillover. The receipt is trusted ONLY from our own live ssh
 // session, under the Auditor's guards: a pinned official node tarball, a per-run nonce the code under test never sees, test output in a log file (never the parsed
 // stream), the nonce printed on the LAST line only after test:all exits 0, ssh exit 0, tree == deploy tree, and a unique run dir outside /tmp.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

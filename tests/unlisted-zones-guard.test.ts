@@ -2,6 +2,7 @@
 // VITE_UNLISTED_ZONES=1 opt-in may open an unlisted zone (zone 90). Deploy's sandbox previews for Dom pass it on their own build command; nothing that builds what the public gets may set it.
 // Three locks: (1) the live build line clears it and no script assigns it, (2) a runtime refusal before the build when any .env* sets it (vite's loadEnv reads those files; `env -u` cannot clear them),
 // (3) the server reaches the registry only through origins/zones/listed.ts, which has the flag hard-wired off.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';

@@ -1,5 +1,6 @@
 // The writer-parity gate (2026-10-13 DN published with the writer still on DM): writer_parity_gaps against a scratch "installed writer", and deploy.sh's wiring:
 // the check runs before the publish lock and a non-empty answer exits 1.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

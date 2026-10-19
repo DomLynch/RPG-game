@@ -1,6 +1,7 @@
 // scripts/lanejob/lanejob-mac.sh (Dom 2026-10-12, Strategy defect 3): the Mac is tried FIRST (no VPS probe), for a CPU-only job, when the 5-minute load
 // average < 8, no release is in flight, the job is not on the deny list and the one Mac slot is free. Exit 75 = route it on (VPS, then hf-cpu).
 // --probe says would=mac / would=skip reason=... without running anything. Load, state dir and remote log are stubbed (AGENTS.md: tests use tmp dirs).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';

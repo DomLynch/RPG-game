@@ -1,4 +1,5 @@
 // createZoneBars (src/fight/hud.ts): the zone page paints the PIT's own bars (#opponent-name, #target-health, #player-health, #stamina) through the same fillMeter / paintMeter the Pit's createHud uses, and the Pit's own numbers are unchanged by the extraction.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createZoneBars, fillMeter, paintMeter } from '../src/fight/hud.ts';

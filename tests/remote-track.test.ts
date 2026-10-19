@@ -1,4 +1,5 @@
 // Other players in Zone 1 (origins/preview/remote-track.ts): the ease between presence packets, the heading's short way round, the teleport snap, the cap and the forgetting.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { arc, createTrack, type Remote } from '../origins/preview/remote-track.ts';

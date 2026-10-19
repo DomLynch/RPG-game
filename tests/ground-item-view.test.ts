@@ -1,4 +1,5 @@
 // The ground-item view (ground loot slice 3): an item lies flat from its row, finished by its finish row, drawn only while shown. A stub model stands for the glb.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

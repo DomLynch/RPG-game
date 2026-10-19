@@ -1,5 +1,6 @@
 // Hardening item 3 (gates read receipts, never run states): ONE rule for the publisher, the queue summary and the unit receipt.
 // cancelled / skipped / missing / running = "no receipt yet" = wait; SUCCESS = green; FAILURE = red; the latest attempt that carries a verdict decides.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

@@ -1,4 +1,5 @@
 // scripts/ci-delta.mjs: a feature PR's shards are skipped only when its OWN delta already ran green. Real git fixture for the patch id; the status lookup is pure.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

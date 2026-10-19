@@ -2,6 +2,7 @@
 // --hf-ok that is still waiting after the spill wait, with the box STILL over the line, is handed to its caller (exit 76 + a CAPTURE_SPILL line) and
 // scripts/capture-mac.sh runs it once on Hugging Face (cpu-upgrade, Deploy's node:22 image) with the Mac's login, cancels it after a quiet spell, and
 // appends the result to the VPS spill.log. Real bash, flock and /proc; stubbed ssh (runs locally), hf, npm, lanejob and ionice.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';

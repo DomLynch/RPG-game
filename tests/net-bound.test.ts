@@ -1,6 +1,7 @@
 // scripts/lib/net-bound.sh: every network call the release train and deploy.sh make is bounded. A hung git/gh (2026-10-15/16: a
 // `git fetch` sat 73 min, a `git push` 61 min, a `gh run view` 21 min, all inside the launchd train) is killed at its limit with its whole
 // process group, named "<tool> <op> timed out after Ns", exit 124; a call that finishes in time is untouched and git gets low-speed limits.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

@@ -1,6 +1,7 @@
 // The 50-level ladder's profiles (moves.ts profileAt; Dom via Strategy 2026-09-27, anchors 1 / 6 / 18 / 46). The fairness of each level is
 // the battery's (tests/ladder-battery.test.ts); this file pins the blend itself: the anchors are the tables, the novice lowers only skill,
 // identity holds, the tick counts round, and the ladder's ceiling agrees with the career's.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ } from '../src/fight/ai.ts';

@@ -1,5 +1,6 @@
 // Launch gate X2 Stage 2, the writer half (origins/server/location.ts): the saved location of an account's active character, written only from presence's
 // observation through a key + loopback internal route, and served back with Strategy's rejoin rules. The real-Postgres run is scripts/origins-writer-check.mjs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';

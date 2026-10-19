@@ -1,4 +1,5 @@
 // The engine's gear screen's network half (origins/preview/gear-net.ts) against a fake writer: the calls, their order, and that a refusal or a bad reply never throws.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bankMove, isOffline, openGear, runOp, upgradePiece } from '../src/core/gear-net.ts';

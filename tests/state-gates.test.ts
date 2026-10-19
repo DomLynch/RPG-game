@@ -1,6 +1,7 @@
 // State gates (Wave A1 PR3, programme item 5, adapted: there is no to-hit roll, so a gate is a refused input): a stunned fighter's parry and dodge are refused, a casting fighter's too, and the
 // front arc is the existing `guardDirection`. The engine already refuses them through `legal()` (a stunned fighter is in the 'hurt' phase, a caster has `special`); these tests PIN it, so a later change
 // to a phase or to the cast gate cannot quietly reopen an escape from a stun or a cast. No sim file changes for this item, so it carries no record bump of its own.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, legal, type Action, type Fighter } from '../src/fight/duel.ts';

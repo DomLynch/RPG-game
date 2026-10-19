@@ -1,4 +1,5 @@
 // A crowd of other players: the nearest `remoteFullCount` are full figures, the rest CHEAP (no trail, no shadow cast, a pose update every `remoteCheapEvery` frames), all still drawn, and none adds a program.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh } from 'three';

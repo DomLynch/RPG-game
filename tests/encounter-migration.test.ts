@@ -1,5 +1,6 @@
 // Every roster id must be allowed by the newest fighter_profiles encounter migration, or a player who reaches that rung fails cloud
 // sync (the CHECK constraint rejects the row). Added with the Plague Doctor (2026-09-23), whose row nearly shipped without one.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

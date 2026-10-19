@@ -1,5 +1,6 @@
 // The beta cut on specials (the specials PR): spells are OFF (spellsOff) except the utility spells, and a SPECIAL slot holds one of the six `specialPick` skills. A record that breaks it is judged the way the cut judges a level below the
 // floor: refused, no mark, with a text for the player. The same judge serves the Pit claim (scripts/verify-loot.mjs refusal) and the open-world record (origins/server/world-verify.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BETA_SPECIALS_CUT, specialsRefusal, type SpecialsCut } from '../src/core/career-ladder.ts';

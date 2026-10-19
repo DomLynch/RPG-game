@@ -1,5 +1,6 @@
 // The presence install (ops/install-presence.sh, ops/frankendom-presence.service, ops/presence.env.example, ops/presence-files.mjs): the file list the box gets, and the installer run
 // against a throwaway root with stub systemctl/nginx/curl/openssl, so nothing here touches a real server. The installer is for the Linux VPS (GNU install -D), so the script tests skip elsewhere.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, readlinkSync } from 'node:fs';

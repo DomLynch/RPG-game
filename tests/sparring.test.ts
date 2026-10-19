@@ -1,6 +1,7 @@
 // Sparring (src/sparring.ts + match.ts 'sparring', Dom 2026-09-26): an admin's test fight with any warden, level, weapon and move.
 // The hard gate is Dom's "real save untouched": a sparring fight writes NOTHING to storage — no trial line, scorecard row, career
 // mark, record or share — and the picked kit never reaches the saved profile (equipped weapon, move, loot ledger).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

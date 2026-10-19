@@ -1,5 +1,6 @@
 // Skills as data (core slice 5): src/fight/skill-defs.json through skills.ts. The rows must be exactly what the code tables they replaced said (record byte order, move ids, names, who offers what),
 // and the loader must refuse a bad table at load. A new skill is ONE row plus its MoveDef verb.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,5 @@
 // RV31 (docs/specs/combat/l6-anti-spam.md): `spamRun` reads a masher early; absent = the old read, byte for byte.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readOpponent, initialAi, decide, READ, type Habits } from '../src/fight/ai.ts';

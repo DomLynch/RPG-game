@@ -1,4 +1,5 @@
 // Legend families: the tables load through the shared loader, the default rows equal the catalogue's ranks, and the picker is a pure function of (family, rank, seed).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';

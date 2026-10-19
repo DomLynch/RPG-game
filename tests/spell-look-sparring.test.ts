@@ -1,4 +1,5 @@
 // The ?spell look test (boss-telegraph.ts spellLook, Lead 2026-10-13): the hook makes the sim really cast, so it may ONLY reach a Match in sparring (the dummy, no record, pays nothing). Any fight that sends a record ignores it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';

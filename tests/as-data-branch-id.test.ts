@@ -1,5 +1,6 @@
 // Rule (j) of the as-data checker (scripts/as-data/branch-id.yml + check.ts; hard-coding audit 2026-10-17, gap 5): a string literal compared (=== / !== / case) against a content id the data rows declare, beyond rule (a)'s
 // five categories, held to a per-file, per-literal ratchet (branch-id-baseline.json). Pinned on a fixture tree with its own id list (--branch-ids) and baselines, never the live count.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

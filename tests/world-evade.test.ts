@@ -1,5 +1,6 @@
 // Evade (Strategy + Lead 2026-10-17; donor AzerothCore EnterEvadeMode): a creature whose last EVADE_WHIFFS attack cycles all ended without contact walks home, untargetable, and heals to full.
 // Contact is the creature's own landed, blocked, parried or dodged blow; a swing on air or an approach the prey left before the swing is a whiff; a stagger is neither. Pure simulation.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EVADE_HEAL_TO_FULL, EVADE_WHIFFS, creature, newWorld, player, stepCombat, type Event, type Input, type World } from '../src/fight/world.ts';

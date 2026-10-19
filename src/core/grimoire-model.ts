@@ -1,7 +1,7 @@
 // What the spell book lists, as data: pure, no DOM, no network. A book entry is the server's { legend, bricks }; the catalogue (spell-catalogue.ts, lazy) gives it a name, a family and a spell name.
 import type { Bricks, Spell } from './grimoire-net.ts';
 
-export type SpellInfo = { legend: string; family: string; spell: string; school: string; color?: string; level?: number };   // one catalogue row's display fields (spell-catalogue.ts, lazy, fills it); color is the school's row colour, level the spell's row level
+export type SpellInfo = { legend: string; family: string; spell: string; school: string; color?: string; level: number };   // one catalogue row's display fields (spell-catalogue.ts, lazy, fills it); color is the school's row colour, level the spell's row level
 export type Entry = { legend: string; name: string; family: string; spell: string; school: string; color: string; level: number; bricks: string[] };
 export const EMPTY = 'Beat a legend to take their spell';
 const title = (id: string): string => id.replace(/[-_:]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim().replace(/(^|\s)\S/g, (c) => c.toUpperCase());

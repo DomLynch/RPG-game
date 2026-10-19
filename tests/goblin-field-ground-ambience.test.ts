@@ -1,4 +1,5 @@
 // The goblin field's ground recipes and a zone's ambient bed (Test Zone B2a): the ground rows load and are refused when broken; a zone asks for a ground or an ambience by field; the wind and crackle maths is pinned.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import DEFS from '../origins/world/goblin-field-defs.json' with { type: 'json' };

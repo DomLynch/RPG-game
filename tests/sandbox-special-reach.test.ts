@@ -1,8 +1,11 @@
 // sandbox specialMeleeReach / specialMeleeSlack, switched ON for this process only (the rows ship 0 = trunk): a MELEE special (no spell) is pressed only inside the reach (a "far" refusal, nothing spent) and lands at the release only
 // inside reach + slack (a foe that steps out of it during the windup is not hit). Donor: the combat sandbox (sandbox/page @3b118938e, Dom 2026-10-18: a special landed from across the arena).
+import './lib/era-on.ts';   // RV78: this file tests the ON rules; era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped rows are ON (tests/lib/sandbox-defs-off.ts)
 
 const rule = (id: string) => (DEFS as unknown as { rules: { id: string; value: number }[] }).rules.find((r) => r.id === id)!;
 rule('specialMeleeWindup').value = 32; rule('specialMeleeReach').value = 220; rule('specialMeleeSlack').value = 40;
@@ -10,7 +13,7 @@ const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.
 const { specialCueText } = await import('../src/fight/sandbox-rules.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
 type D = { fighters: { special?: number; skillCooldown?: number; health: number; body: { z: number } }[]; events: { type: string; cue?: string; actor?: number }[] };
-const duelAt = (gap: number) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')] });
+const duelAt = (gap: number) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never, picked: true as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')] });
 
 test('a press beyond the reach is refused with the far cue and spends nothing', () => {
   const d = stepDuel(duelAt(2.3) as never, [{ ...idle(), action: 'skill' }, idle()]) as never as D;

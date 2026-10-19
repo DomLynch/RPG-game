@@ -1,6 +1,7 @@
 // scripts/lanejob/install-vps.sh (Lead + Strategy, Dom fast-track 2026-10-12): the VPS lanejob is a 3-line shim that execs the current release copy under /opt/frankendom/lanejob/<sha>/,
 // which carries scripts/lib/waterfall.mjs next to the script, so no per-user ~/.spill-tools copy can be missing or stale. Everything runs in tmp dirs as the test user (AGENTS.md: tests never
 // touch live box state); the proof is a probe through the installed shim as a non-root user.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';

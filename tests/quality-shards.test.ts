@@ -2,6 +2,7 @@
 // unit-ci.yml owns test:all (8 shards, the unit receipt), so the suite runs once per PR, not twice (Lead, after #2298 went live in CK).
 // Together they must stay the SAME gate: quality:static + test:all is exactly quality:ci, every unit shard runs, the one `quality` job
 // deploy.sh reads (scripts/deploy.sh:73) is green only when its shard is, and deploy.sh skips the Mac's suite only with BOTH.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

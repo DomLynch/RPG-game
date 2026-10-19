@@ -1,4 +1,5 @@
 // Characters' numbers as rows (Dom's data-layer rule): each export keeps the value it had in code, and each rows file loads through the registry.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FULL_POINTS, SLOT_WEIGHT } from '../src/fight/gear-stats.ts';

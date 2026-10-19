@@ -1,6 +1,7 @@
 // Behaviour tests for the HF receipt path (Auditor mediums M2-M4 on #1916): the deploy-vps.sh steps run for real under `set -euo pipefail` in a
 // scratch directory with stubbed producers (launch.mjs fetch, vps-receipt-trust.mjs, hf), and the shard guards are each tried with a receipt that
 // must add nothing.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

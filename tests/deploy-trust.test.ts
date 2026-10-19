@@ -1,5 +1,6 @@
 // scripts/lib/deploy-trust.sh: DEPLOY_TRUST_ROWS trusts named release rows for one run only on a written ruling. Rows without a
 // reason stop the deploy; unset leaves the CI-only list and its source byte-identical; set appends the rows and names the ruling.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

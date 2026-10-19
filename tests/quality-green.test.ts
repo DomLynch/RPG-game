@@ -1,5 +1,6 @@
 // deploy.sh's quality_green: the CI-green gate must find the run that proved the tree even when a newer, unfinished run exists for the same sha
 // (release V: the fast-forward push started a queued push run that sorted first; the green pull_request run was second, and the Mac ran its own suite).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

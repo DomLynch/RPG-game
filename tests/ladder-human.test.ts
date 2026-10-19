@@ -1,5 +1,6 @@
 // Ladder gate: the human-like bots (guard/parry only once the swing is 12 ticks old, wrong side 20 %) against every beta opponent at the Easy / Normal / Origin anchors
 // (L6, L18, L46). The tick-0 `blocker` of ladder-sweep.mjs is superhuman and hid a flat Goblin; this is the yardstick that cannot.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ladderHuman } from '../scripts/ladder-human.mjs';

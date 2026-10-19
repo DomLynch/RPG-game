@@ -1,5 +1,6 @@
 // scripts/lib/deploy-ceiling.sh: a deploy that wedges is killed at the ceiling with the step named, exit 124, and the EXIT trap still
 // runs (the lock is released); a deploy that finishes in time is untouched and leaves no watchdog behind.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

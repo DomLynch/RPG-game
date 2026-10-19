@@ -1,4 +1,5 @@
 // The Witch's mage staff (Dom's pick B, 2026-09-26): a look-only trident part on her WeaponDrawn node. Nothing the fight reads moves.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
