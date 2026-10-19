@@ -1,0 +1,97 @@
+{
+  "url": "https://frankendom.com/zone1/?region=1&presence=0",
+  "tag": "live-JL-4eb8d8016",
+  "at": "2026-10-19T08:02:40.886Z",
+  "frames": [
+    {
+      "name": "pit-goblin-ready",
+      "file": "out3268/live-JL-4eb8d8016-pit-goblin-ready-375.jpg",
+      "note": "pit-goblins-1 (Pit goblin), hero 6 m south facing it"
+    },
+    {
+      "name": "pit-goblin-fight",
+      "file": "out3268/live-JL-4eb8d8016-pit-goblin-fight-375.jpg",
+      "note": "tapMob pit-goblins-1, two heavy presses; target pit-goblins-1",
+      "fit": null,
+      "render": {
+        "triangles": 523073,
+        "calls": 97
+      },
+      "target": "pit-goblins-1"
+    },
+    {
+      "name": "scavenger-ready",
+      "file": "out3268/live-JL-4eb8d8016-scavenger-ready-375.jpg",
+      "note": "opener-cinder-fields-1 (Cinder scavenger), hero 6 m south facing it"
+    },
+    {
+      "name": "scavenger-fight",
+      "file": "out3268/live-JL-4eb8d8016-scavenger-fight-375.jpg",
+      "note": "tapMob opener-cinder-fields-1, two heavy presses; target opener-cinder-fields-1",
+      "fit": null,
+      "render": {
+        "triangles": 515823,
+        "calls": 101
+      },
+      "target": "opener-cinder-fields-1"
+    }
+  ],
+  "errors": [],
+  "mobsSample": [
+    {
+      "id": "bounty-shrine-1",
+      "name": "Hrungnir",
+      "body": "knight",
+      "kind": null,
+      "level": 3,
+      "x": -134.46,
+      "z": 62.46
+    },
+    {
+      "id": "bounty-toll-1",
+      "name": "Court thrall",
+      "body": "pitborn",
+      "kind": null,
+      "level": 3,
+      "x": -67,
+      "z": -50
+    },
+    {
+      "id": "bounty-reeds-1",
+      "name": "Peg Powler",
+      "body": "witch",
+      "kind": null,
+      "level": 3,
+      "x": -173.41,
+      "z": -118.66
+    },
+    {
+      "id": "matriarch-1",
+      "name": "Grendel's Mother",
+      "body": "witch",
+      "kind": null,
+      "level": 4,
+      "x": -200,
+      "z": -130
+    },
+    {
+      "id": "scavengers-1",
+      "name": "Cinder scavenger",
+      "body": "goblin",
+      "kind": null,
+      "level": 1,
+      "x": -101.65,
+      "z": 39.68
+    },
+    {
+      "id": "scavengers-2",
+      "name": "Cinder scavenger",
+      "body": "goblin",
+      "kind": null,
+      "level": 1,
+      "x": -92.81,
+      "z": 17.28
+    }
+  ],
+  "note": "nearest pair 74.5 m apart, beyond one frame: one frame per kind"
+}
