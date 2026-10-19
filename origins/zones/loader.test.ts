@@ -76,18 +76,18 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
 
 test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of range is named', () => {
   const z = loadZone(), ok = { looks: { 'character:x': { opponent: 'wolf', tint: 0x8a4a32, scale: 1.1, dressing: { soot: .1, burnt: .5 } } }, spread: { 'character:x': { tints: [0x7a4030], scale: .08, soot: .1, burnt: .1 } } };
-  const edit = (f: (m: Mut<NonNullable<Zone['mobLooks']>>) => void) => { const c = clone(z), m = JSON.parse(JSON.stringify(ok)); f(m); c.mobLooks = m; return zoneProblems(c as unknown as Zone).join('|'); };
+  const edit = (f: (m: Mut<NonNullable<Zone['mobLooks']>>) => void) => { const c = clone(z), m = JSON.parse(JSON.stringify(ok)); f(m); c.mobLooks = { looks: { ...z.mobLooks?.looks, ...m.looks }, spread: { ...z.mobLooks?.spread, ...m.spread } } as typeof c.mobLooks; return zoneProblems(c as unknown as Zone).join('|'); };
   assert.equal(edit(() => {}), '', 'a valid entry passes');
   assert.match(edit((m) => { m.looks['character:x']!.opponent = 'dragon'; }), /dragon is not a roster body/);
   assert.match(edit((m) => { m.looks['character:x']!.tint = -1; }), /tint is not a 0xrrggbb number/);
   assert.match(edit((m) => { m.looks['character:x']!.scale = 9; }), /scale 9 is out of range \(0\.3-6\)/);
-  assert.equal(edit((m) => { m.looks['character:x']!.scale = 6; }), '', 'the bound is the stage rows (mobScaleMax 6): the Test Zone\'s salamander at 6 passes');
+  assert.equal(edit((m) => { m.looks['character:x']!.opponent = 'giant-salamander'; m.looks['character:x']!.scale = 6; }), '', 'the bound is the stage rows (mobScaleMax 6): the Test Zone\'s salamander at 6 passes');
   assert.match(edit((m) => { m.looks['character:x']!.scale = 6.5; }), /scale 6\.5 is out of range/);
   assert.match(edit((m) => { m.looks['character:x']!.scale = 0.2; }), /scale 0\.2 is out of range/);
   assert.match(edit((m) => { m.looks['character:x']!.dressing.burnt = 2; }), /soot\/burnt must be 0\.\.1/);
   assert.match(edit((m) => { m.spread['character:y'] = m.spread['character:x']!; }), /spread character:y has no mob look/);
   assert.match(edit((m) => { m.spread['character:x']!.tints = []; }), /tints must be/);
-  assert.deepEqual(zoneProblems(z), [], 'Zone 1 has no mobLooks and stays valid');
+  assert.deepEqual(zoneProblems(z), [], 'Zone 1\'s own mobLooks (Test Zone look, #3266) are valid');
 });
 
 // Zone 1 is byte-identical to what it was before Zone 2 existed: hashes recorded from the base (world/zone2-data 5eee9e6), order-free. A link this page does not walk (the Ash Reach turn) leaves no post or collider behind.
