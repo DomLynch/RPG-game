@@ -16,7 +16,7 @@ test('a mob look body draws at the scale the catalogue says (the beasts at the s
   for (const [id, look] of Object.entries(loadZone('1').mobLooks!.looks)) {
     const row = CATALOGUE.find((r) => r.id === look.opponent);
     if (!row) continue;   // a held body the catalogue does not carry
-    if (row.shape === 'quadruped') assert.equal(mobLook(id)!.scale, catalogueLook(look.opponent, 1)!.scale, `${id}: a beast's mob look is its catalogue scale`);
+    if (row.shape === 'quadruped') assert.equal(mobLook(id)!.scale, look.scale ?? catalogueLook(look.opponent, 1)!.scale, `${id}: a beast's mob look is its catalogue scale, unless the zone row names one (the Test Zone's Giant Salamander 6, Zone 1 = Test Zone look, Dom-approved 2026-10-18)`);
     assert.equal(catalogueLook(look.opponent, 1)!.scale, row.render.scale);
   }
   assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueLook(id, 5)!.scale), [2, 1.8, 2.2]);

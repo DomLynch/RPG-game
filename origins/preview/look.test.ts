@@ -56,7 +56,7 @@ test('zone1 keeps the arena\'s sky and exposure, darkens the ground below the ma
 test('frontier-duel lifts the cinder ground and bounce and softens the key, and leaves the fog alone', () => {
   const d = PRESETS['frontier-duel']!, c = PRESETS['cinder-haze']!;
   d.ground.forEach((v, i) => assert.ok(Math.abs(v - c.ground[i]! * 1.15) < 1e-9));
-  assert.equal(d.hemiGround, '#6a5238'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);
+  assert.equal(d.hemiGround, '#574a40'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);   // hemiGround: the Test Zone's duel bounce (Zone 1 = Test Zone look, Dom-approved 2026-10-18)
   assert.equal(d.fog, c.fog); assert.equal(d.fogDensity, c.fogDensity); assert.equal(d.exposure, c.exposure);
 });
 
