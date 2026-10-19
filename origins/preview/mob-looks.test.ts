@@ -26,7 +26,7 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
 test('ranges: scale, dressing and tint are sane; a friendly figure has no look', () => {
   for (const [id, l] of Object.entries(Z1.looks)) {
     const scale = mobLook(id)!.scale;   // the resolved scale: a literal in the row, else the body's own
-    assert.ok(scale >= .7 && scale <= 2.8, `${id} scale ${scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts); 2.8: the Giant Salamander on the wolf rig (Combat's catalogue row render.scale, Characters' body; the cap is a typo guard, raised 2.2 -> 2.8 on purpose, 2026-10-16)
+    assert.ok(scale >= .7 && scale <= 6, `${id} scale ${scale}`);   // 6: the Giant Salamander at the Test Zone's size (Zone 1 = Test Zone look, Dom-approved 2026-10-18)   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts); 2.8: the Giant Salamander on the wolf rig (Combat's catalogue row render.scale, Characters' body; the cap is a typo guard, raised 2.2 -> 2.8 on purpose, 2026-10-16)
     for (const v of [l.dressing.soot, l.dressing.burnt]) assert.ok(v >= 0 && v <= 1, `${id} dressing ${v}`);
     assert.ok(Number.isInteger(l.tint) && l.tint >= 0 && l.tint <= 0xffffff, `${id} tint`);
   }
@@ -40,7 +40,8 @@ test('figures that share a body differ in tint and in height', () => {
     assert.ok(group.length >= 2, body);
     for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
       const [a, b] = [mobLook(group[i]![0])!, mobLook(group[j]![0])!];
-      assert.ok(Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
+      const goblinPair = [group[i]![0], group[j]![0]].sort().join() === 'character:cinder-scavenger,character:pit-goblin';   // both 1.25: Zone 1 = Test Zone look, "goblins 1.25" (Dom-approved 2026-10-18); they still differ in tint
+      assert.ok(goblinPair || Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
       assert.notEqual(a.tint, b.tint, `${group[i]![0]} vs ${group[j]![0]} share a tint`);
     }
   }
@@ -59,9 +60,10 @@ test('visual spread: variant 0 is the table look, the others are distinct, stabl
       assert.ok(Math.abs(l.dressing.soot - base.dressing.soot) <= spread.soot + 1e-9 && Math.abs(l.dressing.burnt - base.dressing.burnt) <= spread.burnt + 1e-9, `${id}#${v}: dressing`);
       for (const n of [l.dressing.soot, l.dressing.burnt]) assert.ok(n >= 0 && n <= 1);
       assert.ok([base.tint, ...spread.tints].includes(l.tint), `${id}#${v}: the tint comes from the pool`);
-      seen.add(`${l.tint}/${l.scale}`);
+      seen.add(`${l.tint}/${l.scale}/${l.loadout ?? ''}`);   // a camp may differ by loadout alone (the troll: one tint, one height, two loadouts)
     }
-    assert.equal(seen.size, VARIANTS, `${id}: ${VARIANTS} variants, all different`);
+    const want = spread.scale === 0 && spread.tints.length <= 1 ? new Set([base.loadout, ...(spread.loadouts ?? [])]).size : VARIANTS;   // ONLY a camp with scale 0 and at most one tint differs by loadout alone (today the troll), so it has as many looks as loadouts; any camp with a scale or tint spread must still give all VARIANTS different looks, so a dead spread cannot hide behind this
+    assert.equal(seen.size, want, `${id}: ${want} variants, all different`);
   }
 });
 
@@ -74,7 +76,8 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
   assert.equal(mobVariant('character:warden-brannoc', 'x'), null, 'a friendly figure has no look');
   const band = (id: string) => { const h = Array.from({ length: VARIANTS }, (_, v) => variantLook(id, v)!.scale); return [Math.min(...h), Math.max(...h)]; };
   const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
-  assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - scav[1]! >= .01, `the three goblin kinds keep their height order: ${brood} < ${scav} < ${ghoul}`);
+  // Zone 1 = Test Zone look: goblins 1.25 per Dom, ghoul unchanged, Dom-approved 2026-10-18. The scavenger (goblin, 1.25) is exempt from the order against the ghoul; brood < scavenger and brood < ghoul still hold.
+  assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - brood[1]! >= .01, `the goblin kinds keep the brood smallest: ${brood} < ${scav}, ${ghoul}`);
 });
 
 test('a zone\'s own mob look wins over the central table, and a zone without one changes nothing', () => {
