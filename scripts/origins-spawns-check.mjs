@@ -219,10 +219,11 @@ try {
 
   // ---- 20261019170000 per-layer spawns: every layer keeps its own clocks; a kill reads the TOKEN's layer; one paid kill per account per spawn id per respawn window across layers; the janitor ------------------------
   const LAYERS = '20261019170000_origins_spawn_layers.sql';
+  const [D, E] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
+  let pcD, pcE;   // set inside the layers section, read again by the rollback checks below it
   if (readdirSync(dir).includes(LAYERS)) {
-    const [D, E] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
     psql(`insert into auth.users values ('${D}'), ('${E}'); insert into public.origins_access(account) values ('${D}'), ('${E}');`);
-    const [pcD, pcE] = [mk(D, 'Dara'), mk(E, 'Edda')];
+    [pcD, pcE] = [mk(D, 'Dara'), mk(E, 'Edda')];
     const ENGAGE_L = (layer, acct, pc, t, inst) => `select public.origins_spawn_engage_layer(${layer}, '${acct}', '${pc}', '${t}', '${inst}', 'character:ash-wolf')::text;`;
     const STATE_L = (layer, inst) => `select public.origins_spawn_state_layer(${layer}, array['${inst}'])::text;`;
     const alive = async (layer, inst) => (await val(V, STATE_L(layer, inst))).spawns.map(s => [s.alive, s.generation]);
