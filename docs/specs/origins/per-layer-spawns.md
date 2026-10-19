@@ -2,6 +2,13 @@
 
 Backend, 2026-10-19. Lead's brief: you lead, World co-writes the zone/spawn-row side. Dom reads this before any code. Builds on `one-shard.md` §5 (layers) and the launch load tests (receipts 1-7 on #3282). Every number below is either a measured receipt (named) or arithmetic from a stated input; guesses are marked *est.*
 
+## Summary (Lead's two lines)
+
+1. **Production presence `maxLayers` is 8, so one presence process is capped at 640 players (80 per layer) today. That is the real ceiling now, lower than the 1,000-player mark.**
+2. **The 30 kills/h per hunter target in section 4 is an ASSUMPTION for Dom to set**, as is the 25% hunting share; the tables scale linearly with both.
+
+World writes the zone/spawn-row section after Z1b ships. This PR stays docs-only; no code until Dom has read it.
+
 ## 0. The problem in four numbers
 
 1. **Zone 1 has 24 spawns, respawn 75-300 s.** If every spawn were killed the instant it respawned, the whole zone yields **0.148 kills/s = 8.9 a minute = 533 an hour**, however many players are online (24 spawns / 0.148 per second = a 162 s average cycle). Real yield is lower (walking, 13.5 s to 20 min fights).
