@@ -11,6 +11,7 @@
     { "id": "goblin-totem", "url": "world/kit/goblin_totem.glb", "nodes": ["goblin_totem"] },
     { "id": "goblin-spikes", "url": "world/kit/goblin_spikes.glb", "nodes": ["goblin_spikes"] },
     { "id": "goblin-banner", "url": "world/kit/goblin_banner.glb", "nodes": ["goblin_banner"] },
+    { "id": "torch-sconce", "url": "world/kit/torch_sconce.glb", "nodes": ["torch-sconce"] },
     { "id": "goblin-lantern", "url": "world/kit/goblin_lantern.glb", "nodes": ["goblin_lantern"] },
     { "id": "goblin-hut", "url": "world/kit/goblin_hut.glb", "nodes": ["goblin_hut"] },
     { "id": "goblin-tower", "url": "world/kit/goblin_tower.glb", "nodes": ["goblin_tower"] },
