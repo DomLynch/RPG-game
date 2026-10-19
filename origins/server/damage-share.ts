@@ -28,7 +28,7 @@ export function shares(contributions: readonly Contribution[], hp: number, rows:
 /** Keep each item with probability `share`, on the kill's seed (loot rolled once, then weighted by share). Deterministic: the same seed and share keep the same items. share >= 1 keeps all. */
 export function thin<T>(items: readonly T[], share: number, seed: number): T[] {
   if (share >= 1) return [...items];
-  return items.filter((_, i) => (Math.imul((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0, 0x85ebca6b) >>> 0) / 2 ** 32 < share);
+  return items.filter((_, i) => (Math.imul((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0, 0x85ebca6b) >>> 0) / 0x100000000 < share);
 }
 
 /** A divisible amount (CP, bronze) at a share: floored, never more than the whole. */
