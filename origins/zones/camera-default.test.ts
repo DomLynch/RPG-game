@@ -13,10 +13,10 @@ test('a zone row with no camera preset resolves to "b", with the shared a/b fram
   assert.equal(v['camera.preset'], 'b'); assert.deepEqual(v['camera.presets'], { a: A, b: B });
 });
 
-// Zone 1 = the Test Zone look (Dom-approved 2026-10-18): the preset it walks with is "b", which its row now names itself (the Test Zone's); the shared a/b framings are unchanged (the fortress biome's "c" comes with the biome, Z1b).
-test('Zone 1 walks preset "b" (the Test Zone\'s, named in its row) with the shared a/b framings', () => {
+// Zone 1 = the Test Zone look (Dom-approved 2026-10-18): its biome adds a third framing "c"; the preset it walks with is "b", which its row now names itself (the Test Zone's).
+test('Zone 1 walks preset "b" (the Test Zone\'s, named in its row) and adds the fortress biome\'s framing "c"', () => {
   const z = loadZone('1'); assert.equal(z.fields!['camera.preset'], 'b'); const p = z.fields!['camera.presets'] as Record<string, unknown>;
-  assert.deepEqual(p.a, A); assert.deepEqual(p.b, B); assert.deepEqual(Object.keys(p), ['a', 'b']); assert.ok(z.set?.includes('camera.preset'), 'zone 1 names the Test Zone\'s preset b itself');
+  assert.deepEqual(p.a, A); assert.deepEqual(p.b, B); assert.deepEqual(Object.keys(p), ['a', 'b', 'c']); assert.ok(z.set?.includes('camera.preset'), 'zone 1 names the Test Zone\'s preset b itself');
 });
 
 test('Zone 2 sets no camera preset or presets: the default is what it walks with', () => {
