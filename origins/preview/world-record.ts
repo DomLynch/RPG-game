@@ -7,7 +7,7 @@ import type { Finished } from '../pit/pit.ts';
 import { kitBuild } from '../../src/core/index.ts';
 
 export function recordWorldFight(match: Match, opponent: string, level: number, seed: number): void {
-  match.recorder = createRecorder({ build: kitBuild('origins-preview'), opponent: opponent as Parameters<typeof createRecorder>[0]['opponent'], weapon: 'longsword', level, seed, ...(match.specials ? { specials: true } : {}) });
+  match.recorder = createRecorder({ build: kitBuild('origins-preview'), opponent: opponent as Parameters<typeof createRecorder>[0]['opponent'], weapon: 'longsword', level, seed, ...(match.specials ? { specials: true } : {}), ...(match.stances ? { stances: match.stances } : {}) });   // RV81: the world fight's stance, as the Pit's recorder takes it
 }
 
 /** The record once the fight is over: by the finish when there is one, 'abandoned' when a twist ended it with both standing (what the verifier expects). Null when none was kept. */
