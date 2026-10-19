@@ -38,6 +38,7 @@ begin
   if s.kind <> p_kind then raise exception 'spawn % is a %, not a %', p_instance, s.kind, p_kind using errcode = 'O0002'; end if;
   if not s.alive and s.respawn_at > now() then return jsonb_build_object('refused', 'dead', 'respawnAt', s.respawn_at); end if;
   if not s.alive then update public.origins_spawns set alive = true, generation = generation + 1, respawn_at = null, killed_by = null, killed_at = null where instance = p_instance returning * into s; end if;
+  -- an engage that ran out, or names a generation that has since died, is closed here so it never counts as open
   update public.origins_spawn_engages set used_at = now(), result = 'dead' where account = p_account and used_at is null and expires_at <= now();
   select * into e from public.origins_spawn_engages where account = p_account and instance = p_instance and used_at is null;
   if found and e.generation = s.generation then
@@ -60,13 +61,14 @@ create or replace function public.origins_spawn_kill(p_account uuid, p_token tex
 declare cfg public.origins_world_config; e public.origins_spawn_engages; s public.origins_spawns; out jsonb; credit_before bigint;
 begin
   if not public.origins_allowed(p_account) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
+  -- Only these ops ever ride a kill (Auditor PRE, condition 1): nothing outside the beta ledger can be paid through this path, whatever the writer sends.
   if jsonb_typeof(p_batch) <> 'array' or exists (select 1 from jsonb_array_elements(p_batch) l where l ->> 'op' is null or l ->> 'op' not in ('event', 'mint', 'metal', 'career_set')) then
     raise exception 'a kill batch carries only event, mint, metal and career_set ops' using errcode = 'O0002'; end if;
   select * into cfg from public.origins_world_config;
   select * into e from public.origins_spawn_engages where token = p_token and account = p_account and used_at is null and expires_at > now() for update;
   if not found then raise exception 'engage token unknown, used or expired' using errcode = 'O0009'; end if;
   select * into s from public.origins_spawns where instance = e.instance for update;
-  if not (s.alive and s.generation = e.generation) then
+  if not (s.alive and s.generation = e.generation) then   -- killed by someone else first (or it died and came back as a later generation)
     update public.origins_spawn_engages set used_at = now(), result = 'dead' where token = p_token;
     return jsonb_build_object('refused', 'dead', 'respawnAt', s.respawn_at);
   end if;
@@ -84,7 +86,7 @@ begin
   insert into public.origins_beta_ledger (event_id, account, character, instance, item_ids, cp, bronze, reach_status)
     values ('enc:' || p_token, p_account, e.character, e.instance,
       coalesce((select array_agg(l -> 'item' ->> 'id') from jsonb_array_elements(p_batch) l where l ->> 'op' = 'mint'), '{}'),
-      coalesce((select world_credit from public.origins_career where account = p_account), 0) - credit_before,
+      coalesce((select world_credit from public.origins_career where account = p_account), 0) - credit_before,   -- the CP this kill actually booked (Auditor condition 2): read, never taken from the writer
       coalesce((select sum((l ->> 'delta_bronze')::bigint) from jsonb_array_elements(p_batch) l where l ->> 'op' = 'metal'), 0),
       p_ledger ->> 'reach');
   return jsonb_build_object('result', 'killed', 'instance', s.instance, 'respawnAt', s.respawn_at, 'applied', out);
@@ -118,6 +120,7 @@ create or replace function public.origins_spawn_kill_v2(p_account uuid, p_token 
 declare cfg public.origins_world_config; e public.origins_spawn_engages; s public.origins_spawns; out jsonb; credit_before bigint; mode text;
 begin
   if not public.origins_allowed(p_account) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
+  -- Only these ops ever ride a kill (as origins_spawn_kill): nothing outside the beta ledger can be paid through this path, whatever the writer sends.
   if jsonb_typeof(p_batch) <> 'array' or exists (select 1 from jsonb_array_elements(p_batch) l where l ->> 'op' is null or l ->> 'op' not in ('event', 'mint', 'metal', 'career_set')) then
     raise exception 'a kill batch carries only event, mint, metal and career_set ops' using errcode = 'O0002'; end if;
   select * into cfg from public.origins_world_config;
