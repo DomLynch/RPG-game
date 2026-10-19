@@ -15,8 +15,7 @@ import { initialPractice, PROFILES, stepPractice, type Practice } from '../../sr
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { memoryMatch } from '../../src/fight/match.ts';
-import { stanceFlag } from '../../src/fight/stance-panel.ts';
-import type { PickedStance } from '../../src/fight/stance.ts';
+import { stanceFlag, type PickedStance } from '../../src/fight/index.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
