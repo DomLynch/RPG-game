@@ -512,11 +512,12 @@
       },
       "character:cinder-scavenger": {
         "opponent": "goblin",
-        "tint": 7035464,
+        "tint": 14079702,
         "scale": 1.25,
+        "loadout": "goblin.t4.gladius",
         "dressing": {
-          "soot": 0.7,
-          "burnt": 0.3
+          "soot": 0,
+          "burnt": 0
         },
         "body": "world/kit/goblin-bare.glb"
       },
@@ -619,13 +620,17 @@
     "spread": {
       "character:cinder-scavenger": {
         "tints": [
-          6115135,
-          8021584,
-          5196357
+          13421715,
+          12632176,
+          14719136
         ],
         "scale": 0.08,
-        "soot": 0.2,
-        "burnt": 0.2
+        "soot": 0.25,
+        "burnt": 0.15,
+        "loadouts": [
+          "goblin.t4.gladius",
+          "goblin.t4.cleaver"
+        ]
       },
       "character:mere-brood": {
         "tints": [
