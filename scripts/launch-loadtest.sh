@@ -34,6 +34,9 @@ if [ "$MODE" != presence ]; then
 fi
 if [ "$MODE" != writer ]; then
   mkdir -p /tmp/loadtest
+  # The load test's bots all come from one loopback address, and the presence service's TEST mode caps one address at the testIpSockets row (1,000): a run over 1,000 bots needs that row raised IN THIS
+  # JOB'S COPY ONLY (never committed; production keys sockets by the real client address, 8 each). TEST_IP_SOCKETS=5000 does it and the run's header says so.
+  if [ -n "${TEST_IP_SOCKETS:-}" ]; then sed -i "s/\"id\": \"testIpSockets\", \"value\": [0-9]*/\"id\": \"testIpSockets\", \"value\": ${TEST_IP_SOCKETS}/" origins/presence/presence-rules-defs.json; echo "NOTE testIpSockets raised to ${TEST_IP_SOCKETS} in this job's copy (load-test bots share one address)"; fi
   maxlayers="${MAXLAYERS:-12}"   # BOTS="1500 2000 3000" MAXLAYERS=40 for the ceiling run (40 layers = room for 4,000 players)
   for bots in ${BOTS:-100 250 500 1000}; do
     echo "RESULT presence bots=$bots cap=100 maxlayers=$maxlayers load=$(cut -d' ' -f1-3 /proc/loadavg)"
