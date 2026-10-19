@@ -263,7 +263,7 @@ const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null;   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
 const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
-if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
+if (start) { state.x = start.x; state.z = start.z; heading = fxNum('start.face-on') > 0 ? fxNum('start.face-rad') : start.facing; }   // the hero starts facing the camp wall and the sun, as the Test Zone's start did (start.face-rad is the compass heading to the sun, rad; start.face-on 0 = toward the first creatures, as before)
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
 const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
