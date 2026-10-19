@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, keepVerdict, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { previewRule } from './preview-rules.ts';
+
+test('the slow-device verdict is keyed to the release: same release kept, new release re-measured, unreadable release uses the time limit, malformed record re-measured', async () => {
+  const ttl = previewRule('slowVerdictMs'), now = 1_800_000_000_000, A = 'a'.repeat(40), B = 'b'.repeat(40);
+  assert.equal(previewRule('slowVerdictByRelease'), 1);
+  assert.equal(slowVerdictRecord(true, now, A), `1@${A}`);
+  assert.equal(slowVerdict(slowVerdictRecord(true, now, A), now + 10 * ttl, ttl, A), true, 'same release: kept however old (the release, not the clock, is the key)');
+  assert.equal(slowVerdict(slowVerdictRecord(false, now, A), now, ttl, A), false);
+  assert.equal(slowVerdict(slowVerdictRecord(true, now, A), now, ttl, B), undefined, 'a new release: measure again');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - 1000), now, ttl, A), undefined, 'an old time record under a readable release: measure again');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - 1000), now, ttl), true, 'release unreadable: a fresh time record is kept');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - ttl), now, ttl), undefined, 'release unreadable: past the time limit, measure');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now, A), now, ttl), undefined, 'release unreadable and the record has no age: measure');
+  for (const bad of [`1@${'g'.repeat(40)}`, `1@${'a'.repeat(39)}`, `3@${A}`, `1@${A}x`]) assert.equal(slowVerdict(bad, now, ttl, A), undefined, `${bad} is no record`);
+  const rev = (r: unknown) => readReleaseId(async () => r, 50);
+  assert.equal(await rev({ revision: A }), A);
+  for (const bad of [null, {}, { revision: 'abc' }, { revision: 5 }]) assert.equal(await rev(bad), undefined, 'a body without a 40-hex revision is unreadable');
+  assert.equal(await readReleaseId(async () => { throw new Error('offline'); }, 50), undefined, 'a failed read is unreadable');
+  assert.equal(await readReleaseId(() => new Promise(() => {}), 20), undefined, 'a read that never answers is cut at the bound');
+});
 
 test('the slow-device verdict is sticky for the device: a fresh record is used as stored, a stale, future or malformed one is re-measured', () => {
   const ttl = previewRule('slowVerdictMs'), now = 1_800_000_000_000;
@@ -58,6 +77,17 @@ test('a kit that outlasts the hard bound is still compiling when the warm-up ret
   assert.equal(compiled.length, 1, 'ended waited for that one kit'); assert.equal(cleaned, 1, 'cleanup ran once, at the end');
   await sleep(300);
   assert.equal(compiled.length, 1, 'nothing compiles after `ended`');
+});
+
+test('medianGap and the ?probe=1 readout: the median is the one tooSlow compares, the readout names it, the limit, the verdict and the release', () => {
+  assert.equal(medianGap([16, 17, 16, 33, 16]), 16);
+  assert.equal(medianGap([250, 300, 280]), 280);
+  assert.equal(medianGap([]), undefined);
+  assert.equal(tooSlow([167, 167, 167], previewRule('kitSlowFrameMs')), true, 'the quiet-Mac reading that prompted the window move');
+  assert.equal(previewRule('kitProbeSettleMs'), 1000, 'the settle after the cover lifts is a row');
+  assert.equal(probeReadout(167.4, 100, 'a'.repeat(40)), 'probe 167 ms median (limit 100 ms): slow | release aaaaaaaaa');
+  assert.equal(probeReadout(16, 100, undefined), 'probe 16 ms median (limit 100 ms): ok | release unread');
+  assert.equal(probeReadout(undefined, 100, undefined), 'probe no sample (limit 100 ms): ok | release unread');
 });
 
 test('tooSlow: the median frame gap above the limit is slow; one spike in a smooth run is not; an empty sample is not', () => {
