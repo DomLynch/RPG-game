@@ -37,6 +37,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
+import { specialName } from './fight/special-names.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
 import { loadStancePref, mountStanceMenu, saveStancePref, stanceColour, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
@@ -787,7 +788,7 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
 { const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
   { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) { match.lastSkill = one; match.skill = one; } }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }
-  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => SKILL_ROWS[id]?.name ?? id);   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
+  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => specialName(ladderWeapon(), id, SKILL_ROWS[id]?.name ?? id));   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
     element('special-open').addEventListener('click', () => { journal.close(); specials.open(); }); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }

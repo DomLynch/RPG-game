@@ -10,7 +10,7 @@ const d = DEFS as unknown as Defs, bad = (patch: Partial<Defs>, re: RegExp) => a
 
 test('the goblin camp kit: small (a tent, a totem, a fire, palisade, bones, a tree), every prop in a recipe, every recipe prop in the kit', () => {
   assert.deepEqual(kitIds(), ['goblin-camp']); const ids = d.props.map((p) => p.id), used = new Set(recipesOf('goblin-camp').flatMap((r) => r.props.map((w) => w.prop)));
-  assert.deepEqual([...used].sort(), [...ids].sort(), 'no prop is unused and none is missing'); assert.ok(ids.length <= 14, `${ids.length} props: keep the kit small`);
+  assert.deepEqual([...used].sort(), [...ids].sort(), 'no prop is unused and none is missing'); assert.ok(ids.length <= 16, `${ids.length} props: keep the kit small`);   // 16: the two torch props (the sconce model and the flame pole) joined the banner and tower
   assert.equal(propKitRow('goblin-camp')!.tries, 30); assert.equal(propRow('fire').emits, 'fire');
 });
 test('the loader refuses a bad part, an unknown tint, a prop outside its kit, a bad recipe kind, a bad dress multiplier and a duplicate id; a new prop is one entry', () => {
@@ -29,7 +29,8 @@ test('the loader refuses a bad part, an unknown tint, a prop outside its kit, a 
   assert.equal(loadProps({ ...d, props: [...d.props, { ...p0, id: 'extra', glb: 'goblin_extra' }] }).props.length, d.props.length + 1);
 });
 test('every goblin-camp prop names the model node Characters & Art will give it (goblin_<prop>), unique, and the loader refuses a bad or duplicate name', () => {
-  assert.ok(d.props.every((p) => typeof p.glb === 'string' && p.glb.startsWith('goblin_')), 'every prop has a goblin_ node name'); assert.equal(new Set(d.props.map((p) => p.glb)).size, d.props.length);
+  const FINISHED_NODES = ['torch-sconce'];   // the one reviewed exception: the finished Pit torch-sconce model (Characters & Art) keeps its own node name
+  assert.ok(d.props.every((p) => typeof p.glb === 'string' && (p.glb.startsWith('goblin_') || FINISHED_NODES.includes(p.glb))), 'every prop has a goblin_ node name (or a finished model\'s own)'); assert.equal(new Set(d.props.map((p) => p.glb)).size, d.props.length);
   bad({ props: d.props.map((p, i) => (i ? p : { ...p, glb: 'Goblin Tent' })) }, /glb is a node name/); bad({ props: d.props.map((p, i) => (i < 2 ? { ...p, glb: 'same_node' } : p)) }, /same glb node/);
 });
 test('wood, hide, cloth and bone are untextured (layer plain) so a tent never wears the stone pattern; only stones and the cairn stay stone', () => {

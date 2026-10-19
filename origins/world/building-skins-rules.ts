@@ -18,7 +18,7 @@ const VEC3 = 3;   // components of a position (x, y, z): the loader's shape chec
 export function loadSkins(raw: Raw) {
   loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, raw, 'building-skins.json')));
   const skins = (raw.skins ?? []) as readonly { id: string }[], parts = (raw.parts ?? []) as readonly SkinPart[], models = (raw.models ?? []) as readonly SkinModel[], fits = (raw.fits ?? []) as readonly SkinFit[];
-  for (const m of models) if (!/^world\/[\w/.-]+\.glb$/.test(m.url) || !m.nodes.length || !m.nodes.every((n) => /^[a-z][a-z0-9_]*$/.test(n))) throw Error(`building skin model "${m.id}": url is world/....glb and nodes are lower-case names`);
+  for (const m of models) if (!/^world\/[\w/.-]+\.glb$/.test(m.url) || !m.nodes.length || !m.nodes.every((n) => /^[a-z][a-z0-9_-]*$/.test(n))) throw Error(`building skin model "${m.id}": url is world/....glb and nodes are lower-case names`);
   for (const f of fits) {
     if (!models.find((m) => m.id === f.model)!.nodes.includes(f.node)) throw Error(`building skin fit "${f.id}": node "${f.node}" is not in model ${f.model}`);
     if (!(f.w > 0 && f.d > 0 && f.min > 0 && f.max >= f.min)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0 and 0 < min <= max`);

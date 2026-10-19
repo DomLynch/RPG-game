@@ -8,7 +8,7 @@ import { loadZone } from '../zones/loader.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type KitNode = string;   // a node name of the zone's kit (origins/zone-rows/zone1.row.json (kit), checked by the loader)
-export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
+export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number; y?: number };   // y: metres lifted off the ground (models.ts placements)
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
 const LANDMARK_R = stageRule('landmarkR');   // footprint of a landmark, for the first-view margin and its solid
 

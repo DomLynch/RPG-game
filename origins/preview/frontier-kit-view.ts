@@ -21,7 +21,7 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
     const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, list.length);
     inst.name = o.name; inst.castShadow = !NO_SHADOW.test(o.name); inst.receiveShadow = true;
     list.forEach((p, i) => {   // the node's own transform in the file first, then the placement on the ground
-      place.compose(new THREE.Vector3(p.x, groundAt(p.x, p.z), p.z), q.setFromAxisAngle(up, p.rotY), new THREE.Vector3(p.scale, p.scale, p.scale));
+      place.compose(new THREE.Vector3(p.x, groundAt(p.x, p.z) + (p.y ?? 0), p.z), q.setFromAxisAngle(up, p.rotY), new THREE.Vector3(p.scale, p.scale, p.scale));
       inst.setMatrixAt(i, m.multiplyMatrices(place, mesh.matrixWorld));
     });
     inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); group.add(inst);

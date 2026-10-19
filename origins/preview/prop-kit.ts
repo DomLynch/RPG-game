@@ -41,7 +41,7 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
     const total = rc.props.reduce((n, w) => n + w.weight, 0), pick = (): Prop => { let t = R() * total; for (const w of rc.props) { t -= w.weight; if (t <= 0) return propRow(w.prop); } return propRow(rc.props[rc.props.length - 1]!.prop); };
     const put = (p: Prop, x: number, zz: number, along?: number) => {
       const s = between(p.scaleMin, p.scaleMax), yaw = along ?? between(0, Math.PI * 2);
-      if (rim && p.glb && modelOfNode(p.glb)) models.push({ node: p.glb, x, z: zz, rotY: yaw, scale: s }); else pieces.push(...propPieces(p, x, zz, yaw, s));   // a rim zone draws the kit's modelled props as models (the real goblin kit); the rest, and every other zone, as parts
+      if (rim && p.glb && modelOfNode(p.glb)) models.push({ node: p.glb, x, z: zz, rotY: yaw, scale: s, ...(p.lift ? { y: p.lift } : {}) }); else pieces.push(...propPieces(p, x, zz, yaw, s));   // a rim zone draws the kit's modelled props as models (the real goblin kit); the rest, and every other zone, as parts
       placed.push({ x, z: zz, r: p.r * s });
       if (p.emits === 'fire') fires.push({ x, z: zz });
     };

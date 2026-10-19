@@ -5,7 +5,7 @@
 import type { Piece } from './exchange-plan.ts';
 
 /** A node of a skin's model file stood on the ground (drawn by frontier-kit-view.ts loadKit). */
-export type ModelPlacement = { node: string; x: number; z: number; rotY: number; scale: number };
+export type ModelPlacement = { node: string; x: number; z: number; rotY: number; scale: number; y?: number };   // y: metres the model is lifted off the ground (a node whose origin is a mount point hangs below it)
 export type BuildingSkin = {
   /** The kind stood as a model node scaled to the (w, d) footprint: the skin's fit row for this kind, else its `default` fit unless `strict` (then only this kind's own). null = no model: draw from parts. */
   model(kind: string, x: number, z: number, facing: number, w: number, d: number, strict?: boolean): ModelPlacement | null;
