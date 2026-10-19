@@ -661,9 +661,8 @@
         "burnt": 0,
         "loadouts": [
           "troll.pit.t7.cleaver",
-          "troll.pit.t5.maul",
-          "troll.pit.t4.cleaver",
-          "troll.pit.t6.warhammer"
+          "troll.pit.t6.warhammer",
+          "troll.pit.t4.cleaver"
         ]
       },
       "character:pit-goblin": {
