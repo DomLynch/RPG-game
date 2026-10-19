@@ -245,7 +245,34 @@ if [[ -n "$presence_prev" ]]; then
   presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
   printf '%s\n' "$presence_install"
 fi
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; exit 1; }
+# The replay verifiers flip with the site too (Auditor, 2026-10-18: verify-daily ran JD's rules against JE for two minutes because the install came after the switch; on an RV bump
+# a record from the new version would be verified by old code). Ship the closure and flip /opt/frankendom-verifier/current just before the switch, gated by the dry import;
+# the timers are (re)installed in the "verifier" step after the switch, as before.
+verifier="/opt/frankendom-verifier/$revision"
+deploy_step "verifier install"
+verifier_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-verifier/current || true")
+# Same rule as writer_back: put `current` back at the outgoing install only while the site has NOT moved to $release.
+verifier_back() {
+  [[ -n "$verifier_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "test \"\$(readlink -f /var/www/frankendom/current)\" = '$release' || ln -sfn '$verifier_prev' /opt/frankendom-verifier/current" >&2 || echo "VERIFIER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $verifier_prev" >&2
+}
+# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
+# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
+verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
+printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
+  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE' || { echo "verifier install failed for $revision; the site has not moved" >&2; writer_back; presence_back; verifier_back; exit 1; }
+set -euo pipefail
+# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
+# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
+(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
+echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
+ln -sfn "$1" /opt/frankendom-verifier/current
+REMOTE
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; verifier_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -295,23 +322,11 @@ curl --fail --silent --show-error --output /dev/null https://frankendom.com/prev
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
-verifier="/opt/frankendom-verifier/$revision"
 deploy_step "verifier"
-# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
-# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
-verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
-ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
-printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
-rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
-  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+# The files and the `current` flip happened before the switch (the "verifier install" step above); this step arms the timers.
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
-# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
-# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
-(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
-  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
-echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
-ln -sfn "$1" /opt/frankendom-verifier/current
+test "$(readlink /opt/frankendom-verifier/current)" = "$1"
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
   install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" \
