@@ -146,7 +146,7 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
   assert.equal(NO_PATRON_VERSION, 31); assert.equal(PATRON_VERSION, 32);   // this file runs era-off (the legacy stamps); the game, era ON, stamps RECORD_VERSION for both
   const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
   const bumped = src.replace('export const RECORD_VERSION = 81;', 'export const RECORD_VERSION = 82;').replace('80, 81] as const', '80, 81, 82] as const').replace("  81: [],", "  82: [],\n  81: [],");
-  assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 81') && bumped.includes('80, 81] as const') && bumped.includes('81: [],'), 'the probe edits applied');
+  assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 82') && bumped.includes('81, 82] as const') && bumped.includes('82: [],'), 'the probe edits applied');
   const dir = mkdtempSync(join(tmpdir(), 'rv33-'));
   try {
     const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
@@ -182,7 +182,7 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
 test('RV80 simulated with the real recipe (thresholds move too): a cave-troll fight packs at v76 and round-trips; a plain fight (the goblin, the veteran) is still v31', async () => {
   const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
   const bumped = src.replaceAll('(RECORD_VERSION as number) <= 77', '(RECORD_VERSION as number) <= 82').replace('export const RECORD_VERSION = 81;', 'export const RECORD_VERSION = 82;').replace('80, 81] as const', '80, 81, 82] as const').replace("  81: [],", "  82: [],\n  81: [],");
-  assert.ok(bumped.includes('RECORD_VERSION = 81') && bumped.includes('<= 81 ? 31') && bumped.includes('81: [],'), 'the probe edits applied');
+  assert.ok(bumped.includes('RECORD_VERSION = 82') && bumped.includes('<= 82 ? 31') && bumped.includes('82: [],'), 'the probe edits applied');
   const dir = mkdtempSync(join(tmpdir(), 'rv80-'));
   try {
     const file = join(dir, 'record80.ts'); writeFileSync(file, bumped);
