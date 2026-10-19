@@ -38,7 +38,7 @@ test('the six picks differ: each lands a different blow (move, windup, damage, p
     for (const [other, s] of seen) assert.notEqual(s, sig, `${p} and ${other} play identically: ${sig}`);
     seen.set(p, sig);
   }
-  assert.equal(seen.size, 6);
+  assert.equal(seen.size, PICKS.length);   // RV80: seven picks (Whirlwind joined)
 });
 
 test('a fight with no skill2 is byte for byte what it was: the field is absent, not undefined-valued', () => {
