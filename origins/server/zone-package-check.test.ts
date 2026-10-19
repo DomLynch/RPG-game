@@ -30,10 +30,10 @@ test('an UNLISTED package: every piece a creature\'s loadouts can wear is in its
   assert.equal(tz.unlisted, true, 'zone 90 is the unlisted Test Zone');
   assert.deepEqual(loadoutDropProblems(tz, loaded.value), [], 'zone 90 as shipped drops everything it can be seen wearing');
   const troll = tz.spawns.rows.find((r) => r.id === 'character:cave-troll')!;
-  const back = { ...tz, spawns: { ...tz.spawns, rows: tz.spawns.rows.map((r) => (r === troll ? { ...r, loot: 'loottable:cave-troll' } : r)) } } as Zone;
+  const back = { ...tz, spawns: { ...tz.spawns, rows: tz.spawns.rows.map((r) => (r === troll ? { ...r, loot: 'loottable:pit-goblin' } : r)) } } as Zone;   // a table that drops no pitborn piece (loottable:cave-troll does since 2026-10-19: Zone 1 took the Test Zone's roll)
   const bad = packageProblems(back, ctx(z));
-  assert.ok(bad.some((p) => p.includes('wears pitborn.Greaves, which loottable:cave-troll does not drop')), bad.join('\n'));
-  assert.ok(bad.some((p) => p.includes('wears pitborn.Boots, which loottable:cave-troll does not drop')));
+  assert.ok(bad.some((p) => p.includes('wears pitborn.Greaves, which loottable:pit-goblin does not drop')), bad.join('\n'));
+  assert.ok(bad.some((p) => p.includes('wears pitborn.Boots, which loottable:pit-goblin does not drop')));
   const ghost = { ...tz, mobLooks: { ...tz.mobLooks!, looks: { ...tz.mobLooks!.looks, 'character:pit-goblin': { ...tz.mobLooks!.looks['character:pit-goblin']!, loadout: 'no.such.loadout' } } } } as Zone;
   assert.ok(packageProblems(ghost, ctx(z)).some((p) => p.includes('loadout "no.such.loadout" is not a loadouts.json row')));
   const listedWithGear = { ...back, unlisted: false } as Zone;   // the same gap on a LISTED zone is not this check's business (its drops are frozen)

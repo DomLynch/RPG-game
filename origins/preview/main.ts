@@ -178,7 +178,7 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
 };
 const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
 const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: sceneOf });
-// A creature's dropped loot piece (unlisted zones only, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
+// A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
 const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
@@ -558,9 +558,9 @@ const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [
 const outfit = createOutfit();
 const NO_GEAR = { ids: [] as readonly string[], tiers: {} as Record<string, Tier> };
 async function applySelf() {
-  const unlisted = !!loadZone().unlisted;
-  if (!warriors || !(selfWorn ?? (unlisted ? NO_GEAR : null))) return;
-  const dressed = dressedSet(selfWorn ?? NO_GEAR, outfit, unlisted), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  const base = selfWorn ?? (loadZone().unlisted || outfit.ids().length ? NO_GEAR : null);   // a guest in a listed zone keeps the default look until a dropped piece is taken; the sandbox always dresses from the bare body
+  if (!warriors || !base) return;
+  const dressed = dressedSet(base, outfit), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
     const pieces = await sharedLoot();
@@ -933,12 +933,12 @@ function heroDeathSequence() {
   document.body.append(veil);
   setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
-// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox zones only (row `warband.enabled`).
+// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Every zone since 2026-10-19 (row `warband.enabled` switches it).
 const warBandRun = createWarBandRun({
   mobs: () => mobs ?? undefined, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
-  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => !!loadZone().unlisted && fxNum('warband.enabled') > 0,
+  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => fxNum('warband.enabled') > 0,
 });
-// A creature of an UNLISTED zone drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
+// A creature (every zone since 2026-10-19; the sandbox's rule moved over) drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
 const killDrops = createKillDrops({
   view: dropItems, itemOf: groundItemOf, found: createFound(), reach: fxNum('drop.reach'),
   onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
@@ -954,8 +954,8 @@ function creatureFell(spec: MobSpec) {
   warBandRun.fell(spec.id);
   const fellAt = mobs?.find(spec.id);
   mobs?.fell(spec.id);
-  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved
-  if (sandbox && fellAt) dropLoot(spec, fellAt);
+  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved (a listed zone reports every kill, unchanged)
+  if (fellAt) dropLoot(spec, fellAt);   // every zone: what the creature wore lies on the ground (Dom 2026-10-19, everything from the sandbox); local only, the paid loot is the server's
   const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record(), wc.recordDrop())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
@@ -1032,7 +1032,7 @@ const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => 
  wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
-  regen: () => (regenOn(!!(zoneRow ?? loadZone()).unlisted) ? regenRules(regenSeconds) : null),   // sandbox zones only; the Pit and every listed zone get none (hero-regen.ts)
+  regen: () => (regenOn() ? regenRules(regenSeconds) : null),   // every open-world zone (row regen.out-of-combat); the Pit has no world combat loop (hero-regen.ts)
   loadoutReady,
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { warBandRun.hit(spec.id); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
@@ -1087,6 +1087,7 @@ function programOwners(): Record<string, string[]> {
   promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
+  goblinCentre: () => goblinKit?.centre ?? null, goblinKitCount: () => goblinKit ? { pieces: goblinKit.dress.pieces.length, ground: goblinKit.dress.ground.length, models: goblinKit.models.length, solids: goblinKit.dress.solids.length, fires: goblinKit.fires.length } : null,   // where the zone's prop kit camp stands and how much it laid (null = no kit), for the same-spot stills
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
