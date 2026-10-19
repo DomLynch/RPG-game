@@ -100,6 +100,34 @@ test('a cooldown refusal (killed in another layer inside the respawn window) is 
   assert.ok(!s.calls.some((c) => /spawn_kill/.test(c.fn)));
 });
 
+const counts = (players: Record<number, number>) => async () => ({ layers: Object.keys(players).map(Number), players });
+const killR = (s: { calls: Call[] }): string | undefined => [...s.calls].reverse().find((c) => c.fn === 'origins_spawn_kill')?.vars.r;
+
+test('dynamic respawn: a crowded layer respawns faster on the spawn\'s own clock; the cross-layer check keeps the row\'s respawn', async () => {
+  const s = stub({ tokenLayer: 2 });
+  await ops({ spawnLayers: true, damageShare: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }), verifyRecord: async () => ({ ok: true, ticks: 1, damage: wolf.hp }) }).kill_report!(ctx(s.db, standing(2)), { token: TOKEN, hits: 50, record: 'r' });
+  const sharedKill = [...s.calls].reverse().find((c) => c.fn === 'origins_spawn_kill_v2');
+  assert.equal(Number(sharedKill?.vars.r), Math.min(wolf.respawnS, Math.max(15, Math.round(wolf.respawnS * 20 / 80))), 'the kill carries the dynamic clock');
+  assert.ok(Number(sharedKill?.vars.r) < wolf.respawnS, 'which is shorter than the row\'s');
+  assert.equal(last(s, 'origins_spawn_check_layer')?.vars.r, String(wolf.respawnS), 'the cooldown window is still the row\'s');
+});
+
+test('dynamic respawn: the plain kill path carries it too; a layer at or under the full count keeps the row\'s respawn', async () => {
+  const crowded = stub({ tokenLayer: 2 }), quiet = stub({ tokenLayer: 2 });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }) }).kill_report!(ctx(crowded.db, standing(2)), { token: TOKEN, hits: 50 });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 12 }) }).kill_report!(ctx(quiet.db, standing(2)), { token: TOKEN, hits: 50 });
+  assert.ok(Number(killR(crowded)) < wolf.respawnS);
+  assert.equal(killR(quiet), String(wolf.respawnS));
+});
+
+test('dynamic respawn is off with its flag, without a layer, or when presence cannot count: the row\'s respawn', async () => {
+  const off = stub({ tokenLayer: 2 }), noLayer = stub(), down = stub({ tokenLayer: 2 });
+  await ops({ spawnLayers: true, layerCounts: counts({ 2: 80 }) }).kill_report!(ctx(off.db, standing(2)), { token: TOKEN, hits: 50 });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 1: 80 }) }).kill_report!(ctx(noLayer.db, standing(1)), { token: TOKEN, hits: 50 });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: async () => { throw new Error('presence down'); } }).kill_report!(ctx(down.db, standing(2)), { token: TOKEN, hits: 50 });
+  for (const s of [off, noLayer, down]) assert.equal(killR(s), String(wolf.respawnS));
+});
+
 test('a token from before the migration (no layer) is never refused moved, even with the flag on', async () => {
   const s = stub();
   const got = await ops({ spawnLayers: true }).kill_report!(ctx(s.db, standing(5)), { token: TOKEN, hits: 50 }) as { result: string };
