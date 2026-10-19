@@ -138,7 +138,7 @@ function zoneCentre(z: ZonePlan): Pos {
 // see them). When wolves are placed (?wolf) it stands 15-25 m from the nearest wolf instead and faces the wolf camp: the first thing in front of him is
 // the wolf. Falls back to any spot clear of every notice ring. Deterministic.
 const SPAWN_NEAR = stageRule('spawnNear'), SPAWN_FAR = stageRule('spawnFar'), SPAWN_WOLF: readonly [number, number] = [15, 25];
-export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { x: number; z: number; facing: number } | null {
+export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[], clearM?: number): { x: number; z: number; facing: number } | null {   // clearM (an unlisted zone's `start.clear-m` fx row): the drop point is at least this far from every creature's home and the 'among them' ring is not required, so nobody notices, chases or breathes on the hero the moment the page opens (Dom 2026-10-18)
   const groups = new Map<string, MobSpec[]>();
   for (const s of specs) { const g = groups.get(s.zone + '/' + s.spawn); if (g) g.push(s); else groups.set(s.zone + '/' + s.spawn, [s]); }
   const crowd = [...groups.values()].sort((a, c) => c.length - a.length)[0];
@@ -146,13 +146,13 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   if (!crowd || !zone) return null;
   const centre = (g: readonly MobSpec[]) => ({ x: g.reduce((n, s) => n + s.home.x, 0) / g.length, z: g.reduce((n, s) => n + s.home.z, 0) / g.length });
   const first = (s: MobSpec) => !!fieldOf(s.body, 'firstSight'), wolves = specs.filter((s) => first(s) && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
-  const others = wolves.length ? specs.filter((s) => !first(s)) : specs, stand = mobStand(b, zone), clear = TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
+  const others = wolves.length ? specs.filter((s) => !first(s)) : specs, stand = mobStand(b, zone), clear = clearM ?? TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
   const reach = previewRule('mobFindRadius'), ring = previewRule('mobFindStep'), around = previewRule('mobFindSamples');   // m out from the crowd's middle, m between rings, spots on each ring
   for (const strict of [true, false]) for (let r = 0; r <= reach; r += ring) for (let k = 0; k < around; k++) {
     const a = (k / around) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
     if (!stand(x, z) || near(x, z, specs) < clear) continue;
     const d = near(x, z, others), w = wolves.length ? near(x, z, wolves) : null;
-    if (strict && (d < SPAWN_NEAR || d > SPAWN_FAR || (w !== null && (w < SPAWN_WOLF[0] || w > SPAWN_WOLF[1])))) continue;
+    if (strict && clearM === undefined && (d < SPAWN_NEAR || d > SPAWN_FAR || (w !== null && (w < SPAWN_WOLF[0] || w > SPAWN_WOLF[1])))) continue;
     return { x, z, facing: headingTo({ x, z }, look) };
   }
   return null;

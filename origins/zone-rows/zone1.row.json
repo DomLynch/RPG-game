@@ -57,6 +57,7 @@
           1,
           2
         ],
+        "respawnSeconds": 40,
         "behaviour": {
           "roam": 8,
           "spread": 16,
@@ -164,7 +165,7 @@
           2
         ],
         "weight": 3,
-        "respawnSeconds": 75,
+        "respawnSeconds": 45,
         "behaviour": {
           "aggro": 6,
           "roam": 5,
@@ -250,7 +251,7 @@
           1,
           2
         ],
-        "respawnSeconds": 75,
+        "respawnSeconds": 60,
         "behaviour": {
           "aggro": 9,
           "roam": 7,
@@ -278,7 +279,7 @@
           1,
           1
         ],
-        "respawnSeconds": 75,
+        "respawnSeconds": 45,
         "behaviour": {
           "roam": 6,
           "spread": 6,
