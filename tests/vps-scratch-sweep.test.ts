@@ -342,7 +342,11 @@ test('MIN_AGE_H defaults to 36 hours, and the environment still overrides it', (
   assert.equal(r.stdout.trim(), '12');
 });
 
-test('the archive copy leaves out node_modules and the checkout .git, keeps files, ignored files and a nested repo .git', () => {
+// The Hugging Face CPU job image has git and jq but no rsync (its unit run failed exactly these two tests): they need rsync, so they skip with that reason there and run on the VPS, which has it.
+const hasRsync = spawnSync('rsync', ['--version']).status === 0;
+const noRsync = hasRsync ? false : 'rsync is not installed here (the VPS has it)';
+
+test('the archive copy leaves out node_modules and the checkout .git, keeps files, ignored files and a nested repo .git', { skip: noRsync }, () => {
   const root = mkdtempSync(join(tmpdir(), 'sweep-excl-'));
   try {
     const src = join(root, 'job'); const dst = join(root, 'arch');
@@ -456,7 +460,7 @@ test('--cap --apply never deletes a copy it could not archive: an unwritable arc
   } finally { w.done(); }
 });
 
-test('--cap --apply archives the oldest idle copies first (verified, in the manifest), stops at the cap, and leaves the newest', { skip: process.platform !== 'linux' }, () => {
+test('--cap --apply archives the oldest idle copies first (verified, in the manifest), stops at the cap, and leaves the newest', { skip: process.platform !== 'linux' ? 'needs Linux' : noRsync }, () => {
   const w = capWorld();
   try {
     const r = w.cap(['--apply']); assert.equal(r.status, 0, r.stdout + r.stderr);
