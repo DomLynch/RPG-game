@@ -1,0 +1,77 @@
+{
+  "profile": "9 Mbps / 85 ms",
+  "runs": 5,
+  "deltaLimitS": 1,
+  "limitS": 30,
+  "ruled": false,
+  "base": {
+    "dir": "/opt/frankendom-shadow/work/tz-3268-gates/base/dist",
+    "samples": [
+      {
+        "s": 35.87,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 31.75,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 21.96,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 23.19,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 24.28,
+        "mb": 9.17,
+        "files": 106
+      }
+    ],
+    "medianS": 24.28,
+    "mb": 9.17,
+    "files": 106
+  },
+  "head": {
+    "dir": "/opt/frankendom-shadow/work/tz-3268-gates/head-dist",
+    "samples": [
+      {
+        "s": 35.05,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 23.96,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 23.3,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 22.25,
+        "mb": 9.17,
+        "files": 106
+      },
+      {
+        "s": 28.53,
+        "mb": 9.17,
+        "files": 106
+      }
+    ],
+    "medianS": 23.96,
+    "mb": 9.17,
+    "files": 106
+  },
+  "passed": true,
+  "deltaS": -0.32,
+  "deltaFail": false,
+  "limitFail": false
+}

@@ -1,0 +1,104 @@
+{
+  "url": "http://127.0.0.1:37173",
+  "physicalPhone": false,
+  "errors": [],
+  "console": [
+    "[.WebGL-0x1a8400165a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x1a8400165a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x1a8400165a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x1a8400165a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+    "WebGL: INVALID_OPERATION: delete: object does not belong to this context",
+    "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+  ],
+  "graphicsRestored": true,
+  "afterRestore": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Tap Fight. Crixus will counterattack.",
+    "health": 150,
+    "enemy": 105,
+    "stamina": 100
+  },
+  "parrySide": {
+    "incoming": "overhead",
+    "side": "overhead"
+  },
+  "guardAfterTellMs": 432,
+  "parry": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Parried!",
+    "health": 150,
+    "enemy": 105,
+    "stamina": 100
+  },
+  "riposte": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Clean counter slash hit · −14",
+    "health": 150,
+    "enemy": 91,
+    "stamina": 80
+  },
+  "dmg": "14",
+  "kickAttempts": [
+    {
+      "before": {
+        "health": 150,
+        "enemy": 91
+      },
+      "start": {
+        "tick": 481,
+        "type": "AttackStarted",
+        "actor": 0,
+        "move": "kick"
+      },
+      "outcome": {
+        "tick": 499,
+        "type": "AttackMissed",
+        "actor": 0,
+        "move": "kick"
+      },
+      "events": [
+        {
+          "tick": 481,
+          "type": "AttackStarted",
+          "actor": 0,
+          "move": "kick"
+        },
+        {
+          "tick": 499,
+          "type": "AttackActive",
+          "actor": 0,
+          "move": "kick"
+        },
+        {
+          "tick": 499,
+          "type": "AttackMissed",
+          "actor": 0,
+          "move": "kick"
+        }
+      ]
+    }
+  ],
+  "kick": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Miss",
+    "health": 150,
+    "enemy": 91,
+    "stamina": 55
+  },
+  "kickOutcome": {
+    "tick": 499,
+    "type": "AttackMissed",
+    "actor": 0,
+    "move": "kick"
+  },
+  "kickEscaped": true,
+  "unsupportedGPU": {
+    "message": "Explicit fallback message and disabled combat; original renderer error retained with telemetry blocked",
+    "error": "Error: THREE.WebGLRenderer: Error creating WebGL context."
+  },
+  "passed": true
+}

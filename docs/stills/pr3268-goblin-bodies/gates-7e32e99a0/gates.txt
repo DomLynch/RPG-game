@@ -1,0 +1,15 @@
+head 7e32e99a07df2d16ec11ad1b85cc6f43bdf9a23b base 4eb8d8016053a6a5b454f574c02ab8662b68de4f
+start 2026-10-19T08:10:26Z load 9.61 8.44 8.92
+combat rc=0 260s load 19.40
+stance-panel rc=0 93s load 11.07
+counter-slash rc=0 192s load 14.30
+counter-thrust rc=0 192s load 16.36
+counter-heavy rc=0 198s load 16.04
+seamless rc=0 109s load 11.31
+seamless-quiet rc=0 68s load 11.66
+remote-heroes rc=0 60s load 10.98
+duel-two-page rc=0 63s load 8.19
+net-engines rc=0 142s load 16.11
+base build ok
+load-time rc=0 272s load 17.84
+end 2026-10-19T08:38:51Z load 17.84 16.15 14.30

@@ -1,0 +1,19 @@
+{
+  "fights": 1000,
+  "node": "v22.23.2",
+  "engines": {
+    "chromium": {
+      "version": "151.0.7922.34",
+      "seconds": 50.3,
+      "differing": 0
+    },
+    "webkit": {
+      "version": "26.5",
+      "seconds": 32.7,
+      "differing": 0
+    }
+  },
+  "differing": {},
+  "passed": true,
+  "seconds": 141.9
+}
