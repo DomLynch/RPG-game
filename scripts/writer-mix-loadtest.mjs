@@ -51,9 +51,9 @@ async function honestRecord() {
   const hero = { x: at.x, z: at.z - 1.4, facing: 0 };
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find(q => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   if (!rec) throw new Error('the scripted hero did not kill the wolf');
-  return encodeWorldRecord(rec);
+  return { text: await encodeWorldRecord(rec), seconds: rec.steps.length / 60 };
 }
-const recordText = await honestRecord();
+const { text: recordText, seconds: recordSeconds } = await honestRecord();   // the writer refuses a record longer than the engagement is old ('overlong'), so a kill cycle waits the fight's real length
 const spawnSet = CLONES === 0 ? realSet : new Map(Array.from({ length: CLONES }, (_, n) => { const id = `wolves-${n + 100}`; return [id, { ...baseWolf, spec: { ...baseWolf.spec, id } }]; }));
 const spawnIds = [...spawnSet.keys()];
 
@@ -103,7 +103,7 @@ try {
     const instance = CLONES === 0 ? spawnIds[Math.floor(Math.random() * spawnIds.length)] : spawnIds[cycle++ % spawnIds.length], spawn = spawnSet.get(instance);
     const e = await post('engage', n, { character: chars[n], instance });
     if (e.status !== 200 || !e.json?.result?.token) { bump(`engage ${e.status} ${e.json?.reason ?? e.json?.error ?? ''}`.trim()); return; }
-    await sleep(minKillMs(spawn.hp) + 30);   // the time-to-kill floor the database enforces
+    await sleep(Math.max(minKillMs(spawn.hp) + 30, recordSeconds * 1000 + 300));   // the DB's time-to-kill floor, and the recorded fight's own length (13.5 s here), so the replay is not 'overlong'
     const k = await post('kill_report', n, { token: e.json.result.token, hits: minHits(spawn.hp), record: recordText });
     bump(k.status === 200 ? 'killed' : `kill_report ${k.status} ${k.json?.reason ?? k.json?.error ?? ''}`.trim());
   };
