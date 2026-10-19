@@ -67,6 +67,15 @@ export const ITEMS = [
     kind: 'item-definition', schemaVersion: 1, id: 'item:starter.estoc', name: 'Bent estoc', category: 'gear', rarity: 'common', slot: 'Estoc',
     power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/estoc.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
   },
+  // The bow and the staff (Lead ruling 2026-10-19, Dom: "migrate fully from the sandboxes"; the sandbox let any player pick them): starter weapons beside the longsword, lying at the Ferry Landing, never above Recruit gear. The slot decides the weapon (Bow / Staff are the new player weapons, weapon-defs.json); bound on acquire. Backend: please review by path.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.bow', name: 'Hunter\'s bow', category: 'gear', rarity: 'common', slot: 'Bow',
+    power: 'slot-weight', material: 'wood', appearance: { asset: 'weapons/player/bow.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.staff', name: 'Warped staff', category: 'gear', rarity: 'common', slot: 'Staff',
+    power: 'slot-weight', material: 'wood', appearance: { asset: 'weapons/player/staff.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   // Armour on the ground (batch two): Recruit-tier goblin pieces from loot.glb, looks in origins/preview/ground-looks.json. No placements yet (Strategy's call).
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-scrap-cap', name: 'Goblin scrap cap', category: 'gear', rarity: 'common', slot: 'Helmet',
