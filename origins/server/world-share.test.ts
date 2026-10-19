@@ -90,7 +90,6 @@ test('the per-account queued-replay cap: a third concurrent report is not replay
   assert.equal(replays, 2, 'two replays queued, the third skipped');
   assert.equal(c.share, 1); assert.equal(payload(s3.kills[0]!.b).record, 'replay-capped');
   release.forEach((f) => f()); await Promise.all([a, b]);
-  const after = await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' }).catch(() => null); void after;
 });
 
 test('the migration not applied: the old way (v1 kill, no share fields), nothing breaks', async () => {
