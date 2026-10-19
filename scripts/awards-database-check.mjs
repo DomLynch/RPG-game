@@ -6,6 +6,7 @@
 // 202609260001 (hosted took 202609230002 and 202609260001 before 202609230001), then the fixture profiles, then 202609230001, then anything
 // newer. Claims are settled by the REAL sweep, connected as the verifier
 // role, over records that replay headless: a scripted fight the player wins against the Goblin (easy, seed 1), and one he loses.
+import '../tests/lib/era-off.ts';   // RV78: this check's scripted walk-in fights are trunk-rules fights (stamped v31, replayed OFF by the sweep); the sandbox era would change who wins them
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
