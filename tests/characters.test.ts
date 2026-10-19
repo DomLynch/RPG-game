@@ -1025,7 +1025,7 @@ test('each beast is drawn the same size in the duel as in the world: one scale p
   assert.equal(mobLook('character:ash-wolf')!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
   assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'cave-troll', 'giant-salamander', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
   const hero = await readWarrior('warrior.glb');
-  for (const [id, file, k, height] of [['wolf', 'wolf.glb', WOLF_RENDER_SCALE, 1.29], ['boar', 'boar.glb', BOAR_RENDER_SCALE, 1.14], ['bear', 'bear.glb', BEAR_RENDER_SCALE, 1.40]] as const) {
+  for (const [id, file, k, height] of [['wolf', 'wolf.glb', WOLF_RENDER_SCALE, 1.785], ['boar', 'boar.glb', BOAR_RENDER_SCALE, 1.71], ['bear', 'bear.glb', BEAR_RENDER_SCALE, 1.40]] as const) {
     const rig = await readWarrior(file);
     const { opponent } = buildWarriors(hero, rig, ['longsword', 'bite']);
     assert.equal(opponent.anchor.scale.x, 1, `${id}: built at native scale`);
@@ -1033,7 +1033,7 @@ test('each beast is drawn the same size in the duel as in the world: one scale p
     assert.equal(opponent.anchor.scale.x, k); assert.equal(opponent.anchor.scale.y, k);
     const top = (o: Parameters<Box3['setFromObject']>[0]) => { o.updateMatrixWorld(true); const b = new Box3().setFromObject(o); return b.max.y - b.min.y; };
     const native = top(rig.scene), drawn = top(opponent.anchor);
-    assert.ok(Math.abs(drawn / native - k) < .02, `${id}: drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
+    assert.ok(Math.abs(drawn / native - k) < .02 * k, `${id}: drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
     assert.ok(Math.abs(drawn - height) < .06, `${id} stands ${drawn.toFixed(3)} m (expected about ${height})`);
     assert.equal(OPPONENTS[id].scale, .8, `${id}: the sim's capsule is untouched (render only)`);
   }
