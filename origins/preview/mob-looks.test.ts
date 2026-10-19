@@ -76,7 +76,8 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
   assert.equal(mobVariant('character:warden-brannoc', 'x'), null, 'a friendly figure has no look');
   const band = (id: string) => { const h = Array.from({ length: VARIANTS }, (_, v) => variantLook(id, v)!.scale); return [Math.min(...h), Math.max(...h)]; };
   const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
-  assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - scav[1]! >= .01, `the three goblin kinds keep their height order: ${brood} < ${scav} < ${ghoul}`);
+  // Zone 1 = Test Zone look: goblins 1.25 per Dom, ghoul unchanged, Dom-approved 2026-10-18. The scavenger (goblin, 1.25) is exempt from the order against the ghoul; brood < scavenger and brood < ghoul still hold.
+  assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - brood[1]! >= .01, `the goblin kinds keep the brood smallest: ${brood} < ${scav}, ${ghoul}`);
 });
 
 test('a zone\'s own mob look wins over the central table, and a zone without one changes nothing', () => {
