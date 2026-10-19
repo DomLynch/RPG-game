@@ -1,4 +1,4 @@
-// Migration 20261019150000 (kill credit by damage): origins_spawn_check, origins_spawn_damage_read and origins_spawn_kill_v2 on a disposable PostgreSQL cluster with every migration applied, driven as the
+// Migration 20261019113226 (kill credit by damage): origins_spawn_check, origins_spawn_damage_read and origins_spawn_kill_v2 on a disposable PostgreSQL cluster with every migration applied, driven as the
 // writer's two roles. Proves: grants (writer roles only, no table reachable); check is READ-ONLY and mirrors the kill's refusals (dead, too-fast, cap) and says 'first' or 'join'; a first v2 kill kills the
 // creature exactly as origins_spawn_kill does and writes a damage row; a join kill (a token issued before the kill, inside the respawn window and the join window) pays its own batch, leaves the spawn row
 // untouched and writes its own ledger and damage rows; a token issued after the kill, a join past the window, and a join after the respawn are all refused 'dead' and close the token; the batch allowlist and
@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '20261019150000_origins_damage_share.sql';
+const UP = '20261019113226_origins_damage_share.sql';   // the stamp prod recorded when it was applied (the file was first named 20261019150000)
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-share-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;

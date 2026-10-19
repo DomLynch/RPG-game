@@ -198,7 +198,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const qaState = await qaOf(db, account), qa = qaState === 'yes', cohort = qa ? 'qa' : 'organic';   // the QA account (fighter_profiles.is_test): it counts (checks, tallies, split by cohort) but persists nothing
     deps.reachTally?.add(reach === 'checked' ? 'checked' : seen.why.split(':')[0]!, cohort);   // the flip readout's reach count (flipReadiness): checked, or the why's kind (offline, other-zone, ...)
     if (reach === 'unchecked' && deps.refuseUnchecked) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
-    // Kill credit by damage (Dom 2026-10-19; damage-share.ts, migration 20261019150000), behind `damageShare`. Winner-first: the database says whether this report would be refused (dead, too fast, over a
+    // Kill credit by damage (Dom 2026-10-19; damage-share.ts, migration 20261019113226), behind `damageShare`. Winner-first: the database says whether this report would be refused (dead, too fast, over a
     // cap) BEFORE any replay is queued, so a report that cannot pay never costs a replay; and whether it is the creature's first kill or a join to a kill made while this token was open.
     let sharing: { joined: boolean; generation: number } | null = null;
     if (deps.damageShare) {

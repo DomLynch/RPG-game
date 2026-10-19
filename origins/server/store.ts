@@ -216,7 +216,7 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
-// Kill credit by damage (migration 20261019150000, origins/server/damage-share.ts). `null` = the migration is not applied: the writer then pays the old way (first valid report wins).
+// Kill credit by damage (migration 20261019113226, origins/server/damage-share.ts). `null` = the migration is not applied: the writer then pays the old way (first valid report wins).
 const HAS_SHARE = `select to_regprocedure('public.origins_spawn_kill_v2(uuid,text,integer,integer,jsonb,jsonb,numeric,integer)') is not null as share \\gset\n`;
 const shareCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
   const out = await gated(db, 'share', HAS_SHARE, 'share', `select ${call}::text;`, vars);
