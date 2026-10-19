@@ -19,7 +19,7 @@ test('a mob look body draws at the scale the catalogue says (the beasts at the s
     if (row.shape === 'quadruped') assert.equal(mobLook(id)!.scale, catalogueLook(look.opponent, 1)!.scale, `${id}: a beast's mob look is its catalogue scale`);
     assert.equal(catalogueLook(look.opponent, 1)!.scale, row.render.scale);
   }
-  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueLook(id, 5)!.scale), [2, 1.8, 2.2]);
+  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueLook(id, 5)!.scale), [2.8, 2.7, 2.2]);   // Z2: boar 2.7 / wolf 2.8, Lead+Strategy 2026-10-19 (was [2, 1.8, 2.2])
 });
 
 test('the rank look: the rung it is met at, the file that rung ships, phone LOD only where it exists', () => {
