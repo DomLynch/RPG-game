@@ -167,3 +167,35 @@ test('respawn window: a Zone 2 row with respawnSeconds=45 gives 45 000 ms, not t
 test('respawnMsOf with its default ROW_RESPAWN: the ember wolf (rows in Zones 2 and 3 only) gets its 75 s, so a Zone-1-only map fails', () => {
   assert.equal(respawnMsOf('character:ember-wolf', content), 75_000);
 });
+
+// ---- the spawn row's own loot table (zone 90's tz-cave-troll): WHICH table is rolled, nothing else ----
+
+test('Zone 1 and every other listed zone: each spawn row names the character\'s own table, so passing the row\'s loot changes nothing (same table ids, same lines for the same seeds)', () => {
+  let rows = 0;
+  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) {
+    if (!(r.id in content.local.creatureLoot) || !fightSetup(r.id, content).ok) continue;
+    rows++;
+    assert.equal(r.loot, content.local.creatureLoot[r.id], `zone ${id} ${r.id}: the row's table is the character's table`);
+    const level = (fightSetup(r.id, content) as { ok: true; value: { opponent: { level: number } } }).value.opponent.level;
+    for (let seed = 1; seed <= 40; seed++) {
+      const k = kill(r.id, seed), state = () => ({ career: row(), inventory: pack() });
+      assert.deepEqual(mobBatch(k, state(), content, AT, { level, loot: r.loot }), mobBatch(k, state(), content, AT, { level }), `zone ${id} ${r.id} seed ${seed}`);
+    }
+  }
+  assert.ok(rows >= 5, 'the listed zones have creature rows');
+});
+
+test('a spawn row that names its own table rolls THAT table (zone 90 troll drops the pitborn pieces); CP, bronze and who is paid are the character\'s, and an unknown table fails closed', () => {
+  const fight = 'character:cave-troll', own = 'loottable:tz-cave-troll', s = fightSetup(fight, content); if (!s.ok) throw new Error(fight);
+  const level = s.value.opponent.level;
+  let seed = 0;
+  for (let n = 1; n < 5000 && !seed; n++) { const r = rollLoot(own, n, content, { foeLevel: level }); if (r.ok && r.value.items.some((d) => d.item.startsWith('item:loot.pitborn.'))) seed = n; }
+  assert.ok(seed, 'some seed drops a pitborn piece from the zone table');
+  const k = kill(fight, seed), state = () => ({ career: row(), inventory: pack() });
+  const base = mobBatch(k, state(), content, AT, { level }), mine = mobBatch(k, state(), content, AT, { level, loot: own });
+  const rolled = rollLoot(own, seed, content, { foeLevel: level }); assert.ok(rolled.ok);
+  assert.deepEqual(mine.batch.filter((l) => l.op === 'mint').map((m) => (m.item as { item: string }).item), rolled.value.items.map((d) => d.item), 'the mints are the zone table\'s roll');
+  assert.deepEqual([mine.summary.cp, mine.summary.cpReason, mine.batch.filter((l) => l.op === 'career_set')], [base.summary.cp, base.summary.cpReason, base.batch.filter((l) => l.op === 'career_set')], 'the CP line is the character\'s, untouched');
+  const none = mobBatch(k, state(), content, AT, { level, loot: 'loottable:no-such-table' });
+  assert.equal(none.batch.filter((l) => l.op === 'mint').length, 0); assert.ok(none.summary.lootRefused, 'an unknown table pays no loot and says why');
+});

@@ -53,14 +53,16 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
-export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number };
+export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's)
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
-  for (const spec of mobSpecs(f, frontierBuild(f), listedZone(zoneId).spawns.rows)) {
+  const rows = listedZone(zoneId).spawns.rows;
+  for (const spec of mobSpecs(f, frontierBuild(f), rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND) });
+    const loot = rows.find((r) => r.id === spec.character)?.loot;
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
   }
   return out;
 }
@@ -218,7 +220,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
     const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa;
-    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level })
+    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level, loot: spawn.loot })
       : { batch: [] as store.Json[], summary: { cp: 0, cpReason: qa ? 'qa' : 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,

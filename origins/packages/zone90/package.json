@@ -31,15 +31,15 @@
     "loot": [
       "loottable:ash-boar",
       "loottable:ash-wolf",
-      "loottable:cave-troll",
       "loottable:giant-salamander",
-      "loottable:pit-goblin"
+      "loottable:pit-goblin",
+      "loottable:tz-cave-troll"
     ]
   },
   "files": {
     "zone.row.json": {
-      "bytes": 13702,
-      "sha256": "49a8f39b62e35180e4833628df8ef6b182dfdc69f52fe22da62fe1321c4edbad"
+      "bytes": 13705,
+      "sha256": "9e18b1a817647b976731c19b5a5a9a26937885e10f534ea5b631651aca084c81"
     },
     "biome.row.json": {
       "bytes": 7294,

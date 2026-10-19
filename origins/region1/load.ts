@@ -251,8 +251,9 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
     if (!registry.lootTables.has(t as LootTableId)) issues.add('unknown-id', `creatureLoot.${c}`, `${t} is not a loot table in Region 1`);
     if (neverTables.has(t as LootTableId)) issues.add('rule-violation', `creatureLoot.${c}`, `${t} is never rolled`);
   }
-  // Every table is used by something: a boss, a creature, or nothing (refused, so dead tables do not pile up).
-  const used = new Set<string>([...neverTables, ...rolledTables, ...Object.values(local.creatureLoot)]);
+  // Every table is used by something: a boss, a creature, a zone's spawn row (region1-rules.json zoneLootTables: a table only a zone package's row names, rolled in place of the character's), or nothing (refused, so dead tables do not pile up).
+  for (const t of RULES.zoneLootTables) if (!registry.lootTables.has(t as LootTableId)) issues.add('unknown-id', `zoneLootTables.${t}`, `${t} is not a loot table in Region 1`);
+  const used = new Set<string>([...neverTables, ...rolledTables, ...Object.values(local.creatureLoot), ...RULES.zoneLootTables]);
   for (const t of registry.lootTables.keys()) if (!used.has(t)) issues.add('rule-violation', t, 'no boss or creature rolls this table');
   // Every spawn of a creature stands outside the towns.
   for (const id of REGION1) for (const s of registry.regions.get(id as RegionId)?.spawns ?? []) {

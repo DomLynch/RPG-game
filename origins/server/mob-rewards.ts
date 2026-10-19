@@ -30,7 +30,9 @@ const CAP_REACHED = SERVER_RULES.mobPayout[0]!.capReached;   // the mobPayout ro
 // Pure: the server's own state in, the batch lines out. `at` is the server time (ISO). Nothing here reads the client's body.
 // `fought` (world spawns only, world-spawns.ts): the open-world creature was fought at the server's own spawn level, so it is priced there; without it the
 // fight must match its form's level exactly (the encounter-settle guard: never pay a fight the run does not describe).
-export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string, fought?: { level: number }): Paid {
+// `fought.loot` (world spawns only): the spawn row's own loot table. It picks WHICH table is rolled and nothing else (who is paid, the verify path and the CP are the character's, untouched), and only where the
+// character's own table already rolls (payout.lootTable set): a kill that pays no loot never gains one. A zone whose row names the character's table gets exactly the table it always had.
+export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string, fought?: { level: number; loot?: string }): Paid {
   const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], bronze: 0, lootRefused: null, unpaid: [] } });
   if (!kill.fight) return none('no-fight-id');   // a token issued before the fight id was carried: the event only, as before
   const setup = fightSetup(kill.fight, content, fought ? { level: fought.level } : {});
@@ -60,8 +62,9 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   // The loot: the table rolled on the SERVER's seed (the page rolls the same seed, so it shows the same drops), into the pack all or nothing.
   const drops: string[] = [], clamped: string[] = [];
   let bronze = 0, lootRefused: string | null = null;
-  if (payout.lootTable) {
-    const rolled = rollLoot(payout.lootTable, kill.seed, content, { foeLevel: kill.level });
+  const lootTable = payout.lootTable && fought?.loot ? fought.loot : payout.lootTable;
+  if (lootTable) {
+    const rolled = rollLoot(lootTable, kill.seed, content, { foeLevel: kill.level });
     if (!rolled.ok) lootRefused = rolled.issues[0]!.message;
     else {
       const encounter = setup.value.scope === 'open-world' ? null : (kill.fight as EncounterId);
