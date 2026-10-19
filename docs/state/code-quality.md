@@ -1,5 +1,8 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~16:5x +04. LIVE = JX d399186b1, **verified** (#3311 comment 6267659219): the writer and presence stay on e92e43bf3 (correct: train-script only), the verifier is on d399186b1, NRestarts 0, ORIGINS_DAMAGE_SHARE=1. Damage-share re-check on #3303 (6267659704): still 0 kills and 0 events. **JY #3312 candidate PASS @b0f852037** (6267674133, candidate:pass on): #3251 + #3308 count on Lead: PASS at their heads, #3173 + #3301 on mine; all 4 merges are clean, CI is fully green incl. the browser gates, and the Mac receipt exits 0.
+**Now:** after JY publishes, verify the writer, presence and verifier on b0f852037 (it touches origins/), check the flag is still in the writer env, and re-run the damage-share checks.
+
 ## 2026-10-19 ~16:4x +04. LIVE = JW e92e43bf3. **JX #3311 candidate PASS @d399186b1** (comment 6267212270, candidate:pass on): the merge is clean (tree 9e24215d8), it's train-script only, CI is all green incl. 8/18/56/57, and the Mac receipt exits 0. **Damage-share 30-min read posted on #3303:** 0 kills and 0 origins_events of any kind since 16:13:29, all four checks 0, writer env ORIGINS_DAMAGE_SHARE=1, NRestarts 0, journal clean, verify-daily success 16:44. So: nothing bad, not proven live.
 **Now:** verify JX after publish (only the train script changes; the services stay put) and re-run the damage-share checks there. JY = #3251/#3173/#3301/#3308 is armed with Deploy (PASSes posted, says Lead): read it as Deploy cuts it.
 **Gotcha (zzzz):** `systemctl show -p Environment` doesn't show the writer's flag (it comes from an EnvironmentFile). Read `/proc/<MainPID>/environ` instead.
