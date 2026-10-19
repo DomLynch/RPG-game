@@ -18,7 +18,7 @@ import { createLiveOps } from '../origins/server/live-ops.ts';
 import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
-import { presenceLayers, presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
+import { presenceLayerCounts, presenceLayers, presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
 import { createSpawnJanitor } from '../origins/server/spawn-janitor.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
@@ -31,6 +31,7 @@ import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
 import { mobRewards } from '../origins/server/mob-rewards.ts';
 import { killWear } from '../origins/server/wear-settle.ts';
+import { spawnFlagError } from '../origins/server/spawn-flags.ts';
 // The kill's pay (CP + loot) from Region 1's content; the flag already requires that content to load (resolveFromRegion1 throws otherwise).
 // Zone 1 world spawns (202610080014): ON unless ORIGINS_SPAWNS=0 (the kill switch); without the migration every op answers 503.
 // Ground loot (20261015120000): ON unless ORIGINS_GROUND=0; without the migration its ops answer 503.
@@ -60,8 +61,13 @@ liveOps.start();
 // Per-layer spawn clocks (migration 20261019170000; the kill switch is unsetting it): each presence layer keeps its own creature clocks, and a janitor deletes the rows of layers presence has closed.
 // Needs the presence key (without it no layer is known and every account reads layer 1, today's single pool), so the flag without the key is refused at start.
 const spawnLayersOn = process.env.ORIGINS_SPAWN_LAYERS === '1';
-if (spawnLayersOn && !presenceKey) { console.error('origins-writer: ORIGINS_SPAWN_LAYERS=1 needs PRESENCE_INTERNAL_KEY'); process.exit(1); }
+const spawnFlagProblem = spawnFlagError(process.env, presenceKey);   // the layer flags' start-up rules (origins/server/spawn-flags.ts): refused at start, never half on
+if (spawnFlagProblem) { console.error(`origins-writer: ${spawnFlagProblem}`); process.exit(1); }
 const spawnJanitor = spawnLayersOn && presenceKey ? createSpawnJanitor(db, presenceLayers(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey)) : undefined;
 spawnJanitor?.start();
-const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1', damageShare: process.env.ORIGINS_DAMAGE_SHARE === '1', spawnLayers: spawnLayersOn }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+// Dynamic respawn inside a layer (rows `dynamicRespawn`; the kill switch is unsetting it): a crowded layer respawns its creatures faster, down to a floor. Needs the layers flag (the layer is what it reads), the presence key
+// and ORIGINS_DAMAGE_SHARE (checked above by spawnFlagError): the damage-share pre-check is what holds the cross-layer hop window at the row respawn.
+const dynamicRespawnOn = process.env.ORIGINS_DYNAMIC_RESPAWN === '1';
+const layerCounts = dynamicRespawnOn && presenceKey ? presenceLayerCounts(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : undefined;
+const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1', damageShare: process.env.ORIGINS_DAMAGE_SHARE === '1', spawnLayers: spawnLayersOn, dynamicRespawn: dynamicRespawnOn, layerCounts }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
 for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); spawnJanitor?.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });
