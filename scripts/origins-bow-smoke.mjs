@@ -106,18 +106,20 @@ try {
   // the unit verifier alone first: the record is bow, and the ledger's limit decides
   eq([(await verifyWorldRecord(recA.text, wolves[0], 'wolf', { weapon: 'bow' })).ok, (await verifyWorldRecord(recA.text, wolves[0], 'wolf', { weapon: 'knife' })).reason], [true, 'weapon'], 'verifier: the bow record passes a bow limit and is refused (weapon) against any other');
 
-  const ops = worldSpawnOps({ content, spawns, spawnLayers: false, damageShare: false, heroOf: (account, character, version) => heroLimitOf(db, account, character, version),
+  const ops = worldSpawnOps({ content, spawns, spawnLayers: false, damageShare: true, heroOf: (account, character, version) => heroLimitOf(db, account, character, version),
     verifyRecord: job => verifyWorldRecord(job.text, job.spawn, job.kind, job.limit, job.maxTicks), log: l => console.log(`  writer: ${l}`) });
   const engage = (a, w) => ops.engage(ctxOf(a), { character: pcs[a], instance: w.spec.id });
   const ea = await engage(A, wolves[0]), eb = await engage(B, wolves[1]);
   await sleep(Math.max(minKillMs(wolves[0].hp), Math.max(recA.fightS, recB.fightS) * 1000) + 3000);   // the record may not be longer than the wall time since the token
   const ka = await ops.kill_report(ctxOf(A), { token: ea.token, hits: 60, record: recA.text }), kb = await ops.kill_report(ctxOf(B), { token: eb.token, hits: 60, record: recB.text });
-  eq([ka.result, kb.result], ['killed', 'killed'], 'both kills accepted by the writer (the soak default pays with or without a verified record)');
+  eq([ka.result, kb.result], ['killed', 'killed'], 'both kills accepted by the writer (a bad record still pays share 1, damage 0, as today)');
   const verdictOf = tok => psql(`select e.payload->>'record' from public.origins_events e where e.event_id = 'enc:${tok}'`);
   eq(verdictOf(ea.token), 'verified', 'A: the bow record is VERIFIED against the ledger (main hand = bow) and the kill is paid on it');
   eq(verdictOf(eb.token) === 'verified', false, `B: the same bow record without a bow in the ledger is NOT verified (${verdictOf(eb.token)})`);
   eq(psql(`select count(*) from public.origins_beta_ledger where event_id = 'enc:${ea.token}' and bronze > 0`), '1', 'A: the ledger paid the kill');
-  console.log(`\norigins-bow-smoke (NOT PROD, disposable cluster): ${checks} checks passed; POWER SHOT in the open world: ${recA.power ? 'LANDED' : 'NOT REACHABLE (known gap, needs specialShare for a bow hero: a sim change)'}`);
+  // The Power Shot case: EXPECTED-FAIL until RV83 (Lead: the specialShare fix, branch combat/world-bow-specials, WSV 62). When the engine can fire it, this flips to a pass and the line below says so.
+  console.log(recA.power ? 'ok  POWER SHOT (cleave via the bow) landed an arrow in the open world, and the record verified against the ledger' : 'EXPECTED-FAIL (until RV83): POWER SHOT cannot fire in an open-world fight (heroSheeted sets specialShare only for a spell carrier); not counted as a failure');
+  console.log(`\norigins-bow-smoke (NOT PROD, disposable cluster): ${checks} checks passed; power shot: ${recA.power ? 'PASS' : 'EXPECTED-FAIL until RV83'}`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
   rmSync(root, { recursive: true, force: true });
