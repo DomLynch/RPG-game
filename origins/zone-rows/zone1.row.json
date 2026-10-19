@@ -512,7 +512,7 @@
       "character:cinder-scavenger": {
         "opponent": "goblin",
         "tint": 7035464,
-        "scale": 0.9,
+        "scale": 1.25,
         "dressing": {
           "soot": 0.7,
           "burnt": 0.3

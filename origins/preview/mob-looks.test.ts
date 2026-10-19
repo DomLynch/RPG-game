@@ -40,7 +40,8 @@ test('figures that share a body differ in tint and in height', () => {
     assert.ok(group.length >= 2, body);
     for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
       const [a, b] = [mobLook(group[i]![0])!, mobLook(group[j]![0])!];
-      assert.ok(Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
+      const goblinPair = [group[i]![0], group[j]![0]].sort().join() === 'character:cinder-scavenger,character:pit-goblin';   // both 1.25: Zone 1 = Test Zone look, "goblins 1.25" (Dom-approved 2026-10-18); they still differ in tint
+      assert.ok(goblinPair || Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
       assert.notEqual(a.tint, b.tint, `${group[i]![0]} vs ${group[j]![0]} share a tint`);
     }
   }
