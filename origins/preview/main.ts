@@ -81,7 +81,7 @@ import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
-import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
+import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, enableSpecialCounter, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { localOutbox } from './outbox-store.ts';
@@ -997,6 +997,7 @@ const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedTo
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
+enableSpecialCounter(location.search, globalThis, document.getElementById('debug'));   // ?debug=1: window.__specials + #debug data-special-fx / -cues, counted where the real FX spawn (zone-fx.ts) and cue plays (feedback.ts) (src/fight/special-counter.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
 for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.

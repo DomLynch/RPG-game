@@ -44,6 +44,7 @@ import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
 import { SPECIAL_CUE_OF } from './fight/sound/special.ts';
+import { enableSpecialCounter } from './fight/special-counter.ts';
 import { announcePowerWord, powerWordsLook } from './fight/power-words.ts';
 import { spellLook } from './fight/boss-telegraph.ts';
 import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
@@ -527,6 +528,7 @@ let state = match.practice.fighter,
 let assetsReady = false,
   graphicsLost = false;
 let debug = /[?&]debug\b/.test(window.location?.search ?? '');
+enableSpecialCounter(window.location?.search ?? '', globalThis, document.getElementById('debug'));   // ?debug=1: window.__specials + #debug data-special-fx / -cues, counted where the real FX spawn and cue play (special-counter.ts)
 // What ?debug SHOWS (the combat-debug overlay, the scorecard table, the clip size line) follows the test tools: a local build or the admins
 // roster (Strategy 2026-09-29). The #debug element's data the release checks read is written whenever `debug` is on, shown or not.
 const testTools = element('test-tools'), debugShown = () => debug && !testTools.hidden;
