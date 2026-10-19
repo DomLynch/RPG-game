@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
+import { ROW } from '../scripts/character/add-weapon-packs.mjs';
 
 const BARE = 'public/world/kit/goblin-bare.glb', WORLD = 'public/world/goblin.glb', root = (p: string) => new URL(`../${p}`, import.meta.url);
 const WORLD_FILE = 1_300_000;   // scripts/check-budget.mjs WORLD_FILE: the gzip cap of one world body
@@ -19,10 +20,12 @@ test('the bare goblin is a skinned world body on the phone line: at most ~8k tri
   assert.ok(gzip < WORLD_FILE, `${gzip} B gzip`);
 });
 
-test('the bare goblin carries the goblin world body\'s rig: the same joints and the same clip names (a look and its weapon play the clips the goblin plays)', () => {
-  const bare = glbStats(BARE), world = glbStats(WORLD);
+test('the bare goblin carries the goblin world body\'s rig: the same joints and every clip the goblin plays, plus the clip packs of the two-handed weapons its row lists (scripts/character/weapon-packs.json)', () => {
+  const bare = glbStats(BARE), world = glbStats(WORLD), packs = (ROW.bodies as { file: string; weapons: string[] }[]).find((b) => b.file === BARE)?.weapons ?? [];
   assert.equal(bare.joints, world.joints);
-  assert.deepEqual([...bare.clips].sort(), [...world.clips].sort());
+  assert.deepEqual(world.clips.filter((c: string) => !bare.clips.includes(c)), [], 'a clip the goblin plays is missing');
+  const extra = bare.clips.filter((c: string) => !world.clips.includes(c));
+  assert.ok(extra.every((c: string) => packs.some((w) => c.startsWith(w[0].toUpperCase() + w.slice(1) + '_'))), `clips beyond the goblin's: ${extra.join(', ')}`);
 });
 
 test('the bare goblin is meshopt-packed like every world body (scripts/pack-world-body.mjs), so the mob view\'s loader reads it unchanged', () => {
