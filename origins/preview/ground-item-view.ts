@@ -2,13 +2,16 @@
 // Presentation only: the page's ground_state read decides WHICH rows are there (it calls show for those the server says are available, hide on a take or when the respawn window closes); this
 // draws and answers where. Same seam as mobs-view: the scene, a ground height function, and a model loader the page hands in.
 import * as THREE from 'three';
-import { finishedAs } from '../../src/fight/index.ts';
+import { finishedAs, tinted } from '../../src/fight/index.ts';
+import type { Tier } from '../../src/core/index.ts';
 import { groundLook, type GroundBeam, type GroundLook, type GroundRing } from './ground-looks.ts';
 
 export type GroundItemViewOptions = {
   scene: THREE.Scene;
   /** The model behind an asset url (a glTF scene root); called once per url. */
   loadModel: (assetUrl: string) => Promise<THREE.Object3D>;
+  /** How the item lies (default: the ground-looks table, the server's starter items); a creature's dropped loot piece passes the drop-looks table. */
+  lookOf?: (itemId: string) => GroundLook;
   /** The item's asset url (its `appearance.asset` row); undefined = nothing to draw. */
   assetOf: (itemId: string) => string | undefined;
   /** The ground's height at a point (the preview's groundY); 0 on flat ground. */
@@ -16,7 +19,7 @@ export type GroundItemViewOptions = {
 };
 export type GroundItemView = {
   /** Draw `itemId` lying at (x, z); a second call with the same id moves it. */
-  show(id: string, itemId: string, at: { x: number; z: number }): void;
+  show(id: string, itemId: string, at: { x: number; z: number }, tier?: Tier): void;
   hide(id: string): void;
   clear(): void;
   /** Where it lies (its middle, for the reach check and the tap), or undefined while it is not drawn. */
@@ -28,8 +31,15 @@ export type GroundItemView = {
 const partOf = (model: THREE.Object3D, piece?: string): THREE.Object3D => {
   if (!piece) return model.getObjectByName('WeaponDrawn') ?? model;
   const found = model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(piece));
-  if (!found) throw new Error(`ground look: no piece "${piece}" in the model`);
-  return found;
+  if (found) return found;
+  // A loot piece is one draw per material (goblin.Body.Steel, goblin.Body.Leather ...): a name with no node of its own is the whole piece, every draw whose name starts with it.
+  const stem = THREE.PropertyBinding.sanitizeNodeName(piece), parts: THREE.SkinnedMesh[] = [];   // the loader strips the dots: goblin.Body.Steel is the node goblinBodySteel
+  model.updateWorldMatrix(true, true);
+  model.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.name.startsWith(stem)) parts.push(o); });
+  if (!parts.length) throw new Error(`ground look: no piece "${piece}" in the model`);
+  const whole = new THREE.Group();
+  for (const p of parts) { const c = p.clone(); c.matrixAutoUpdate = false; c.matrix.copy(p.matrixWorld); c.matrixWorld.copy(p.matrixWorld); whole.add(c); }   // a copy in its posed place; it shares the skeleton, geometry and materials, so the model itself is untouched
+  return whole;
 };
 
 // An armour piece from loot.glb is a SkinnedMesh bound to the big rig, so on its own it draws at the rig's scale and offset or not at all. Lay-down needs a plain mesh: take each skinned vertex as the
@@ -86,9 +96,11 @@ function finish(m: THREE.Material, look: GroundLook): THREE.Material {
 }
 
 /** The item as it lies: a pivot at the origin whose model's long axis runs along +X, rolled and turned by the look, scaled, with its underside `liftM` above y = 0 and its middle over x = z = 0. */
-export function lie(model: THREE.Object3D, look: GroundLook): THREE.Group {
+export function lie(model: THREE.Object3D, look: GroundLook, tier?: Tier): THREE.Group {
   const inner = bakeSkinned(partOf(model, look.piece)), holder = new THREE.Group(), pivot = new THREE.Group();
-  inner.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = false; if (look.finish) o.material = Array.isArray(o.material) ? o.material.map((m) => finish(m, look)) : finish(o.material, look); } });
+  // The row's finish wins; with none, a piece dropped at a rung wears that rung's finish, the one the hero's own armour gets when it is worn (rank-tint.ts `tinted`), so it lies as it will look on him.
+  const dress = (m: THREE.Material): THREE.Material => (look.finish ? finish(m, look) : tier && m instanceof THREE.MeshStandardMaterial ? tinted(m, tier) : m);
+  inner.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = false; if (look.finish || tier) o.material = Array.isArray(o.material) ? o.material.map(dress) : dress(o.material); } });
   holder.add(inner); holder.updateMatrixWorld(true);
   const size = new THREE.Box3().setFromObject(holder).getSize(new THREE.Vector3());
   const long = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
@@ -114,14 +126,14 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   const place = (g: THREE.Group, at: { x: number; z: number }) => g.position.set(at.x, groundAt(at.x, at.z), at.z);
   const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); disposeOwned(g); drawn.delete(id); } };   // free functions: the page hands them around unbound
   return {
-    show(id, itemId, at) {
-      const look = groundLook(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
+    show(id, itemId, at, tier) {
+      const look = (opts.lookOf ?? groundLook)(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
       if (now) { place(now, at); return; }
       if (!url) return;
       const ticket = ++serial; asked.set(id, ticket);
       void modelOf(url).then((model) => {
         if (asked.get(id) !== ticket) return;   // hidden or shown again while the model loaded
-        const g = lie(model, look); place(g, at); g.name = id; opts.scene.add(g); drawn.set(id, g);
+        const g = lie(model, look, tier); place(g, at); g.name = id; opts.scene.add(g); drawn.set(id, g);
       }).catch(() => { models.delete(url); asked.delete(id); });   // a failed file draws nothing and may be asked again
     },
     hide,

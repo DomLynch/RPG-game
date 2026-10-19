@@ -50,7 +50,7 @@
     },
     "spread": {
       "character:cave-troll": { "tints": [16777215], "scale": 0, "soot": 0, "burnt": 0, "loadouts": ["troll.pit.t7.cleaver", "troll.pit.t4.cleaver"] },
-      "character:pit-goblin": { "tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver"] }
+      "character:pit-goblin": { "tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver", "goblin.t7.longsword", "goblin.t7.estoc"] }
     }
   },
   "spawns": {

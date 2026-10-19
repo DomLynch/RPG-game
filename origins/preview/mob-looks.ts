@@ -9,11 +9,14 @@ import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
 import { variantIndex } from '../world/creature-hash.ts';
+import { loadoutAt, loadoutRow } from '../world/loadouts-rules.ts';
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
-const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
+export const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
-export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
+//   loadout  the loadout row (origins/world/loadouts.json) the figure wears: its armour pieces and its weapon (which sets `gear` in a variant); absent = the body as it is
+//   body     a bare body file (`world/kit/<name>.glb`, the same rig) drawn instead of the baked world body, so the loadout's pieces are what it wears
+export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; loadout?: string; body?: string; dressing: { soot: number; burnt: number }; later?: true };
 /** A look as a table or a zone row writes it: `scale` is optional, and an omitted scale means the body's own (its catalogue row's render.scale), resolved in mobLook(). A literal scale wins. */
 export type MobLookRow = Omit<MobLook, 'scale'> & { scale?: number };
 
@@ -22,14 +25,14 @@ export const MOB_LOOKS: Readonly<Record<string, MobLookRow>> = {};
 
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
 const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object per row, so the cloth-clone cache and the variant memo see the same look every call
-function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined) return row as MobLook; let r = resolved.get(row); if (!r) { r = { ...row, scale: bodyScale(row.opponent) }; resolved.set(row, r); } return r; }
+function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined && !row.loadout) return row as MobLook; let r = resolved.get(row); if (!r) { const gear = row.gear ?? loadoutRow(row.loadout)?.weapon; r = { ...row, scale: row.scale ?? bodyScale(row.opponent), ...(gear ? { gear } : {}) }; resolved.set(row, r); } return r; }   // a look with a loadout carries its weapon too (gear), so variant 0 and the others read the same way
 export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
 // swap the tint from a small pool, step the height within +-`scale` of the kind's, and nudge the soot and scorch within +-`soot` / `burnt`. Named foes and
-// friendly figures have no spread. Gear is NOT varied here: `MobLook.gear` has no reader yet, and a weapon change belongs to the roster, not to a look.
-export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number };
+// friendly figures have no spread. A camp's `loadouts` list dresses its variants in different loadout rows (variant v takes [the look's own, ...loadouts][v % length], loadoutAt), and each loadout carries its weapon (`gear`): presentation only, the sim's weapon is the roster's.
+export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number; loadouts?: readonly string[] };
 export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
 export const VARIANTS = MOB_LOOK_RULES.mobLookRule[0]!.variants;   // the mobLookRule row (mob-looks-rules.json)
 export const WHOLE_SOOT_CAP = MOB_LOOK_RULES.mobLookRule[0]!.wholeSootCap, CLOTH_SOOT_CAP = MOB_LOOK_RULES.mobLookRule[0]!.clothSootCap;   // the most ash a baked whole-body surface / a cloth draw takes (mob-dress.ts)
@@ -42,7 +45,8 @@ export function variantLook(id: string, v: number, zone: Zone = loadZone()): Mob
   v = ((v % VARIANTS) + VARIANTS) % VARIANTS;
   const key = `${zone.id}:${id}#${v}`, known = memo.get(key); if (known) return known;
   const pool = [base.tint, ...spread.tints], unit = (n: number) => ((v * n) % VARIANTS) / (VARIANTS - 1) * 2 - 1;   // -1..1, a different walk per field
-  const look: MobLook = { ...base, tint: pool[v % pool.length]!, scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
+  const loadout = loadoutAt(v, base.loadout, spread.loadouts), gear = loadoutRow(loadout)?.weapon ?? base.gear;   // undefined = the body's own weapon
+  const look: MobLook = { ...base, tint: pool[v % pool.length]!, ...(loadout ? { loadout } : {}), ...(gear ? { gear } : {}), scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
     dressing: { soot: clamp01(base.dressing.soot + unit(5) * spread.soot), burnt: clamp01(base.dressing.burnt + unit(7) * spread.burnt) } };
   memo.set(key, look); return look;
 }

@@ -1,0 +1,5 @@
+{
+  "sandboxLines": [
+    { "id": "kill", "fields": { "line": "{creature} is down. Not saved in the Test Zone." } }
+  ]
+}

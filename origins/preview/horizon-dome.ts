@@ -41,13 +41,13 @@ function paint(w: number, h: number, S: GoblinPalette, art: { img: HTMLImageElem
 /** Dom's picture round the horizon, as the Pit's backdrop ring does it: `repeat` mirrored copies of the crop, its foot (y1, the picture's horizon line) on the dome's horizon row; the head fades
  *  into the painted sky under it, the foot into the palette's horizon (= the haze row's fog), so neither the sky nor the ground meets the picture with a line. A crop taller than the sky is cut at the top. */
 function paintBackdrop(g: CanvasRenderingContext2D, w: number, yh: number, S: GoblinPalette, img: HTMLImageElement, b: GoblinBackdrop) {
-  const sx = b.x0 * img.naturalWidth, sw = (b.x1 - b.x0) * img.naturalWidth, sy1 = b.y1 * img.naturalHeight, cw = Math.ceil(w / b.repeat);
+  const sx = b.x0 * img.naturalWidth, sw = (b.x1 - b.x0) * img.naturalWidth, sy1 = b.y1 * img.naturalHeight, cw = Math.ceil(w / b.repeat!);
   const scale = cw / sw, ch = Math.min(yh, (sy1 - b.y0 * img.naturalHeight) * scale), sh = ch / scale;   // drawn height; the source rows it covers end at the horizon line
   const one = document.createElement('canvas'); one.width = cw; one.height = Math.ceil(ch); const o = one.getContext('2d')!;
   o.drawImage(img, sx, sy1 - sh, sw, sh, 0, 0, cw, ch);
   o.globalCompositeOperation = 'destination-in'; const head = o.createLinearGradient(0, 0, 0, ch); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(b.fadeTop, 'rgba(0,0,0,1)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, cw, ch);   // over the WHOLE crop: destination-in clears whatever the fill does not cover
   o.globalCompositeOperation = 'source-over'; const foot = o.createLinearGradient(0, ch * (1 - b.fadeFoot), 0, ch); foot.addColorStop(0, clear(S.horizon)); foot.addColorStop(1, S.horizon); o.fillStyle = foot; o.fillRect(0, ch * (1 - b.fadeFoot), cw, ch * b.fadeFoot);
-  for (let i = 0; i < b.repeat; i++) { g.save(); if (i % 2) { g.translate((i + 1) * cw, 0); g.scale(-1, 1); } else g.translate(i * cw, 0); g.drawImage(one, 0, yh - ch); g.restore(); }   // odd copies mirrored: every seam meets its own edge
+  for (let i = 0; i < b.repeat!; i++) { g.save(); if (i % 2) { g.translate((i + 1) * cw, 0); g.scale(-1, 1); } else g.translate(i * cw, 0); g.drawImage(one, 0, yh - ch); g.restore(); }   // odd copies mirrored: every seam meets its own edge
 }
 
 /** The dome in one palette: add it to the scene once; call follow(camera) each frame. dispose() frees the texture. When the palette names backdrops, the painted sky shows at once and the
