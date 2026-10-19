@@ -13,7 +13,7 @@ const of = (spec: Record<string, unknown>): ZoneFields => { const r = resolveZon
 
 test('Zone 1 = Test Zone look (Dom-approved 2026-10-18): it sets the kit, density and rim and no fog, sun, time or day/night field', () => {
   const z = loadZone('1');
-  assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(), ['look.props.density', 'look.props.kit', 'look.props.rim']);
+  assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(), ['look.props.camp', 'look.props.density', 'look.props.kit', 'look.props.rim']);   // look.props.camp (#3313): where the camp kit stands in the Cinder Fields, the sandbox's spawn camp
   for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `1/${preset}`);
 });
 test('Zone 2 sets no look, time or day/night field: every preset look comes back untouched', () => {

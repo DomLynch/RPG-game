@@ -392,6 +392,29 @@
             "levelMax": null
           }
         ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:loot.pitborn.Greaves",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.pitborn.Boots",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
       }
     ],
     "currency": {
