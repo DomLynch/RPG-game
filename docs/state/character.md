@@ -1,5 +1,23 @@
 # Character — project state
 
+## 2026-10-19 (afternoon, ~12:30 +04) — HANDOFF #2 after #3268 / #3281 / #3285. READ FIRST; supersedes the morning handoff's Now list.
+
+**Now**
+1. **#3285 remote heroes (draft, char/remote-heroes @9e78a5ed5, on trunk c39fa1315):** skipped vs failed kit warm, forced `?kitwarm=soft` row (`remote-heroes-soft`, required:false), release-keyed slow verdict (rows `slowVerdictByRelease`, `releaseReadMs`; `/release.json` read through the core door `src/core/release-read.ts`, because C5 bans a fetch in page files). HF CPU: clean against a trunk baseline. OWED: rebase on trunk, take it out of draft, set auditor:ready, real-GPU receipt at a quiet Mac (`GPU_REAL=1`; load < 6; three rows on a loaded Mac all skipped the warm, probe median 268 ms, headless; Lead: if a QUIET Mac still probes slow it is a finding for Strategy, the 100 ms threshold). Soft leg never run on a GPU.
+2. Nothing else of mine is open: **#3281** (CS38 bow, dormant) has Auditor PASS @8bc9713e5, browser rows 10/10 at that sha (receipt on the PR), queued third after JN for the cut. **#3268** has PASS @7e32e99a0 (Strategy), queued second. **#3247** (clip packs): confirm it merged; when it does tell Lead so World restores the six two-handed pairs.
+3. Bow binding: no weapon is bound to the bow (Strategy/Dom decision, Lead logs it). `loadRangedPart` in characters.ts is dormant until a missile row names a weapon.
+
+**Done today (receipts)**: #3261 and #3266 live (JL); #3268 rebased + four goblin rows, 7e32e99a0, 20/0 on the full VPS run, no-change stills by Test Zone Sandbox (comment 6262611421), my close-up diagnosis on the PR (comment 6262829165: no camera bug; a failed body leaves the capsule); #3281 opened, stills, PASS; #3285 opened.
+
+**Gotchas that cost time (new)**
+- **The HF CPU image fails 31 tests that pass on the VPS** (publisher/driver/workflow-YAML/open_pr_list/pvp-TODO); compare failing-name lists against a trunk-only run (scratch branch = trunk + the check script), never the raw count. `scripts/character/remote-heroes-checks.sh` is the reusable job: `node scripts/vps-shadow/launch.mjs job <sha40> --lane char -- bash scripts/character/remote-heroes-checks.sh` (the job clones the sha, so the script must be in it; scratch branches char/rh-baseline, rh-bowcheck, rh-3268check hold copies). HF slots can be full ("5 of 3 in use"): use the VPS capture then.
+- **One clone, one job.** char-s3 is shared by every VPS job of mine; two capture jobs in parallel checked out under each other. Chain them in one script or make the second wait for the first's DONE line.
+- **No hand deletes on the VPS** (I broke it twice with an rm of my own scratch; say so): `mv` aside under a tag, clear with vps-scratch-sweep. Left behind: /opt/frankendom-shadow/work/char-* logs and scripts, artifacts/*.c3268*/rows3281*/closeup* dirs in char-s3, char-bowstills-tmp, char-bowstills-out, char-c3268-out(2), char-closeup-out.
+- **The sandbox page throws at boot on trunk** ("no playRadiusDial SPAWN_FLOOR": sandbox/rows.json overlay lacks the row); reported to Lead with fix sha 815197825 on char/rh-bowstills; the bow stills used it. The sandbox bow stills need the bow GLB at the harness server ROOT (`/weapons/ranged/...`), and the link needs skill/special2/debug params or it says "sparring link isn't valid" and fights with the default sword.
+- **zone-look-stills close-up**: a ground-and-wall "after" frame twice without the probe, not reproduced with STILLS_PROBE=1; cause not found; not a blocker (TZ's WebKit set is clean).
+- Session names: "Frankendom - Deploy", "Frankendom - Lead Dev [ref]" (use the ref ListAgents prints for the one on this machine), "Test Zone Sandbox". Hooks Dev (Pico) is moving ~/Desktop/Business/artifacts to the storage box on my yes (nothing there is mine).
+- A local Bash hook blocks builds and test runs on the Mac (heavy → VPS/HF); browser stills allowed only under the load rule; no file edits through Bash.
+
 ## 2026-10-19 (morning, ~10:40 +04) — HANDOFF before /clear. READ FIRST.
 
 I am the Frankendom Characters lane (folder ~/Developer/frankendom-char). Strategy confirmed it; Dom's restart paste said "pico claw" by mistake: Pico is a separate stood-down session and is NOT me. Lead = "Frankendom - Lead Dev" (ListAgents: use the ref it shows). PicoClaw nudges arrive as "PICO-CC-..." messages: advice, reply starts "per PICO-<id>".
