@@ -14,7 +14,5 @@
     { "id": "pitborn", "heightM": 2.002, "lengthM": 1.839, "glb": "/world/pitborn.glb", "sha256": "9ea040aa1b3b30c84ffaa4f7965e03665ee23428195ca6e30b7577fc8a77a2e0" },
     { "id": "warrior", "heightM": 1.781, "lengthM": 1.628, "glb": "/world/warrior.glb", "sha256": "2b99b714d46682ada1a04571beb336c0ec1e0f6d12f1702b46ba75a2244c0b3c" }
   ],
-  "exceptions": [
-    { "id": "zone1-troll-catalogue", "zone": "1", "character": "character:cave-troll", "reason": "until Combat's 1.52 catalogue change, Dom 10-18: Zone 1's named troll is drawn at the catalogue's render.scale 1.9 (3.30 m) today; Combat's troll-1.52 PR deletes this row" }
-  ]
+  "exceptions": []
 }

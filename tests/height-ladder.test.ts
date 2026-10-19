@@ -28,13 +28,12 @@ test('a creature over its zone\'s cap is refused with a message that says what t
   assert.deepEqual(heightProblems(zone(1, [{ id: 'character:mystery', opponent: 'unmeasured', scale: 9 }])), [], 'an unmeasured body is not checked');
 });
 
-test('every zone on trunk passes the validator, and the only creature the ladder lets through by exception is Zone 1\'s troll at the catalogue\'s 1.9', () => {
+test('every zone on trunk passes the validator with no exception row: Zone 1\'s troll is drawn at 1.52 (the cap) and nothing needs a named exception', () => {
   for (const id of allZoneIds()) assert.deepEqual(zoneProblems(loadZone(id, true)), [], id);
-  assert.deepEqual(HEIGHT_LADDER.exceptions.map((e) => [e.id, e.zone, e.character]), [['zone1-troll-catalogue', '1', 'character:cave-troll']]);
+  assert.deepEqual(HEIGHT_LADDER.exceptions, [], 'the troll\'s zone1-troll-catalogue row is gone: #3266 draws the Zone 1 troll at 1.52');
   const z1 = loadZone('1');
-  assert.ok(z1.spawns.rows.some((r) => r.id === 'character:cave-troll'), 'the exception names a creature that is there');
-  assert.ok(drawnHeight('cave-troll')! > heightCap(1).capM, 'and it is still needed: delete the row when Combat\'s 1.52 catalogue change lands (it then fails here on purpose: remove it)');
-  assert.deepEqual(heightProblems(z1, { ...HEIGHT_LADDER, exceptions: [] }).length, 1, 'without it exactly one creature is over the cap');
+  assert.ok(z1.spawns.rows.some((r) => r.id === 'character:cave-troll'), 'the troll is in Zone 1');
+  assert.deepEqual(heightProblems(z1), [], 'Zone 1 is within the tier-1 cap');
 });
 
 test('the body rows are pinned to their GLBs by hash (run node scripts/body-heights.mjs when a body changes), and length is recorded beside height', () => {
