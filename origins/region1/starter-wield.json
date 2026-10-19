@@ -5,6 +5,8 @@
     { "id": "item:starter.cleaver", "lootId": "pitborn.Cleaver", "maxQty": 1 },
     { "id": "item:starter.gladius", "lootId": "shieldmaiden.Gladius", "maxQty": 1 },
     { "id": "item:starter.estoc", "lootId": "nightborn.Estoc", "maxQty": 1 },
+    { "id": "item:starter.bow", "lootId": "starter.Bow", "maxQty": 1 },
+    { "id": "item:starter.staff", "lootId": "starter.Staff", "maxQty": 1 },
     { "id": "item:starter.goblin-scrap-cap", "lootId": "goblin.Helmet", "maxQty": 1 },
     { "id": "item:starter.goblin-shin-plates", "lootId": "goblin.Greaves", "maxQty": 1 }
   ]

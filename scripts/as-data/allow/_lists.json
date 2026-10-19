@@ -3,6 +3,11 @@
   "allow": [
     {"file": "src/fight/sound/creature.ts", "literal": "bite", "reason": "the 'bite' creature sound cue name, not the bite weapon"},
     {"file": "src/fight/characters.ts", "literal": "pommel", "reason": "the pommel attack-clip name (an Attack key), not the Pommel Strike skill id"},
+    {"file": "src/fight/ai.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/characters.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/missile-fx.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/sandbox-rules.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/sandbox-rules.ts", "literal": "staff", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the staff weapon id the same word now also names"},
     {"file": "src/fight/miasma-mark.ts", "literal": "miasma", "reason": "fx handler verb (miasma-mark.ts:13): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"},
     {"file": "src/fight/scorch.ts", "literal": "witchfire", "reason": "fx handler verb (scorch.ts:64): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"},
     {"file": "src/fight/charge-timing.ts", "literal": "charge", "reason": "fx handler verb (charge-timing.ts:19): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"}

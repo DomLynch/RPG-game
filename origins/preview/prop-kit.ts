@@ -56,6 +56,8 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
         for (let k = 0; k < n; k++) { const t = (k + rc.phase!) / n, o = world(ax + (bx - ax) * t, ad + (bd - ad) * t), skip = R() < rc.gap!, p = pick(); if (!skip && free(o.x, o.z, p.r, -p.r)) put(p, o.x, o.z, yaw); }
       };
       side(-hw, d0, hw, d0); side(hw, d0, hw, d1); side(hw, d1, -hw, d1); side(-hw, d1, -hw, d0);
+    } else if (rc.kind === 'spot') {   // one piece at one fixed place (the post and wall the hero first sees); the row owns the place, so no free-ground test, but it stands in the way of the recipes after it
+      const p = pick(); put(p, centre.x + Math.sin(rc.angle!) * rc.ringRadius!, centre.z + Math.cos(rc.angle!) * rc.ringRadius!, rc.yaw);
     } else if (rc.kind === 'ring') {
       const a0 = between(0, Math.PI * 2);
       for (let k = 0; k < rc.count; k++) { const p = pick(), a = a0 + (k / rc.count) * Math.PI * 2, x = centre.x + Math.sin(a) * rc.ringRadius!, zz = centre.z + Math.cos(a) * rc.ringRadius!; if (free(x, zz, p.r)) put(p, x, zz); }
