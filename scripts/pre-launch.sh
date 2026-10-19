@@ -19,6 +19,8 @@ fi
 echo "pre-launch: $sha, rows out of scope vs ${live:-none}: ${skip:-none}" >&2
 # A re-cut names the candidate it replaces (third argument) and cancels THAT sha's HF jobs (T4, CPU, unit) before launching its own: none left running for a sha that will never ship. Never another candidate: two can be in flight.
 [[ "$superseded" =~ ^[0-9a-f]{40}$ ]] && { node scripts/lib/prelaunch-jobs.mjs cancel-superseded "$superseded" "$sha" || true; }
+# A cancel skipped under deploy_hold left a marker: retry those now that this cut is running (no-op while the hold is still up).
+node scripts/lib/prelaunch-jobs.mjs retry-superseded || true
 rm -f "$dir/$sha.wall" "$dir/$sha.wall.json" "$dir/$sha.cpu"
 # The public client keys the job builds with live in the deploy checkout's env file; the worktree has none.
 export HF_WALL_ROWS_ENV_FILE="${HF_WALL_ROWS_ENV_FILE:-$HOME/Developer/frankendom-deploy/.env.production.local}"

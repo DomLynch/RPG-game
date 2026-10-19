@@ -196,6 +196,7 @@ test('kill_report for the QA account (fighter_profiles.is_test): every check and
   for (const normal of [blind, absent]) assert.deepEqual(normal.opsOf, no.opsOf, 'a blind or absent lookup pays exactly as an ordinary kill');
   assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4 }, 'the soak counters count the QA kill like the others');
   assert.deepEqual(reachTally.snapshot().outcomes, { checked: 4 }, 'and so does the reach tally');
+  for (const t of [tally, reachTally]) assert.deepEqual([t.snapshot().cohorts.qa.total, t.snapshot().cohorts.organic.total], [1, 3], 'the QA kill lands in the qa cohort, the other three (false, blind, absent) in organic');
   assert.deepEqual(logs.filter((l) => /^kill_report .* qa=/.test(l)).map((l) => /qa=(\S+)/.exec(l)![1]), ['no', 'yes', '?', '?'], 'the log names the QA state; ? = the lookup was blind');
   // the checks apply to QA exactly as to anyone: too far is refused, and the strict flag refuses an unchecked QA kill
   const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + (wolf.spec.home.x + 50) * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });

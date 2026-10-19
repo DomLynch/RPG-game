@@ -17,6 +17,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Stats, damage & defence | [docs/state/stats.md](docs/state/stats.md) | 1 | 2026-09-22 — Brief 19 deliverable 1: tier stat table, Attack + RES, caps exact, naked and Recruit both identity |
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 7 | 2026-09-29 — row 49 WebKit replay built (#1083), battery + row run owed in Lead slot; A/B/C LIVE bfe1633a |
 | Web design | [docs/state/web.md](docs/state/web.md) | 26 | 2026-09-28 — HANDOFF: /game Golden Order + spar banner LIVE (aaef2c62); #972 ladder fix + #912 load gate READY |
+| Zone sandbox | [docs/state/zone-sandbox.md](docs/state/zone-sandbox.md) | 1 | 2026-10-16 - fortress mood, props/dress/ambience rows, creature UI (fortress only), preview live at /preview/zone-look/ |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | The Pit | [docs/state/pit.md](docs/state/pit.md) | 1 | 2026-09-29 — lane opened: post-fight room (gate walk-in, gear rack, trophies, next-fight gate), sealed src/pit/ module |
 | Duel | [docs/state/duel.md](docs/state/duel.md) | 1 | 2026-09-29 — lane opened: permanent real-player PvP (challenge links, matchmaking, rollback), any region |
