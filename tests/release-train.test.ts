@@ -496,6 +496,27 @@ test('publisher: starts the Mac-only rows at the cut for the OLDEST open candida
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
+test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is never silent: exit code logged, a marker written, shown every tick, cleared by a good run', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.dir, 'bin', 'failing-mac-rows'), '#!/usr/bin/env bash\necho "no checkout" >&2\nexit 3\n');
+    chmodSync(join(p.dir, 'bin', 'failing-mac-rows'), 0o755);
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    let r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'failing-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/, 'the attempt is logged');
+    const marker = join(p.state, 'mac-rows-early.failed-ccccccccc');
+    for (let i = 0; i < 40 && !existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.equal(existsSync(marker), true, 'a failed start leaves a marker');
+    assert.match(readFileSync(marker, 'utf8'), new RegExp(`^${'c'.repeat(40)} exit 3 at `));
+    assert.match(readFileSync(join(p.state, 'mac-rows-early.log'), 'utf8'), /mac-rows-early ccccccccc: exit 3/);
+    r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'failing-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) FAILED earlier: c{40} exit 3 at .*mac-rows-early\.failed-ccccccccc/, 'the next tick shows it');
+    r = p.run();   // the default fake succeeds: the marker goes
+    for (let i = 0; i < 40 && existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.equal(existsSync(marker), false, 'a good run clears the marker');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
 test('publisher under launchd (Lead 2026-10-12): a Desktop-backed repo or release slot is refused BEFORE any git call, hold or push; the train never runs from one', () => {
   const p = publisher();
   try {

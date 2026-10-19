@@ -41,12 +41,22 @@ skip() { if [ -n "$dry" ]; then log "DRY RUN: $*; going on"; else log "$*"; exit
 # background (one run at a time, its own checkout MAC_ROWS_DIR, the train's, checked above; under deploy.sh's Mac-rows lock); deploy.sh trusts the rows
 # that passed for that tree. A dry run only says which candidate it would start.
 early_dir="${PRELAUNCH_DIR:-$state/pre-launch}"
-early=$(net_gh 60 pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
-  --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[].headRefOid' 2>/dev/null \
-  | while read -r c; do [ -e "$early_dir/$c.macrows.json" ] || { echo "$c"; break; }; done)
+early_cands=$(net_gh 60 pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
+  --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[].headRefOid' 2>/dev/null); early_rc=$?
+# No silent skip (Lead 2026-10-19, JN's Mac rows never started and the train said nothing): a failed query, a missing checkout and a failed start are all logged.
+[ "$early_rc" -eq 0 ] || log "mac rows (early): the open-candidate query failed (exit $early_rc); no start this tick"
+early=$(printf '%s\n' "$early_cands" | while read -r c; do [ -n "$c" ] || continue; [ -e "$early_dir/$c.macrows.json" ] || { echo "$c"; break; }; done)
+for m in "$state"/mac-rows-early.failed-*; do [ -e "$m" ] && log "mac rows (early) FAILED earlier: $(head -n 1 "$m") (marker $m; remove it after the cause is fixed)"; done
 if [ -n "$early" ] && [ -n "$dry" ]; then log "DRY RUN: would start mac rows (early) for ${early:0:9} in $MAC_ROWS_DIR"
-elif [ -n "$early" ] && [ -d "$repo" ]; then
-  ( cd "$repo" && PRELAUNCH_DIR="$early_dir" nohup ${RELEASE_TRAIN_MAC_ROWS:-bash scripts/mac-rows-early.sh} "$early" >> "$state/mac-rows-early.log" 2>&1 & )
+elif [ -n "$early" ] && [ ! -d "$repo" ]; then log "mac rows (early) for ${early:0:9}: NOT started, the train checkout $repo is missing"
+elif [ -n "$early" ]; then
+  # Its own session (perl setsid; macOS has no setsid binary): launchd ends the tick by killing the job's process group, and a plain `nohup … &` died with it. A start that exits
+  # non-zero (no checkout, npm ci failed, rows lock timeout) is logged with its exit code and leaves $state/mac-rows-early.failed-<sha9>, which every tick prints until it is removed.
+  ( cd "$repo" && PRELAUNCH_DIR="$early_dir" nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- bash -c '
+      state=$1; sha=$2; shift 2; "$@" "$sha"; rc=$?
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) mac-rows-early ${sha:0:9}: exit $rc" >> "$state/mac-rows-early.log"
+      if [ "$rc" -eq 0 ]; then rm -f "$state/mac-rows-early.failed-${sha:0:9}"; else echo "$sha exit $rc at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state/mac-rows-early.failed-${sha:0:9}"; fi' \
+      _ "$state" "$early" ${RELEASE_TRAIN_MAC_ROWS:-bash scripts/mac-rows-early.sh} >> "$state/mac-rows-early.log" 2>&1 & )
   log "mac rows (early) for ${early:0:9}: started or already running (log $state/mac-rows-early.log)"
 fi
 deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-flight marker and one file per run), hand-run or ours
