@@ -855,7 +855,7 @@ let stancePanel: StancePanel | null = null;
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
   stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
-  if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+  stancePanel.show(match.stances, match.seed, opponent.id);   // no pick yet (a fight with no stances): Balanced is lit, no reveal line
 }
 function began() {
   nameOpponent();
