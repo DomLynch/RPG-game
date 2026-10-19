@@ -37,7 +37,7 @@ Goal: one honest number per line, then the sizing ask to Dom with cost.
 
 **What a local Postgres cannot tell us (must be read or tested on Supabase, not guessed):** Supabase compute tier and its connection ceiling, pooler (Supavisor) limits, PostgREST/Auth rate limits (sign-ins per hour per IP, email sends per hour on the default SMTP), egress. Action: read the org's plan and limits from the dashboard, then run a small (100-session) confirm against a Supabase branch only if Dom approves the branch cost. Nothing is assumed about the tier here.
 
-**Exit:** a table of the six lines above at 100/250/500/1,000, the bottleneck named, and a sizing ask: Supabase tier, pool size, writer count, with monthly cost.
+**Exit:** a table of the nine lines above at 100/250/500/1,000, the bottleneck named, and a sizing ask: Supabase tier, pool size, writer count, with monthly cost.
 
 ## 3. Advisor items: intent checks (one line each; no change made)
 
@@ -74,4 +74,4 @@ Empty today (0 rows): `duel_metrics`, `duel_starts`, `duel_reports`, `duel_recor
 1. This doc merged (docs-only PR, Auditor read).
 2. Strategy rules on `daily_board` / `daily_fight` (accept or redesign).
 3. Dom takes the checklist in section 4.
-4. After the sandbox archive: build the driver, run the load test per section 2, post the six lines, then the sizing ask with cost.
+4. After the sandbox archive: build the driver, run the load test per section 2, post the nine lines, then the sizing ask with cost.
