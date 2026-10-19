@@ -126,6 +126,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     }
     if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/zones') { res.writeHead(HTTP_OK, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' }); return void res.end(ZONE_TABLE); }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/internal/layers') return void layersRoute(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/worn') return void wornRoute(req, res);
     res.writeHead(HTTP_NOT_FOUND); res.end();
@@ -145,6 +146,17 @@ export function createPresence(opts: PresenceOptions): Presence {
     const p = world.byAccount.get(account);
     if (!p) return reply(HTTP_OK,{ online: false });
     reply(HTTP_OK,{ online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.seenAt) });
+  };
+
+  // GET /internal/layers (Bearer <internalKey>, loopback): the ids of the layers that exist right now, for the writer's spawn janitor (migration 20261019170000: a closed layer's spawn rows are deleted).
+  // Read-only; same guards as /internal/where. Layer ids are per process and count up from 1 after a restart, so the writer only ever uses this list to decide which rows are NOT in use.
+  const layersRoute = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { res.writeHead(HTTP_NOT_FOUND); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) return reply(HTTP_UNAUTHORISED, { error: 'unauthorised' });
+    reply(HTTP_OK, { layers: [...world.layers.keys()].sort((x, y) => x - y) });
   };
 
   // POST /internal/rejoin {account} (Bearer <internalKey>, loopback): the writer says this account's ACTIVE CHARACTER changed (create or switch). Presence drops the old

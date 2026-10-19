@@ -179,15 +179,30 @@ const spawnCall = async (db: Db, call: string, vars: Record<string, string>): Pr
   return out === 'absent' ? null : out;
 };
 export type SpawnRow = { instance: string; kind: string; alive: boolean; respawnAt: string | null; generation: number };
-export type SpawnEngage = { token: string; character: string; instance: string; generation: number; issuedAt: string; expiresAt: string };
+export type SpawnEngage = { token: string; character: string; instance: string; layer?: number; generation: number; issuedAt: string; expiresAt: string };   // layer: the token's layer (migration 20261019170000; absent before it)
 export type SpawnRefusal = { refused?: string; respawnAt?: string | null };
-export const spawnState = async (db: Db, instances: readonly string[]): Promise<{ now: string; spawns: SpawnRow[] } | null> => {
-  const out = await spawnCall(db, `public.origins_spawn_state(array(select jsonb_array_elements_text(:'i'::jsonb)))`, { i: JSON.stringify(instances) });
+// Per-layer spawn clocks (migration 20261019170000): a `layer` argument asks the layer-taking function; no layer, or the migration not applied, reads the layer-less one, which is layer 1, today's single pool.
+const HAS_LAYERS = `select to_regprocedure('public.origins_spawn_engage_layer(integer,uuid,text,text,text,text)') is not null as layers \\gset\n`;
+const layerCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'spawn layers', HAS_LAYERS, 'layers', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+export const spawnState = async (db: Db, instances: readonly string[], layer?: number): Promise<{ now: string; spawns: SpawnRow[] } | null> => {
+  const vars = { i: JSON.stringify(instances), l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_state_layer(:'l'::int, array(select jsonb_array_elements_text(:'i'::jsonb)))`, vars))
+    ?? await spawnCall(db, `public.origins_spawn_state(array(select jsonb_array_elements_text(:'i'::jsonb)))`, vars);
   return out === null ? null : JSON.parse(out);
 };
-export const spawnEngage = async (db: Db, account: string, character: string, token: string, instance: string, kind: string): Promise<(SpawnEngage & SpawnRefusal) | null> => {
-  const out = await spawnCall(db, `public.origins_spawn_engage(:'a'::uuid, :'c', :'t', :'i', :'k')`, { a: acct(account), c: character, t: token, i: instance, k: kind });
+export const spawnEngage = async (db: Db, account: string, character: string, token: string, instance: string, kind: string, layer?: number): Promise<(SpawnEngage & SpawnRefusal) | null> => {
+  const vars = { a: acct(account), c: character, t: token, i: instance, k: kind, l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_engage_layer(:'l'::int, :'a'::uuid, :'c', :'t', :'i', :'k')`, vars))
+    ?? await spawnCall(db, `public.origins_spawn_engage(:'a'::uuid, :'c', :'t', :'i', :'k')`, vars);
   return out === null ? null : JSON.parse(out);
+};
+/** The janitor: delete the spawn rows of every layer not in `live` (the layers presence says exist). `null` = the migration is not applied. */
+export const spawnLayersSweep = async (db: Db, live: readonly number[]): Promise<number | null> => {
+  const out = await layerCall(db, `public.origins_spawn_layers_sweep(array(select jsonb_array_elements_text(:'l'::jsonb)::int))`, { l: JSON.stringify(live) });
+  return out === null ? null : Number(out);
 };
 export const spawnEngageGet = async (db: Db, account: string, token: string): Promise<SpawnEngage | 'none' | null> => {
   const out = await spawnCall(db, `coalesce(public.origins_spawn_engage_get(:'a'::uuid, :'t'), 'null'::jsonb)`, { a: acct(account), t: token });
@@ -223,13 +238,18 @@ const shareCall = async (db: Db, call: string, vars: Record<string, string>): Pr
   return out === 'absent' ? null : out;
 };
 /** Read-only: would a kill report on this token be refused (dead, too-fast, cap), and is it the 'first' kill of the creature or a 'join' to one made while the token was open. Nothing is written. */
-export const spawnCheck = async (db: Db, account: string, token: string, minMs: number, joinS: number): Promise<({ ok?: true; mode?: 'first' | 'join'; instance?: string; generation?: number } & SpawnRefusal) | null> => {
-  const out = await shareCall(db, `public.origins_spawn_check(:'a'::uuid, :'t', :'m'::int, :'j'::int)`, { a: acct(account), t: token, m: String(minMs), j: String(joinS) });
+export const spawnCheck = async (db: Db, account: string, token: string, minMs: number, joinS: number, cooldownS?: number): Promise<({ ok?: true; mode?: 'first' | 'join'; instance?: string; generation?: number } & SpawnRefusal) | null> => {
+  const vars = { a: acct(account), t: token, m: String(minMs), j: String(joinS), r: String(cooldownS ?? 0) };
+  // cooldownS given (layers on): the layer-aware check, which also refuses a creature this account already killed in ANOTHER layer inside the respawn window
+  const out = (cooldownS === undefined ? null : await layerCall(db, `public.origins_spawn_check_layer(:'a'::uuid, :'t', :'m'::int, :'j'::int, :'r'::int)`, vars))
+    ?? await shareCall(db, `public.origins_spawn_check(:'a'::uuid, :'t', :'m'::int, :'j'::int)`, vars);
   return out === null ? null : JSON.parse(out);
 };
 /** The damage ledger of one incarnation of a creature, oldest first. */
-export const spawnDamage = async (db: Db, instance: string, generation: number): Promise<{ token: string; damage: number; joined: boolean }[] | null> => {
-  const out = await shareCall(db, `public.origins_spawn_damage_read(:'i', :'g'::int)`, { i: instance, g: String(generation) });
+export const spawnDamage = async (db: Db, instance: string, generation: number, layer?: number): Promise<{ token: string; damage: number; joined: boolean }[] | null> => {
+  const vars = { i: instance, g: String(generation), l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_damage_read_layer(:'l'::int, :'i', :'g'::int)`, vars))
+    ?? await shareCall(db, `public.origins_spawn_damage_read(:'i', :'g'::int)`, vars);
   return out === null ? null : (JSON.parse(out) as { token: string; damage: string | number; joined: boolean }[]).map((d) => ({ ...d, damage: Number(d.damage) }));
 };
 export const spawnKillShared = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger, damage: number, joinS: number): Promise<({ result?: string; instance?: string; respawnAt?: string; joined?: boolean } & SpawnRefusal) | null> => {
