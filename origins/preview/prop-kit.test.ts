@@ -23,7 +23,7 @@ test('the goblin zone exists in the plan, the kit is deterministic, and an unkno
 });
 test('every recipe of the kit is there, bounded by its rows: fires with embers, tents, palisades, totems, banners, bones, trees', () => {
   const p = K.dress.pieces, has = (shape: string, tintId: number) => p.filter((q) => q.shape[0] === shape).length >= tintId;
-  assert.ok(K.fires.length >= 1 && K.fires.length <= recipesOf(KIT).find((r) => r.id === 'fires')!.count, `${K.fires.length} fires`);
+  assert.ok(K.fires.length >= 1 && K.fires.length <= ['fires', 'torches'].reduce((n, id) => n + recipesOf(KIT).find((r) => r.id === id)!.count, 0), `${K.fires.length} fires`);   // the camp fires and the wall's torch ring
   assert.equal(p.filter((q) => q.layer === 'coal').length, K.fires.length, 'one ember disc per fire, on the coal layer');
   assert.ok(has('cone', 20) && has('sphere', 1) && has('cylinder', 20) && has('box', 40), 'stakes, a skull, poles and bones');
   assert.ok(p.length > 100 && p.length < 600, `${p.length} pieces`);
