@@ -245,7 +245,7 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
     } catch (e) { (globalThis as { __SANDBOX_PAINTED_ERR__?: string[] }).__SANDBOX_PAINTED_ERR__ = [`import: ${String(e)}`]; /* keep the procedural ones */ }
     { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1' } as const;
       (globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__ = (weapon: string) => {
-        const kind = (['staff', 'bow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
+        const kind = (['staff', 'bow'] as const).find((k) => q.get(k) === weapon); if (!kind || kind === 'bow') return undefined; /* SCRATCH BINDING, not committed: the game's own loader (loadRangedPart) draws the bow */
         // Holds from Characters & Art (scripts/weapon-stage/holds.json, 2026-10-15): ABSOLUTE local transforms under the hand bone (the part names its hand), Euler XYZ degrees, metres; they replace SwordDrawn's.
         const HOLD: Record<string, [number, number, number]> = { staff: [90, 0, 0], bow: [-1.9, 34.6, 114.3] };
         const paintedPart = painted[kind]?.clone(true) as { userData: Record<string, unknown>; rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } } | undefined;
