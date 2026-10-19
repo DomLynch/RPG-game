@@ -1,5 +1,11 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~09:0x +04. LIVE = JI 20a3d87fd (verified on #3265: all 3 services, NRestarts 0, flags unset). JH 43f7a7f1b verified on #3264 before it.
+**Now:** the next cut = #3266 @5d16cf0dd (Zone 1 = Test Zone look) + #3261 @e560ba104 (troll Wrap fallback), both PASSed; they must ride together. Candidate read when Deploy cuts it: each merge = clean merge-tree, then the PASS line + candidate:pass label on green. After that, #3257 BULK-CS when it leaves draft.
+**PASS posted today:** JH #3264 @43f7a7f1b, JI #3265 @20a3d87fd (candidates), #3260 @e08c992e8, #3259 @a2697fa13, #3230 @7d3c9edb8, #3261 @e560ba104, #3266 @5d16cf0dd.
+**Rulings (Lead):** #3266's cinder-scavenger is 1.25 (goblins 1.25) and exempt from the height order against the ghoul; brood stays smallest (test-only re-pin).
+**Gotchas.** (gggg) A release candidate's standalone `static` workflow can skip; quality (static) green plus static green at every member head is the receipt. (hhhh) A glued `//` comment can silently swallow the next assertion: in a test-only re-pin, read every changed line to its end. Helper: scratchpad interdiff.sh (old PASS head vs new head, per file, against trunk).
+
 ## 2026-10-19 ~08:0x +04. LIVE = JH2 3b8ae64ed (verified on #3262: all 3 services, NRestarts 0, flags unset). The Test Zone is in the game.
 **Now (Strategy's order):** the small-train heads, then World's rows-only "Zone 1 takes zone 90's look rows" (confirm the four receipts only), then the JH candidate PASS + candidate:pass label, then #3257 BULK-CS when it leaves draft (head b4b6e2a59 at last look) with shards (1)–(8) and static green. #3230 waits for World's rebase (it's 77 behind and conflicting). #3261 is a draft with no shards run.
 **PASS posted:** #3260 @e08c992e8. Still standing at the current heads: #3218 @79cebea42, #3246 @e099336cb, #3259 @dc32f7b79.
