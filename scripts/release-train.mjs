@@ -12,6 +12,7 @@
 //     candidate:pass label AND its "PASS @<head>" comment, plus unit-ci/quality/release-checks present and green. A failed dispatch fails the cut.
 // Prints one JSON line: { action, name?, sha?, pr?, base, merged, skipped }. Never merges to trunk and never deploys.
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { TRUNK, checkRangeHasPrs, checkWatchedPaths, mergeAll, passAt, pullsOfViaGh, pushWithRetry } from './cut-release.mjs';
 import { RECEIPT_WORKFLOWS, receiptState } from './lib/receipt-rule.mjs';
@@ -127,12 +128,25 @@ export const REQUIRED_ROWS = RECEIPT_WORKFLOWS;
 /** Every verdict job that is not green, wait and red alike (scripts/lib/receipt-rule.mjs: the one rule; the latest attempt that carries a verdict decides). */
 export const missingRows = rollup => { const green = new Set(receiptState(rollup).green); return REQUIRED_ROWS.map(r => r.join('/')).filter(k => !green.has(k)); };
 
+/** Optional rows (Strategy 2026-10-19, after the optional remote-heroes-soft row went red on the GitHub runner and the gate below refused JU): a quality.yml matrix row marked
+ * `required: false` is evidence, not a gate; its red must never stop a publish. ONE source of truth: the matrix itself, read from this checkout's own quality.yml (by file URL, not the cwd:
+ * the early-rows query once failed on exactly that). An unreadable file gives no optional rows, so the gate only ever gets stricter. The job is named `browser (<row>)`. */
+export const optionalRowNames = (yml) => {
+  let text = yml;
+  if (text === undefined) { try { text = readFileSync(fileURLToPath(new URL('../.github/workflows/quality.yml', import.meta.url)), 'utf8'); } catch { text = ''; } }
+  return [...String(text).matchAll(/\{\s*name:\s*([\w.-]+)[^}\n]*\brequired:\s*false\b/g)].map(m => m[1]);
+};
+const isOptionalCheck = (c, names) => c.__typename !== 'StatusContext' && c.workflowName === 'quality' && names.some(n => c.name === `browser (${n})`);
+export const withoutOptionalRows = (rollup, names) => (Array.isArray(rollup) ? rollup.filter(c => !isOptionalCheck(c, names)) : rollup);
+/** The optional rows that are not green on this rollup, for the train log ("ignored"). */
+export const optionalRedRows = (rollup, names) => (Array.isArray(rollup) ? rollup.filter(c => isOptionalCheck(c, names) && !checkGreen(c)).map(c => c.name) : []);
+
 /** The publisher's pick (Strategy's gate, 2026-10-12): an open candidate (head release-*, base trunk) with the candidate:pass label AND an Auditor's (or Lead's)
  * "PASS @<sha9>" comment naming its CURRENT head, every check green and the REQUIRED_ROWS present and green; OLDEST first (forward-only publish). Either
  * gate alone is not enough: a label survives a head move. */
-export function pickPublish(prs, trunk = TRUNK) {
+export function pickPublish(prs, trunk = TRUNK, optional = optionalRowNames()) {
   const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass')
-    && passAt(p.comments || [], p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
+    && passAt(p.comments || [], p.headRefOid) && checksGreen(withoutOptionalRows(p.statusCheckRollup, optional), p.headRefName) && !missingRows(p.statusCheckRollup).length);
   return ok.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0] || null;
 }
 
@@ -213,7 +227,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === 'pick') {   // stdin: `gh pr list --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup`; stdout: "<number> <head sha> <draft>" or nothing
     const p = pickPublish(JSON.parse(readFileSync(0, 'utf8') || '[]'));
-    if (p) console.log(`${p.number} ${p.headRefOid} ${p.isDraft ? 'draft' : 'ready'}`);
+    if (p) {
+      const ignored = optionalRedRows(p.statusCheckRollup, optionalRowNames());
+      if (ignored.length) console.error(`release-train: #${p.number} is publishable with optional (required: false) rows not green, ignored: ${ignored.join(', ')}`);   // the train log shows what the gate let through
+      console.log(`${p.number} ${p.headRefOid} ${p.isDraft ? 'draft' : 'ready'}`);
+    }
     process.exit(0);
   }
   if (cmd === 'verify') {   // stdin: `gh pr view <n> --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments` (ALL checks:
