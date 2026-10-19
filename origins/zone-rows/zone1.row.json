@@ -515,7 +515,8 @@
         "dressing": {
           "soot": 0.7,
           "burnt": 0.3
-        }
+        },
+        "body": "world/kit/goblin-bare.glb"
       },
       "character:pit-goblin": {
         "opponent": "goblin",
@@ -535,7 +536,8 @@
         "dressing": {
           "soot": 0,
           "burnt": 0
-        }
+        },
+        "body": "world/kit/goblin-bare.glb"
       },
       "character:ruin-ghoul": {
         "opponent": "goblin",
@@ -544,7 +546,8 @@
         "dressing": {
           "soot": 0.5,
           "burnt": 0.6
-        }
+        },
+        "body": "world/kit/goblin-bare.glb"
       },
       "character:ash-wolf": {
         "opponent": "wolf",
@@ -607,7 +610,8 @@
           "soot": 0.2,
           "burnt": 0.1
         },
-        "later": true
+        "later": true,
+        "body": "world/kit/goblin-bare.glb"
       }
     },
     "spread": {

@@ -28,6 +28,11 @@ const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object pe
 function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined && !row.loadout) return row as MobLook; let r = resolved.get(row); if (!r) { const gear = row.gear ?? loadoutRow(row.loadout)?.weapon; r = { ...row, scale: row.scale ?? bodyScale(row.opponent), ...(gear ? { gear } : {}) }; resolved.set(row, r); } return r; }   // a look with a loadout carries its weapon too (gear), so variant 0 and the others read the same way
 export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
+/** The key a creature's body is fetched, warmed and shared under: its kind, or `<kind>@<file>` when its look names a bare body of its own (`look.body`, e.g. world/kit/goblin-bare.glb). Two looks of one kind with different bare bodies are two bodies, not one (residual of #3242, C07 S3). */
+export const bodyKeyOf = (kind: string, look: { body?: string } | null | undefined): string => (look?.body ? `${kind}@${look.body}` : kind);
+/** The file a body key names (the part after `@`), or null for a plain kind: the caller resolves a plain kind from the catalogue. */
+export const bodyFileOfKey = (key: string): string | null => { const at = key.indexOf('@'); return at < 0 ? null : key.slice(at + 1); };
+
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
 // swap the tint from a small pool, step the height within +-`scale` of the kind's, and nudge the soot and scorch within +-`soot` / `burnt`. Named foes and

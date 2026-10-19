@@ -24,6 +24,6 @@ test('the zone creature view logs a missing clip, marks the kind failed and retu
   const start = src.indexOf('catch (error) {', src.indexOf('buildWarriors({ scene: body.scene'));
   const handler = src.slice(start, src.indexOf('\n    }\n', start));
   assert.match(handler, /error instanceof MissingClip\) console\.error/);
-  assert.match(handler, /bodies\.set\(s\.body, 'failed'\); failedKinds\.add\(s\.body\); return;/);
+  assert.match(handler, /bodies\.set\(keyOf\(s\), 'failed'\); failedKinds\.add\(keyOf\(s\)\); return;/);   // the body KEY (`<kind>@<bare body>` when the look names one), not the kind: a failed bare body must not mark its plain sibling
   assert.doesNotMatch(handler, /\bthrow\b/);
 });
