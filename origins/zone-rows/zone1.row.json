@@ -2,6 +2,11 @@
   "name": "The Cinder Fields",
   "defaultKind": "goblin",
   "biome": "goblin-fortress",
+  "look": {
+    "props": {
+      "camp": "cinder-fields"
+    }
+  },
   "names": {
     "east-road": "The East Road",
     "ferry-landing": "The Grey Ferry",
