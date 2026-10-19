@@ -112,6 +112,20 @@ sweep_box_has_room() { # src archdir reserve_kib
   [ -n "$tot" ] && [ -n "$free" ] || return 1
   [ "$free" -ge $(( tot - ${g:-0} - ${n:-0} + $3 )) ]
 }
+# recent_h <dir> <hours>: any file changed (mtime OR ctime) inside the window, node_modules ignored.
+recent_h(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$2 hours ago" -o -newerct "$2 hours ago" \) -print -quit 2>/dev/null)" ]; }
+# The work/ cap (Dom + Strategy 2026-10-19): when work/ is over WORK_CAP_GIB the sweep also archives copies younger than MIN_AGE_H, oldest idle first, until it is back under. The same keep-set applies (never-touch
+# list, in use, symlink target, open-PR head) and a copy changed within CAP_MIN_AGE_H hours is never a cap victim. sweep_cap_order prints "<newest mtime/ctime epoch> <size KiB> <dir>", oldest first.
+WORK_CAP_GIB=${WORK_CAP_GIB:-40}; CAP_MIN_AGE_H=${CAP_MIN_AGE_H:-6}
+sweep_cap_order() { # workdir min_age_h
+  local d n
+  for d in "$1"/*/; do d=${d%/}; n=$(basename "$d")
+    [ -d "$d" ] && [ ! -L "$d" ] || continue
+    case " $EXCLUDE " in *" $n "*) continue;; esac
+    recent_h "$d" "$2" && continue
+    printf '%s %s %s\n' "$(find "$d" -path '*/node_modules' -prune -o -printf '%T@\n%C@\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)" "$(du -sk "$d" 2>/dev/null | cut -f1)" "$d"
+  done | sort -n
+}
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -143,7 +157,9 @@ LINKED=$(find /opt/frankendom-shadow -maxdepth 4 -type l -printf '%h %l\n' 2>/de
 HELD=$(cat /opt/frankendom-shadow/capture.holder* /opt/frankendom-shadow/capture.queue 2>/dev/null)
 
 # recent = any file changed (mtime OR ctime) inside the window; ctime catches `git archive | tar x` trees whose mtimes are the commit date
-recent(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$MIN_AGE_H hours ago" -o -newerct "$MIN_AGE_H hours ago" \) -print -quit 2>/dev/null)" ]; }
+recent(){ recent_h "$1" "$MIN_AGE_H"; }
+# an open PR's head branch or sha is checked out here: never swept (the cap included)
+work_open_pr(){ [ -e "$1/.git" ] || return 1; local br hd; br=$(git -C "$1" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$1" rev-parse HEAD 2>/dev/null); echo "$PRS" | grep -qxF -e "$br" -e "$hd"; }
 inuse(){ echo "$INUSE" | grep -qx "$1" || echo "$HELD" | grep -q "$(basename "$1")"; }
 
 archive_then_delete(){ # src sub
@@ -155,8 +171,15 @@ archive_then_delete(){ # src sub
   rsync -rtlJ "${SWEEP_EXCLUDES[@]}" --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
   local ch; ch=$(rsync -rcnlJ "${SWEEP_EXCLUDES[@]}" --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
   [ -n "$ch" ] && { say "VERIFYFAIL $s: $ch"; return; }
-  local brc; sweep_unpushed_bundle "$s" "$d$(basename "$s")/unpushed.bundle"; brc=$?
-  [ "$brc" = 1 ] && { say "BUNDLEFAIL $s (kept)"; return; }
+  local brc bundle="$d$(basename "$s")/unpushed.bundle"
+  sweep_unpushed_bundle "$s" "$bundle"; brc=$?
+  # Lead 2026-10-19: a bundle that does not pass `git bundle verify` is as good as none. Then the whole .git is archived instead; if even that copy fails the source is kept.
+  if [ "$brc" = 0 ] && ! git -C "$s" bundle verify -q "$bundle" >/dev/null 2>&1; then brc=1; fi
+  if [ "$brc" = 1 ]; then
+    rm -f -- "$bundle"; say "bundle failed or did not verify, archiving the whole .git of $s"
+    { rsync -rtlJ --chmod=Du+rwx,Fu+rw --partial "$s/.git" "$d$(basename "$s")/" >>"$LOG" 2>&1 \
+      && [ -z "$(rsync -rcnlJ --itemize-changes "$s/.git" "$d$(basename "$s")/" 2>&1 | grep -v '^$' | head -1)" ]; } || { say "GITCOPYFAIL $s (kept)"; return; }
+  fi
   [ "$brc" = 0 ] && say "bundled unpushed commits of $s"
   echo "ARCHIVED $s" >> "$MAN"; rm -rf -- "$s"; say "archived+deleted $s"
 }
@@ -189,13 +212,26 @@ for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
   inuse "$d" && { say "keep(in-use) $n"; continue; }
   echo "$LINKED" | grep -qx "$d" && { say "keep(symlink target) $n"; continue; }
   recent "$d" && continue
-  if [ -e "$d/.git" ]; then
-    br=$(git -C "$d" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$d" rev-parse HEAD 2>/dev/null)
-    if echo "$PRS" | grep -qxF -e "$br" -e "$hd"; then say "keep(open-PR) $n"; continue; fi
-  fi
+  work_open_pr "$d" && { say "keep(open-PR) $n"; continue; }
   # never plain-delete: git can fail open and status hides ignored output, so everything is archived first
   archive_then_delete "$d" work
 done
+
+# work/ cap: still over WORK_CAP_GIB after the age pass? Oldest idle copies go next, with the same keep-set.
+total_kib=$(du -sk "$WORK" 2>/dev/null | cut -f1); cap_kib=$((WORK_CAP_GIB * 1048576))
+if [ "${total_kib:-0}" -gt "$cap_kib" ]; then
+  say "work/ is $((total_kib / 1048576))G, over the ${WORK_CAP_GIB}G cap: oldest idle copies first, never one changed within ${CAP_MIN_AGE_H}h"
+  while read -r _mt kib d; do
+    [ "$total_kib" -gt "$cap_kib" ] || break
+    n=$(basename "$d"); [ -d "$d" ] || continue
+    inuse "$d" && { say "cap keep(in-use) $n"; continue; }
+    echo "$LINKED" | grep -qx "$d" && { say "cap keep(symlink target) $n"; continue; }
+    work_open_pr "$d" && { say "cap keep(open-PR) $n"; continue; }
+    archive_then_delete "$d" work
+    if [ "$APPLY" = 0 ] || [ ! -d "$d" ]; then total_kib=$((total_kib - ${kib:-0})); fi
+  done < <(sweep_cap_order "$WORK" "$CAP_MIN_AGE_H")
+  say "work/ after the cap pass: about $((total_kib / 1048576))G"
+fi
 
 # dev-jobs: finished jobs
 for e in "$JOBS"/*; do [ -e "$e" ] || continue

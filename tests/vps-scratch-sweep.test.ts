@@ -2,7 +2,7 @@
 // The live tool runs on the VPS (bash 5); the file is parsed by that bash, so this test needs a Linux bash.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -404,6 +404,47 @@ test('never-touch: the origins, the live and release trees, databases and the do
   assert.match(sourced('echo " $EXCLUDE "').stdout, / bn-trunk /);
 });
 
+// Strategy 2026-10-19: a 40 GB cap on work/, oldest idle first, same keep-set, a copy younger than 6 h is never a victim.
+test('sweep_cap_order: oldest idle first, with sizes; skips never-touch names, symlinks, files and anything changed within the age window', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-cap-'));
+  try {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
+    const mk = (name: string, h: number, kib: number) => {
+      const d = join(root, name); mkdirSync(d); const f = join(d, 'blob'); writeFileSync(f, Buffer.alloc(kib * 1024)); utimesSync(f, hoursAgo(h), hoursAgo(h)); return d;
+    };
+    mk('mid', 20, 8); mk('oldest', 30, 16); mk('young', 2, 4); mk('bn-trunk', 40, 4);
+    symlinkSync(join(root, 'mid'), join(root, 'a-link')); writeFileSync(join(root, 'a-file'), 'x');
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_cap_order "$1" 6', 'x', root], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const rows = r.stdout.trim().split('\n').map(l => l.split(' '));
+    assert.deepEqual(rows.map(c => c[2]), [join(root, 'oldest'), join(root, 'mid')], 'oldest first; young (2 h), bn-trunk, the symlink and the file are left out');
+    assert.ok(Number(rows[0][1]) >= 16 && Number(rows[1][1]) >= 8, 'sizes in KiB');
+    assert.ok(Number(rows[0][0]) < Number(rows[1][0]), 'sorted by the newest change, ascending');
+    assert.equal(sourced('echo "$WORK_CAP_GIB $CAP_MIN_AGE_H"').stdout.trim(), '40 6');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the cap pass runs after the age pass, stops at the cap, and applies the same keep-set; a dry run counts a would-be removal', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const cap = src.slice(src.indexOf('# work/ cap:'), src.indexOf('# dev-jobs: finished jobs'));
+  assert.ok(src.indexOf('# work/ cap:') > src.indexOf('# work/: lane scratch'), 'after the work/ age pass');
+  for (const keep of ['cap keep(in-use)', 'cap keep(symlink target)', 'cap keep(open-PR)']) assert.ok(cap.includes(keep), keep);
+  assert.match(cap, /\[ "\$total_kib" -gt "\$cap_kib" \] \|\| break/);
+  assert.match(cap, /sweep_cap_order "\$WORK" "\$CAP_MIN_AGE_H"/);
+  assert.match(cap, /archive_then_delete "\$d" work/, 'archive first, like every other work/ removal');
+  assert.match(cap, /\[ "\$APPLY" = 0 \] \|\| \[ ! -d "\$d" \]/);
+  assert.doesNotMatch(cap, /rm -rf/, 'the cap never removes anything itself, only through archive_then_delete');
+});
+
+test('a bundle that fails git bundle verify falls back to archiving the whole .git, and a failed .git copy keeps the source (Lead 2026-10-19)', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
+  assert.match(fn, /git -C "\$s" bundle verify -q "\$bundle"/);
+  assert.match(fn, /rsync -rtlJ --chmod=Du\+rwx,Fu\+rw --partial "\$s\/\.git"/);
+  assert.match(fn, /GITCOPYFAIL \$s \(kept\)"; return/);
+  assert.ok(fn.indexOf('bundle verify') < fn.indexOf('rm -rf -- "$s"'), 'verified before anything is removed');
+});
+
 test('archive_then_delete checks the box has room before it copies, and keeps the copy when it does not', () => {
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
@@ -411,10 +452,10 @@ test('archive_then_delete checks the box has room before it copies, and keeps th
   assert.match(fn, /sweep_box_has_room "\$s" "\$ARCH" \$\(\(BOX_RESERVE_GIB \* 1048576\)\) \|\| \{ say "skip\(storage box full, kept\) \$s"; return; \}/);
 });
 
-test('archive_then_delete copies with SWEEP_EXCLUDES and bundles before it deletes; a failed bundle keeps the source', () => {
+test('archive_then_delete copies with SWEEP_EXCLUDES and writes the bundle before it deletes', () => {
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   assert.doesNotMatch(src, /rsync [^\n]*--exclude=node_modules/, 'the two rsync calls use SWEEP_EXCLUDES, not a private exclude list');
-  assert.match(src, /sweep_unpushed_bundle "\$s"[^\n]*\n\s*\[ "\$brc" = 1 \] && \{ say "BUNDLEFAIL \$s \(kept\)"; return; \}/);
-  assert.ok(src.indexOf('BUNDLEFAIL') < src.indexOf('rm -rf -- "$s"; say "archived+deleted'), 'the bundle is written before anything is removed');
+  assert.match(src, /sweep_unpushed_bundle "\$s" "\$bundle"; brc=\$\?/);
+  assert.ok(src.indexOf('sweep_unpushed_bundle "$s" "$bundle"') < src.indexOf('rm -rf -- "$s"; say "archived+deleted'), 'the bundle is written before anything is removed');
 });
 
