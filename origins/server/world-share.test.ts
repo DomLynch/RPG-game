@@ -55,6 +55,7 @@ test('kill steal: a report whose verified damage is 20% of the top share gets 20
   const steal = stub({ prior: [{ token: 'top-contributor-token-xx', damage: wolf.hp * 0.8, joined: false }] });
   const got = await mk(async () => verdict(wolf.hp * 0.2)).kill_report!(ctx(steal.db), { token: TOKEN, hits: 50, record: 'r' }) as { share: number };
   assert.ok(Math.abs(got.share - 0.2) < 1e-9, `share ${got.share}`);   // 20 of (80 + 20): the last blow earns its share, nothing more
+  assert.ok(cpOf(whole.kills[0]!.b) >= 5, 'a whole kill pays enough CP for a 20% share to be told apart from nothing');
   assert.equal(cpOf(steal.kills[0]!.b), portion(cpOf(whole.kills[0]!.b), 0.2), 'the CP is the share of the whole kill\'s');
   const lootOf = (k: Stub): number => k.kills[0]!.b.filter((o) => o.op === 'mint').length;
   assert.ok(lootOf(steal) <= lootOf(whole), 'loot is thinned by the share, never added to');
