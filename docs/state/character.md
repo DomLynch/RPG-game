@@ -1,5 +1,15 @@
 # Character — project state
 
+## 2026-10-19 (afternoon, ~15:00 +04) — UPDATE to HANDOFF #2 (saved on Dom's /clear). READ THIS BLOCK FIRST.
+
+**#3285 remote heroes, current head 22872277edb0c92187456bd0fe738f167965c888** (branch char/remote-heroes, ready, auditor:ready set). Since the block below: (a) Strategy's ruling done: the slow-device probe window opens after first playable (load cover lifted + row `kitProbeSettleMs` 1000), threshold stays row `kitSlowFrameMs`, `?probe=1` prints the median on screen (head a0998c9bc); (b) a0998c9bc's soft leg failed on VPS AND Mac because my row script waited `kitWarmMs`+60 s (120 s) but `?kitwarm=soft` runs under `kitWarmMsSoft` (300 s): fixed in the script only at 22872277e (Lead: script-only delta is fine; Strategy re-PASSes 22872277e; page rows run at a0998c9bc stay valid).
+- Ran at **a0998c9bc** on the VPS (job log /opt/frankendom-shadow/work/char-rows3285.log): unit suite 5683 tests 0 failing, tsc 0, origins tsc 0, as-data gate 0, build 0; rows combat, stance-panel, counter-slash/thrust/heavy, seamless, seamless-quiet, remote-heroes (normal leg, kitWarm "skipped"), net-engines all exit 0; remote-heroes-soft exit 1 (the wait bug); duel-two-page and load-time (vs 2b89c3f0e) were still running when saved: read the log.
+- Queued at **22872277e**: the soft leg alone (job /opt/frankendom-shadow/work/char-soft3285.sh, log char-soft3285.log, waits for the rows job's DONE line, prints a SOFT {...} line).
+- OWED: ONE receipt comment on #3285 listing which rows ran at which head (above), the soft result at 22872277e, load-time, and the probe medians; then ping "Frankendom - Deploy" and Lead (ref from ListAgents). Lead: #3285 rides JR if it misses JQ; nobody waits for it.
+- Probe medians (real GPU, headless Chromium on the Mac): 167 ms at load 2.5 at 952aa6509 (probe at [zone ready]); **183 ms at load 1.5 at a0998c9bc (probe after first playable)**: both skipped the warm, so the window move did NOT bring it under 100 ms. Not yet told Strategy about the 183 (told them the 167). Candidates: headless frames themselves are slow on the Mac (the probe measures the page's own per-frame render cost), or the 100 ms limit is wrong; the `?probe=1` readout on Dom's iPhone (Strategy will ask Dom after the migration is archived) is the real answer.
+- Mac soft leg on the real GPU failed twice (same 120 s wait bug); re-run it on the Mac at 22872277e when load < 6 (`KITWARM_SOFT=1 GPU_REAL=1 MAC_HEAVY_OK=1 node scripts/origins-remote-heroes-check.mjs` after `MAC_HEAVY_OK=1 npx vite build --config origins/preview/vite.config.mjs`).
+- Also open: #3281 (bow) and #3268 have PASS and ride the cut after JN; Hooks Dev is moving ~/Desktop/Business/artifacts to the storage box on my yes.
+
 ## 2026-10-19 (afternoon, ~12:30 +04) — HANDOFF #2 after #3268 / #3281 / #3285. READ FIRST; supersedes the morning handoff's Now list.
 
 **Now**
