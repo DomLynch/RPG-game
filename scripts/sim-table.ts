@@ -3,17 +3,17 @@
 import '../tests/lib/era-on.ts';
 import { forceSandbox, setRows79, setRows80, setSandbox } from '../src/fight/sandbox-era.ts';
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS, opponentAt, profileAt, specialOf } from '../src/fight/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { specialsFromLevel } from '../src/fight/rows80.ts';
-import { skillOf } from '../src/core/loot.ts';
+import { recordSpecials } from '../src/fight/replay.ts';   // the fight's own door for a fight's specials (C1: no deep import of src/core from a mode or tool)
 import { act, idle } from '../tests/strategies.ts';
 
 const SEEDS = [731, 9, 12345], TICKS = 60 * 60;   // 60 s of the fight at 60 ticks/s
 const warden = LADDER[0]!.id as keyof typeof OPPONENTS;
 const run = (rows80: boolean, level: number, seed: number) => {
   forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(rows80);
-  const specials = level >= specialsFromLevel(16) ? { level, aiSkill: skillOf(warden), ...(specialOf(warden, level) ? { name: specialOf(warden, level)! } : {}) } : undefined;
+  const specials = level >= specialsFromLevel(16) ? recordSpecials({ specials: true, level, opponent: warden }) : undefined;
   let p = initialPractice(seed, opponentAt(OPPONENTS[warden], level), 'longsword', null, specials as never);
   const profile = profileAt(OPPONENTS[warden], level);
   let first = -1, firstSpecial = -1, attacks = 0, specs = 0, drawn = -1, end = TICKS;
