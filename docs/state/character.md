@@ -1,5 +1,22 @@
 # Character — project state
 
+## 2026-10-19 (night, ~23:10 +04) — HANDOFF #6 (supersedes #5). READ THIS BLOCK FIRST.
+
+**Now (pick up in this order)**
+1. **#3368 look PR** (branch `char/staff-shape`, head 9b7f3088f at last look, auditor:ready, https://github.com/DomLynch/RPG-game/pull/3368): staff wears the Witch's staff files (shipping-shapes-defs.json row `staff` + `staff` envelope row in scripts/weapon-fit-check.mjs + 2 pins), Zone 1 bow via `loadRangedPart` (origins/preview/main.ts syncRigWeapon; `src/assets/weapons/player/bow.glb` is a byte copy of knife.glb, only the fallback), weapon-scoped special names (src/fight/special-names.ts, hud.ts, main.ts picker; a wielded bow shows Power Shot / Fan Volley / Pinning Shot / Quick Shot). CI at 9b7f3088f was running (static green, shards pending); the shard-8 red at 07a26b6d9 was tests/graphics.test.ts needing `./fight/special-names.ts` registered. Lead PASSes on green; rides K5i. Stills in docs/evidence/staff-shape/.
+2. **Bow test PR (K5j, after #3368 merges, Lead's order):** `tests/real-bow-specials.test.ts` exists UNCOMMITTED in the scratchpad worktree `.../scratchpad/ss` (9/9: real weapon 'bow', shipped rows, sandbox era on: all 4 fire from 3 m, none inside the gap, longsword none, Pinning Shot staggers). Copy it onto a new branch off trunk, run the whole file + `typecheck:tests`, open as its own tiny PR. Quiver rule is 0 on live AND in the sandbox's final state (unlimited arrows): a design question for Dom via Lead, not a gap.
+3. **Guest cannot wield a picked-up bow/staff** (found by the live check): guest take goes to in-memory `guestHeld`, gear screen reads the account ledger, so main hand stays Longsword and world fights read longsword. Lead put it on tomorrow's list for World/Web; a signed-in end-to-end bow check goes to Backend's disposable-DB harness. Not mine tonight.
+4. Mid-fight stance switch (recorded input, Combat reviews the record format): not started.
+
+**Done today (receipts)**: #3331 stance menu live in K5c (head 50836b4c8); #3327 bow/staff real weapons (RV82 / WSV 61) merged in K5g (trunk 00f5e2d97, live 22:28); #3320 camp goblin merged; live bow-special verdict: sim-level yes (all 4 fire from range, none inside the gap), live run blocked at wield as a guest.
+
+**Open**: #3368 CI + Lead's PASS; K5j bow test PR. **Gotchas (new today)**
+- RV renumber is scripted: `scratchpad/rebase82.sh <worktree> <combat-ref> <my-ref>` + `repin82.mjs` (take Combat's side on every conflicted version file, re-apply the bump, read digests off the guards, `record-era-fixtures.mjs --append`). The scratchpad is session-local: if it is gone, the recipe is in the memory note.
+- Run the WHOLE test file (and `npx tsc -p tsconfig.tests.json`) before asking for a PASS, not single tests: #3331's CI red was a syntax error in scripts/stance-panel-check.mjs (never run), #3368's was the harness registry in tests/graphics.test.ts. Lead asked for typecheck:tests before every PASS ask.
+- A push to a PR head cancels its running CI; do not push test-only extras while Lead waits on a green head.
+- Hook: no file edits through Bash (use Edit/Write), no heredocs; a deploy in flight blocks builds, suites and browser checks on the Mac (single-file tests are fine). zsh: `"${t}:path"`, arrays for file lists.
+- Live checks as a guest: `?presence=0` needed or the server snaps a placed hero back.
+
 ## 2026-10-19 (night, ~20:40 +04) — HANDOFF #5 (saved on Dom's /clear). READ THIS BLOCK FIRST (supersedes #4).
 
 **Now (pick up in this order)**
