@@ -218,7 +218,7 @@ try {
   eq(psql(probe), 'z1000:wolves-1=1000,z2:wolves-1=2', '0017 up again after down');
 
   // ---- 20261019170000 per-layer spawns: every layer keeps its own clocks; a kill reads the TOKEN's layer; one paid kill per account per spawn id per respawn window across layers; the janitor ------------------------
-  const LAYERS = '20261019170000_origins_spawn_layers.sql';
+  const LAYERS = '20261019141740_origins_spawn_layers.sql';   // the version prod recorded (the file was first 20261019170000)
   const [D, E] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
   let pcD, pcE;   // set inside the layers section, read again by the rollback checks below it
   if (readdirSync(dir).includes(LAYERS)) {
@@ -280,7 +280,7 @@ try {
 
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
-  const LAYERS_DOWN = '20261019170000_origins_spawn_layers_down.sql';   // rollbacks run newest first: the layers restore the pre-layer bodies (damage-share's included), so they go before the damage-share down
+  const LAYERS_DOWN = '20261019141740_origins_spawn_layers_down.sql';   // rollbacks run newest first: the layers restore the pre-layer bodies (damage-share's included), so they go before the damage-share down
   if (readdirSync(join(dir, '..', 'down')).includes(LAYERS_DOWN)) {
     psql(readFileSync(join(dir, '..', 'down', LAYERS_DOWN), 'utf8'));
     eq(psql(`select count(*) from information_schema.columns where table_name in ('origins_spawns', 'origins_spawn_engages', 'origins_spawn_damage') and column_name = 'layer'`), '0', 'layers down: the layer columns are gone');

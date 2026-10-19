@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const LAYERS = '20261019170000_origins_spawn_layers.sql', DOWN = '20261019170000_origins_spawn_layers_down.sql';
+const LAYERS = '20261019141740_origins_spawn_layers.sql', DOWN = '20261019141740_origins_spawn_layers_down.sql';   // the version prod recorded (applied 2026-10-19; the file was first 20261019170000)
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-layers-rehearsal-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
