@@ -396,23 +396,28 @@
       ]
     },
     "frontier-haze": {
-      "fog": "#b9aea4",
+      "fog": "#5d5a60",
       "fogDensity": 0.012,
-      "hemiSky": "#a3b3cc",
-      "hemiGround": "#574a40",
-      "hemiIntensity": 1.35,
-      "sunColor": "#e8cfb4",
-      "sunIntensity": 5.6,
+      "hemiSky": "#9fb2d4",
+      "hemiGround": "#4a3426",
+      "hemiIntensity": 1.25,
+      "sunColor": "#ffb46a",
+      "sunIntensity": 5.9799999999999995,
       "sunPos": [
-        -24,
-        12,
-        -15
+        -16,
+        15,
+        20
       ],
-      "exposure": 1.35,
+      "exposure": 1.3,
       "ground": [
-        1.05,
-        0.98,
-        0.88
+        0.5,
+        0.47,
+        0.45
+      ],
+      "stone": [
+        1.35,
+        1.2,
+        1
       ]
     },
     "cinder-haze": {
