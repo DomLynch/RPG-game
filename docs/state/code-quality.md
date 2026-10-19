@@ -1,5 +1,15 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~14:0x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JN 2b89c3f0e (verified on #3287). **JP #3291 @979f4513f has candidate PASS + label (comment 6264527321), publishing.**
+**Now, in order.**
+1. **JP live check:** when release.json = 979f4513f, verify writer/presence/verify-daily/verify-loot /current = 979f4513f (the writer SHOULD move: #3221 touches origins/zones; deploy installs with --if-changed), NRestarts 0, no STRICT in /etc/frankendom/*.env, then post on #3291.
+2. **JO #3288 (Z1b alone) is RED on row 57** (ground-prompt-check past its 480 s ceiling, twice; comment 6264283042). Lead: close JO, re-cut #3274 behind World's fix (the 900 s ceiling row f6d733c50 back with its measurement, or a faster path).
+3. **#3285 remote heroes PASS @a0998c9bc**: owes the remote-heroes + remote-heroes-soft browser receipt + the HF/real-GPU probe median before its cut (the next candidate's CI run covers the browser part).
+4. Next candidates: read each as Deploy cuts it (merge = clean merge-tree per member at its PASS head; CI green; Mac pre-flight receipt in ~/.claude/state/pre-launch/<sha>.macrows.json). If no receipt and no .running marker, run the candidate's own `scripts/mac-rows-early.sh <full sha>` from a detached worktree (done for JN).
+**PASS today since 12:2x:** #3280 @991507f7f, #3283 @013889a69 (Lead ruling (a): the ?onebutton=1 browser receipt is owed before oneButton flips to 1), #3284 @c092a9fc3, #3281 @8bc9713e5, #3289 @e3378c54a, #3285 @a0998c9bc, #3276 @79f298179 (docs), JN #3287 + JP #3291 candidates. JM live verified (RV79, verifier RECORD_VERSION 79).
+**Follow-ups named (not mine):** tests/strategies.ts arena() needs bandsFlag (the melee digest is blind to RV79); a crowd-rows guard that only a kill roar sets outlive; the quality.yml line-30 comment is stale (re-adding auditor:ready does NOT run browser jobs on a feature PR); #3280's after-boar still is really a wolf duel; the #3283 nits; the main.ts:539 comment in #3285.
+**Gotchas:** see oooo/pppp/nnnn below; the most costly today: (1) a feature PR's browser, net-engines and duel-two-page jobs skip in CI (run them in ~/Developer/frankendom-macrows after mac-rows-early, or rely on the candidate run); (2) re-read headRefOid right before every PASS, and post before messaging.
+
 ## 2026-10-19 ~12:2x +04. LIVE = JM e2c75382d (RV79 / WSV 57; verified on #3286: writer/presence/verifiers on it, verifier RECORD_VERSION 79, NRestarts 0, no STRICT).
 **PASS since the last entry:** JM candidate #3286 @e2c75382d; #3284 @c092a9fc3 (superseded my b2bf5822b after Combat's 12:01 push); #3281 @8bc9713e5 (CS38 bow, dormant; the browser-gate run-once is owed before the cut).
 **Now:** #3283 CS36b @6b34f1bf5 (interim read OK, comment 6262507725): PASS after the retarget to trunk + shards/static + Combat's layout-A counter receipt. #3268 @7e32e99a0: if Characters' no-change still lands, PASS citing Strategy's read. #3274 Z1b has Strategy's PASS; its seamless-quiet variant hasn't run at head (flagged to Lead). #3221: not until green.
