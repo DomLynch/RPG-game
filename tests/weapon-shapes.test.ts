@@ -95,6 +95,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
   for (const weapon of Object.keys(SHIPPING_SHAPES) as WeaponId[]) {
     if (weapon === 'maul') { assert.deepEqual(SHIPPING_SHAPES.maul, byBand('maul', ['crafted'])); continue; }   // crafted only, see the Knight test
     if (weapon === 'trident') { assert.deepEqual(SHIPPING_SHAPES.trident, byBand('trident', ['crafted', 'ornate'])); continue; }   // crafted and ornate only, see the trident test
+    if (weapon === 'staff') { assert.deepEqual(SHIPPING_SHAPES.staff, byBand('witch-staff', BANDS)); assert.deepEqual([2, 5, 10].map(level => shapeFor('staff', level)), BANDS.map(band => `/weapons/shapes/witch-staff-${band}.glb`), 'the player\'s staff (RV82) is drawn as the Witch\'s staff at his own rank'); continue; }   // the player's staff wears the Witch's staff files, so no 'staff-<band>' stem exists
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
