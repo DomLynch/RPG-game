@@ -171,6 +171,17 @@ test('respawn rows are keyed (zone, id): a row in one zone never sets the respaw
   assert.equal(rows.get('2:character:wolf'), undefined, 'Zone 2 has no row of its own: it falls to the default, never to Zone 1\'s');
 });
 
+test('zone-keyed respawn rows lose nothing: a creature that sets respawnSeconds in one listed zone sets it in EVERY listed zone where it spawns (the old id-only key made every zone inherit it), so Dom\'s 30-60 s rule holds in Zones 2 and 5 too', () => {
+  const rowsOf = (id: string) => loadZone(id).spawns.rows as { id: string; respawnSeconds?: number }[];
+  const set = new Map<string, [string, number][]>();
+  for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds !== undefined) set.set(r.id, [...(set.get(r.id) ?? []), [z, r.respawnSeconds]]);
+  const missing: string[] = [];
+  for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds === undefined && set.has(r.id)) missing.push(`zone ${z} ${r.id} (set in zone ${set.get(r.id)!.map(([zz, s]) => `${zz}: ${s} s`).join(', ')})`);
+  assert.deepEqual(missing, []);
+  const rows = respawnRows();   // the 12 cinder-scavengers of Zones 2 and 5 keep the 40 s they inherited from Zone 1's starter row
+  for (const z of ['1', '2', '5']) assert.equal(rows.get(`${z}:character:cinder-scavenger`), 40_000, `zone ${z}`);
+});
+
 test('respawnMsOf by zone: a creature with a row in Zone 1 only reads that row in Zone 1 and the default in Zone 2; with no zone (the Pit path) it reads the row as before', () => {
   const rows = respawnRows(() => [{ zone: '1', rows: [{ id: 'character:ember-wolf', respawnSeconds: 40 }] }, { zone: '2', rows: [{ id: 'character:ember-wolf' }] }]);
   assert.equal(respawnMsOf('character:ember-wolf', content, rows, '1'), 40_000);
