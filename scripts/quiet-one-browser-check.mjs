@@ -47,6 +47,13 @@ await page.waitForFunction(() => document.querySelector('#art-status').textConte
 await page.waitForFunction(() => typeof globalThis.__view?.setFinisherOverride === 'function');
 await page.evaluate(selected => globalThis.__view.setFinisherOverride(selected), finisher);
 const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after presentation setup before the first press
+// The foe's Special tell, read off the game's own ?debug=1 combat stream (the same frankendom:combat events browser-check.mjs reads).
+// Since RV80 (one-button pad, specials ready 2 s in and every 6 s, a foe special share) the Goblin's Dirty Jab decides the duel: a special
+// is unblockable and undodgeable on release (duel.ts step 4), so a player who waits it out takes -30 every few seconds and dies before
+// the kill. A real player answers the wind-up (RULES.special.windup) the one way the rules allow: walk in and STRIKE the caster, who
+// takes no other input while it winds up, until the cast is cut (interruptAt of his health -> SpecialInterrupted). __foeCast is the
+// tick of the foe's open SpecialStarted, null once it lands, fizzles or is cut; the tallies are logged per duel.
+await page.evaluate(() => { window.__foeCast = null; window.__casts = { started: 0, landed: 0, interrupted: 0, fizzled: 0 }; window.addEventListener('frankendom:combat', e => { for (const ev of e.detail?.events ?? []) { if (ev.actor !== 1) continue; if (ev.type === 'SpecialStarted') { window.__foeCast = ev.tick; window.__casts.started++; } else if (ev.type === 'SpecialLanded' || ev.type === 'SpecialFizzled' || ev.type === 'SpecialInterrupted') { window.__foeCast = null; window.__casts[{ SpecialLanded: 'landed', SpecialFizzled: 'fizzled', SpecialInterrupted: 'interrupted' }[ev.type]]++; } } }); });
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
 // paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Fight" (was "Draw sword" before 2026-09-29)),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
@@ -80,7 +87,7 @@ async function fight(name) {
   const step = async ms => { await run(ms); elapsed += ms; };
 
   while (elapsed < 90000) {
-    const state=await page.evaluate(()=>({text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',thrust:document.querySelector('#thrust-button').getAttribute('aria-disabled')==='false'}));
+    const state=await page.evaluate(()=>({casting:window.__foeCast!==null,text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',thrust:document.querySelector('#thrust-button').getAttribute('aria-disabled')==='false'}));
     // Under the paused clock a Playwright tap must never wait for a control to enable — time only moves when this loop moves it.
     const enabled = async id => (await page.locator('#'+id).getAttribute('aria-disabled')) === 'false';
     if(!state.hp || !state.enemy)break;
@@ -88,6 +95,12 @@ async function fight(name) {
     const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|-]+)/);
     const stamina=+(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0);
     const punish=+(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
+    // The foe's Special tell: close and strike the caster until the cast is cut (see __foeCast above). Keys, as everywhere below.
+    if(state.casting) {
+      if(distance>1.3) { await page.keyboard.down('KeyW');await step(64);await page.keyboard.up('KeyW');continue; }
+      if(state.light) { await page.keyboard.press('KeyF');await step(120);continue; }
+      await step(16);continue;
+    }
     if(punish>0 && state.light && stamina>=22 && distance<2) {
       await page.keyboard.press('KeyF');await step(200);continue;   // keys, not taps: no actionability wait under the paused clock, and tick-exact
     }
@@ -117,6 +130,7 @@ async function fight(name) {
     }
     await step(40);
   }
+  console.log(`duel ${attempt}: foe specials`, JSON.stringify(await page.evaluate(() => window.__casts)));
   if (await page.locator('#target-health').evaluate(e => +e.value) === 0) { killed = true; break; }
   if (attempt === 3) break;
   console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());
