@@ -2598,14 +2598,13 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 /* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The stance panel (inline-styled, top 64 right 8, two rows) sat on the SKILL button and the menu button in every landscape view:
    on a short screen it moves left of the action cluster (the cluster's left edge is 81 px in; the notch's right inset is added). The journal name no longer runs under the Stats / Career / Settings icons:
    it ellipsizes before them (the pencil is the name's own background so a long name keeps it). */
-@media (orientation: landscape) and (max-height: 520px) { #stance-panel { right: calc(env(safe-area-inset-right, 0px) + 92px) !important; top: 8px !important; } }
+@media (orientation: landscape) and (max-height: 520px) { #stance-panel { left: calc(env(safe-area-inset-left, 0px) + 12px) !important; top: 76px !important; } }   /* option B: an icon row under the bars, top-left */
 #journal #journal-name { display: block; width: fit-content; max-width: calc(100% - 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; padding-right: 30px; background: url(/gear-ui/edit.png) right center / 24px no-repeat; }
 #journal #journal-name::after { content: none; }
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
 /* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
    the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
-@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 64px !important; max-width: 72px !important; padding: 4px !important; } #stance-panel > div:last-child { flex-direction: column !important; } #stance-panel button { min-width: 0 !important; font-size: 11px !important; padding: 4px 2px !important; } #stance-reveal { font-size: 10px; } }   /* a column down the right edge: clear of the HUD bars (x < 290), the opponent and the cluster */
-@media (min-width: 900px) { #stance-panel { top: 84px !important; } }
+@media (min-width: 900px) { #stance-panel { top: 150px !important; } }
 @media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button, .actions[data-gestures=cluster] #skill2-button:not([hidden]) { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
@@ -2644,7 +2643,6 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 }
 #journal .cmp-delta[data-sign='up'] { color: #6fcf6f; }
 #journal .cmp-delta[data-sign='down'] { color: #e0584f; }
-@media (min-width: 600px), (orientation: landscape) { #stance-panel { max-width: 244px !important; } #stance-panel button { font-size: 11px !important; padding: 4px 2px !important; } }   /* Safari: "Aggressive" was 68 px in a 63 px button */
 #journal .stats-gear strong { white-space: normal; overflow-wrap: break-word; }   /* a worn piece's long name wraps instead of ending in an ellipsis (Safari run: 270 px of name in 168) */
 @media (max-width: 440px) { #journal:has(#journal-tab-fighter:checked) .fighter { grid-template-columns: 46px 1fr; column-gap: 10px; } #journal:has(#journal-tab-fighter:checked) .fighter-sigil { width: 44px; height: 44px; } #journal:has(#journal-tab-fighter:checked) #journal-name { max-width: calc(100vw - 250px); padding-right: 16px; background-size: 16px; } }   /* Stats tab: a smaller avatar gives the name its room beside the tabs */
 /* The NEW-vs-EQUIPPED compare (Dom's pickup-compare reference, 2026-10-11): two cards in the take panel's head when the offer would replace a worn piece. */
