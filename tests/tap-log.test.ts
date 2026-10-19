@@ -15,7 +15,7 @@ test('median and nearest-rank p90', () => {
   assert.deepEqual(tapStats([80]), { n: 1, median: 80, p90: 80 });
   assert.deepEqual(tapStats([100, 60, 80, 120]), { n: 4, median: 90, p90: 120 }, 'even n: the mean of the middle two; p90 of 4 is the 4th');
   const thirty = Array.from({ length: 30 }, (_, i) => 50 + i * 2);   // 50..108
-  assert.deepEqual(tapStats(thirty), { n: 30, median: 79, p90: 104 }, 'p90 of 30 is the 27th value');
+  assert.deepEqual(tapStats(thirty), { n: 30, median: 79, p90: 102 }, 'p90 of 30 is the 27th value (index 26 of 50..108)');
 });
 
 test('the panel text comes from the label rows', () => {
