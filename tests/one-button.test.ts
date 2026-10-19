@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { HEAVY_HOLD_MS, HEAVY_HOLD_WINDOW_MS, heavyHoldMs, ONE_BUTTON, STAB_HALF_ANGLE, STAB_SLIDE_PX, stabSector } from '../src/fight/input.ts';
 import { touchLayoutCss } from '../src/fight/touch-layout.ts';
+import { idleIntent, initialDuel, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
 
 test('the one-button strike is still off by default (Dom flips it himself), and its rows hold the sandbox values (heavyHold 220)', () => {
   assert.equal(ONE_BUTTON, false, 'off = today\'s Light, Thrust and Heavy buttons; ?onebutton=1 turns touch layout A on');
@@ -21,6 +23,22 @@ test('inside a counter window the heavy hold is the short window hold, which lea
   assert.ok(windowMs - HEAVY_HOLD_WINDOW_MS >= 240, `a thumb has ${Math.round(windowMs - HEAVY_HOLD_WINDOW_MS)} ms to react to a block before the hold must start (the plain hold left ${Math.round(windowMs - HEAVY_HOLD_MS)})`);
   const src = readFileSync(new URL('../src/fight/input.ts', import.meta.url), 'utf8');
   assert.match(src, /counterWindow > 0 \|\| f\.punish > 0/, 'the window is the hero\'s own counter or punish window');
+});
+
+// The riposte under layout A, in the real sim: a block opens the guard-counter window (RULES.guardCounter ticks); a thumb that reacts after REACTION ticks then holds STRIKE for the heavy hold before the
+// 'heavy' action reaches the duel (input.ts fireHeavy). The duel makes it a heavy_counter only while the window is still open when the heavy starts.
+test('the heavy riposte lands under layout A with the window hold, and did not with the plain hold (a 10-tick reaction to a block)', () => {
+  const REACTION = 10, ticksOf = (ms: number) => Math.ceil((ms * 60) / 1000);
+  const heavyAfter = (holdMs: number): string | null => {
+    let d: Duel = initialDuel();
+    d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready', counterWindow: RULES.guardCounter }, d.fighters[1]] };
+    const wait = REACTION + ticksOf(holdMs);
+    for (let t = 0; t < wait; t++) d = stepDuel(d, [idleIntent(), idleIntent()]);
+    d = stepDuel(d, [{ ...idleIntent(), action: 'heavy' }, idleIntent()]);
+    return d.fighters[0].move;
+  };
+  assert.equal(heavyAfter(HEAVY_HOLD_WINDOW_MS), 'heavy_counter', `an ${HEAVY_HOLD_WINDOW_MS} ms hold after a 10-tick reaction starts the heavy inside the ${RULES.guardCounter}-tick window`);
+  assert.equal(heavyAfter(HEAVY_HOLD_MS), 'heavy_overhead', `a ${HEAVY_HOLD_MS} ms hold ran past the window: the plain heavy, no riposte (the finding this fixes)`);
 });
 
 test('a slide within 50 degrees of straight up is the stab; a side slide or a downward one is not', () => {
