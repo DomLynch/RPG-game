@@ -40,6 +40,15 @@ skip() { if [ -n "$dry" ]; then log "DRY RUN: $*; going on"; else log "$*"; exit
 # The Mac-only rows start at the CUT (Strategy + Lead 2026-10-12): the oldest open candidate without a receipt gets scripts/mac-rows-early.sh in the
 # background (one run at a time, its own checkout MAC_ROWS_DIR, the train's, checked above; under deploy.sh's Mac-rows lock); deploy.sh trusts the rows
 # that passed for that tree. A dry run only says which candidate it would start.
+deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-flight marker and one file per run), hand-run or ours; defined here because the early-rows block below needs it
+  local f p
+  for f in "${DEPLOY_LOCK:-$state/deploy_in_flight.json}" "${DEPLOY_RUNS_DIR:-$state/deploy_runs}"/*.json; do
+    [ -e "$f" ] || continue
+    p=$(sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$f" | head -n 1)
+    [ -n "$p" ] && kill -0 "$p" 2>/dev/null && { echo "$p"; return 0; }
+  done
+  return 1
+}
 early_dir="${PRELAUNCH_DIR:-$state/pre-launch}"
 # Run from $repo AND with --repo: this block sits before the tick's own `cd "$repo"` and launchd starts the job outside any repo, so a bare `gh pr list` exited 1 there on every tick
 # since 10-12 (found 2026-10-19 by the failed-query log line). Neither the cwd nor the git remote may decide which repo this asks.
@@ -48,6 +57,9 @@ early_cands=$(cd "$repo" 2>/dev/null && net_gh 60 pr list --repo "${RELEASE_TRAI
 # No silent skip (Lead 2026-10-19, JN's Mac rows never started and the train said nothing): a failed query, a missing checkout and a failed start are all logged.
 [ "$early_rc" -eq 0 ] || log "mac rows (early): the open-candidate query failed (exit $early_rc); no start this tick"
 early=$(printf '%s\n' "$early_cands" | while read -r c; do [ -n "$c" ] || continue; [ -e "$early_dir/$c.macrows.json" ] || { echo "$c"; break; }; done)
+# The publishing release gets the Mac first (Lead 2026-10-19: a by-hand pre-flight held the Mac-rows lock and delayed JR's deploy 295 s): while a deploy.sh is running (it IS the Mac's user; its
+# post-publish CI tail runs in the detached postcheck, not in deploy.sh) the early start waits and begins on the first tick after the run ends.
+if [ -n "$early" ] && dp=$(deploy_running); then log "early rows deferred: deploy using the Mac (deploy.sh pid $dp); mac rows (early) for ${early:0:9} start after it"; early=""; fi
 for m in "$state"/mac-rows-early.failed-*; do [ -e "$m" ] && log "mac rows (early) FAILED earlier: $(head -n 1 "$m") (marker $m; remove it after the cause is fixed)"; done
 if [ -n "$early" ] && [ -n "$dry" ]; then log "DRY RUN: would start mac rows (early) for ${early:0:9} in $MAC_ROWS_DIR"
 elif [ -n "$early" ] && [ ! -d "$repo" ]; then log "mac rows (early) for ${early:0:9}: NOT started, the train checkout $repo is missing"
@@ -61,15 +73,6 @@ elif [ -n "$early" ]; then
       _ "$state" "$early" ${RELEASE_TRAIN_MAC_ROWS:-bash scripts/mac-rows-early.sh} >> "$state/mac-rows-early.log" 2>&1 & )
   log "mac rows (early) for ${early:0:9}: started or already running (log $state/mac-rows-early.log)"
 fi
-deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-flight marker and one file per run), hand-run or ours
-  local f p
-  for f in "${DEPLOY_LOCK:-$state/deploy_in_flight.json}" "${DEPLOY_RUNS_DIR:-$state/deploy_runs}"/*.json; do
-    [ -e "$f" ] || continue
-    p=$(sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$f" | head -n 1)
-    [ -n "$p" ] && kill -0 "$p" 2>/dev/null && { echo "$p"; return 0; }
-  done
-  return 1
-}
 # Pending post-publish CI tails (Lead 2026-10-18, #3177): the publisher writes $state/post-publish-pending-<rev8> (rev, rows, at) before it releases the hold, the tail records its pid in it and
 # removes it when it finishes. A tail that is still alive is the overlap Lead allowed; a marker whose tail is DEAD (Mac sleep, reboot) or never started within the grace holds the next publish:
 # nobody proved those rows, and "trust silently" is the one thing this never does. Remove the marker after looking at that release's CI.

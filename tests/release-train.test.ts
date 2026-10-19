@@ -484,7 +484,7 @@ test('publisher: starts the Mac-only rows at the cut for the OLDEST open candida
     const listed = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8'));
     const newer = { ...listed[0], number: 2401, headRefName: 'release-T2', headRefOid: 'd'.repeat(40), createdAt: '2026-10-12T18:00:00Z', labels: [] };
     writeFileSync(join(p.dir, 'prs.json'), JSON.stringify([newer, listed[0]]));
-    writeFileSync(join(p.state, 'deploy_hold'), '');   // held: no publish this tick, but the early rows still start
+    writeFileSync(join(p.state, 'deploy_hold'), '');   // held (a post-publish CI tail, no deploy.sh running): no publish this tick, but the early rows still start
     let r = p.run();
     assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
     await new Promise((done) => setTimeout(done, 300));
@@ -514,6 +514,24 @@ test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is nev
     r = p.run();   // the default fake succeeds: the marker goes
     for (let i = 0; i < 40 && existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
     assert.equal(existsSync(marker), false, 'a good run clears the marker');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead 2026-10-19): the early Mac rows wait while a deploy.sh is running (it is the Mac\'s user) and start on the first tick after it ends', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    writeFileSync(join(p.state, 'deploy_in_flight.json'), JSON.stringify({ pid: process.pid, revision: 'x' }));   // a live deploy.sh run (this test process stands in for it)
+    let r = p.run();
+    assert.match(r.stdout, /early rows deferred: deploy using the Mac \(deploy\.sh pid \d+\); mac rows \(early\) for ccccccccc start after it/);
+    assert.doesNotMatch(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.doesNotMatch(p.calls(), /mac-rows /, 'nothing started while the deploy uses the Mac');
+    rmSync(join(p.state, 'deploy_in_flight.json'));   // the deploy ended; a post-publish CI tail alone (deploy_hold) does not defer
+    p.reset(); r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.match(p.calls(), new RegExp(`mac-rows ${'c'.repeat(40)}`));
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
