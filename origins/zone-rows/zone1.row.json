@@ -364,7 +364,7 @@
   },
   "looks": {
     "zone1": {
-      "fog": "#5d5a60",
+      "fog": "#6e5f52",
       "fogDensity": 0.012,
       "hemiSky": "#9fb2d4",
       "hemiGround": "#4a3426",
@@ -389,12 +389,12 @@
       ]
     },
     "frontier-haze": {
-      "fog": "#b9aea4",
+      "fog": "#d6bf9a",
       "fogDensity": 0.012,
-      "hemiSky": "#a3b3cc",
-      "hemiGround": "#574a40",
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#6a5238",
       "hemiIntensity": 1.35,
-      "sunColor": "#e8cfb4",
+      "sunColor": "#ffd6a0",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -409,12 +409,12 @@
       ]
     },
     "cinder-haze": {
-      "fog": "#b9aea4",
+      "fog": "#d6bf9a",
       "fogDensity": 0.0095,
-      "hemiSky": "#a3b3cc",
-      "hemiGround": "#443a33",
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#52402c",
       "hemiIntensity": 1.35,
-      "sunColor": "#e8cfb4",
+      "sunColor": "#ffd6a0",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -429,12 +429,12 @@
       ]
     },
     "frontier-duel": {
-      "fog": "#b9aea4",
+      "fog": "#d6bf9a",
       "fogDensity": 0.0095,
-      "hemiSky": "#a3b3cc",
-      "hemiGround": "#574a40",
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#6a5238",
       "hemiIntensity": 1.35,
-      "sunColor": "#e8cfb4",
+      "sunColor": "#ffd6a0",
       "sunIntensity": 5.04,
       "sunPos": [
         -24,
