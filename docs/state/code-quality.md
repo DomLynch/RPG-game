@@ -3,6 +3,7 @@
 ## 2026-10-19 ~14:0x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JN 2b89c3f0e (verified on #3287). **JP #3291 @979f4513f has candidate PASS + label (comment 6264527321), publishing.**
 **Now, in order.**
 1. **DONE: JP is LIVE and verified** (09:58Z, posted on #3291): writer/presence/verifiers all on 979f4513f, NRestarts 0, no STRICT. LIVE = JP 979f4513f.
+1b. **#3277 re-PASS (Lead):** applied on prod as Supabase 20261019100155 (receipt comment 6264675733). Backend renames the repo file 20261019100000_… → 20261019100155_… (and the down file?). Re-PASS on the rename delta: `git diff -M --stat 85df9e3f0 <new head>` must show 100% similarity renames only, then green shards/static/origins-db. It then rides the next candidate.
 2. **JO #3288 (Z1b alone) is RED on row 57** (ground-prompt-check past its 480 s ceiling, twice; comment 6264283042). Lead: close JO, re-cut #3274 behind World's fix (the 900 s ceiling row f6d733c50 back with its measurement, or a faster path).
 3. **#3285 remote heroes PASS @a0998c9bc**: owes the remote-heroes + remote-heroes-soft browser receipt + the HF/real-GPU probe median before its cut (the next candidate's CI run covers the browser part).
 4. Next candidates: read each as Deploy cuts it (merge = clean merge-tree per member at its PASS head; CI green; Mac pre-flight receipt in ~/.claude/state/pre-launch/<sha>.macrows.json). If no receipt and no .running marker, run the candidate's own `scripts/mac-rows-early.sh <full sha>` from a detached worktree (done for JN).
