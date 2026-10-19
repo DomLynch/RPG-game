@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
 import { RANGED_MODELS, rangedModelOf, rangedModelUrl } from '../src/fight/ranged-model-rows.ts';
+import { rangedPartOf } from '../src/fight/ranged-model.ts';
+import { missileOf } from '../src/fight/sandbox-rules.ts';
+import { WEAPONS } from '../src/fight/moves.ts';
 
 // The painted bow (CS23). The file ships byte for byte as the sandbox's (public/weapons/ranged/PROVENANCE.txt); a swapped file changes this pin and its provenance line.
 const SHA: Record<string, string> = { 'weapons/ranged/bow-v1.glb': '79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd' };
@@ -35,4 +39,23 @@ test('the bow is the only ranged model: the crossbow was dropped by Dom (CS22) a
   assert.deepEqual(rangedModelOf('bow')?.holdDeg, [-1.9, 34.6, 114.3], 'the sandbox\'s own hold');
   assert.equal(rangedModelOf('crossbow'), undefined);
   assert.equal(rangedModelOf('staff'), undefined, 'the staff stays the sandbox\'s procedural model: not ported here');
+});
+
+// The loader's pure half (rangedPartOf) on a synthetic scene, and the dormant guarantee: no game weapon reaches a model row.
+test('rangedPartOf: the row\'s node becomes the equip part (named WeaponDrawn, its hand, the row\'s hold, a matte COPY of the material); a file without the node is refused', () => {
+  const bow = rangedModelOf('bow')!, scene = new Group(), node = new Group(), mat = new MeshStandardMaterial({ metalness: 1, roughness: 1 });
+  node.name = bow.node; node.add(new Mesh(new BoxGeometry(), mat)); scene.add(node);
+  const part = rangedPartOf(scene, bow);
+  assert.equal(part.name, 'WeaponDrawn');
+  assert.equal(part.userData.hand, bow.hand);
+  assert.equal(part.userData.rangedModel, 'bow', 'reshape reads this and leaves the node be');
+  assert.deepEqual([part.rotation.x, part.rotation.y, part.rotation.z].map((r) => Math.round((r * 180) / Math.PI * 10) / 10), [...bow.holdDeg]);
+  const m = (part.children[0] as Mesh).material as MeshStandardMaterial;
+  assert.deepEqual([m.metalness, m.roughness], [bow.metalness, bow.roughness]);
+  assert.deepEqual([mat.metalness, mat.roughness], [1, 1], 'the loaded file\'s own material is untouched');
+  assert.throws(() => rangedPartOf(new Group(), bow), /no node WeaponDrawn/);
+});
+
+test('dormant: no game weapon is bound to a missile kind that has a model row, so loadWarriors changes nothing today', () => {
+  for (const id of Object.keys(WEAPONS)) assert.equal(rangedModelOf(missileOf(id)?.kind ?? ''), undefined, `${id} would draw a ranged model`);
 });
