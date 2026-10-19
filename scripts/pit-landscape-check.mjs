@@ -19,7 +19,7 @@ const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 // [name, w, h, safe-area insets {l, r, t, b}] as in landscape-check.mjs
 const VIEWS = [['portrait', 375, 812], ['landscape', 812, 375], ['short', 844, 340], ['notch', 844, 390, { l: 47, r: 47, t: 0, b: 21 }], ['ipad', 1024, 768]];
-const CTL = 'button, a[href], [role=button], select, input, #journal .tab-strip label, #journal-name, #stance-panel, .identity, .combat-hud'; // the Gear tab label is display:none (the bottom bar's #nav-gear is its control)
+const CTL = 'button, a[href], [role=button], select, input, #journal .tab-strip label, #journal-name, .identity, .combat-hud'; // the Gear tab label is display:none (the bottom bar's #nav-gear is its control)
 const measure = (page, scope) => page.evaluate(([sel, scope]) => {
   const root = scope ? document.querySelector(scope) : document, out = [];
   const els = [...root.querySelectorAll(sel)];

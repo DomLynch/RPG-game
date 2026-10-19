@@ -17,9 +17,9 @@ test('the open-world zones never read the hit-stop hold (so a hit there changes 
   assert.deepEqual(offenders, [], 'an open-world file reads the hit-stop: a world hit would hold the clock (Dom: no time change in a live zone)');
 });
 
-test('the Pit keeps today\'s hit-stop: the rows and a landed blow still hold', () => {
+test('the Pit takes the sandbox\'s hit-stop (RV80, Dom 2026-10-19, superseding the open-world-only scope): every stop row is 0 ms, and the open world still never reads them', () => {
   const stop = Object.fromEntries(RULES.stop.map((r) => [r.id, r.ms])), heavy = Object.fromEntries(RULES.heavy.map((r) => [r.id, r.ms]));
-  assert.deepEqual(stop, { SpecialLanded: 50, Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, Killed: 220 });
-  assert.deepEqual(heavy, { Hit: 90, Blocked: 50 });
-  assert.ok(stopFor([{ type: 'Killed', actor: 0 } as never]) >= 220, 'a kill still stops the Pit\'s clock');
+  assert.deepEqual(stop, { SpecialLanded: 0, Blocked: 0, Hit: 0, Parried: 0, GuardBroken: 0, PostureBroken: 0, Killed: 0 });
+  assert.deepEqual(heavy, { Hit: 0, Blocked: 0 });
+  assert.equal(stopFor([{ type: 'Killed', actor: 0 } as never]), 0, 'a kill no longer stops the Pit\'s clock');
 });

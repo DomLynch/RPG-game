@@ -13,7 +13,9 @@ const receipt={url,physicalPhone:false,errors:[]};
 try {
  const {page}=await phonePage(browser,{deviceScaleFactor:2,errors:receipt.errors});   // page errors land in receipt.errors; Sentry is blocked (deliberate GPU failures must not file incidents)
  page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')receipt.console=[...(receipt.console||[]).slice(-19),m.text().slice(0,300)];});   // diagnostics for a failing run: what the page said
- receipt.diagnose=async()=>{try{receipt.state={art:await page.locator('#art-status').textContent(),attack:await page.locator('#attack-button').getAttribute('aria-disabled'),welcomeHidden:await page.evaluate(()=>document.querySelector('#welcome')?.hidden)};}catch(e){receipt.state=String(e).slice(0,200);}};
+ receipt.diagnose=async()=>{try{receipt.state={art:await page.locator('#art-status').textContent(),attack:await page.locator('#attack-button').getAttribute('aria-disabled'),welcomeHidden:await page.evaluate(()=>document.querySelector('#welcome')?.hidden)};
+  // Why the sim may stand still while page time runs (K3g, "__tellAt>0 ... 430" not met in 20000 ms): main.ts paused() is true while the document is hidden, the welcome/journal/versus sheet is up, assets are not ready or graphics are lost, and then frames run, page time advances and the tick never moves.
+  receipt.sim=await page.evaluate(()=>({tick:document.querySelector('#debug')?.dataset.tick??null,hidden:document.hidden,visibility:document.visibilityState,now:Math.round(performance.now()),tellAt:window.__tellAt??null,threat:document.querySelector('#combat-status')?.dataset.threat??null,message:document.querySelector('#message')?.hidden?'':document.querySelector('#message')?.textContent?.slice(0,80),status:document.querySelector('#combat-status')?.textContent?.slice(0,60)}));}catch(e){receipt.state=String(e).slice(0,200);}};
  // Damage numbers are a journal setting, off by default (#219); this gate asserts the float works when a player turns it on, so seed it.
  await page.addInitScript(()=>{try{localStorage.setItem('frankendom.damage-numbers.v1','on');}catch{}});
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
@@ -34,6 +36,8 @@ try {
  // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
  await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.dataset.threat==='true'){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{attributes:true,attributeFilter:['data-threat']});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
  await page.evaluate(()=>{window.__combat=[];window.addEventListener('frankendom:combat',e=>{window.__combat.push(e.detail);if(window.__combat.length>256)window.__combat.shift();});});
+ // main.ts paused() holds the sim while the document is hidden or graphics are lost (the "Restoring graphics" message); the tell clock below must not start against a paused sim (K3g tell wait).
+ await until(()=>!document.hidden && document.querySelector('#message').hidden,5000);
  await page.getByRole('button',{name:'Fight',exact:true}).tap();
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
@@ -83,7 +87,9 @@ try {
   const applied=events.filter(e=>e.tick<=outcome.tick && e.type==='Hit');
   assert.equal(result.enemy,before.enemy-applied.filter(e=>e.actor===0 && e.target===1).reduce((n,e)=>n+e.damage,0),'enemy HP follows outgoing hits only');
   assert.equal(result.health,before.health-applied.filter(e=>e.actor===1 && e.target===0).reduce((n,e)=>n+e.damage,0),'player HP follows incoming hits only');
-  if(outcome.type==='Hit') {assert.equal(outcome.target,1);assert.ok([4,5].includes(outcome.damage),'clean kick 4 or counter kick 5');}
+  // RV79 reach bands (Dom's cm edges): a kick thrown from outside its band GLANCES (Hit.glance, a dulled hit that lands for less, rows offBandMultCm). The foe's opening now lands later (RV80's level-1 opener row), so the first kick can meet it at another gap: a glance is the intended band rule, and it lands for 1..3, under the clean 4.
+  if(outcome.type==='Hit'&&outcome.glance&&attempt<2){receipt.kickGlances=(receipt.kickGlances||0)+1;continue;}   // an off-band kick glanced: the walk-in before the next attempt lands it at another gap (the last attempt takes the glance below)
+  if(outcome.type==='Hit') {assert.equal(outcome.target,1);receipt.kickGlance=!!outcome.glance;assert.ok(outcome.glance?(outcome.damage>=1&&outcome.damage<4):[4,5].includes(outcome.damage),'clean kick 4 or counter kick 5, or on the last attempt a glance (1..3)');}
   receipt.kick=await snapshot();receipt.kickOutcome=outcome;receipt.kickEscaped=['AttackMissed','Dodged','Blocked'].includes(outcome.type);
   break;
  }
@@ -110,4 +116,4 @@ try {
  } finally {await unsupported.close();}
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
-} catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await writeReceipt(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',receipt);await browser.close();await site.close();}
+} catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,sim:receipt.sim,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await writeReceipt(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',receipt);await browser.close();await site.close();}

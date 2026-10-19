@@ -1,4 +1,5 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
+import './lib/pre-rv80-view.ts';   // RV80: this file checks the old Light / Thrust / Heavy controls and the hit-stop mechanism through the real main.ts, so the pre-RV80 view rows are restored for it
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -84,6 +85,7 @@ import * as zoomGuard from '../src/zoom-guard.ts';   // the page-zoom lock main.
 import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/fight/match.ts';
 import * as stancePanel from '../src/fight/stance-panel.ts';
+import * as manaBar from '../src/fight/mana-bar.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
 import * as gearLedger from '../src/core/gear-ledger.ts';
 import * as gearStrip from '../src/core/gear-strip.ts';
@@ -150,6 +152,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
   modules['./fight/defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./fight/kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
+  modules['./fight/mana-bar.ts'] = manaBar;   // the live HUD's MANA bar (main.ts mounts it while manaMax is on; the harness has no #stamina to anchor to, so it mounts nothing)
   modules['./fight/fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./fight/victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./fight/armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
@@ -509,7 +512,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
   const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // the full circle (a dwarf, not Arena 1: its circle is smaller now, play-radius.ts); level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
-  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, 'heavy Hit': 90, 'heavy Blocked': 50 };
+  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, 'heavy Hit': 90, 'heavy Blocked': 50 };   // the pre-RV80 rows (tests/lib/pre-rv80-view.ts restores them for this file: the hold MECHANISM is what is checked here; RV80's 0 ms rows are pinned in hit-stop-rules.test.ts)
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.

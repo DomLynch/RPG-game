@@ -15,6 +15,7 @@ import { initialPractice, PROFILES, stepPractice, type Practice } from '../../sr
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { memoryMatch } from '../../src/fight/match.ts';
+import { worldStancePick, type PickedStance } from '../../src/fight/index.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
@@ -40,7 +41,7 @@ import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 import { previewRule } from './preview-rules.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean; stance?: PickedStance };   // stance (RV81): the player's standing stance for this fight (the open world applies it as the Pit does); absent = no stances   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
@@ -208,6 +209,7 @@ export function warmStage(host: HTMLElement, opponent: string, level: number, mo
   }
 }
 
+const pageStorage = (): Storage | null => { try { return localStorage; } catch { return null; } };   // blocked storage (private window, a sandboxed frame) reads as no stored pick
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
@@ -220,6 +222,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   stageFor(host, opponent, asked.level, mount);
   match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
+  match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? worldStancePick(location.search, pageStorage()) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the stance menu's stored pick for this device's character, ?stances= over it (off = none); Balanced when nothing is stored
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
   if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
