@@ -1,0 +1,278 @@
+[
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 1,
+    "url": "https://frankendom.com/zone1/?region=1&presence=0",
+    "loadBefore": 2.89,
+    "readyMs": 2590,
+    "domContentLoadedMs": 2115,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 437,
+      "mean": 18.3,
+      "p50": 17,
+      "p95": 22,
+      "max": 135,
+      "fps": 54.6
+    },
+    "fight": {
+      "n": 477,
+      "mean": 16.77,
+      "p50": 17,
+      "p95": 30,
+      "max": 47,
+      "fps": 59.6
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 611467,
+      "calls": 141,
+      "programs": 69,
+      "textures": 161
+    },
+    "renderFight": {
+      "triangles": 614703,
+      "calls": 126,
+      "programs": 70,
+      "textures": 177
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3266-5d16cf0dd",
+    "run": 1,
+    "url": "http://127.0.0.1:5194/preview/origins/?region=1&presence=0",
+    "loadBefore": 2.64,
+    "readyMs": 1198,
+    "domContentLoadedMs": 713,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 411,
+      "mean": 19.5,
+      "p50": 17,
+      "p95": 26,
+      "max": 371,
+      "fps": 51.3
+    },
+    "fight": {
+      "n": 468,
+      "mean": 17.12,
+      "p50": 17,
+      "p95": 32,
+      "max": 43,
+      "fps": 58.4
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 944044,
+      "calls": 144,
+      "programs": 68,
+      "textures": 170
+    },
+    "renderFight": {
+      "triangles": 982712,
+      "calls": 136,
+      "programs": 69,
+      "textures": 191
+    },
+    "errors": []
+  },
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 2,
+    "url": "https://frankendom.com/zone1/?region=1&presence=0",
+    "loadBefore": 2.92,
+    "readyMs": 2627,
+    "domContentLoadedMs": 2153,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 430,
+      "mean": 18.6,
+      "p50": 17,
+      "p95": 27,
+      "max": 144,
+      "fps": 53.8
+    },
+    "fight": {
+      "n": 465,
+      "mean": 17.19,
+      "p50": 17,
+      "p95": 31,
+      "max": 54,
+      "fps": 58.2
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 611467,
+      "calls": 141,
+      "programs": 69,
+      "textures": 161
+    },
+    "renderFight": {
+      "triangles": 614703,
+      "calls": 126,
+      "programs": 70,
+      "textures": 177
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3266-5d16cf0dd",
+    "run": 2,
+    "url": "http://127.0.0.1:5194/preview/origins/?region=1&presence=0",
+    "loadBefore": 3.53,
+    "readyMs": 998,
+    "domContentLoadedMs": 563,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 436,
+      "mean": 18.31,
+      "p50": 17,
+      "p95": 22,
+      "max": 133,
+      "fps": 54.6
+    },
+    "fight": {
+      "n": 471,
+      "mean": 16.99,
+      "p50": 17,
+      "p95": 32,
+      "max": 46,
+      "fps": 58.9
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 944044,
+      "calls": 144,
+      "programs": 68,
+      "textures": 170
+    },
+    "renderFight": {
+      "triangles": 982712,
+      "calls": 136,
+      "programs": 69,
+      "textures": 191
+    },
+    "errors": []
+  },
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 3,
+    "url": "https://frankendom.com/zone1/?region=1&presence=0",
+    "loadBefore": 3.81,
+    "readyMs": 2427,
+    "domContentLoadedMs": 2065,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 450,
+      "mean": 17.8,
+      "p50": 17,
+      "p95": 20,
+      "max": 125,
+      "fps": 56.2
+    },
+    "fight": {
+      "n": 461,
+      "mean": 17.35,
+      "p50": 17,
+      "p95": 33,
+      "max": 38,
+      "fps": 57.6
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 611467,
+      "calls": 141,
+      "programs": 69,
+      "textures": 161
+    },
+    "renderFight": {
+      "triangles": 614703,
+      "calls": 126,
+      "programs": 70,
+      "textures": 177
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3266-5d16cf0dd",
+    "run": 3,
+    "url": "http://127.0.0.1:5194/preview/origins/?region=1&presence=0",
+    "loadBefore": 3.08,
+    "readyMs": 1020,
+    "domContentLoadedMs": 552,
+    "cover": {
+      "reason": null,
+      "atMs": -1
+    },
+    "idle": {
+      "n": 440,
+      "mean": 18.21,
+      "p50": 17,
+      "p95": 22,
+      "max": 125,
+      "fps": 54.9
+    },
+    "fight": {
+      "n": 449,
+      "mean": 17.82,
+      "p50": 17,
+      "p95": 35,
+      "max": 49,
+      "fps": 56.1
+    },
+    "fightState": {
+      "engaged": false,
+      "target": null,
+      "engagedBeforePress": false
+    },
+    "renderIdle": {
+      "triangles": 944044,
+      "calls": 144,
+      "programs": 68,
+      "textures": 170
+    },
+    "renderFight": {
+      "triangles": 982716,
+      "calls": 138,
+      "programs": 69,
+      "textures": 196
+    },
+    "errors": []
+  }
+]
