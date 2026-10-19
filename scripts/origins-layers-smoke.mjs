@@ -57,6 +57,7 @@ async function honest() {
   if (!rec) fail('the scripted hero did not kill the wolf');
   return encodeWorldRecord(rec);
 }
+let fightS = 0;   // the recorded fight's own length, set below: the verifier refuses a record LONGER than the wall time since the token was issued ('overlong'), so each kill waits the fight out
 
 let started = false;
 try {
@@ -76,6 +77,11 @@ try {
   const pcs = Object.fromEntries([[A, 'Aria'], [B, 'Bran']].map(([a, n]) => [a, psql(`set role frankendom_origins; select public.origins_create_character('${a}', '${n}');`).split('\n').pop().replace(/^"|"$/g, '')]));
 
   const record = await honest();
+  const ticks = verifyWorldRecord(record, { spec: wolf.spec }, 'wolf', undefined, 1_000_000);
+  void ticks;
+  fightS = Number((await ticks)?.ticks ?? 0) / 60;
+  const waitMs = () => Math.max(minKillMs(wolf.hp), fightS * 1000) + 3000;
+  console.log(`recorded fight ${fightS.toFixed(1)} s; each kill waits ${(waitMs() / 1000).toFixed(0)} s after its token was issued`);
   const players = { 1: 2, 2: 40 };   // A's layer holds 2 players (the row respawn), B's holds 40 (dynamic: row x 10/40, floored at 15 s)
   const layerOf = { [A]: 1, [B]: 2 };
   const ops = worldSpawnOps({ content, spawns, spawnLayers: true, damageShare: true, dynamicRespawn: true, layerCounts: async () => ({ layers: [1, 2], players }),
@@ -91,13 +97,13 @@ try {
   const ea = await engage(A), eb = await engage(B);
   eq([ea.token?.length > 10, eb.token?.length > 10], [true, true], 'A (layer 1) and B (layer 2) each engage the same creature and get their own token');
   eq(psql(`select string_agg(layer::text, ',' order by layer) from public.origins_spawns where instance = '${wolf.spec.id}'`), '1,2', 'the database holds one spawn row PER LAYER for that creature');
-  await sleep(minKillMs(wolf.hp) + 500);   // the time floor: no kill is accepted faster than the fastest possible fight
+  await sleep(waitMs());   // the time floor AND the record's own length: nothing is accepted faster than the fight could have been played
 
   const ka = await kill(A, ea.token), kb = await kill(B, eb.token);
   eq([ka.result ?? ka.status, kb.result ?? kb.status], ['killed', 'killed'], 'both kills accepted (real replay verdict on each honest record)');
   const spawnRows = psql(`select layer || ':' || (not alive) || ':' || round(extract(epoch from (respawn_at - killed_at)))::int from public.origins_spawns where instance = '${wolf.spec.id}' order by layer`).split('\n');
   eq(spawnRows, [`1:true:${rowS}`, `2:true:${dynS}`], 'spawn rows by layer: both dead; layer 1 on the ROW respawn, layer 2 (40 players) on the dynamic respawn');
-  eq(psql(`select count(*) from public.origins_beta_ledger where event_id in ('enc:${ea.token}', 'enc:${eb.token}') and cp > 0`), '2', 'the ledger paid CP for both kills');
+  eq(psql(`select count(*) from public.origins_beta_ledger where event_id in ('enc:${ea.token}', 'enc:${eb.token}') and bronze > 0`), '2', 'the ledger paid bronze for both kills (CP stays 0 here: the fixture accounts have no career row, cpReason no-career)');
   eq(psql(`select count(*) from public.origins_spawn_damage where token in ('${ea.token}', '${eb.token}') and damage > 0`), '2', 'damage rows written for both kills (damage share)');
   eq(psql(`select count(*) from public.origins_events where kind = 'mob' and (payload->>'world')::boolean and payload->>'record' = 'verified'`), '2', 'both events carry record = verified');
 
@@ -108,7 +114,7 @@ try {
   try { const eh = await engage(A); await sleep(minKillMs(wolf.hp) + 500); const kh = await kill(A, eh.token); hopped = kh.result ?? kh.status ?? 'paid'; }
   catch (e) { hopped = e instanceof Refused ? `${e.status}:${e.code}` : `error:${e.message}`; }
   eq(hopped.includes('cooldown') || hopped.includes('dead'), true, `the hop (A, layer 1 -> 2, past the shortened respawn, inside the row's) is refused, not paid (got ${hopped})`);
-  eq(psql(`select count(*) from public.origins_beta_ledger where account = '${A}' and cp > 0`), '1', 'A has exactly ONE paid kill: the hop paid nothing');
+  eq(psql(`select count(*) from public.origins_beta_ledger where account = '${A}' and bronze > 0`), '1', 'A has exactly ONE paid kill: the hop paid nothing');
   console.log(`\norigins-layers-smoke (NOT PROD, disposable cluster): ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
