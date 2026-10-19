@@ -44,8 +44,8 @@ if (CLONES !== 0 && CLONES < 24) throw new Error('--clones is 0 (the real set) o
 // The honest recorded kill (the same scripted hero as origins/server/world-verify.test.ts): a level-1 wolf.
 const content = (() => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return c.value; })();
 const realSet = defaultZoneSpawns(content), baseWolf = [...realSet.values()].find(s => s.spec.character === 'character:ash-wolf');
-async function honestRecord() {
-  const fell = []; let rec = null; const at = { x: baseWolf.spec.home.x, z: baseWolf.spec.home.z }, spec = { id: baseWolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
+async function honestRecord(sp = baseWolf) {   // a record is bound to ITS spawn (id and home): replayed against any other spawn it reads 'no kill', at about the same CPU cost (measured 55 ms vs 44 ms)
+  const fell = []; let rec = null; const at = { x: sp.spec.home.x, z: sp.spec.home.z }, spec = { id: sp.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x, z, r) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: s => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.4, facing: 0 };
@@ -56,6 +56,9 @@ async function honestRecord() {
 const { text: recordText, seconds: recordSeconds } = await honestRecord();   // the writer refuses a record longer than the engagement is old ('overlong'), so a kill cycle waits the fight's real length
 const spawnSet = CLONES === 0 ? realSet : new Map(Array.from({ length: CLONES }, (_, n) => { const id = `wolves-${n + 100}`; return [id, { ...baseWolf, spec: { ...baseWolf.spec, id } }]; }));
 const spawnIds = [...spawnSet.keys()];
+// One honest record per WOLF spawn in the set (every clone, or the real set's wolves), made before the run so the work is not in the measurement; every other spawn (a bear, a goblin) has no scripted-hero
+// record and sends the base wolf's, which the replay refuses ('no kill'): those are the unverified share, said so in the report.
+const recordOf = new Map(); for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') recordOf.set(id, id === baseWolf.spec.id ? recordText : (await honestRecord(sp)).text);
 
 let started = false, server, pool;
 try {
@@ -104,7 +107,7 @@ try {
     const e = await post('engage', n, { character: chars[n], instance });
     if (e.status !== 200 || !e.json?.result?.token) { bump(`engage ${e.status} ${e.json?.reason ?? e.json?.error ?? ''}`.trim()); return; }
     await sleep(Math.max(minKillMs(spawn.hp) + 30, recordSeconds * 1000 + 300));   // the DB's time-to-kill floor, and the recorded fight's own length (13.5 s here), so the replay is not 'overlong'
-    const k = await post('kill_report', n, { token: e.json.result.token, hits: minHits(spawn.hp), record: recordText });
+    const k = await post('kill_report', n, { token: e.json.result.token, hits: minHits(spawn.hp), record: recordOf.get(instance) ?? recordText });
     bump(k.status === 200 ? 'killed' : `kill_report ${k.status} ${k.json?.reason ?? k.json?.error ?? ''}`.trim());
   };
   const arrival = n => {
