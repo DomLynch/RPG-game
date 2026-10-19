@@ -5,7 +5,7 @@
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
 import { NET_ROW, PLAYABLE_ROW, TIMING_ROW } from './net-rules.ts';
-import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
+import { bandsFlag, createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
 import { quantizeIntent } from '../fight/record.ts';
 import { initialState, TARGET } from '../fight/sim.ts';
 import { setPlayScale } from '../fight/play-radius.ts';
@@ -22,7 +22,7 @@ export const NET = NET_ROW;
 // pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel, and the record needs no second format then.
 export type Kit = { weapon: WeaponId; skill: SkillId | null; gear?: readonly string[] };
 export const pvpDuel = (a: Kit = { weapon: DEFAULT_WEAPON, skill: null }, b: Kit = { weapon: DEFAULT_WEAPON, skill: null }): Duel => (setPlayScale(1), {   // PvP is not Arena 1: both peers and the verifier pin the original circle at duel start, whatever the page's last Match left (play-radius.ts)
-  tick: 0, finish: null, events: [],
+  tick: 0, finish: null, events: [], ...bandsFlag(),   // RV79 (Lead's ruling 2026-10-19): the reach bands apply to every duel as in the sandbox, PvP included; symmetric for both players, keyed on the same era switch as the Pit and the world
   fighters: [{ ...createFighter(initialState(), 'sheathed', a.weapon), skill: a.skill }, { ...createFighter({ ...TARGET, heading: 0, distance: 0 }, 'sheathed', b.weapon), skill: b.skill }],
 });
 

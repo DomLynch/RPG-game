@@ -1,4 +1,4 @@
-import './lib/era-on.ts';   // RV78: the scripted exchange is the audio release row's ruler (row 4 plays the era the game ships), so it runs the sandbox rules (wardenHealth 65 is sized for the plate warden); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
+import './lib/era-on.ts';   // RV78: the scripted exchange is the audio release row's ruler (row 4 plays the era the game ships), so it runs the sandbox rules (wardenHealth 32 is sized for the plate warden under the reach bands); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +7,7 @@ import { CUE_PROBES, EXCHANGE_BEATS, scriptExchange } from '../src/audio/exchang
 import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { setSandbox } from '../src/fight/sandbox-era.ts';
+import { setRows79, setSandbox } from '../src/fight/sandbox-era.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
 import { createFeedback, VOICES } from '../src/fight/sound/feedback.ts';
 import { armfeelLayers } from '../src/fight/sound/armfeel-sound.ts';
@@ -15,7 +15,8 @@ import type { CombatEvent } from '../src/fight/combat.ts';
 
 // The scripted exchange is the fixed ruler every audio iteration is measured with: same beats, same order, same ticks.
 // Run under BOTH eras (the rig's health is a row per era, audio-rules-defs.json wardenHealth / wardenHealthEraOff): the unit suite's trunk rules and the sandbox rules the game ships.
-const underEra = (on: boolean, run: () => void) => { setSandbox(on); try { run(); } finally { setSandbox(true); } };
+// Both switches move together (the RV78 sandbox era and the RV79 rows: bands, stances 2x): "off" is trunk's rules, "on" is what the game ships; no fight has one without the other.
+const underEra = (on: boolean, run: () => void) => { setSandbox(on); setRows79(on); try { run(); } finally { setSandbox(true); setRows79(true); } };
 for (const on of [false, true]) test(`the scripted exchange lands every beat in order and is reproducible (era ${on ? 'on' : 'off'})`, () => underEra(on, () => {
   const exchange = scriptExchange();
   assert.deepEqual(exchange.beats.map(b => b.name), [...EXCHANGE_BEATS]);

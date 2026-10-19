@@ -1,11 +1,11 @@
 // Record-era fixtures (external audit 2026-10-18 F5): one stored kill-link record per era stamp, append-only, each replaying to its pinned ticks, outcome and
 // landed hits forever or retired by a REACH bump that names its fight (scripts/record-era-fixtures.mjs). The negative controls are the audit's acceptance:
 // dropping an era's entry, mutating a pin, or a record that replays to a different fight must fail.
-import './lib/era-on.ts';   // RV79: the fixtures replay under the era each record's own version names (v78 sandbox, v79 the RV79 rows), and the live recorder stamps the shipped rules, so no force (era-on.ts lifts the one tests/lib/era-off.ts sets; import it FIRST)
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts). The stored records replay by their own version (checkEraFixtures lifts the force for the replay, RV79).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { checkEraFixtures, currentStamp, FIXTURE, RECIPES } from '../scripts/record-era-fixtures.mjs';
+import { checkEraFixtures, currentStamp, ERA_ONLY, FIXTURE, RECIPES } from '../scripts/record-era-fixtures.mjs';
 import { decodeRecord, encodeRecord, REACH, RECORD_VERSION } from '../src/fight/record.ts';
 
 type Entry = { name: string; encoded: string; expect: { v: number; ticks: number; outcome: string; hits: number[] } };
@@ -23,7 +23,7 @@ test('every stored era record replays to its pin (or is retired by a REACH bump 
 });
 
 test('the eras are distinct stamps of the live recorder: plain, patron, gambit, stances, pose, sheet, spell, SPECIAL 2 and the v76 cave troll', () => {
-  const stamps = Object.keys(RECIPES).map((n) => [n, currentStamp(n)] as const);
+  const stamps = Object.keys(RECIPES).filter((n) => !ERA_ONLY.has(n)).map((n) => [n, currentStamp(n)] as const);
   assert.ok(new Set(stamps.map(([, v]) => v)).size === stamps.length, JSON.stringify(stamps));
 });
 
