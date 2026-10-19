@@ -91,6 +91,10 @@ test('every rig baked before the wolf keeps its blade table byte for byte; the w
   minotaur: '943a7378e25f5a1be6f82b080b7b3057425ad2e380bbc1874adde7fae41e2a8b',
   wraith: 'bcfee62bc3a70d6c9a07d531e7b6fbf217b0a86bea78da976206c702216dc8af',
   };
-  for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(bladePathsByRig[rig])).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
+  // The hero's table without the bow and the staff (2026-10-19): those two are exact aliases of the hero knife and trident bakes (scripts/blade-manifest.json), so the pin still guards every weapon trunk baked before them.
+  const tableOf = (rig: string) => (rig === 'hero' ? Object.fromEntries(Object.entries(bladePathsByRig.hero!).filter(([weapon]) => weapon !== 'bow' && weapon !== 'staff')) : bladePathsByRig[rig]);
+  assert.deepEqual(bladePathsByRig.hero!.bow, bladePathsByRig.hero!.knife, 'the bow is the knife\'s hero bake');
+  assert.deepEqual(bladePathsByRig.hero!.staff, bladePathsByRig.hero!.trident, 'the staff is the trident\'s hero bake');
+  for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(tableOf(rig))).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
   assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf', 'boar', 'bear']);
 });
