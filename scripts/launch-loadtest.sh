@@ -7,7 +7,12 @@
 # Every result block is printed after a `RESULT <name>` line (and, for presence, saved whole under /tmp/loadtest/) so `hf jobs logs` can be cut by it.
 set -uo pipefail
 if env | grep -qE '^(DATABASE_URL|SUPABASE_[A-Z_]*|PGHOST|PGPASSWORD)='; then echo "REFUSED: a database variable is set; this test uses only a throwaway cluster"; exit 3; fi
-MODE="${MODE:-all}"; case "$MODE" in all|presence|writer) ;; *) echo "bad MODE $MODE"; exit 2;; esac
+MODE="${MODE:-all}"; case "$MODE" in all|presence|writer|verify) ;; *) echo "bad MODE $MODE"; exit 2;; esac
+if [ "$MODE" = verify ]; then   # the replay-verification pool under load: no database, no PG install (scripts/verify-loadtest.mjs --grid)
+  echo "HOST mode=verify cpus=$(nproc) load=$(cut -d' ' -f1-3 /proc/loadavg) node=$(node -v)"
+  echo "RESULT verify grid"; node scripts/verify-loadtest.mjs --grid --seconds=30 2>&1; echo "verify exit=$?"
+  echo "DONE load=$(cut -d' ' -f1-3 /proc/loadavg)"; exit 0
+fi
 t0=$(date +%s); lap() { echo "LAP $1 $(( $(date +%s) - t0 ))s"; }
 export DEBIAN_FRONTEND=noninteractive
 echo "HOST mode=$MODE cpus=$(nproc) load=$(cut -d' ' -f1-3 /proc/loadavg) node=$(node -v)"
