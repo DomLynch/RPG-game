@@ -338,7 +338,7 @@ const git = (cwd: string, ...a: string[]) => { const r = spawnSync('git', ['-c',
 
 test('MIN_AGE_H defaults to 36 hours, and the environment still overrides it', () => {
   assert.equal(sourced('echo "$MIN_AGE_H"').stdout.trim(), '36');
-  const r = spawnSync('bash', ['-c', 'MIN_AGE_H=12 SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; echo "$MIN_AGE_H"'], { encoding: 'utf8' });
+  const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; echo "$MIN_AGE_H"'], { encoding: 'utf8', env: { ...process.env, MIN_AGE_H: '12' } });
   assert.equal(r.stdout.trim(), '12');
 });
 
