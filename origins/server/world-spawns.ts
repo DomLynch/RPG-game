@@ -22,6 +22,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
+import { shares } from './damage-share.ts';
 import { qaOf } from './qa-account.ts';
 import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
@@ -35,7 +36,7 @@ import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './un
 // downed back, the gear Attack cap, the top of the damage roll, a landed Gambit), and the fastest a first blow can land. With the Pit kit one blow can exceed a low-level creature's health, so the
 // hit floor is usually 1 and the time floor is the fastest windup: they stop scripted instant reports, not skilled play. The rest of the anti-cheat is the server's spawn state, the single-use
 // engage token and the per-account kill caps (migration 202610080014).
-const KILL = SERVER_RULES.worldKill[0]!;
+const KILL = SERVER_RULES.worldKill[0]!, SHARE = SERVER_RULES.worldShare[0]!;   // SHARE: the kill-credit rows (damage-share.ts)
 export const SLACK = KILL.slack;
 const MAX_HITS = KILL.maxHits, ENGAGE_TOKEN_BYTES = KILL.engageTokenBytes;   // rows of the worldKill table: the most hits a report may claim; the random bytes of a spawn-engage token
 const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
@@ -123,7 +124,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { damageShare?: boolean; verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -131,6 +132,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   // zoneId in a body: one of the loader's zones (Zone 1 when absent); each zone's list is built on first use and kept.
   const zoneOf = (v: unknown): string => { if (v === undefined) return DEFAULT_ZONE; if (typeof v !== 'string' || !listedZoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
   const spawnsOf = (zoneId: string): Map<string, Spawn> => { let z = zones.get(zoneId) ?? (deps.zones?.[zoneId]); if (!z) z = zoneSpawns(content, zoneId); zones.set(zoneId, z); return z; };
+  const inflight = new Map<string, number>();   // replays queued per account right now (the worldShare.replaysPerAccount cap)
   const seed = deps.seed ?? (() => randomInt(1, SEED_LIMIT)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
 
   const spawnState: Handler = async ({ db }, body) => {
@@ -196,6 +198,16 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const qaState = await qaOf(db, account), qa = qaState === 'yes', cohort = qa ? 'qa' : 'organic';   // the QA account (fighter_profiles.is_test): it counts (checks, tallies, split by cohort) but persists nothing
     deps.reachTally?.add(reach === 'checked' ? 'checked' : seen.why.split(':')[0]!, cohort);   // the flip readout's reach count (flipReadiness): checked, or the why's kind (offline, other-zone, ...)
     if (reach === 'unchecked' && deps.refuseUnchecked) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
+    // Kill credit by damage (Dom 2026-10-19; damage-share.ts, migration 20261019113226), behind `damageShare`. Winner-first: the database says whether this report would be refused (dead, too fast, over a
+    // cap) BEFORE any replay is queued, so a report that cannot pay never costs a replay; and whether it is the creature's first kill or a join to a kill made while this token was open.
+    let sharing: { joined: boolean; generation: number } | null = null;
+    if (deps.damageShare) {
+      const chk = await store.spawnCheck(db, account, token, minKillMs(spawn.hp), SHARE.joinWindowS).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));
+      if (chk !== null) {   // null = the migration is not applied: the old way (first valid report wins)
+        if (typeof chk.refused === 'string') return refuse(chk.refused);
+        sharing = { joined: chk.mode === 'join', generation: chk.generation ?? open.generation };
+      }
+    }
     const setup = fightSetup(spawn.fight, content, { level: spawn.spec.level });   // the spawn's own level (mobSpecs, by distance), never the form's: a level-1 wolf pays level-1 CP and loot
     if (!setup.ok) throw new Refused(503, `the server cannot price ${spawn.fight}`);
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
@@ -203,7 +215,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const kill = { account, character: open.character, token, fight: spawn.fight, seed: seed(), enemy: setup.value.opponent.body, level: setup.value.opponent.level, twist: null };
     // The record (BASE): replayed on the server. During the soak every kill pays as before whatever the record says (verdict logged, with its reason); with scorecardOnlyUnverified
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
-    let record = recText === undefined ? 'none' : 'unverified';
+    let record = recText === undefined ? 'none' : 'unverified', verdict: Verdict | null = null;
     if (recText === undefined) deps.tally?.add(drop ? `dropped: ${drop}` : 'no record', cohort);   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
     if (recText !== undefined) {
       const tag = `kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}`;
@@ -216,24 +228,47 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;
       };
-      if (deps.scorecardOnlyUnverified) { const v = await run(); record = v.ok ? 'verified' : `refused: ${v.reason}`; }
+      if (deps.scorecardOnlyUnverified || sharing) {   // strict, or kill credit by damage (which needs the replay's damage before it pays): the verdict is awaited
+        const n = inflight.get(account) ?? 0;
+        if (sharing && n >= SHARE.replaysPerAccount) { deps.tally?.add('replay-capped', cohort); record = 'replay-capped'; }   // a per-account cap on queued replays, ONLY with damageShare on (flag off is the old path, strict included): the rest answer without one (an unreplayed kill pays as before unless strict; a join without a verified record is refused)
+        else {
+          inflight.set(account, n + 1);
+          try { verdict = await run(); } finally { const m = (inflight.get(account) ?? 1) - 1; if (m <= 0) inflight.delete(account); else inflight.set(account, m); }
+          record = verdict.ok ? 'verified' : `refused: ${verdict.reason}`;
+        }
+      }
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
-    const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa;
-    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level, loot: spawn.loot })
+    // The share of the kill's credit. Only a record that VERIFIED speaks for the damage: its replayed damage to this creature, set against what earlier reports on this incarnation dealt (damage-share.ts: a
+    // full bar alone is a solo kill at 100%, otherwise qualifiers split by damage). No verified damage is 0 damage, never the creature's health (Auditor, #3303 F1): the FIRST kill of a creature without a
+    // verified record pays as before (the old path paid every first report; share 1, nothing recorded in the ledger), but a JOIN has no old path to match (it used to answer 'dead'), so a join without a
+    // verified record is refused 'dead' and pays nothing.
+    let share = 1, damage = 0;
+    if (sharing) {
+      if (verdict?.ok) {
+        damage = verdict.damage ?? 0;
+        const prior = await store.spawnDamage(db, open.instance, sharing.generation).catch(() => null) ?? [];
+        share = shares([...prior.map((p) => ({ id: p.token, damage: p.damage })), { id: token, damage }], spawn.hp, SHARE).get(token) ?? 0;
+      } else if (sharing.joined) return refuse('dead');
+    }
+    const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa && share > 0;
+    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level, loot: spawn.loot, share })
       : { batch: [] as store.Json[], summary: { cp: 0, cpReason: qa ? 'qa' : 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true, ...(qa ? { qa: true } : {}) },
     };
-    const commit = (wear: store.Json[]) => store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
+    if (sharing) Object.assign(event.payload as object, { share, damage, joined: sharing.joined });   // the kill credit's own receipt in the event (only with damageShare)
+    const commit = (wear: store.Json[]) => (sharing
+      ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)
+      : store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach })).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
     const got = pays
       ? await settleWithWear({ db, account, ownEventId: `enc:${token}`, wear: () => killWearLines(db, { account, character: open.character, token }, inventory), commit })
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}`);
-    return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}${sharing ? ` share=${share} damage=${damage}${sharing.joined ? ' joined' : ''}` : ''}`);
+    return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true, ...(sharing ? { share, joined: sharing.joined } : {}) };
   };
 
   return { spawn_state: spawnState, engage, touch, kill_report: killReport };

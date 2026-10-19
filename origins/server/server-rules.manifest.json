@@ -153,6 +153,19 @@
       }
     },
     {
+      "table": "worldShare",
+      "file": "server-rules.json",
+      "at": "worldShare",
+      "key": "id",
+      "required": {
+        "qualifyOfTop": "number",
+        "tagExpiryS": "integer",
+        "joinWindowS": "integer",
+        "replaysPerAccount": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "strictRevert",
       "file": "server-rules.json",
       "at": "strictRevert",

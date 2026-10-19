@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
+import { encodeWorldRecord, replayWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import { SPELL_IDS } from '../../src/fight/spell-cast.ts';
 import type { SpecialsCut } from '../../src/core/server.ts';
 // The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
@@ -65,13 +66,14 @@ async function honestCast(spell: { id: string; skill: number }, spell2?: { id: s
   assert.ok(rec, 'the scripted caster kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
+const damageOf = (rec: WorldRecord): number => { const r = replayWorldRecord(rec, { tagExpiryTicks: SERVER_RULES.worldShare[0]!.tagExpiryS * 60 }); return r.ok ? r.dealt[wolf.spec.id]?.damage ?? 0 : -1; };   // the verdict now carries the hero's damage to the spawn's creature (kill credit by damage)
 const ctx = (db: Db) => ({ db, account: UID });
 const mk = (extra: object = {}) => worldSpawnOps({ content, verifyRecord: (job) => verifyWorldRecord(job.text, job.spawn, job.kind, job.limit, job.maxTicks), spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {}, ...extra });
 const paidOps = (b: Json[]) => b.filter((o) => o.op !== 'event').map((o) => o.op).concat((b[0]!.payload as { cp: number }).cp > 0 ? ['cp'] : []);
 
 test('verifyWorldRecord: an honest record verifies; wrong creature, no kill, forged hero and junk do not', async () => {
   const { rec, text } = await honest();
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
   const no = async (t: string, s: Spawn, kind: string, why: string, limit?: { level: number }) => { const v = await verifyWorldRecord(t, s, kind, limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   await no(text, wolf, 'boar', 'wrong creature');
   await no(text, { ...wolf, spec: { ...wolf.spec, level: 5 } }, 'wolf', 'wrong creature');
@@ -299,7 +301,7 @@ test('verifyWorldRecord: a two-slot cast record verifies only when the ledger vo
   const { rec, text } = await honestCast(a, b);
   assert.deepEqual(rec.hero.spell2, b); assert.ok(rec.steps.some((st) => st.cast2), 'the record carries slot-b presses');
   const held = { grimoire: { [a.id]: {}, [b.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   await no({ cut: LIFTED, spells:{ ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
   await no({ cut: LIFTED, spells:{ ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
@@ -310,8 +312,8 @@ test('verifyWorldRecord: a cast record verifies only when the ledger vouches for
   const { rec, text } = await honestCast(claim);
   assert.deepEqual(rec.hero.spell, claim); assert.ok(rec.steps.some((st) => st.cast), 'the record carries cast presses');
   const held = { grimoire: { [claim.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });   // no ledger at all (dev): nothing to hold the claim to
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });   // no ledger at all (dev): nothing to hold the claim to
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   await no({ cut: LIFTED }, 'spell');                                             // a ledger that gave no spell read cannot vouch for the claim
   await no({ cut: LIFTED, spells:{ ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
