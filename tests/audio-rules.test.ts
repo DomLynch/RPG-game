@@ -19,7 +19,7 @@ test('every audio rule equals the literal it replaced', () => {
   assert.deepEqual(['arenaLevel', 'bellDrive', 'wardenHealth', 'wardenHealthEraOff', 'breathAhead', 'breathDuck', 'breathDuckBack', 'breathRelease', 'whipRaise', 'baseSeed', 'mix', 'rise', 'riseFloor', 'cut'].map((id) => audioRule(id as never)), [0.4, 2, 32, 80, 0.3, 0.3, 0.45, 1.4, 0.4, 731, 0.4, 1.6, 0.35, 0.035]);
   assert.deepEqual(bloomRules(), { above: 300, seconds: 0.4 });
   assert.deepEqual(['whipRateBase', 'whipGuardCap', 'whipGuardStep'].map((id) => audioRule(id as 'whipRaise')), [0.94, 5, 0.024], 'the whip rate: base, guard cap, step');
-  assert.equal(AUDIO_RULES.length, 27);
+  assert.equal(AUDIO_RULES.length, 28);
 });
 test('the creature throats and the power-word casters equal the tables they replaced', () => {
   assert.deepEqual(THROATS, THROAT_ROWS);
