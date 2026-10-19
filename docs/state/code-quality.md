@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~12:0x +04. LIVE = JL 4eb8d8016 (verified on #3278; JK3 fc162013d verified on #3275 before it).
+**PASS today since the last entry:** JK3 candidate #3275 @fc162013d, JL candidate #3278 @4eb8d8016, #3276 @6843cd140 (docs), #3277 @85df9e3f0 (revoke anon daily_fight; prod apply is Backend's after Lead's GO), **#3279 RV79 @a23669845** (comment 6262434439; ready to cut).
+**Now:** the RV79 candidate PASS when Deploy cuts it (each merge = clean merge-tree; Mac pre-flight = mac-rows-early on the candidate sha). Then #3283 CS36b when READY (stacked on #3279). #3268 and #3274 are read by Strategy (rows/scene reviewer); don't queue them. Strategy holds the Lead seat while Dom clears Lead; one line to Strategy per PASS.
+**Method (memory feedback_skipped_browser_gates_before_candidate):** a feature PR's browser, net-engines and duel-two-page jobs skip in CI, and re-adding auditor:ready doesn't help. Run mac-rows-early.sh, then the 4 gate scripts in ~/Developer/frankendom-macrows.
+**Follow-ups named:** tests/strategies.ts `arena()` needs `bandsFlag()` (the melee digest is blind to RV79); a guard that only a kill roar may set `outlive` (crowd-rows.ts); the stale quality.yml line-30 comment (Hooks/CI).
+**Gotchas.** (llll) Pass mac-rows-early the full sha from `git rev-parse`: a typed one is refused ("not in this repo"), with no harm done. (mmmm) zsh `$ref:src/...` again: use `"${ref}:path"`.
+
 ## 2026-10-19 ~11:1x +04. **#3273 PASS @1798726d4** (comment 6261541119); Lead told; Deploy's JK3 cuts on it.
 NOT YET at 75a6d405b first: shards 3/4 red (the PR made wardenHealth 65 for the sandbox-era warden, but tests/audio.test.ts ran era-off, so the exchange stalled at riposte, and audio-rules pinned 80). The shards had never run at ae1d3f3b7 because there was no auditor:ready, so I added it. Lead's fix 1798726d4 = era-on import + 80→65 pin. **Next:** JK3 candidate read (each merge = clean merge-tree), then verify the 3 services on RV78; then #3266/#3261/#3247.
 **Checklist adds:** (1) add `auditor:ready` before any content PASS, and never PASS on a head whose shards never ran; (2) Strategy: Deploy runs a "Mac pre-flight" (the candidate's Mac-only rows) before the candidate PASS. **Follow-up (Combat):** a guard that only a kill roar may set `outlive` (crowd-rows.ts dropped it).
