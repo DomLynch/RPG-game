@@ -1,5 +1,10 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~12:2x +04. LIVE = JM e2c75382d (RV79 / WSV 57; verified on #3286: writer/presence/verifiers on it, verifier RECORD_VERSION 79, NRestarts 0, no STRICT).
+**PASS since the last entry:** JM candidate #3286 @e2c75382d; #3284 @c092a9fc3 (superseded my b2bf5822b after Combat's 12:01 push); #3281 @8bc9713e5 (CS38 bow, dormant; the browser-gate run-once is owed before the cut).
+**Now:** #3283 CS36b @6b34f1bf5 (interim read OK, comment 6262507725): PASS after the retarget to trunk + shards/static + Combat's layout-A counter receipt. #3268 @7e32e99a0: if Characters' no-change still lands, PASS citing Strategy's read. #3274 Z1b has Strategy's PASS; its seamless-quiet variant hasn't run at head (flagged to Lead). #3221: not until green.
+**Gotcha (nnnn):** a head can move between the CI wait and the PASS post: re-read headRefOid right before posting, and if it moved after, mark the old PASS superseded on the thread.
+
 ## 2026-10-19 ~12:0x +04. LIVE = JL 4eb8d8016 (verified on #3278; JK3 fc162013d verified on #3275 before it).
 **PASS today since the last entry:** JK3 candidate #3275 @fc162013d, JL candidate #3278 @4eb8d8016, #3276 @6843cd140 (docs), #3277 @85df9e3f0 (revoke anon daily_fight; prod apply is Backend's after Lead's GO), **#3279 RV79 @a23669845** (comment 6262434439; ready to cut).
 **Now:** the RV79 candidate PASS when Deploy cuts it (each merge = clean merge-tree; Mac pre-flight = mac-rows-early on the candidate sha). Then #3283 CS36b when READY (stacked on #3279). #3268 and #3274 are read by Strategy (rows/scene reviewer); don't queue them. Strategy holds the Lead seat while Dom clears Lead; one line to Strategy per PASS.
