@@ -38,7 +38,7 @@
     {"id": "rim", "kit": "goblin-camp", "kind": "rim", "props": [{"prop": "palisade-a", "weight": 2}, {"prop": "palisade-b", "weight": 2}, {"prop": "palisade-c", "weight": 2}, {"prop": "totem", "weight": 1}], "count": 1, "every": 6, "inset": 3, "gap": 0.35, "phase": 0.5},
     {"id": "fires", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "fire", "weight": 1}], "count": 2, "near": 0.7, "first": "centre"},
     {"id": "tents", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "tent", "weight": 1}], "count": 2, "ringRadius": 6},
-    {"id": "wall", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "palisade-a", "weight": 2}, {"prop": "palisade-b", "weight": 2}, {"prop": "palisade-c", "weight": 2}, {"prop": "totem", "weight": 1}], "count": 44, "ringRadius": 35},
+    {"id": "camp-wall", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "palisade-a", "weight": 2}, {"prop": "palisade-b", "weight": 2}, {"prop": "palisade-c", "weight": 2}, {"prop": "totem", "weight": 1}], "count": 44, "ringRadius": 35},
     {"id": "torches", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "fire", "weight": 1}], "count": 6, "ringRadius": 31},
     {"id": "palisade", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "palisade-a", "weight": 1}, {"prop": "palisade-b", "weight": 1}, {"prop": "palisade-c", "weight": 1}], "count": 3, "near": 1},
     {"id": "totems", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "totem", "weight": 1}], "count": 2, "near": 1},
