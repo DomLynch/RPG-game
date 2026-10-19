@@ -14,8 +14,10 @@ const hitDamage = (gap: number, side: Side = 0): number | undefined => {
   let d: Duel = pvpDuel({ weapon: 'longsword', skill: null }, { weapon: 'longsword', skill: null });
   const [a, b] = side === 0 ? [0, 1] as const : [1, 0] as const;
   d.fighters[a].body = { ...d.fighters[a].body, x: 0, z: 0 }; d.fighters[b].body = { ...d.fighters[b].body, x: 0, z: -gap };
-  for (let t = 0; t < 120; t++) {
-    const intents: [Intent, Intent] = [idleIntent(), idleIntent()]; if (t === 0) intents[side] = light();
+  let drawn = false, struck = false;   // a PvP fighter starts sheathed: the first light draws, the next one (once ready) strikes
+  for (let t = 0; t < 240; t++) {
+    const intents: [Intent, Intent] = [idleIntent(), idleIntent()];
+    if (t === 0) { intents[side] = light(); drawn = true; } else if (drawn && !struck && d.fighters[side].phase === 'ready') { intents[side] = light(); struck = true; }
     d = stepDuel(d, intents);
     const hit = d.events.find((e) => e.type === 'Hit' && e.actor === side); if (hit) return hit.damage;
   }
