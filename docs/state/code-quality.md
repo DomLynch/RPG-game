@@ -1,5 +1,10 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~14:3x +04. LIVE = JQ 59c1380b7 (verified on #3294: verifiers on it, writer/presence correctly stay on 979f4513f since JQ touches no origins/ or src/, NRestarts 0, no STRICT).
+**PASS since the handoff:** #3277 @1ee955e99, #3285 @22872277e (supersedes a0998c9bc; crossed with Lead's, both count), #3292 @9e30a35d6 (Strategy's earlier PASS had no shards; I added auditor:ready), #3296 @f9d565632 (train early-rows query `--repo` fix), JQ candidate #3294 @59c1380b7 + candidate:pass.
+**Now:** #3295 taplog @27784b089: content OK (6265093596), PASS on shards; owed before the cut: run-once browser receipt + fresh 375/320 still (the jpg is still the old overlap). JR = #3285 + #3293 + #3296 (Lead) when Deploy cuts it; #3285 still owes remote-heroes(-soft) receipts + probe median. #3293 is Lead's read.
+**Gotchas.** (qqqq) A cancelled run's jobs stay as `fail` in `gh pr checks` after an auditor:ready re-run (#3296: run 39236368716); open the run, conclusion=cancelled, and say so in the PASS. (rrrr) The PreToolUse hook blocks even a 2-file `node --test` on the Mac; rely on the shards or VPS capture.
+
 ## 2026-10-19 ~14:0x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JN 2b89c3f0e (verified on #3287). **JP #3291 @979f4513f has candidate PASS + label (comment 6264527321), publishing.**
 **Now, in order.**
 1. **DONE: JP is LIVE and verified** (09:58Z, posted on #3291): writer/presence/verifiers all on 979f4513f, NRestarts 0, no STRICT. LIVE = JP 979f4513f.
