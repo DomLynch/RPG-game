@@ -230,7 +230,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       };
       if (deps.scorecardOnlyUnverified || sharing) {   // strict, or kill credit by damage (which needs the replay's damage before it pays): the verdict is awaited
         const n = inflight.get(account) ?? 0;
-        if (n >= SHARE.replaysPerAccount) { deps.tally?.add('replay-capped', cohort); record = 'replay-capped'; }   // a per-account cap on queued replays: the rest answer without one (they pay as an unreplayed kill unless strict)
+        if (sharing && n >= SHARE.replaysPerAccount) { deps.tally?.add('replay-capped', cohort); record = 'replay-capped'; }   // a per-account cap on queued replays, ONLY with damageShare on (flag off is the old path, strict included): the rest answer without one (an unreplayed kill pays as before unless strict; a join without a verified record is refused)
         else {
           inflight.set(account, n + 1);
           try { verdict = await run(); } finally { const m = (inflight.get(account) ?? 1) - 1; if (m <= 0) inflight.delete(account); else inflight.set(account, m); }
@@ -240,12 +240,16 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
     // The share of the kill's credit. Only a record that VERIFIED speaks for the damage: its replayed damage to this creature, set against what earlier reports on this incarnation dealt (damage-share.ts: a
-    // full bar alone is a solo kill at 100%, otherwise qualifiers split by damage). Anything else (no record, unverified, capped) is paid as a solo kill, exactly as before.
-    let share = 1, damage = spawn.hp;
+    // full bar alone is a solo kill at 100%, otherwise qualifiers split by damage). No verified damage is 0 damage, never the creature's health (Auditor, #3303 F1): the FIRST kill of a creature without a
+    // verified record pays as before (the old path paid every first report; share 1, nothing recorded in the ledger), but a JOIN has no old path to match (it used to answer 'dead'), so a join without a
+    // verified record is refused 'dead' and pays nothing.
+    let share = 1, damage = 0;
     if (sharing) {
-      if (verdict?.ok) damage = verdict.damage ?? 0;
-      const prior = await store.spawnDamage(db, open.instance, sharing.generation).catch(() => null) ?? [];
-      share = shares([...prior.map((p) => ({ id: p.token, damage: p.damage })), { id: token, damage }], spawn.hp, SHARE).get(token) ?? 0;
+      if (verdict?.ok) {
+        damage = verdict.damage ?? 0;
+        const prior = await store.spawnDamage(db, open.instance, sharing.generation).catch(() => null) ?? [];
+        share = shares([...prior.map((p) => ({ id: p.token, damage: p.damage })), { id: token, damage }], spawn.hp, SHARE).get(token) ?? 0;
+      } else if (sharing.joined) return refuse('dead');
     }
     const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa && share > 0;
     const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level, loot: spawn.loot, share })

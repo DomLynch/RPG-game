@@ -92,6 +92,37 @@ test('the per-account queued-replay cap: a third concurrent report is not replay
   release.forEach((f) => f()); await Promise.all([a, b]);
 });
 
+test('F1: a JOIN with no record, an unverified record or a replay-capped one pays nothing (it is answered dead), never the creature\'s health', async () => {
+  const dead = (e: unknown): boolean => e instanceof Refused && e.status === 409;
+  const none = stub({ mode: 'join' });
+  await assert.rejects(() => Promise.resolve(mk(async () => verdict(wolf.hp)).kill_report!(ctx(none.db), { token: TOKEN, hits: 50 })), dead);
+  assert.equal(none.kills.length, 0, 'no record: nothing written');
+  const bad = stub({ mode: 'join' });
+  await assert.rejects(() => Promise.resolve(mk(async () => ({ ok: false, reason: 'no kill' }) as Verdict).kill_report!(ctx(bad.db), { token: TOKEN, hits: 50, record: 'r' })), dead);
+  assert.equal(bad.kills.length, 0, 'unverified record: nothing written');
+  const release: (() => void)[] = [], ops = mk(() => new Promise<Verdict>((res) => release.push(() => res(verdict(wolf.hp)))));
+  const a = ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' }), b = ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' });
+  await new Promise((r) => setTimeout(r, 50));
+  const capped = stub({ mode: 'join' });
+  await assert.rejects(() => Promise.resolve(ops.kill_report!(ctx(capped.db), { token: TOKEN, hits: 50, record: 'r' })), dead);
+  assert.equal(capped.kills.length, 0, 'replay-capped: nothing written');
+  release.forEach((f) => f()); await Promise.all([a, b]);
+});
+
+test('a FIRST kill without a verified record pays as before (share 1) and writes no damage to the ledger (0, never the health)', async () => {
+  const s = stub(), got = await mk(async () => verdict(wolf.hp)).kill_report!(ctx(s.db), { token: TOKEN, hits: 50 }) as { share: number };
+  assert.equal(got.share, 1); assert.equal(Number(s.kills[0]!.d), 0);
+});
+
+test('F2: flag off, the per-account replay cap does not exist (strict awaits every replay, as trunk): three concurrent strict reports are all replayed', async () => {
+  let replays = 0; const release: (() => void)[] = [];
+  const ops = mk(() => { replays++; return new Promise<Verdict>((res) => release.push(() => res(verdict(wolf.hp)))); }, { damageShare: false, scorecardOnlyUnverified: true });
+  const calls = [1, 2, 3].map(() => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' }));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(replays, 3, 'no cap with the flag off');
+  release.forEach((f) => f()); await Promise.all(calls);
+});
+
 test('the migration not applied: the old way (v1 kill, no share fields), nothing breaks', async () => {
   const s = stub({ absent: true });
   const got = await mk(async () => verdict(wolf.hp)).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: 'r' }) as Record<string, unknown>;
