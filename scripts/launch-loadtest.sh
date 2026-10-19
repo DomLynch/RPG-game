@@ -29,9 +29,10 @@ if [ "$MODE" != presence ]; then
 fi
 if [ "$MODE" != writer ]; then
   mkdir -p /tmp/loadtest
-  for bots in 100 250 500 1000; do
-    echo "RESULT presence bots=$bots cap=100 maxlayers=12 load=$(cut -d' ' -f1-3 /proc/loadavg)"
-    node scripts/presence-loadtest.mjs --bots=$bots --seconds=45 --warmup=5 --layer-cap=100 --max-layers=12 > "/tmp/loadtest/presence-$bots.txt" 2>&1; echo "presence exit=$?"
+  maxlayers="${MAXLAYERS:-12}"   # BOTS="1500 2000 3000" MAXLAYERS=40 for the ceiling run (40 layers = room for 4,000 players)
+  for bots in ${BOTS:-100 250 500 1000}; do
+    echo "RESULT presence bots=$bots cap=100 maxlayers=$maxlayers load=$(cut -d' ' -f1-3 /proc/loadavg)"
+    node scripts/presence-loadtest.mjs --bots=$bots --seconds=45 --warmup=5 --layer-cap=100 --max-layers=$maxlayers > "/tmp/loadtest/presence-$bots.txt" 2>&1; echo "presence exit=$?"
     cat "/tmp/loadtest/presence-$bots.txt"; lap "presence-$bots"
   done
 fi
