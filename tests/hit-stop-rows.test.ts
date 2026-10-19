@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { IMPACT, KICK, impactTier } from '../src/fight/hit-impact.ts';
 
-test('the rows say what hit-impact.ts held before they were rows', () => {
-  assert.deepEqual(IMPACT, { full: { frames: 5, knock: 0.04, push: 0 }, half: { frames: 3, knock: 0.02, push: 0 }, special: { frames: 8, knock: 0.05, push: 0 }, parry: { frames: 11, knock: 0, push: 0.07 }, block: { frames: 2, knock: 0.02, push: 0 } });
-  assert.deepEqual(KICK, { stopMs: 2000 / 60, drop: 0.1 });
+test('the rows hold the sandbox\'s numbers (RV80, Dom 2026-10-19: "turn it on"): no time change on any contact but a landed special (6 frames, knock 0.03, push 0.08)', () => {
+  assert.deepEqual(IMPACT, { full: { frames: 0, knock: 0.04, push: 0 }, half: { frames: 0, knock: 0.02, push: 0 }, special: { frames: 6, knock: 0.03, push: 0.08 }, parry: { frames: 0, knock: 0, push: 0.07 }, block: { frames: 0, knock: 0.02, push: 0 } });
+  assert.deepEqual(KICK, { stopMs: 0, drop: 0.1 });
 });
 
 test('a landed melee special is a contact only when its row has frames (trunk row 0: nothing changes), a spell or a self-heal never is', () => {

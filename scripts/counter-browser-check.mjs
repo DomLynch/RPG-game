@@ -34,6 +34,15 @@ try {
   });
   const cdp=await page.context().newCDPSession(page);
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
+  // The counter press. The one-button pad is the default (RV80, Dom 2026-10-19): the Thrust and Heavy buttons are hidden, so the thrust is a slide up from STRIKE and the heavy is a hold on it (past the counter-window hold, input.heavy-hold-window-ms 80); a plain tap is the light cut. A page that still shows the old buttons taps them.
+  const press = async (id) => {
+    const direct = page.locator('#'+id);
+    if (await direct.isVisible()) return direct.tap();
+    const b = await page.locator('#attack-button').boundingBox(), c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await touch('touchStart', c);
+    if (id === 'thrust-button') await touch('touchMove', { x: c.x, y: c.y - 30 }); else await run(120);
+    await touch('touchEnd');
+  };
   // Diagnosis for a runner where the fight never starts under harness time: what the page looks like right after the press and on failure.
   const diagnose=()=>page.evaluate(()=>({visibility:document.visibilityState,welcomeHidden:document.querySelector('#welcome')?.hidden,message:document.querySelector('#message')?.textContent,messageHidden:document.querySelector('#message')?.hidden,attack:document.querySelector('#attack-button')?.textContent,attackDisabled:document.querySelector('#attack-button')?.getAttribute('aria-disabled'),guard:document.querySelector('#guard-button')?.getAttribute('aria-disabled'),status:document.querySelector('#combat-status')?.textContent,debug:{...document.querySelector('#debug')?.dataset},performance:document.querySelector('#performance')?.textContent,combatEvents:window.__combat.length,lastTick:window.__combat.at(-1)?.tick??null,now:Math.round(performance.now())}));
   await page.getByRole('button',{name:'Fight',exact:true}).tap();
@@ -52,7 +61,7 @@ try {
   await touch('touchStart',centre);
   if(slide){await touch('touchMove',{x:centre.x+slide.x,y:centre.y+slide.y});}
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
-  await touch('touchEnd');await page.locator('#'+button).tap();
+  await touch('touchEnd');await press(button);
   await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);
   const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value,max:document.querySelector('#target-health').max}));
   assert.ok(state.events.some(e=>e.type==='AttackStarted'&&e.actor===0&&e.move===move));
