@@ -37,6 +37,8 @@ Goal: one honest number per line, then the sizing ask to Dom with cost.
 
 **What a local Postgres cannot tell us (must be read or tested on Supabase, not guessed):** Supabase compute tier and its connection ceiling, pooler (Supavisor) limits, PostgREST/Auth rate limits (sign-ins per hour per IP, email sends per hour on the default SMTP), egress. Action: read the org's plan and limits from the dashboard, then run a small (100-session) confirm against a Supabase branch only if Dom approves the branch cost. Nothing is assumed about the tier here.
 
+**Rule before any strict flip (Lead, 2026-10-19):** the strict flip (pay only if the record verifies) stays OFF until the verify pool is sized for it. Before it is turned on, the worker count is set as kills per second x replay seconds, with 2x margin, measured at the real fight-length mix (not the 13.5 s test fight). Today replay runs after the kill has paid, so a full queue costs only an unverified verdict; under strict it would cost the player's reward. Measured so far: receipt 4 on #3282 (about 0.022 ms per tick, one worker; nothing saturated up to 32 verified kills/s on 8 workers).
+
 **Exit:** a table of the nine lines above at 100/250/500/1,000, the bottleneck named, and a sizing ask: Supabase tier, pool size, writer count, with monthly cost.
 
 ## 3. Advisor items: intent checks (one line each; no change made)
