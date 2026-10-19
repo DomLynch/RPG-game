@@ -38,10 +38,11 @@ export const RECIPES = {
   sheet: { sheet: { health: 70, armour: 30 } },
   spell: { specials: true, spell: { id: 'alvis', skill: 5 } },
   skill2: { skill2: 'stomp' },
+  meleeSpecial: { specials: true, skill: 'lunge' },   // RV79 (Auditor, BULK-CS note 1): a fight that PRESSES a melee special, so the era fixture fires the sandbox's windup / reach / react rows (the plain recipe never does)
   'cave-troll': { opponent: 'cave-troll', level: 3 },
 };
 const MAX_TICKS = 6000;
-const script = (t) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });
+const script = (t, name) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: name === 'meleeSpecial' && t % 90 === 45 ? 'skill' : t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });   // the melee-special recipe presses its pick (slot a) every 90 ticks; every other recipe is the script it always was
 
 const live = (opponent) => { setPlayScale(playScaleFor(opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); };   // the recorder stamps the LIVE era (as record-replay-check --write does)
 const metaOf = (name) => ({ ...BASE, ...RECIPES[name] });
@@ -50,14 +51,14 @@ const outcomeOf = (finish) => (!finish ? 'abandoned' : finish.draw ? 'draw' : fi
 // holds on every runner, and one that tells apart fights that end on the same tick (a feature that changes the exchange but not the finish).
 
 /** The version the live recorder stamps on this recipe's fight today. */
-export function currentStamp(name) { live(metaOf(name).opponent); const rec = createRecorder(metaOf(name)); rec.push(script(0)); return rec.finish('abandoned').v; }
+export function currentStamp(name) { live(metaOf(name).opponent); const rec = createRecorder(metaOf(name)); rec.push(script(0, name)); return rec.finish('abandoned').v; }
 
 /** Fight the recipe headless and return the finished record (cut at its finish) with what it replays to. */
 export async function fightRecipe(name) {
   const meta = metaOf(name), server = SERVER[name];
   live(meta.opponent);
   const rec = createRecorder(meta);
-  for (let t = 0; t < MAX_TICKS; t++) rec.push(script(t));
+  for (let t = 0; t < MAX_TICKS; t++) rec.push(script(t, name));
   const full = rec.finish('abandoned');
   let end = null;
   const probe = verifyRecord(full, (p) => { if (p.finish && end === null) end = { tick: p.duel.tick, outcome: outcomeOf(p.finish) }; }, { sheet: server?.sheet });

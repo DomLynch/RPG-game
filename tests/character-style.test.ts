@@ -4,10 +4,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HURT_STYLES, PLAIN_POSTURE, READY_STYLES, pickStyle } from '../src/fight/character-style-rows.ts';
 
-test('the sandbox rows are here with their values, and plainPosture is off', () => {
+test('the sandbox rows are here with their values, and plainPosture is on (RV79 rows, as the sandbox had it)', () => {
   assert.deepEqual(READY_STYLES.map((r) => [r.id, r.s1, r.s2, r.s3, r.neck]), [['1', -120, -120, -80, -100], ['2', -220, -200, -140, -160], ['3', -320, -280, -200, -220]]);
   assert.deepEqual(HURT_STYLES.map((r) => [r.id, r.weight, r.s1, r.s2, r.twist]), [['1', 350, -160, -140, 0], ['2', 450, -50, -60, 350], ['3', 250, -220, -200, -120]]);
-  assert.equal(PLAIN_POSTURE, false, 'off = the character exactly as it was');
+  assert.equal(PLAIN_POSTURE, true, 'the sandbox shipped plainPosture 1: no procedural posture on top of the recorded clips');
 });
 
 test('?ready= and ?hurt= pick a row; no query, another key or an unknown id is today\'s pose', () => {

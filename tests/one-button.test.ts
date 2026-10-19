@@ -6,9 +6,9 @@ import { readFileSync } from 'node:fs';
 import { HEAVY_HOLD_MS, ONE_BUTTON, STAB_HALF_ANGLE, STAB_SLIDE_PX, stabSector } from '../src/fight/input.ts';
 import { touchLayoutCss } from '../src/fight/touch-layout.ts';
 
-test('the one-button strike is off by default and its rows hold the sandbox values', () => {
-  assert.equal(ONE_BUTTON, false, 'off = today\'s Light button');
-  assert.deepEqual([HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE], [180, 18, 50]);
+test('the one-button strike is on, as the sandbox had it (RV79 rows, Dom-approved 2026-10-18), and its rows hold the sandbox values', () => {
+  assert.equal(ONE_BUTTON, true, 'the sandbox shipped oneButton 1 (touch layout A)');
+  assert.deepEqual([HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE], [220, 18, 50]);
 });
 
 test('a slide within 50 degrees of straight up is the stab; a side slide or a downward one is not', () => {
