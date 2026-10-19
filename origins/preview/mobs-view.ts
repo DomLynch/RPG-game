@@ -9,12 +9,12 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
-import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
+import { bodyFileOfKey, bodyKeyOf, bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { TITLES, type Tier } from '../../src/core/index.ts';
 import { calmStep, type Calm } from './calm-step.ts';   // (named so the world-sim list in tests/core-boundary.test.ts C7 does not grow)
 import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/index.ts';
-import { fitPieces, fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
+import { NotHeroRig, fitPieces, fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
@@ -90,7 +90,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   // A creature whose loadout row names a main-game rank look (`look`, e.g. /looks/goblin-L5.glb) is drawn in that whole fitted figure (the Pit's own armour): its body key is `<kind>@<file>`, so each rank look is fetched, warmed and shared once.
-  const keyOf = (s: MobSpec): string => s.body;   // one body per kind: the rank look is the Pit's armour SET fitted onto it (wearLook), not a replacement body
+  // A creature whose look names a bare body (`look.body`, e.g. world/kit/goblin-bare.glb) is a different body from its kind's plain one (the rank look is the Pit's armour SET fitted onto it, wearLook, not a replacement body).
+  // Its body key is `<kind>@<file>` (mob-looks.ts bodyKeyOf), so each is fetched, warmed, fitted and shared once; a creature with no such look keeps the kind as its key.
+  const keyOf = (s: MobSpec): string => bodyKeyOf(s.body, mobLook(s.character));
   const rankLooks = new Map<string, Promise<RankLook>>();   // each look file fetched once (the Pit's loadRankLook), fitted to every creature that wears it
   const weaponShapes = new Map<string, Promise<THREE.Mesh | undefined>>();   // each graded weapon file fetched once (the Pit's loadShape)
   const reshapeWeapon = (v: View, weapon: WeaponId, rung: string | undefined) => {   // the Pit's per-rank weapon shape (weapon-shapes.ts shapeFor: plain 1-3, crafted 4-7, ornate 8-10) at the loadout's rung
@@ -103,21 +105,28 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const p = rankLooks.get(file) ?? loadRankLook(file); rankLooks.set(file, p);
     void p.then((look) => { if (v.actor) v.actor.wearLook(look); }).catch((error: unknown) => { rankLooks.delete(file); console.warn(`rank look ${file} did not fit; the goblin stays as it is`, error); });
   };
-  const urlOfKind = (kind: string): string | undefined => {   // a zone look's own bare body
-    const own = specs.map((x) => (x.body === kind ? mobLook(x.character)?.body : undefined)).find(Boolean);
-    return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(kind) ?? URLS[kind];
+  const urlOfKey = (key: string): string | undefined => {   // a look's own bare body (the file after `@`), else the kind's world or engine body
+    const own = bodyFileOfKey(key);
+    return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(key) ?? URLS[key];
   };
   // The loadout's armour pieces (loot ids `<opponent>.<slot>`) come from the roster's carrier file, once per kind, and are worn on the bare body with the engine's own `wear` (the Pit's machinery).
   const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   const carriers = new Map<string, THREE.SkinnedMesh[] | 'loading'>();
   const kitOf = (ids: readonly string[] | undefined): string | undefined => ids?.[0]?.split('.')[0];   // the carrier set a loadout's pieces come from: the body id its loot ids start with (executioner.Helmet -> carriers-executioner)
-  const fitCache = new Map<THREE.Skeleton, THREE.SkinnedMesh[]>(); let fitMs = 0, fitRuns = 0;   // piece-fit.ts: the pieces fitted to each body skeleton, and what that cost in all (browser checks read it)
+  const fitCache = new Map<string, THREE.SkinnedMesh[] | null>(); let fitMs = 0, fitRuns = 0;   // piece-fit.ts: the pieces fitted to each body KEY (the creatures of one body share its bind pose), and what that cost in all (browser checks read it); null = refused, never retried
   const fitOff = /[?&]fit=0\b/.test(location.search);
-  const putOn = (v: View) => {
+  const fitFor = (key: string, pieces: THREE.SkinnedMesh[], rig: THREE.Skeleton): THREE.SkinnedMesh[] | null => {   // fitted ONCE per body key, never per frame; a refusal is logged once and remembered, never thrown in the frame
+    const known = fitCache.get(key); if (known !== undefined) return known;
+    const t0 = performance.now();
+    try { const out = fitPieces(pieces, rig); fitMs += performance.now() - t0; fitRuns++; fitCache.set(key, out); return out; }
+    catch (error) { fitCache.set(key, null); if (error instanceof NotHeroRig) console.error(`${key}: ${error.message}; no armour is worn on this body`); else console.warn(`${key}: piece fit failed; no armour is worn on this body`, error); return null; }
+  };
+  const putOn = (v: View, key: string) => {
     const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
     if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
     const bodyMesh = (() => { let m: THREE.SkinnedMesh | undefined; v.actor!.anchor.traverse((o) => { if (!m && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') m = o as THREE.SkinnedMesh; }); return m; })(), rig = bodyMesh?.skeleton;   // the body's own skeleton: the pieces are fitted to ITS proportions (piece-fit.ts), and re-skinned off any bone its skin never uses (the troll's hands)
-    const fitted = rig && bodyMesh && !fitOff ? (fitCache.get(rig) ?? (fitCache.set(rig, (() => { const t0 = performance.now(), out = fitPieces(pieces, rig); fitMs += performance.now() - t0; fitRuns++; return out; })()), fitCache.get(rig)!)) : pieces;   // fitted ONCE per body skeleton (a body's creatures share it per kind), never per frame; ?fit=0 = the engine's plain retarget, for a before/after
+    const fitted = rig && bodyMesh && !fitOff ? fitFor(key, pieces, rig) : pieces;   // ?fit=0 = the engine's plain retarget, for a before/after
+    if (!fitted) { v.wearIds = undefined; return; }   // refused (logged once by fitFor): the creature stays as it is
     try { v.actor.wear(fitted.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
     catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
   };
@@ -125,10 +134,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const url = carrierFiles[`../../src/assets/loot/carriers-${kind}.glb`];
     if (!url || carriers.has(kind)) return;
     carriers.set(kind, 'loading');
-    loadLoot(url).then((pieces) => { carriers.set(kind, pieces); for (const v of views.values()) putOn(v); }).catch((error: unknown) => { carriers.delete(kind); console.warn(`${kind} carriers did not load; no armour is worn`, error); });
+    loadLoot(url).then((pieces) => { carriers.set(kind, pieces); for (const [i, v] of views) putOn(v, keyOf(specs[i]!)); }).catch((error: unknown) => { carriers.delete(kind); console.warn(`${kind} carriers did not load; no armour is worn`, error); });
   };
   const fetchBody = (kind: string) => {
-    const url = urlOfKind(kind);
+    const url = urlOfKey(kind);
     if (bodies.has(kind) || !url) return;
     bodies.set(kind, 'loading');
     loader.loadAsync(url).then((gltf) => {
@@ -183,7 +192,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     catch (error) {
       // A body missing its weapon's clip pack is a content bug that tests/creature-clips.test.ts fails in CI (trunk keeps it LOUD: the sandbox's silent fallback to the default weapon's clips is not ported); in the player's frame it is logged once and the kind stays a stand-in for the session (marked failed, so it is not retried every frame).
       if (error instanceof MissingClip) console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); else console.warn(`${s.body} actor did not build; the capsule stays`, error);
-      bodies.set(s.body, 'failed'); failedKinds.add(s.body); return;
+      bodies.set(keyOf(s), 'failed'); failedKinds.add(keyOf(s)); return;
     }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     const row = loadoutRow(look?.loadout);
@@ -191,7 +200,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
     if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
-    else if (row) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); if ((look?.scale ?? 1) <= fxNum('mob-view.wear-max-scale')) { v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v); } reshapeWeapon(v, weapon, row.rung); }   // the loot pieces are hero-sized: on a body bigger than the row's scale (the troll) they clip and float, so only the weapon is shown until pieces are built for it   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
+    else if (row) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); if ((look?.scale ?? 1) <= fxNum('mob-view.wear-max-scale')) { v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v, keyOf(s)); } reshapeWeapon(v, weapon, row.rung); }   // the loot pieces are hero-sized: on a body bigger than the row's scale (the troll) they clip and float, so only the weapon is shown until pieces are built for it   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {
@@ -297,12 +306,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
-    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKind(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKey(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },
     fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
     debug: () => ({
-      fit: { ms: +fitMs.toFixed(2), runs: fitRuns, tris: [...fitCache.values()].map((p) => p.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0)), draws: [...fitCache.values()].map((p) => p.length) },   // piece-fit.ts: the one-time load cost, and the pieces' triangles and draws per fitted body
+      fit: { ms: +fitMs.toFixed(2), runs: fitRuns, tris: [...fitCache.values()].filter((p): p is THREE.SkinnedMesh[] => !!p).map((p) => p.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0)), draws: [...fitCache.values()].filter((p): p is THREE.SkinnedMesh[] => !!p).map((p) => p.length), refused: [...fitCache].filter(([, p]) => !p).map(([k]) => k), bodies: [...fitCache].filter(([, p]) => !!p).map(([k]) => k) },   // piece-fit.ts: the one-time load cost, and the pieces' triangles and draws per fitted body key (`bodies` names them in the same order, `refused` the keys that wear nothing)
       meshesOf: specs.map((s, i) => { const v = views.get(i); if (!v?.model) return null; const rows: string[] = []; v.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) rows.push(`${(m as unknown as THREE.SkinnedMesh).isSkinnedMesh ? 'skin' : 'mesh'} ${o.name || '-'}${o.visible ? '' : ' (hidden)'} v${m.geometry.getAttribute('position').count}`); }); return { id: s.id.slice(-14), parts: rows.length, rows: rows.slice(0, 24) }; }).filter(Boolean),   // browser checks: every mesh drawn under a creature
       handMesh: specs.map((s, i) => {   // browser checks: where the skin that the right-hand bone drives actually is, against that bone (gap in metres): a hand drawn away from its bone holds a weapon in the air
         const v = views.get(i), a = v?.actor, bone = a?.boneWorld('hand_r'); if (!v?.model || !a || !bone) return null;

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { catalogueLook } from '../../src/fight/catalogue-look.ts';
-import { MOB_LOOKS, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
+import { MOB_LOOKS, VARIANTS, bodyFileOfKey, bodyKeyOf, mobLook, mobVariant, variantLook } from './mob-looks.ts';
 import { loadZone, zoneIds, zoneProblems, type Zone } from '../zones/loader.ts';
 import { loadoutRow, pickLoadout } from '../world/loadouts-rules.ts';
 
@@ -141,4 +141,14 @@ test('a look is a row edit: changing a tint or a spread in Zone 1\'s row changes
   assert.equal(variantLook(id, 0, edited)!.tint, 0xff0000, 'variant 0 is the row\'s look');
   assert.ok([1, 2, 3, 4, 5, 6, 7].some((v) => variantLook(id, v, edited)!.tint === 0x00ff00), 'the row\'s spread pool feeds the variants');
   assert.notEqual(mobLook(id, z1)!.tint, 0xff0000, 'and the real Zone 1 is untouched');
+});
+
+test('two looks of one kind with different bare bodies are two body keys, each naming its own file; a look with no bare body keeps the kind (residual of #3242, C07 S3)', () => {
+  const a = bodyKeyOf('goblin', { body: 'world/kit/goblin-bare.glb' }), b = bodyKeyOf('goblin', { body: 'world/kit/goblin-bare-b.glb' }), plain = bodyKeyOf('goblin', null);
+  assert.notEqual(a, b, 'two bare bodies of one kind do not share a key (they would fetch, warm and fit the first one for both)');
+  assert.equal(plain, 'goblin', 'no bare body: the kind is the key, as before');
+  assert.equal(bodyKeyOf('goblin', {}), 'goblin', 'a look with no body field is a plain kind');
+  assert.equal(bodyFileOfKey(a), 'world/kit/goblin-bare.glb'); assert.equal(bodyFileOfKey(b), 'world/kit/goblin-bare-b.glb'); assert.equal(bodyFileOfKey(plain), null, 'a plain kind names no file: the catalogue resolves it');
+  assert.notEqual(a, plain, 'a bare-body goblin and a plain goblin are two bodies too');
+  for (const id of zoneIds()) for (const [name, look] of Object.entries(loadZone(id).mobLooks?.looks ?? {})) if (look.body) assert.equal(bodyFileOfKey(bodyKeyOf(look.opponent, look)), look.body, `${id} ${name}: the key round-trips its file`);
 });
