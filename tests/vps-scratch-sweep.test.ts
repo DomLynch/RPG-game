@@ -332,3 +332,60 @@ test('the sweep aborts "cannot read open PR list" through open_pr_list, never ar
   assert.doesNotMatch(src, /^PRS=\$\(gh pr list/m, 'no direct gh call that would bypass the fallback');
 });
 
+// Dom + Hooks Dev 2026-10-19: finished job copies age out after 36 h (was 48), and the archive stops carrying every copy's own .git (vps-archive/named reached 592 GB on a 1 TB box).
+const sourced = (script: string, ...args: string[]) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${script}`, 'x', ...args], { encoding: 'utf8' });
+const git = (cwd: string, ...a: string[]) => { const r = spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+
+test('MIN_AGE_H defaults to 36 hours, and the environment still overrides it', () => {
+  assert.equal(sourced('echo "$MIN_AGE_H"').stdout.trim(), '36');
+  const r = spawnSync('bash', ['-c', 'MIN_AGE_H=12 SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; echo "$MIN_AGE_H"'], { encoding: 'utf8' });
+  assert.equal(r.stdout.trim(), '12');
+});
+
+test('the archive copy leaves out node_modules and the checkout .git, keeps files, ignored files and a nested repo .git', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-excl-'));
+  try {
+    const src = join(root, 'job'); const dst = join(root, 'arch');
+    mkdirSync(join(src, '.git'), { recursive: true }); writeFileSync(join(src, '.git', 'HEAD'), 'ref: x\n');
+    mkdirSync(join(src, 'node_modules', 'a'), { recursive: true }); writeFileSync(join(src, 'node_modules', 'a', 'i.js'), '1');
+    mkdirSync(join(src, 'vendor', 'lib', '.git'), { recursive: true }); writeFileSync(join(src, 'vendor', 'lib', '.git', 'HEAD'), 'ref: y\n');
+    writeFileSync(join(src, 'a.txt'), 'a'); writeFileSync(join(src, 'dirty.log'), 'untracked');
+    mkdirSync(dst);
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; rsync -rtlJ "${SWEEP_EXCLUDES[@]}" "$1" "$2/"', 'x', src, dst], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const names = (p: string) => readdirSync(join(dst, 'job', p)).sort();
+    assert.deepEqual(names('.'), ['a.txt', 'dirty.log', 'vendor']);
+    assert.deepEqual(names('vendor/lib'), ['.git'], 'a nested repo keeps its .git');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('sweep_unpushed_bundle: nothing unpushed writes no bundle; an unpushed commit, a stash and a detached unpushed HEAD are all bundled; no .git is skipped', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-bundle-'));
+  try {
+    const remote = join(root, 'remote.git'); const co = join(root, 'co');
+    git(root, 'init', '-q', '--bare', remote);
+    git(root, 'clone', '-q', remote, co);
+    writeFileSync(join(co, 'f'), '1'); git(co, 'add', '.'); git(co, 'commit', '-qm', 'one'); git(co, 'push', '-q', 'origin', 'HEAD');
+    const out = join(root, 'o.bundle');
+    const run = () => sourced('sweep_unpushed_bundle "$1" "$2"; echo $?', co, out).stdout.trim();
+    assert.equal(run(), '10', 'clean and pushed: no bundle'); assert.equal(spawnSync('test', ['-e', out]).status, 1);
+    writeFileSync(join(co, 'f'), '2'); git(co, 'commit', '-qam', 'two unpushed');
+    assert.equal(run(), '0', 'an unpushed commit is bundled');
+    assert.match(git(co, 'bundle', 'list-heads', out), /refs\/heads\//);
+    rmSync(out); git(co, 'push', '-q', 'origin', 'HEAD');
+    assert.equal(run(), '10', 'pushed again: nothing to bundle');
+    writeFileSync(join(co, 'f'), '3'); git(co, 'stash', 'push', '-q'); assert.equal(run(), '0', 'a stash is bundled'); assert.match(git(co, 'bundle', 'list-heads', out), /refs\/stash/);
+    rmSync(out); git(co, 'stash', 'drop', '-q');
+    git(co, 'checkout', '-q', '--detach'); writeFileSync(join(co, 'f'), '4'); git(co, 'commit', '-qam', 'detached unpushed');
+    assert.equal(run(), '0', 'a detached HEAD with an unpushed commit is bundled');
+    assert.equal(sourced('sweep_unpushed_bundle "$1" "$2"; echo $?', join(root, 'nogit'), out).stdout.trim(), '10', 'a dir without .git has nothing to bundle');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('archive_then_delete copies with SWEEP_EXCLUDES and bundles before it deletes; a failed bundle keeps the source', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  assert.doesNotMatch(src, /rsync [^\n]*--exclude=node_modules/, 'the two rsync calls use SWEEP_EXCLUDES, not a private exclude list');
+  assert.match(src, /sweep_unpushed_bundle "\$s"[^\n]*\n\s*\[ "\$brc" = 1 \] && \{ say "BUNDLEFAIL \$s \(kept\)"; return; \}/);
+  assert.ok(src.indexOf('BUNDLEFAIL') < src.indexOf('rm -rf -- "$s"; say "archived+deleted'), 'the bundle is written before anything is removed');
+});
+

@@ -5,13 +5,16 @@
 # MIN_AGE_H, dirty/unpushed/stashed checkouts (archive instead), open-PR heads. Copies are
 # rsync -c verified before any delete. Every removed path is written to the manifest.
 # NOTE: real node_modules dirs are NOT archived (regenerable from the lockfile); copy and verify both exclude them.
+# Lean archive (Dom + Hooks Dev 2026-10-19): the checkout's own .git is NOT archived either. Every job copy is a full clone (a 4 GB .git inside a 5.5 GB copy) of a repo whose history is on GitHub, and
+# 100 GB a day of those filled the 1 TB storage box (vps-archive/named: 592 GB by 2026-10-19). What a .git can hold that GitHub does not, the unpushed commits, branches, tags, HEAD and the stash, goes into
+# a small unpushed.bundle beside the working tree (sweep_unpushed_bundle); the working tree, dirty and untracked files included, is still copied whole and verified.
 set -u
 WORK=/opt/frankendom-shadow/work
 JOBS=/srv/dev-jobs
 ARCH=/mnt/frankendom-donors/vps-archive
 REPO=DomLynch/RPG-game
 TRIGGER_GIB=${TRIGGER_GIB:-60}
-MIN_AGE_H=${MIN_AGE_H:-48}
+MIN_AGE_H=${MIN_AGE_H:-36}   # was 48; Dom 2026-10-19
 EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
 APPLY=0; FORCE=0; BAD_ARG=""
 PATHS=()   # the --path values, one array element each: never split or glob-expanded (a glob in a path was once expanded by the shell into every child of /tmp)
@@ -86,6 +89,19 @@ open_pr_list() {
   done
   return 1
 }
+# What the archive copy and its verify pass leave out: node_modules (regenerable) and the checkout's own top-level .git (the pattern is anchored one level down because the source is passed without a
+# trailing slash, so `/*/.git` is <dir>/.git and never a nested repo's .git, whose files stay in the copy).
+SWEEP_EXCLUDES=(--exclude=node_modules '--exclude=/*/.git')
+# What only this checkout's .git holds: commits not on any remote ref, plus the stash, in one bundle. 0 = bundle written to $2, 10 = nothing unpushed (no bundle), 1 = failed (the caller must NOT delete).
+# A checkout with no remote at all bundles everything, which is the safe direction.
+sweep_unpushed_bundle() { # src outfile
+  local s=$1 out=$2 msg; local -a refs=(HEAD --branches --tags)
+  [ -e "$s/.git" ] || return 10
+  git -C "$s" rev-parse --verify -q refs/stash >/dev/null 2>&1 && refs+=(refs/stash)
+  msg=$(git -C "$s" bundle create "$out" "${refs[@]}" --not --remotes 2>&1) && return 0
+  case "$msg" in *"empty bundle"*) return 10;; esac
+  return 1
+}
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -125,9 +141,12 @@ archive_then_delete(){ # src sub
   if [ -n "$(find "$s" ! -type f ! -type d ! -type l -print -quit)" ]; then say "skip(nonregular) $s"; return; fi
   if [ $APPLY = 0 ]; then say "would archive+delete $s"; return; fi
   mkdir -p "$d"
-  rsync -rtlJ --exclude=node_modules --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
-  local ch; ch=$(rsync -rcnlJ --exclude=node_modules --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
+  rsync -rtlJ "${SWEEP_EXCLUDES[@]}" --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
+  local ch; ch=$(rsync -rcnlJ "${SWEEP_EXCLUDES[@]}" --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
   [ -n "$ch" ] && { say "VERIFYFAIL $s: $ch"; return; }
+  local brc; sweep_unpushed_bundle "$s" "$d$(basename "$s")/unpushed.bundle"; brc=$?
+  [ "$brc" = 1 ] && { say "BUNDLEFAIL $s (kept)"; return; }
+  [ "$brc" = 0 ] && say "bundled unpushed commits of $s"
   echo "ARCHIVED $s" >> "$MAN"; rm -rf -- "$s"; say "archived+deleted $s"
 }
 delete_only(){
