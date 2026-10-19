@@ -35,3 +35,29 @@ Foes also cast a special 5 to 9 times a minute now (none before), and the first 
 3. **Soften the timers** (`first` 120 and `cooldown` 360 ticks in the same file): fewer specials per minute, so more swings. Plain numbers, easy to try, not measured yet.
 
 Caveat: an idle player, one warden, three seeds, 60 s, so fights end early when the player dies. It shows the direction and size of the change, not a balance verdict.
+
+---
+
+# Which creature fights in which mood (a second decision for Dom)
+
+**Today.** Every creature picks a stance mood at the start of a fight: half the time its **home** stance, the other half spread evenly over the other three (Balanced, Aggressive, Defensive, Trickster). Each creature already has a `home` row in the catalogue (`src/fight/catalogue-data.ts`). Only three differ from Balanced: the goblin (Trickster), the executioner (Aggressive), the shieldmaiden (Defensive). Everything else (wolf, boar, bear, salamander, cave troll, minotaur, wraith, werewolf, skeleton, the rest of the Pit) is Balanced, so a troll is a coin flip.
+
+**The mechanism (built, on hold).** One new number per creature, `homeShare` (0 to 1): the share of its fights it opens in its home stance. Absent = 0.5, exactly today's split, so nothing changes until a row sets it. Branch `combat/creature-stance-bias`. It moves the record version, so it ships in one bump together with the rows you pick (RV83 after Characters' bow and staff RV82); Lead decided not to spend a version on the mechanism alone.
+
+**Proposed table (my starting suggestion; the identities are guesses from each creature's role, you decide).** Stances: Aggressive hits harder and wears the foe's posture down but blocks worse; Defensive hits softer but takes less and recovers faster; Trickster nudges feints and kicks.
+
+| Creature | home | homeShare | One line why |
+|---|---|---|---|
+| Cave troll | Aggressive | 0.85 | The heavy bruiser: it should almost always come at you (your own example: "a troll is always Aggressive"). |
+| Boar | Aggressive | 0.90 | A charger; one note, almost never changes its mind. |
+| Wolf / Ember wolf | Aggressive | 0.70 | Presses the attack, with enough variety that two wolves do not look the same. |
+| Bear | Defensive | 0.60 | Bulk: it waits out your swing and answers. Not fully reliable. |
+| Giant salamander | Defensive | 0.70 | Armoured and slow; it makes you come to it. |
+| Goblin | Trickster | 0.65 | Already Trickster; a skirmisher that feints a lot, still varied. |
+| Werewolf | Aggressive | 0.75 | A frenzied pack hunter like the wolf, a step more reliable. |
+| Minotaur / Wraith / Skeleton | Balanced | 0.50 | No identity proposed: left as today. |
+| Pit wardens (veteran to shieldmaiden) | unchanged | 0.50 | The ladder keeps its variety, and old Pit records stay verifiable; only the executioner (Aggressive), shieldmaiden (Defensive) and goblin (Trickster) keep their existing home. |
+
+Not measured: how these moods change a fight. If you want numbers, the sim table tool can be pointed at a stance before we pick.
+
+**Where the idea comes from (reuse-first).** I found, but did not study in depth, three donors that put a per-creature chance on a creature's behaviour as a plain data field: AzerothCore's `smart_scripts` table (an `event_chance` column on each creature script row), EQEmu's per-NPC `special_abilities` field, and 2004Scape's per-NPC `.npc` configs (`attackrate` and similar params). The common pattern is the one we use: the creature's row says how often, the engine only reads it. None of them has a "stance mood", so the table above is ours.
