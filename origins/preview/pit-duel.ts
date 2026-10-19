@@ -15,7 +15,7 @@ import { initialPractice, PROFILES, stepPractice, type Practice } from '../../sr
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { memoryMatch } from '../../src/fight/match.ts';
-import { stanceFlag, type PickedStance } from '../../src/fight/index.ts';
+import { worldStancePick, type PickedStance } from '../../src/fight/index.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
@@ -209,6 +209,7 @@ export function warmStage(host: HTMLElement, opponent: string, level: number, mo
   }
 }
 
+const pageStorage = (): Storage | null => { try { return localStorage; } catch { return null; } };   // blocked storage (private window, a sandboxed frame) reads as no stored pick
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
@@ -221,7 +222,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   stageFor(host, opponent, asked.level, mount);
   match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
-  match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? stanceFlag(location.search) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the Pit's own preference (?stances=, Balanced by default, off = none)
+  match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? worldStancePick(location.search, pageStorage()) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the stance menu's stored pick for this device's character, ?stances= over it (off = none); Balanced when nothing is stored
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
   if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
