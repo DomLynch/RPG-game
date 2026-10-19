@@ -2598,13 +2598,12 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 /* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The stance panel (inline-styled, top 64 right 8, two rows) sat on the SKILL button and the menu button in every landscape view:
    on a short screen it moves left of the action cluster (the cluster's left edge is 81 px in; the notch's right inset is added). The journal name no longer runs under the Stats / Career / Settings icons:
    it ellipsizes before them (the pencil is the name's own background so a long name keeps it). */
-@media (orientation: landscape) and (max-height: 520px) { #stance-panel { left: calc(env(safe-area-inset-left, 0px) + 12px) !important; top: 76px !important; } }   /* option B: an icon row under the bars, top-left */
+@media (orientation: landscape) and (max-height: 520px) { #stance-panel { left: calc(env(safe-area-inset-left, 0px) + 12px) !important; } }   /* option B: an icon row top-left; its top is measured from the bottom of the HUD block (stance-panel.ts), never a fixed number */
 #journal #journal-name { display: block; width: fit-content; max-width: calc(100% - 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; padding-right: 30px; background: url(/gear-ui/edit.png) right center / 24px no-repeat; }
 #journal #journal-name::after { content: none; }
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
 /* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
    the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
-@media (min-width: 900px) { #stance-panel { top: 150px !important; } }
 @media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button, .actions[data-gestures=cluster] #skill2-button:not([hidden]) { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
