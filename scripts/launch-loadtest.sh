@@ -25,7 +25,8 @@ if [ "$MODE" != presence ]; then
   as_pg() { runuser -u postgres -- env PATH="$PATH" PG_BIN="$PGB" "$@"; }
 fi
 if [ "$MODE" = mix ]; then   # the writer + world-kill mix (scripts/writer-mix-loadtest.mjs), each phase stops at its first break (a 5xx or a p95 over 500 ms)
-  for rate in 200 400 800; do
+  for rate in ${MIX_REAL_RATES:-200 400 800}; do   # MIX_REAL_RATES=none skips the real-set phase (a clone-only rerun)
+    [ "$rate" = none ] && continue
     echo "RESULT mix real-set rate=$rate pool=4"; as_pg node scripts/writer-mix-loadtest.mjs --rate=$rate --seconds=60 --accounts=1000 --pool=4 --kill-share=0.1 2>&1 | tee /tmp/mix.out | tail -95; lap "mix-real-$rate"
     grep -q "^writer-mix-loadtest: .*BROKE" /tmp/mix.out && { echo "STOP real-set phase at rate=$rate (broke)"; break; }
   done

@@ -56,11 +56,11 @@ async function honestRecord(sp = baseWolf) {   // a record is bound to ITS spawn
 const { text: recordText, seconds: recordSeconds } = await honestRecord();   // the writer refuses a record longer than the engagement is old ('overlong'), so a kill cycle waits the fight's real length
 // One honest record per spawn, made before the run so the work is not in the measurement. The real set: the wolves get one (every other spawn, a bear or a goblin, has none and sends the base wolf's,
 // which the replay refuses with 'no kill': that is the unverified share). The clones: only wolf ids the scripted hero can beat are kept (about half of them), so EVERY clone kill carries a record that verifies.
-const recordOf = new Map(); let spawnSet;
-if (CLONES === 0) { spawnSet = realSet; for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') { const h = id === baseWolf.spec.id ? { text: recordText } : await honestRecord(sp); if (h) recordOf.set(id, h.text); } }
+const recordOf = new Map(), secondsOf = new Map(); let spawnSet;   // secondsOf: each record's own fight length (they differ by spawn id), which the kill cycle must wait out
+if (CLONES === 0) { spawnSet = realSet; for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') { const h = id === baseWolf.spec.id ? { text: recordText, seconds: recordSeconds } : await honestRecord(sp); if (h) { recordOf.set(id, h.text); secondsOf.set(id, h.seconds); } } }
 else {
   spawnSet = new Map();
-  for (let n = 0; spawnSet.size < CLONES && n < CLONES * 4; n++) { const id = `wolves-${n + 100}`, sp = { ...baseWolf, spec: { ...baseWolf.spec, id } }, h = await honestRecord(sp); if (h) { spawnSet.set(id, sp); recordOf.set(id, h.text); } }
+  for (let n = 0; spawnSet.size < CLONES && n < CLONES * 4; n++) { const id = `wolves-${n + 100}`, sp = { ...baseWolf, spec: { ...baseWolf.spec, id } }, h = await honestRecord(sp); if (h) { spawnSet.set(id, sp); recordOf.set(id, h.text); secondsOf.set(id, h.seconds); } }
   if (spawnSet.size < CLONES) throw new Error(`only ${spawnSet.size} of ${CLONES} clone spawns have an honest record`);
 }
 const spawnIds = [...spawnSet.keys()];
@@ -112,7 +112,7 @@ try {
     const instance = CLONES === 0 ? spawnIds[Math.floor(Math.random() * spawnIds.length)] : spawnIds[cycle++ % spawnIds.length], spawn = spawnSet.get(instance);
     const e = await post('engage', n, { character: chars[n], instance });
     if (e.status !== 200 || !e.json?.result?.token) { bump(`engage ${e.status} ${e.json?.reason ?? e.json?.error ?? ''}`.trim()); return; }
-    await sleep(Math.max(minKillMs(spawn.hp) + 30, recordSeconds * 1000 + 300));   // the DB's time-to-kill floor, and the recorded fight's own length (13.5 s here), so the replay is not 'overlong'
+    await sleep(Math.max(minKillMs(spawn.hp) + 30, (secondsOf.get(instance) ?? recordSeconds) * 1000 + 300));   // the DB's time-to-kill floor, and the recorded fight's own length (13.5 s here), so the replay is not 'overlong'
     const k = await post('kill_report', n, { token: e.json.result.token, hits: minHits(spawn.hp), record: recordOf.get(instance) ?? recordText });
     bump(k.status === 200 ? 'killed' : `kill_report ${k.status} ${k.json?.reason ?? k.json?.error ?? ''}`.trim());
   };
