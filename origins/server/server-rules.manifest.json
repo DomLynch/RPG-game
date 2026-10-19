@@ -166,6 +166,27 @@
       }
     },
     {
+      "table": "spawnLayers",
+      "file": "server-rules.json",
+      "at": "spawnLayers",
+      "key": "id",
+      "required": {
+        "janitorEveryS": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "dynamicRespawn",
+      "file": "server-rules.json",
+      "at": "dynamicRespawn",
+      "key": "id",
+      "required": {
+        "playersFull": "integer",
+        "floorS": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "strictRevert",
       "file": "server-rules.json",
       "at": "strictRevert",

@@ -178,7 +178,7 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
 };
 const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
 const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: sceneOf });
-// A creature's dropped loot piece (unlisted zones only, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
+// A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
 const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
@@ -191,7 +191,7 @@ if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
   { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => frontierGroup?.add(g)).catch(() => {}); }   // the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
-  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; });   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
@@ -206,7 +206,12 @@ const GAP = previewRule('gateGap');   // radians either side of the gate
 arena.group.traverse((o) => {
   if (o.name !== 'backdrop' || !(o instanceof THREE.Mesh)) return;
   o.geometry.dispose();
-  o.geometry = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  const geo = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  // The cut edges fade out (vertex alpha) so the painting never ends in a hard-edged rectangle against the sky: u runs 0..1 along the arc, and the alpha ramps over gateGapFade of it at each end
+  const FADE = previewRule('gateGapFade'), WHITE = [1, 1, 1], uv = geo.attributes.uv, channels = WHITE.length + 1, tint = new Float32Array(uv.count * channels);
+  for (let i = 0; i < uv.count; i++) { const u = uv.getX(i); tint.set([...WHITE, THREE.MathUtils.smoothstep(Math.min(u, 1 - u), 0, FADE)], i * channels); }
+  geo.setAttribute('color', new THREE.BufferAttribute(tint, channels)); (o.material as THREE.MeshBasicMaterial).vertexColors = true; o.material.needsUpdate = true;
+  o.geometry = geo;
 });
 function environment(sky?: THREE.Texture) {
   const pmrem = new THREE.PMREMGenerator(renderer), room = sky ? null : new RoomEnvironment();
@@ -263,7 +268,7 @@ const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null;   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
 const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
-if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
+if (start) { state.x = start.x; state.z = start.z; heading = fxNum('start.face-on') > 0 ? fxNum('start.face-rad') : start.facing; }   // the hero starts facing the camp wall and the sun, as the Test Zone's start did (start.face-rad is the compass heading to the sun, rad; start.face-on 0 = toward the first creatures, as before)
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
 const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
@@ -532,7 +537,7 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 }
 // "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
-let zoneReadyAt = -1;
+let zoneReadyAt = -1, domeDrawn = !ZONE_SKY;   // domeDrawn: the painted dome exists and has been drawn for a few frames, so its sector programs (the zero-scale twin, horizon-dome.ts) are built: [zone ready] waits for it, or the first draw of them would compile after it (seamless-quiet, K3b)
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
@@ -558,9 +563,9 @@ const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [
 const outfit = createOutfit();
 const NO_GEAR = { ids: [] as readonly string[], tiers: {} as Record<string, Tier> };
 async function applySelf() {
-  const unlisted = !!loadZone().unlisted;
-  if (!warriors || !(selfWorn ?? (unlisted ? NO_GEAR : null))) return;
-  const dressed = dressedSet(selfWorn ?? NO_GEAR, outfit, unlisted), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  const base = selfWorn ?? (loadZone().unlisted || outfit.ids().length ? NO_GEAR : null);   // a guest in a listed zone keeps the default look until a dropped piece is taken; the sandbox always dresses from the bare body
+  if (!warriors || !base) return;
+  const dressed = dressedSet(base, outfit), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
     const pieces = await sharedLoot();
@@ -676,7 +681,7 @@ function zoneReadyCheck() {
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
-  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
@@ -719,7 +724,7 @@ if (frontier) {
   void import('./pit-duel.ts').then(async (m) => {
     await m.sceneReady;
     duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit'); syncSpell2Button();   // the Pit's buttons exist now: show SPELL 2 if slot b is already filled
-    hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and tap STRIKE (slide to stab or slash, hold for heavy) to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
     if (menu && chips) {
@@ -933,12 +938,12 @@ function heroDeathSequence() {
   document.body.append(veil);
   setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
-// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox zones only (row `warband.enabled`).
+// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Every zone since 2026-10-19 (row `warband.enabled` switches it).
 const warBandRun = createWarBandRun({
   mobs: () => mobs ?? undefined, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
-  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => !!loadZone().unlisted && fxNum('warband.enabled') > 0,
+  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => fxNum('warband.enabled') > 0,
 });
-// A creature of an UNLISTED zone drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
+// A creature (every zone since 2026-10-19; the sandbox's rule moved over) drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
 const killDrops = createKillDrops({
   view: dropItems, itemOf: groundItemOf, found: createFound(), reach: fxNum('drop.reach'),
   onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
@@ -954,8 +959,8 @@ function creatureFell(spec: MobSpec) {
   warBandRun.fell(spec.id);
   const fellAt = mobs?.find(spec.id);
   mobs?.fell(spec.id);
-  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved
-  if (sandbox && fellAt) dropLoot(spec, fellAt);
+  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved (a listed zone reports every kill, unchanged)
+  if (fellAt) dropLoot(spec, fellAt);   // every zone: what the creature wore lies on the ground (Dom 2026-10-19, everything from the sandbox); local only, the paid loot is the server's
   const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record(), wc.recordDrop())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
@@ -1032,7 +1037,7 @@ const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => 
  wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
-  regen: () => (regenOn(!!(zoneRow ?? loadZone()).unlisted) ? regenRules(regenSeconds) : null),   // sandbox zones only; the Pit and every listed zone get none (hero-regen.ts)
+  regen: () => (regenOn() ? regenRules(regenSeconds) : null),   // every open-world zone (row regen.out-of-combat); the Pit has no world combat loop (hero-regen.ts)
   loadoutReady,
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { warBandRun.hit(spec.id); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
@@ -1087,6 +1092,7 @@ function programOwners(): Record<string, string[]> {
   promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
+  goblinCentre: () => goblinKit?.centre ?? null, goblinKitCount: () => goblinKit ? { pieces: goblinKit.dress.pieces.length, ground: goblinKit.dress.ground.length, models: goblinKit.models.length, solids: goblinKit.dress.solids.length, fires: goblinKit.fires.length } : null,   // where the zone's prop kit camp stands and how much it laid (null = no kit), for the same-spot stills
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },

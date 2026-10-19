@@ -11,7 +11,8 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { worldMetres } from '../presence/zones.ts';
-import { reachOf } from '../presence/where.ts';
+import { reachOf, type LayerCountsFn } from '../presence/where.ts';
+import { dynamicRespawnS } from './dynamic-respawn.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
@@ -63,7 +64,7 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
     const loot = rows.find((r) => r.id === spec.character)?.loot;
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
   }
   return out;
 }
@@ -118,13 +119,13 @@ const GONE = (e: unknown): never => {
 const REFUSAL: Record<string, [409 | 422 | 429, string]> = {
   dead: [409, 'the creature is dead'], 'too-many': [429, 'too many open engages'], cap: [429, 'kill cap reached'],
   'too-fast': [422, 'killed faster than the creature can die'], 'too-few-hits': [422, 'fewer hits than the creature can take'], away: [422, 'too far from the creature'],
-  unchecked: [422, 'position not checked'],
+  unchecked: [422, 'position not checked'], moved: [409, 'moved to another layer since the engage'], cooldown: [422, 'already killed in another layer within the respawn window'],
 };
 const refuse = (why: string): never => { const [status, message] = REFUSAL[why] ?? [422, why]; throw new Refused(status, message, why); };
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { damageShare?: boolean; verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { damageShare?: boolean; spawnLayers?: boolean; dynamicRespawn?: boolean; layerCounts?: LayerCountsFn; verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -135,9 +136,18 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   const inflight = new Map<string, number>();   // replays queued per account right now (the worldShare.replaysPerAccount cap)
   const seed = deps.seed ?? (() => randomInt(1, SEED_LIMIT)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
 
-  const spawnState: Handler = async ({ db }, body) => {
+  // The layer an account stands in (presence's copy of the world; docs/specs/origins/per-layer-spawns.md, behind `spawnLayers`). Nothing in a body names a layer: it is presence's word. Off, or an account presence
+  // does not hold, or presence unreachable: `undefined` for the layer-less path / layer 1, today's single pool, so an outage degrades to how it was and never stops a kill.
+  const FIRST_LAYER = 1;
+  const layerOf = async (where: Parameters<Handler>[0]['where'], account: string): Promise<{ layer: number | undefined; known: boolean }> => {
+    if (!deps.spawnLayers) return { layer: undefined, known: false };
+    if (!where) return { layer: FIRST_LAYER, known: false };
+    try { const w = await where(account); return w.online ? { layer: w.layer, known: true } : { layer: FIRST_LAYER, known: false }; } catch { return { layer: FIRST_LAYER, known: false }; }
+  };
+
+  const spawnState: Handler = async ({ db, account, where }, body) => {
     const zoneId = zoneOf(body.zoneId), list = [...spawnsOf(zoneId).values()].filter((s) => body.zone === undefined || s.spec.zone === body.zone);
-    const got = await store.spawnState(db, list.map((s) => s.spec.id));
+    const got = await store.spawnState(db, list.map((s) => s.spec.id), (await layerOf(where, account)).layer);
     if (got === null) return absent();
     const known = new Map(got.spawns.map((s) => [s.instance, s]));
     return {
@@ -149,13 +159,13 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     };
   };
 
-  const engage: Handler = async ({ db, account }, body) => {
+  const engage: Handler = async ({ db, account, where }, body) => {
     const { character, instance } = body;
     if (typeof character !== 'string' || !CHARACTER.test(character)) throw new BadRequest('character: a character id');
     if (typeof instance !== 'string' || !INSTANCE.test(instance) || zoneOfKey(instance) === null) throw new BadRequest('instance: a spawn id');
     const zoneId = zoneOf(body.zoneId), spawn = spawnsOf(zoneId).get(instance);
     if (!spawn) throw new BadRequest(`instance: not a Zone ${zoneId} spawn`);
-    const got = await store.spawnEngage(db, account, character, randomBytes(ENGAGE_TOKEN_BYTES).toString('base64url'), instance, spawn.spec.character);
+    const got = await store.spawnEngage(db, account, character, randomBytes(ENGAGE_TOKEN_BYTES).toString('base64url'), instance, spawn.spec.character, (await layerOf(where, account)).layer);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     return { token: got.token, instance, zoneId, generation: got.generation, kind: spawn.spec.character, level: spawn.spec.level, hp: spawn.hp, expiresAt: got.expiresAt };
@@ -186,6 +196,19 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
+    // The token binds its layer (migration 20261019170000). If presence now says the account stands in ANOTHER layer the kill is refused 'moved' (writes nothing, the token stays open until it expires), so a hop
+    // mid-fight cannot carry a fight across copies. Presence unable to answer: the kill pays on the token's own layer, unchecked, as reach is.
+    const layer = deps.spawnLayers === true ? open.layer : undefined;
+    if (layer !== undefined) {
+      const stands = await layerOf(where, account);
+      if (stands.known && stands.layer !== layer) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused moved (layer ${layer} -> ${stands.layer})`); return refuse('moved'); }
+    }
+    // Dynamic respawn (behind `dynamicRespawn`, rows `dynamicRespawn`): a layer holding more than the row's players respawns its creatures faster, down to a floor, so a crowded layer does not starve. It changes ONLY the spawn's
+    // own clock (the SQL kill functions take the same p_respawn_s for respawn_at AND for the cross-layer hop window, so the shortened value would shrink that window too). The row window is held by the damage-share
+    // pre-check below, which passes spawn.respawnS (the ROW's) to origins_spawn_check_layer before the kill; so the writer refuses ORIGINS_DYNAMIC_RESPAWN unless ORIGINS_DAMAGE_SHARE is on (spawn-flags.ts). No count
+    // (flag off, presence unreachable or older): the row's respawn.
+    let respawnS = spawn.respawnS;
+    if (deps.dynamicRespawn && layer !== undefined && deps.layerCounts) respawnS = dynamicRespawnS(spawn.respawnS, (await deps.layerCounts().catch(() => null))?.players[layer]);
     // Reach: a fresh placed pose in the spawn's zone is checked (too far = refused). Anything else is 'unchecked', and an unchecked kill PAYS IN FULL unless `refuseUnchecked`
     // (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422; the ledger row only records which it was. The v2 presence client is shipped and on by default (presence-client.ts), so the flip waits on the
     // measured checked rate (Auditor 2026-10-18: 0 of the first live kills were checked), not on a client. The why is in the log line.
@@ -202,7 +225,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // cap) BEFORE any replay is queued, so a report that cannot pay never costs a replay; and whether it is the creature's first kill or a join to a kill made while this token was open.
     let sharing: { joined: boolean; generation: number } | null = null;
     if (deps.damageShare) {
-      const chk = await store.spawnCheck(db, account, token, minKillMs(spawn.hp), SHARE.joinWindowS).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));
+      const chk = await store.spawnCheck(db, account, token, minKillMs(spawn.hp), SHARE.joinWindowS, layer === undefined ? undefined : spawn.respawnS).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));
       if (chk !== null) {   // null = the migration is not applied: the old way (first valid report wins)
         if (typeof chk.refused === 'string') return refuse(chk.refused);
         sharing = { joined: chk.mode === 'join', generation: chk.generation ?? open.generation };
@@ -247,7 +270,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     if (sharing) {
       if (verdict?.ok) {
         damage = verdict.damage ?? 0;
-        const prior = await store.spawnDamage(db, open.instance, sharing.generation).catch(() => null) ?? [];
+        const prior = await store.spawnDamage(db, open.instance, sharing.generation, layer).catch(() => null) ?? [];
         share = shares([...prior.map((p) => ({ id: p.token, damage: p.damage })), { id: token, damage }], spawn.hp, SHARE).get(token) ?? 0;
       } else if (sharing.joined) return refuse('dead');
     }
@@ -260,14 +283,14 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     };
     if (sharing) Object.assign(event.payload as object, { share, damage, joined: sharing.joined });   // the kill credit's own receipt in the event (only with damageShare)
     const commit = (wear: store.Json[]) => (sharing
-      ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)
-      : store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach })).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
+      ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)
+      : store.spawnKill(db, account, token, minKillMs(spawn.hp), respawnS, [event, ...paid.batch, ...wear], { reach })).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
     const got = pays
       ? await settleWithWear({ db, account, ownEventId: `enc:${token}`, wear: () => killWearLines(db, { account, character: open.character, token }, inventory), commit })
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}${sharing ? ` share=${share} damage=${damage}${sharing.joined ? ' joined' : ''}` : ''}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}${layer === undefined ? '' : ` layer=${layer}${respawnS === spawn.respawnS ? '' : ` respawn=${respawnS}s(row ${spawn.respawnS}s)`}`}${sharing ? ` share=${share} damage=${damage}${sharing.joined ? ' joined' : ''}` : ''}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true, ...(sharing ? { share, joined: sharing.joined } : {}) };
   };
 

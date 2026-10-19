@@ -20,7 +20,7 @@ test('every presence rule equals the literal it replaced', () => {
   assert.equal(PRESENCE_RULES.length, 52);
   assert.deepEqual([presenceRule('roadBehindM'), presenceRule('roadPastM')], [2.5, 0.5], 'the west road\'s margins zones.ts used to hold');
   assert.deepEqual([presenceRule('whereTimeoutMs'), presenceRule('wornPokeTimeoutMs'), presenceRule('presencePort'), presenceRule('logEveryMs'), presenceRule('testIpSockets'), presenceRule('testIpJoinsPerMinute')], [1500, 1000, 8793, 60_000, 1000, 100_000], 'the literals where.ts and main.ts used to hold');
-  assert.deepEqual([presenceRule('maxLayers'), presenceRule('internalBodyMax'), presenceRule('tokenMaxChars'), presenceRule('tickChecksPerTick')], [8, 1024, 4096, 4], 'the literals server.ts used to hold');
+  assert.deepEqual([presenceRule('maxLayers'), presenceRule('internalBodyMax'), presenceRule('tokenMaxChars'), presenceRule('tickChecksPerTick')], [20, 1024, 4096, 4], 'the literals server.ts used to hold (maxLayers 8 -> 20, 2026-10-19: 8 layers at the 80 soft cap stopped one process at 640 players; 20 holds the measured ~1,500 per process, docs/specs/origins/per-layer-spawns.md section 5)');
   assert.deepEqual([presenceRule('writerWornTimeoutMs'), presenceRule('writerSavedTimeoutMs'), presenceRule('writerSaveTimeoutMs')], [1500, 500, 1500], 'the writer-call timeouts location.ts used to hold');
   assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling'), presenceRule('wornEveryMs'), presenceRule('closeGraceMs'), presenceRule('wornPokeGapMs'), presenceRule('saveEveryMs')], [6, 2, 64, 30_000, 1000, 500, 5 * 60_000]);
 });

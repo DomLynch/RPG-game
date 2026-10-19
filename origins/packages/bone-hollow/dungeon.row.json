@@ -102,6 +102,7 @@
         5,
         6
       ],
+      "respawnSeconds": 40,
       "behaviour": {
         "roam": 8,
         "spread": 16,

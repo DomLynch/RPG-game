@@ -1,7 +1,7 @@
 // The painted horizon dome (a zone row's `look.sky`, World lane): the Pit's 2D-sky trick for a zone: one canvas painting (a gradient sky, a glow on the horizon, two ridge silhouettes and a few far smoke columns)
 // on the inside of a big dome that follows the camera, drawn first with no depth, so the ground's fog meets the painting's horizon colour without a line. Every colour and number is a row
 // (origins/world/goblin-field-defs.json); the colours are one palette row (a zone row names it: look.sky). `ridgeProfile` and `smokeColumns` are pure and tested; the painting and the mesh are browser-only (stills check them).
-// Ported from the Test Zone's branch (zone/goblin-field-dome, Dom's reference look): the painted sky and the repeat ring of the palette's picture only; the sector and matte-card pictures wait for their rows.
+// Ported from the Test Zone's branch (zone/goblin-field-dome, Dom's reference look): the painted sky, the repeat ring of the palette's picture AND (since 2026-10-19) the sector and matte-card pictures: the portrait row of the fortress palette is a matte card, so without them a phone threw "non-finite" in the ring painter and kept the plain sky.
 import * as THREE from 'three';
 import { prng } from '../world/generate.ts';
 import { goblinBackdrop, goblinHarmonics, goblinRule as R, type GoblinBackdrop, type GoblinPalette } from '../world/goblin-field-rules.ts';
@@ -47,7 +47,21 @@ function paintBackdrop(g: CanvasRenderingContext2D, w: number, yh: number, S: Go
   o.drawImage(img, sx, sy1 - sh, sw, sh, 0, 0, cw, ch);
   o.globalCompositeOperation = 'destination-in'; const head = o.createLinearGradient(0, 0, 0, ch); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(b.fadeTop, 'rgba(0,0,0,1)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, cw, ch);   // over the WHOLE crop: destination-in clears whatever the fill does not cover
   o.globalCompositeOperation = 'source-over'; const foot = o.createLinearGradient(0, ch * (1 - b.fadeFoot), 0, ch); foot.addColorStop(0, clear(S.horizon)); foot.addColorStop(1, S.horizon); o.fillStyle = foot; o.fillRect(0, ch * (1 - b.fadeFoot), cw, ch * b.fadeFoot);
-  for (let i = 0; i < b.repeat!; i++) { g.save(); if (i % 2) { g.translate((i + 1) * cw, 0); g.scale(-1, 1); } else g.translate(i * cw, 0); g.drawImage(one, 0, yh - ch); g.restore(); }   // odd copies mirrored: every seam meets its own edge
+  for (let i = 0; i < b.repeat!; i++) { g.save(); if (i % 2) { g.translate((i + 1) * cw, 0); g.scale(-1, 1); } else g.translate(i * cw, 0); g.drawImage(one, 0, yh - ch + ch * b.drop); g.restore(); }   // odd copies mirrored: every seam meets its own edge
+}
+
+/** A SECTOR backdrop (an `arc` row): the picture at its own native resolution, once, over `arc` degrees of sky facing `azimuth`: not wrapped round the whole dome, which a phone's texture limit would stretch about five times.
+ *  The crop's foot fades into the palette's horizon colour, its head and both sides into transparent (the painted sky shows through). Returns the canvas and the band's angular height in degrees (arc x height / width). */
+function sectorCanvas(S: GoblinPalette, img: HTMLImageElement, b: GoblinBackdrop): { canvas: HTMLCanvasElement; heightDeg: number } {
+  const sx = b.x0 * img.naturalWidth, sy0 = b.y0 * img.naturalHeight, sw = (b.x1 - b.x0) * img.naturalWidth, sh = (b.y1 - b.y0) * img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = Math.round(sw); c.height = Math.round(sh); const o = c.getContext('2d')!, w = c.width, h = c.height;
+  o.drawImage(img, sx, sy0, sw, sh, 0, 0, w, h);
+  o.globalCompositeOperation = 'destination-in';
+  const head = o.createLinearGradient(0, 0, 0, h); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(b.fadeTop, 'rgba(0,0,0,1)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, w, h);
+  const side = o.createLinearGradient(0, 0, w, 0), e = b.fadeSide ?? 0; side.addColorStop(0, 'rgba(0,0,0,0)'); side.addColorStop(e, 'rgba(0,0,0,1)'); side.addColorStop(1 - e, 'rgba(0,0,0,1)'); side.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = side; o.fillRect(0, 0, w, h);
+  o.globalCompositeOperation = 'source-over'; const yh = h * (1 - b.drop), f0 = yh - h * b.fadeFoot;   // the horizon row sits `drop` of the height above the picture's foot: the fade ends AT it, in the haze colour the far ground is fogged to, and the rows below it (behind the ground) are solid haze
+  const foot = o.createLinearGradient(0, f0, 0, yh); foot.addColorStop(0, clear(S.horizon)); foot.addColorStop(1, S.horizon); o.fillStyle = foot; o.fillRect(0, f0, w, yh - f0); o.fillStyle = S.horizon; o.fillRect(0, yh, w, h - yh);
+  return { canvas: c, heightDeg: (b.arc! * h) / w };
 }
 
 /** The dome in one palette: add it to the scene once; call follow(camera) each frame. dispose() frees the texture. When the palette names backdrops, the painted sky shows at once and the
@@ -60,7 +74,34 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
   const mesh = new THREE.Mesh(geo, mat); mesh.name = 'horizon-dome'; mesh.renderOrder = -1000; mesh.frustumCulled = false; scene.add(mesh);
   const shape = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null, images = new Map<string, Promise<HTMLImageElement>>();
   const load = (file: string) => { let p = images.get(file); if (!p) { p = new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = `${base}${file}`; }); images.set(file, p); } return p; };
-  const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch((e: unknown) => console.warn('zone dome: the backdrop did not paint; the painted sky stays', b.file, e)); };   // a missing picture leaves the painted sky
+  let sector: THREE.Group | null = null, sectorOf: GoblinBackdrop | null = null;
+  const dropSector = () => { if (!sector) return; scene.remove(sector); const maps = new Set<THREE.Texture>(); sector.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); const mt = m.material as THREE.MeshBasicMaterial; if (mt.map) maps.add(mt.map); mt.dispose(); }); maps.forEach((t) => t.dispose()); sector = null; sectorOf = null; };
+  const showSector = (img: HTMLImageElement, b: GoblinBackdrop) => {   // (depthTest ON: a see-through layer is drawn after every opaque one, so with the test off it painted over the ground and the props)  one non-repeating arc at the picture's own resolution, facing b.azimuth; the dome's painted sky shows round it
+    if (sectorOf === b) return; dropSector();
+    const { canvas, heightDeg } = sectorCanvas(palette, img, b), t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1;   // seen from inside the sphere u runs leftwards: flipped so the picture reads the right way round
+    const arc = (b.arc! * Math.PI) / 180, hRad = (heightDeg * Math.PI) / 180, az = (b.azimuth! * Math.PI) / 180, phiMid = Math.atan2(Math.cos(az), -Math.sin(az)), bottom = Math.PI / 2 + hRad * b.drop;   // three's sphere: x = -r cos(phi) sin(theta), z = r sin(phi) sin(theta)
+    const dist = R('domeRadius') * R('sectorInset'), around = b.flat ? 1 : (b.around ?? 1), group = new THREE.Group(); group.name = 'horizon-sector';
+    const tm = t.clone(); tm.repeat.x = 1; tm.offset.x = 0; tm.needsUpdate = true;   // the mirrored copy of the texture (the same pixels): every second copy round the dome is flipped, so neighbouring copies meet edge to edge and the picture is on every side of the camera
+    let g: THREE.BufferGeometry;
+    if (b.flat) {   // a MATTE CARD (Gothic / Morrowind's distant landmark): one flat quad facing the camp, native pixels, no curvature; same rows (arc = the angle it spans, azimuth, drop, crop)
+      const width = 2 * dist * Math.tan(arc / 2), height = (width * canvas.height) / canvas.width, plane = new THREE.PlaneGeometry(width, height);
+      plane.translate(0, dist * Math.tan(-hRad * b.drop) + height / 2, 0);   // its foot `drop` of the band below the horizon
+      plane.rotateY(Math.PI + az); plane.translate(Math.sin(az) * dist, 0, Math.cos(az) * dist); g = plane;   // faces the camera at the origin (normal = bearing az + 180 degrees)
+      t.repeat.x = 1; t.offset.x = 0;   // a front-facing card reads left to right: no flip
+    } else g = new THREE.SphereGeometry(dist, 48, 16, phiMid - arc / 2, arc, bottom - hRad, hRad);
+    for (let k = 0; k < around; k++) {
+      const geometry = k === 0 ? g : new THREE.SphereGeometry(dist, 48, 16, phiMid + (k * 2 * Math.PI) / around - arc / 2, arc, bottom - hRad, hRad);
+      const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: k % 2 ? tm : t, side: b.flat ? THREE.FrontSide : THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); m.renderOrder = mesh.renderOrder + 1; m.frustumCulled = false; group.add(m);
+    }
+    group.position.copy(mesh.position); scene.add(group); sector = group; sectorOf = b;
+  };
+  const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; if (b.arc !== undefined) { showSector(img, b); return; } dropSector(); const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch((e: unknown) => console.warn('zone dome: the backdrop did not paint; the painted sky stays', b.file, e)); };   // a missing picture leaves the painted sky
+  // The sector's material is a TRANSPARENT MeshBasicMaterial with a map: a program the opaque dome does not share, and its picture arrives after the file loads. A zero-scale twin with the same settings is drawn from the first frame, so that program is built before [zone ready] and the picture's arrival (or the engage that turns the camera to it) compiles nothing (seamless-quiet, K2b/K2c 2026-10-19).
+  let warm: THREE.Mesh | null = null;
+  if (goblinBackdrop(palette, shape?.matches ?? true)?.arc !== undefined) {
+    warm = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false }));
+    warm.name = 'horizon-sector-warm'; warm.scale.setScalar(0); warm.frustumCulled = false; scene.add(warm);
+  }
   show(); shape?.addEventListener('change', show);
-  return { mesh, covers: 'sky' /* the Pit's sky mesh name (src/arena.ts): the zone dome replaces it */, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); }, dispose() { alive = false; shape?.removeEventListener('change', show); scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
+  return { mesh, covers: 'sky' /* the Pit's sky mesh name (src/arena.ts): the zone dome replaces it */, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); sector?.position.copy(mesh.position); }, dispose() { alive = false; shape?.removeEventListener('change', show); dropSector(); if (warm) { scene.remove(warm); warm.geometry.dispose(); (warm.material as THREE.Material).dispose(); } scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
 }
