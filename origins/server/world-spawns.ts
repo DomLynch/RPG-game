@@ -11,7 +11,8 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { worldMetres } from '../presence/zones.ts';
-import { reachOf } from '../presence/where.ts';
+import { reachOf, type LayerCountsFn } from '../presence/where.ts';
+import { dynamicRespawnS } from './dynamic-respawn.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
@@ -124,7 +125,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { damageShare?: boolean; spawnLayers?: boolean; verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { damageShare?: boolean; spawnLayers?: boolean; dynamicRespawn?: boolean; layerCounts?: LayerCountsFn; verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; reachTally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -202,6 +203,12 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       const stands = await layerOf(where, account);
       if (stands.known && stands.layer !== layer) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused moved (layer ${layer} -> ${stands.layer})`); return refuse('moved'); }
     }
+    // Dynamic respawn (behind `dynamicRespawn`, rows `dynamicRespawn`): a layer holding more than the row's players respawns its creatures faster, down to a floor, so a crowded layer does not starve. It changes ONLY the spawn's
+    // own clock (the SQL kill functions take the same p_respawn_s for respawn_at AND for the cross-layer hop window, so the shortened value would shrink that window too). The row window is held by the damage-share
+    // pre-check below, which passes spawn.respawnS (the ROW's) to origins_spawn_check_layer before the kill; so the writer refuses ORIGINS_DYNAMIC_RESPAWN unless ORIGINS_DAMAGE_SHARE is on (spawn-flags.ts). No count
+    // (flag off, presence unreachable or older): the row's respawn.
+    let respawnS = spawn.respawnS;
+    if (deps.dynamicRespawn && layer !== undefined && deps.layerCounts) respawnS = dynamicRespawnS(spawn.respawnS, (await deps.layerCounts().catch(() => null))?.players[layer]);
     // Reach: a fresh placed pose in the spawn's zone is checked (too far = refused). Anything else is 'unchecked', and an unchecked kill PAYS IN FULL unless `refuseUnchecked`
     // (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422; the ledger row only records which it was. The v2 presence client is shipped and on by default (presence-client.ts), so the flip waits on the
     // measured checked rate (Auditor 2026-10-18: 0 of the first live kills were checked), not on a client. The why is in the log line.
@@ -276,14 +283,14 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     };
     if (sharing) Object.assign(event.payload as object, { share, damage, joined: sharing.joined });   // the kill credit's own receipt in the event (only with damageShare)
     const commit = (wear: store.Json[]) => (sharing
-      ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)
-      : store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...wear], { reach })).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
+      ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)
+      : store.spawnKill(db, account, token, minKillMs(spawn.hp), respawnS, [event, ...paid.batch, ...wear], { reach })).catch((e: unknown) => (e instanceof DbError && e.code === 'O0009' ? usedToken(db, account, token) : GONE(e)));   // a duplicate that raced the first report reads its receipt too
     const got = pays
       ? await settleWithWear({ db, account, ownEventId: `enc:${token}`, wear: () => killWearLines(db, { account, character: open.character, token }, inventory), commit })
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}${layer === undefined ? '' : ` layer=${layer}`}${sharing ? ` share=${share} damage=${damage}${sharing.joined ? ' joined' : ''}` : ''}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''} qa=${qaState}${layer === undefined ? '' : ` layer=${layer}${respawnS === spawn.respawnS ? '' : ` respawn=${respawnS}s(row ${spawn.respawnS}s)`}`}${sharing ? ` share=${share} damage=${damage}${sharing.joined ? ' joined' : ''}` : ''}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true, ...(sharing ? { share, joined: sharing.joined } : {}) };
   };
 

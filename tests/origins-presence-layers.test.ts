@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence } from '../origins/presence/server.ts';
 import { RULES } from '../origins/presence/interest.ts';
-import { presenceLayers } from '../origins/presence/where.ts';
+import { presenceLayerCounts, presenceLayers } from '../origins/presence/where.ts';
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const KEY = 'test-internal-key-0123456789';
@@ -22,7 +22,7 @@ test('layers: the ids that exist now, in order, and a layer that closed (empty p
     const a = p.world.join(acct(1), clock.t)!, b = p.world.join(acct(2), clock.t)!;   // softCap 1: the second account opens a second layer
     const layers = presenceLayers(base, KEY);
     assert.deepEqual(await layers(), [a.layer.id, b.layer.id].sort((x, y) => x - y));
-    p.world.leave(b, clock.t);
+    assert.deepEqual(await presenceLayerCounts(base, KEY)(), { layers: [a.layer.id, b.layer.id].sort((x, y) => x - y), players: { [a.layer.id]: 1, [b.layer.id]: 1 } }, 'and how many players each holds');    p.world.leave(b, clock.t);
     clock.t += RULES.emptyLayerMs + 1;
     p.world.sweep(clock.t);
     assert.deepEqual(await layers(), [a.layer.id], 'the empty layer was closed by the sweep and no longer listed');
@@ -45,8 +45,10 @@ test('layers: no key, a wrong key or no configured key is refused, and the answe
 });
 
 test('layers client: a malformed answer is an error, never an empty list', async () => {
-  for (const body of [{}, { layers: 'x' }, { layers: [0] }, { layers: [1.5] }, { layers: ['1'] }]) {
+  for (const body of [{}, { layers: 'x' }, { layers: [0] }, { layers: [1.5] }, { layers: ['1'] }, { layers: [1], players: 'x' }, { layers: [1], players: { 1: -1 } }, { layers: [1], players: { 1: 1.5 } }, { layers: [1], players: { x: 1 } }]) {
     const fetchImpl = (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
     await assert.rejects(presenceLayers('http://x', 'k', 1000, fetchImpl)(), /malformed/, JSON.stringify(body));
   }
+  const older = (async () => new Response(JSON.stringify({ layers: [1, 2] }), { status: 200 })) as typeof fetch;   // an older presence: ids only, no counts
+  assert.deepEqual(await presenceLayerCounts('http://x', 'k', 1000, older)(), { layers: [1, 2], players: {} });
 });

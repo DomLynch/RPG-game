@@ -37,7 +37,7 @@
     { "id": "jitterMs", "value": 500, "unit": "ms" },
     { "id": "wornPokeGapMs", "value": 500, "unit": "ms" },
     { "id": "saveEveryMs", "value": 300000, "unit": "ms" },
-    { "id": "maxLayers", "value": 8, "unit": "layers" },
+    { "id": "maxLayers", "value": 20, "unit": "layers" },
     { "id": "internalBodyMax", "value": 1024, "unit": "bytes" },
     { "id": "tokenMaxChars", "value": 4096, "unit": "chars" },
     { "id": "tickChecksPerTick", "value": 4, "unit": "checks" },
