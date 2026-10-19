@@ -3,6 +3,7 @@
 ## 2026-10-19 ~12:2x +04. LIVE = JM e2c75382d (RV79 / WSV 57; verified on #3286: writer/presence/verifiers on it, verifier RECORD_VERSION 79, NRestarts 0, no STRICT).
 **PASS since the last entry:** JM candidate #3286 @e2c75382d; #3284 @c092a9fc3 (superseded my b2bf5822b after Combat's 12:01 push); #3281 @8bc9713e5 (CS38 bow, dormant; the browser-gate run-once is owed before the cut).
 **Now:** #3283 CS36b @6b34f1bf5 (interim read OK, comment 6262507725): PASS after the retarget to trunk + shards/static + Combat's layout-A counter receipt. #3268 @7e32e99a0: if Characters' no-change still lands, PASS citing Strategy's read. #3274 Z1b has Strategy's PASS; its seamless-quiet variant hasn't run at head (flagged to Lead). #3221: not until green.
+**Gotchas (oooo/pppp):** (oooo) never send the PASS line to Lead in the same batch as the PASS post: if the head check fails, Lead gets a PASS that isn't on the thread (#3285 at 952aa6509, retracted). Post first, then message. (pppp) `gh pr checks` exits non-zero (8) while anything is pending: a monitor loop must not treat that as a failed call (`c=$(gh pr checks …; true)`), or it goes silent for 30 min (JO).
 **Gotcha (nnnn):** a head can move between the CI wait and the PASS post: re-read headRefOid right before posting, and if it moved after, mark the old PASS superseded on the thread.
 
 ## 2026-10-19 ~12:0x +04. LIVE = JL 4eb8d8016 (verified on #3278; JK3 fc162013d verified on #3275 before it).
