@@ -59,7 +59,7 @@ try {
   receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
   // The warm either ran or was SKIPPED on purpose (a slow device); never a silent third thing. Skipped: the page logged why, none warmed, not failed. Ran: not failed, and every kit in warm-kits.json warmed.
   const kitsTotal = JSON.parse(fs.readFileSync('origins/preview/warm-kits.json', 'utf8')).warmKits.length, k = receipt.remoteKitsWarm;
-  receipt.kitWarm = k.skipped ? 'skipped' : 'ran'; receipt.kitsTotal = kitsTotal;
+  receipt.kitWarm = k.skipped ? 'skipped' : 'ran'; receipt.kitsTotal = kitsTotal; receipt.warnings = warnings.slice(0, 10);   // the skip warning carries the probe's measured median
   if (k.skipped) assert.ok(k.failed === false && k.warmed === 0 && warnings.some((w) => /remote-kit warm-up skipped/.test(w)), `a skipped kit warm must be failed:false, warmed:0 and say why in the console: ${JSON.stringify({ k, warnings })}`);
   else assert.ok(k.failed === false && k.warmed > 0 && k.warmed === kitsTotal, `the kit warm ran and did not warm every kit: ${JSON.stringify(k)} of ${kitsTotal}`);
   if (SOFT) assert.ok(!k.skipped && k.warmed === kitsTotal, `?kitwarm=soft must force the warm: ${JSON.stringify(k)}`);

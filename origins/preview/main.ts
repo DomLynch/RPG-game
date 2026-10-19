@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, armWarriors, loadEquip, loadWarriors, DEFAULT_WEAPON, PLAYER_WEAPONS, type Practice, type WeaponId } from '../../src/fight/index.ts';
-import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, mountBuild, storedAccount, type OwnBuild, type Tier } from '../../src/core/index.ts';
+import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, fetchReleaseJson, mountBuild, storedAccount, type OwnBuild, type Tier } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
@@ -590,7 +590,7 @@ async function slowDevice(): Promise<boolean> {
   if (deviceSlow !== undefined) return deviceSlow;
   let kept: boolean | undefined;
   // The verdict is keyed to the live release (slowVerdictByRelease): a new sha re-measures. /release.json unreadable (dev server, offline): the time limit (slowVerdictMs) applies.
-  const release = previewRule('slowVerdictByRelease') === 1 ? await readReleaseId((signal) => fetch('/release.json', { cache: 'no-store', signal }).then((r) => r.json()), previewRule('releaseReadMs')) : undefined;
+  const release = previewRule('slowVerdictByRelease') === 1 ? await readReleaseId(fetchReleaseJson, previewRule('releaseReadMs')) : undefined;
   try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs'), release); } catch { /* storage blocked: measure */ }
   if (kept !== undefined) return (deviceSlow = kept);
   // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).

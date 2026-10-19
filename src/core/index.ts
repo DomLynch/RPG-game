@@ -58,3 +58,4 @@ export type { UpgradeReceipt } from './gear-net.ts';
 export type { UpgradeReceipt as EconomyUpgradeReceipt } from './contracts/economy.ts';
 export { tierOf } from './career-model.ts';
 export { tierOf as standingTierOf } from './contracts/world.ts';
+export { fetchReleaseJson } from './release-read.ts';
