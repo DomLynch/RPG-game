@@ -14,17 +14,19 @@ test('the picker lists the row\'s six in order, each with a role line', () => {
 
 test('a pick is kept per slot, moves rather than duplicates, and a skill outside the row is refused', () => {
   const s = mem(); useSpecialStore(s); let changes = 0; onSpecialsChanged(() => { changes++; });
-  assert.deepEqual(equippedSpecials(), [undefined, undefined]);
+  // RV80 (Dom 2026-10-19: the sandbox pre-fills SPECIAL 2): an empty SPECIAL 2 reads the betaCut row's slot2Default (cleave), or its slot2Alt (stomp) when SPECIAL 1 already is that skill.
+  assert.deepEqual(equippedSpecials(), [undefined, 'cleave']);
   equipSpecial('pommel', 0); equipSpecial('stomp', 1);
   assert.deepEqual(equippedSpecials(), ['pommel', 'stomp']); assert.equal(equippedSpecial(1), 'stomp');
   equipSpecial('stomp', 0);   // the same skill in the other slot moves
-  assert.deepEqual(equippedSpecials(), ['stomp', undefined], 'never the same skill in both slots');
-  equipSpecial('witchfire', 1); assert.deepEqual(equippedSpecials(), ['stomp', undefined], 'a skill outside the row is not equipped');
-  equipSpecial(undefined, 0); assert.deepEqual(equippedSpecials(), [undefined, undefined]); assert.equal(s.data.size, 0, 'an empty loadout leaves no key');
+  assert.deepEqual(equippedSpecials(), ['stomp', 'cleave'], 'never the same skill in both slots: the moved-out slot falls back to its default');
+  equipSpecial('witchfire', 1); assert.deepEqual(equippedSpecials(), ['stomp', 'cleave'], 'a skill outside the row is not equipped');
+  equipSpecial('cleave', 0); assert.deepEqual(equippedSpecials(), ['cleave', 'stomp'], 'SPECIAL 1 is the default skill: SPECIAL 2 takes the row\'s alternative');
+  equipSpecial(undefined, 0); assert.deepEqual(equippedSpecials(), [undefined, 'cleave']); assert.equal(s.data.size, 0, 'an empty loadout leaves no key');
   assert.ok(changes >= 5, 'every pick tells the HUD');
 });
 
 test('a corrupt value reads as no pick, and a viewer without storage keeps none', () => {
-  const s = mem(); useSpecialStore(s); s.setItem('frankendom.special.slots.v1', '{not json'); assert.deepEqual(equippedSpecials(), [undefined, undefined]);
-  useSpecialStore(undefined); equipSpecial('lunge', 0); assert.deepEqual(equippedSpecials(), [undefined, undefined]);
+  const s = mem(); useSpecialStore(s); s.setItem('frankendom.special.slots.v1', '{not json'); assert.deepEqual(equippedSpecials(), [undefined, 'cleave']);
+  useSpecialStore(undefined); equipSpecial('lunge', 0); assert.deepEqual(equippedSpecials(), [undefined, 'cleave']);
 });
