@@ -128,7 +128,7 @@ try {
   // ---- apply again ---------------------------------------------------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, LAYERS), 'utf8'));
   eq(fingerprint().functions, after.fp.functions, 're-apply after rollback: the same functions as the first apply');
-  console.log(`origins-spawn-layers-rehearsal: ${checks} checks passed (seed: 7 spawns, 7 engages, 3 ledger rows; apply ${applyMs} ms, rollback ${rollbackMs} ms, each one transaction)`);
+  console.log(`origins-spawn-layers-rehearsal: ${checks} checks passed (${REAL ? 'real rows' : 'seed'}: ${N.spawns} spawns, ${N.engages} engages, ${N.damage} damage, ${N.ledger} ledger rows; apply ${applyMs} ms, rollback ${rollbackMs} ms, each one transaction)`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
   rmSync(root, { recursive: true, force: true });
