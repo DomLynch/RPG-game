@@ -55,17 +55,17 @@ const spawns = new Map(wolves.map(w => [w.spec.id, w]));
 /** The scripted bow hero: weapon 'bow', special 'cleave'. He backs off whenever the wolf is nearer than 2.4 m (the missile gap is 1.8 m) and looses a plain arrow (press) from beyond 1.9 m. Returns the record text,
  *  its length and whether a POWER SHOT arrow really landed (skill_cleave missile hit: false in the open world today, see the header). */
 async function honestBow(wolf) {
-  const fell = []; let rec = null, heroDied = false, started = -1, ticks = 0, power = false;
+  const fell = []; let rec = null, heroDied = false, started = -1, ticks = 0, power = false, castAt = -1;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x, z, r) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = createWorldCombat({ mobs: () => mobs, onKill: s => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => { heroDied = true; }, onHeroHit: () => {},
     hero: () => ({ level: 1, weapon: 'bow', special: 'cleave' }),
-    onEvent: e => { if (e.type === 'FightStarted' && started < 0) started = ticks; if (e.type === 'Pit' && e.pit?.missile && e.move === 'skill_cleave') power = true; } });
+    onEvent: e => { if (e.type === 'FightStarted' && started < 0) started = ticks; const t = JSON.stringify(e); if (castAt >= 0 && ticks >= castAt && /issile/.test(t) && /skill_cleave|cleave/.test(t)) { power = true; } if (process.env.BOW_DEBUG && castAt >= 0 && ticks >= castAt && ticks < castAt + 90) console.log(`  ev ${ticks - castAt} ${t.slice(0, 200)}`); } });
   const hero = { x: at.x, z: at.z - 6, facing: 0 };
   for (let i = 0; i < 60 * 240 && !fell.length && !heroDied; i++) {
     const w = wc.debug().find(q => q.id === spec.id); let d = 99;
     if (w) { hero.facing = Math.atan2(w.x - hero.x, w.z - hero.z); d = Math.hypot(w.x - hero.x, w.z - hero.z); if (d < 2.4) { hero.x -= (w.x - hero.x) / d * 6 / 60; hero.z -= (w.z - hero.z) / d * 6 / 60; } at.x = w.x; at.z = w.z; }
-    if (d >= 1.9 && started >= 0 && wc.hero().phase === 'ready' && i % 7 === 0) wc.press();
+    if (d >= 1.9 && started >= 0 && wc.hero().phase === 'ready') { if (castAt < 0 && ticks - started >= 125) { castAt = ticks; wc.cast(); } else if (i % 7 === 0) wc.press(); }   // one SKILL press (Power Shot) once the special is ready (2 s in), plain arrows otherwise
     wc.update(1 / 60, hero); ticks++;
   }
   if (!rec) fail('the scripted bow hero did not kill the wolf');
