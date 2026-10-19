@@ -54,7 +54,7 @@ const spawns = new Map(wolves.map(w => [w.spec.id, w]));
 
 /** The scripted bow hero: weapon 'bow', special 'cleave'. He backs off whenever the wolf is nearer than 2.4 m (the missile gap is 1.8 m) and looses a plain arrow (press) from beyond 1.9 m. Returns the record text,
  *  its length and whether a POWER SHOT arrow really landed (skill_cleave missile hit: false in the open world today, see the header). */
-async function honestBow(wolf) {
+async function honestBow(wolf, withCast = true) {
   const fell = []; let rec = null, heroDied = false, started = -1, ticks = 0, power = false, castAt = -1;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x, z, r) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
@@ -62,10 +62,10 @@ async function honestBow(wolf) {
     hero: () => ({ level: 1, weapon: 'bow', special: 'cleave' }),
     onEvent: e => { if (e.type === 'FightStarted' && started < 0) started = ticks; const t = JSON.stringify(e); if (castAt >= 0 && ticks >= castAt && /issile/.test(t) && /skill_cleave|cleave/.test(t)) { power = true; } if (process.env.BOW_DEBUG && castAt >= 0 && ticks >= castAt && ticks < castAt + 90) console.log(`  ev ${ticks - castAt} ${t.slice(0, 200)}`); } });
   const hero = { x: at.x, z: at.z - 6, facing: 0 };
-  for (let i = 0; i < 60 * 240 && !fell.length && !heroDied; i++) {
+  for (let i = 0; i < 60 * (withCast ? 60 : 240) && !fell.length && !heroDied; i++) {   // the cast attempt gets 60 s: before RV83 the SKILL press is the melee cleave, which whiffs, and the hero never recovers
     const w = wc.debug().find(q => q.id === spec.id); let d = 99;
     if (w) { hero.facing = Math.atan2(w.x - hero.x, w.z - hero.z); d = Math.hypot(w.x - hero.x, w.z - hero.z); if (d < 2.4) { hero.x -= (w.x - hero.x) / d * 6 / 60; hero.z -= (w.z - hero.z) / d * 6 / 60; } at.x = w.x; at.z = w.z; }
-    if (d >= 1.9 && started >= 0 && wc.hero().phase === 'ready') { if (castAt < 0 && ticks - started >= 125) { castAt = ticks; wc.cast(); } else if (i % 7 === 0) wc.press(); }   // one SKILL press (Power Shot) once the special is ready (2 s in), plain arrows otherwise
+    if (d >= 1.9 && started >= 0 && wc.hero().phase === 'ready') { if (withCast && castAt < 0 && ticks - started >= 125) { castAt = ticks; wc.cast(); } else if (i % 7 === 0) wc.press(); }   // one SKILL press (Power Shot) once the special is ready (2 s in), plain arrows otherwise
     wc.update(1 / 60, hero); ticks++;
   }
   if (!rec) fail('the scripted bow hero did not kill the wolf');
@@ -101,7 +101,9 @@ try {
   eq(psql(`select loc_kind || ':' || coalesce(loc_slot, '-') from public.origins_items where loc_owner = '${pcs[A]}' and item = 'item:starter.bow'`), 'equipped:main', 'the ledger holds the bow in the MAIN HAND (real gear_equip)');
   eq([(await heroLimitOf(db, A, pcs[A])).weapon, (await heroLimitOf(db, B, pcs[B])).weapon === 'bow'], ['bow', false], 'heroLimitOf: A fights with weapon bow from the ledger, B (no bow) does not');
 
-  const recA = await honestBow(wolves[0]), recB = await honestBow(wolves[1]);
+  // try the Power Shot first; if the engine cannot fire it (trunk before RV83) or the fight does not end in a kill, fall back to the plain-arrow hero (power = false): the ledger and verifier checks below are the same
+  const bowFight = async w => { try { const r = await honestBow(w, true); if (r.power) return r; } catch { /* no kill with the cast: plain arrows */ } return honestBow(w, false); };
+  const recA = await bowFight(wolves[0]), recB = await bowFight(wolves[1]);
   console.log(`not prod: disposable cluster ${root}; bow fights ${recA.fightS.toFixed(1)} s and ${recB.fightS.toFixed(1)} s; power shot landed: ${recA.power} (false on trunk before RV83: see the header; true on RV83 / #3375)`);
   // the unit verifier alone first: the record is bow, and the ledger's limit decides
   eq([(await verifyWorldRecord(recA.text, wolves[0], 'wolf', { weapon: 'bow' })).ok, (await verifyWorldRecord(recA.text, wolves[0], 'wolf', { weapon: 'knife' })).reason], [true, 'weapon'], 'verifier: the bow record passes a bow limit and is refused (weapon) against any other');
