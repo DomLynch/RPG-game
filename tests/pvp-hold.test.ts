@@ -2,12 +2,11 @@ import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sa
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATCHUP, MAX_LAG_TICKS, clearHold, newHold, onFrame, onTick, visible } from '../src/pvp-hold.ts';
-import { HIT_STOP } from '../src/hit-stop-rules.ts';
 
 type Snap = { tick: number; events: string[]; stop: number };
 const stopOf = (s: Snap) => s.stop, eventsOf = (s: Snap) => s.events;
 const snap = (tick: number, stop = 0): Snap => ({ tick, events: stop ? [`hit${tick}`] : [], stop });
-const FRAME = 1000 / 60, HIT = HIT_STOP.Hit!, KILL = HIT_STOP.Killed!;   // the rows' stops (src/hit-stop-rules.json): the fixtures follow them
+const FRAME = 1000 / 60, HIT = 50, KILL = 220;   // the hold mechanism takes whatever stop a snapshot carries; the fixtures use the stops the Pit held before RV80 (the rows are 0 ms now, Dom 2026-10-19), so the mechanism stays covered
 
 // One frame of a duel as main.ts runs it: n sim ticks (all of them, always), then the draw.
 function run(ticksPerFrame: number[], stops: Record<number, number>) {

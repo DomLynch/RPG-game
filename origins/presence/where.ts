@@ -31,14 +31,26 @@ export function presenceWhere(baseUrl: string, key: string, timeoutMs = presence
 
 // The ids of the layers presence holds right now (GET /internal/layers), for the writer's spawn janitor. Anything but a well-formed 200 is an error: the janitor deletes nothing then.
 export type LayersFn = () => Promise<number[]>;
-export function presenceLayers(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): LayersFn {
+/** What GET /internal/layers answers: the layer ids and how many players each holds right now. */
+export type LayerCounts = { layers: number[]; players: Record<number, number> };
+export type LayerCountsFn = () => Promise<LayerCounts>;
+export function presenceLayerCounts(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): LayerCountsFn {
   return async () => {
     const res = await fetchImpl(`${baseUrl}/internal/layers`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) throw new Error(`presence: HTTP ${res.status}`);
-    const o = await res.json() as { layers?: unknown };
+    const o = await res.json() as { layers?: unknown; players?: unknown };
     if (!Array.isArray(o?.layers) || !o.layers.every((n) => Number.isInteger(n) && n >= 1)) throw new Error('presence: malformed answer');
-    return o.layers as number[];
+    const players: Record<number, number> = {};
+    if (o.players !== undefined) {   // older presence: ids only, no counts
+      if (typeof o.players !== 'object' || o.players === null) throw new Error('presence: malformed answer');
+      for (const [k, v] of Object.entries(o.players)) { if (!Number.isInteger(Number(k)) || !Number.isInteger(v) || (v as number) < 0) throw new Error('presence: malformed answer'); players[Number(k)] = v as number; }
+    }
+    return { layers: o.layers as number[], players };
   };
+}
+export function presenceLayers(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): LayersFn {
+  const counts = presenceLayerCounts(baseUrl, key, timeoutMs, fetchImpl);
+  return async () => (await counts()).layers;
 }
 
 // The writer tells presence "this account's worn set may have changed" after a gear op succeeded (POST /internal/worn, the server's wornRoute). Fire and forget: the caller ignores any failure, because
