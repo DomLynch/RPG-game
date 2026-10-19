@@ -1,5 +1,9 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~11:1x +04. **#3273 PASS @1798726d4** (comment 6261541119); Lead told; Deploy's JK3 cuts on it.
+NOT YET at 75a6d405b first: shards 3/4 red (the PR made wardenHealth 65 for the sandbox-era warden, but tests/audio.test.ts ran era-off, so the exchange stalled at riposte, and audio-rules pinned 80). The shards had never run at ae1d3f3b7 because there was no auditor:ready, so I added it. Lead's fix 1798726d4 = era-on import + 80→65 pin. **Next:** JK3 candidate read (each merge = clean merge-tree), then verify the 3 services on RV78; then #3266/#3261/#3247.
+**Checklist adds:** (1) add `auditor:ready` before any content PASS, and never PASS on a head whose shards never ran; (2) Strategy: Deploy runs a "Mac pre-flight" (the candidate's Mac-only rows) before the candidate PASS. **Follow-up (Combat):** a guard that only a kill roar may set `outlive` (crowd-rows.ts dropped it).
+
 ## 2026-10-19 ~10:4x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JI 20a3d87fd (verified on #3265). TRUNK IS AHEAD OF LIVE: JK2 #3272 (BULK-CS) merged 06:10Z but deploy.sh failed rows 4 + 22; train STOPPED, deploy_hold up.
 **Now, in order.**
 1. **#3273 @ae1d3f3b7 (Combat, fix-forward for rows 4/22):** content read OK and posted with my Mac receipts (6261250377): row 4 `audio-preview --label audio-gate --check` exit 0 (1117 ticks, 12 beats); row 22's harness half passes (its dist half needs a build; Combat reports a full exit 0). **Post `Auditor: PASS @ae1d3f3b7` when shard (1)–(8) + static are green** (CI was running). Then Deploy cuts trunk + #3273: candidate PASS + candidate:pass on green, then verify the 3 services on the VPS (writer/verifier must go to RV78).
