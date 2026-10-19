@@ -14,7 +14,7 @@ import { TIERS } from '../src/core/grades.ts';
 const worn: Loot = { owned: ['starter.Longsword'], equipped: { main: 'starter.Longsword' }, taken: { 'starter.Longsword': { tier: 1 } } } as Loot, bare: Loot = { owned: [], equipped: {} };
 
 test('lootStarter: one row, a valid id that no opponent offers or drops', () => {
-  assert.deepEqual([...STARTER_LOOT], ['starter.Longsword']);
+  assert.deepEqual([...STARTER_LOOT], ['starter.Longsword', 'starter.Bow', 'starter.Staff']);   // RV81 content: the bow and staff are starter weapons beside the longsword (Lead 2026-10-19)
   assert.ok(isLootId('starter.Longsword') && LOOT_IDS.has('starter.Longsword'));
   for (const [opponent, pieces] of Object.entries(LOOT)) assert.ok(!pieces!.includes('starter.Longsword'), `${opponent} does not offer it`);
   for (let marks = 0; marks < 64; marks++) assert.notEqual(dropFor('pitborn', marks, []), 'starter.Longsword', `not dropped at ${marks} marks`);
