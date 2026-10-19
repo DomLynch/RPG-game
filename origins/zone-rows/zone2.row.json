@@ -136,7 +136,7 @@
           3
         ],
         "weight": 3,
-        "respawnSeconds": 75,
+        "respawnSeconds": 45,
         "behaviour": {
           "aggro": 6,
           "roam": 5,
