@@ -12,6 +12,14 @@ import type { MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, tallyHeroEvents, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 import { kitBuild } from '../../src/core/server.ts';
+import { forceSandbox, rows80For, setRows79, setRows80, setSandbox } from '../../src/fight/sandbox-era.ts';
+
+// The run is under tests/origins-encounter.test.ts, which forces the era off (legacy rules: specials from the Veteran rung, 16). RV80's rule (specials from level 1) is the live era's, so a test of it lifts the force for its own body and puts the run's regime back.
+const withEra = <T>(on: boolean, fn: () => T): T => {
+  const wasOff = !rows80For(80);
+  if (on) { forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(true); } else { forceSandbox(false); setSandbox(false); setRows79(false); setRows80(false); }
+  try { return fn(); } finally { if (wasOff) { forceSandbox(false); setSandbox(false); setRows79(false); setRows80(false); } else { forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(true); } }
+};
 import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
@@ -104,11 +112,23 @@ test('a mob layer is the server\'s: a record played under the layer verifies wit
   const v = verifyEncounter(record, params(spec, { layer: 'wolf-pack' })); assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /mob layer/);
 });
 
-test('the special-move phase rule covers every level and agrees with the Veteran rung', () => {
+test('the special-move phase rule covers every level and agrees with the Veteran rung (legacy era)', () => withEra(false, () => {
   const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
   assert.equal(on[0], false); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
   assert.equal(on.indexOf(true), 15, 'level 16 is the first with specials (tests/match-specials-boundary.test.ts)');
-});
+}));
+
+test('RV80: specials start at level 1 for a record at v80 or later, and a v79 record keeps the Veteran rung', () => withEra(true, () => {
+  const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
+  assert.equal(on[0], true); assert.equal(on.indexOf(true), 0, 'level 1 is the first with specials at RV80'); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
+  const old = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1, 79));
+  assert.equal(old[0], false); assert.equal(old[LEVELS - 1], true); assert.equal(old.indexOf(true), 15, 'a v79 record keeps the Veteran rung: level 16 is the first with specials');
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec);   // played in this era: a level-6 fight has specials
+  assert.equal(record.specials, true);
+  const bare: Partial<FightRecord> = { ...record }; delete bare.specials;
+  assert.equal(verifyEncounter(bare as FightRecord, params(spec)).ok, false, 'a v80 record that omits specials at level 6 is refused');
+  assert.equal(verifyEncounter({ ...record, v: 79, specials: true }, params(spec)).ok, false, 'a v79 record that claims specials at level 6 is refused (the Veteran rung is 16)');
+}));
 
 test('kit mismatch: a record played on another mob kit is refused as a kit mismatch (not judged, not a loss); no layer, no check', () => {
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731, layer: 'brute' }, { record } = finished(spec);
