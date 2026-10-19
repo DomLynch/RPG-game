@@ -144,7 +144,7 @@ test('the new fields are what their sources say: render scale, weapon, home stan
     assert.deepEqual(row.ladder, { order: at < 0 ? null : at + 1, hold: at < 0 }, `${id}: ladder`);
     assert.deepEqual(row.finisher.timing.map((t) => [t.id, t.pose, t.seconds, t.measured]), row.finisher.finishers.map((f) => [f, FINISHER_POSE[f] ?? null, finisherSeconds(f).seconds, finisherSeconds(f).measured]), `${id}: finisher timing`);
   }
-  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2, 1.8, 2.2], 'the beasts draw at the size they are met walking');
+  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2.8, 2.7, 2.2], 'the beasts draw at the size they are met walking');
   assert.equal(catalogueRow('goblin')!.home, 'trickster'); assert.equal(catalogueRow('executioner')!.home, 'aggressive'); assert.equal(catalogueRow('shieldmaiden')!.home, 'defensive');
   assert.deepEqual(CATALOGUE.filter((r) => r.ladder.order !== null).map((r) => r.ladder.order), LADDER.map((_, i) => i + 1).slice(0, LADDER.length), 'the ladder is 1..n with no gaps');
 });

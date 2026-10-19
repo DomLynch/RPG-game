@@ -11,7 +11,7 @@ import { FIGHTER_TEXTURE_CAP } from '../src/fight/quality.ts';
 import { KICK_LANDS } from '../src/fight/hud.ts';
 
 test('the exported numbers are the literals the files held before', () => {
-  assert.deepEqual([LOW_STAMINA, LOW_OFF, KICK_CLOSE_TICKS, KICK_CLOSE_GROWTH, WOLF_RENDER_SCALE, BOAR_RENDER_SCALE, BEAR_RENDER_SCALE, FIGHTER_TEXTURE_CAP, KICK_LANDS], [10, 12, 4, 0.03, 2, 1.8, 2.2, 1024, 1.5]);
+  assert.deepEqual([LOW_STAMINA, LOW_OFF, KICK_CLOSE_TICKS, KICK_CLOSE_GROWTH, WOLF_RENDER_SCALE, BOAR_RENDER_SCALE, BEAR_RENDER_SCALE, FIGHTER_TEXTURE_CAP, KICK_LANDS], [10, 12, 4, 0.03, 2.8, 2.7, 2.2, 1024, 1.5]);   // wolf 2 -> 2.8 and boar 1.8 -> 2.7: Zone 1 = Test Zone look, Dom-approved 2026-10-18
 });
 
 test('the private numbers are rows with their old values', () => {
