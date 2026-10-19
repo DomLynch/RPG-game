@@ -30,7 +30,9 @@ test('era on: a PvP duel carries the bands flag, and an off-band blow lands soft
   assert.ok(inBand !== undefined && off !== undefined, 'the scripted light blow lands at both gaps');
   assert.equal(bandFactor('longsword', 1.5), 1); assert.ok(bandFactor('longsword', 1.0) < 1, 'the longsword is off its band at 1.0 m and in it at 1.5 m');
   assert.ok(off! < inBand!, 'softer off band');
-  assert.ok(hitDamage(1.0, 1) !== undefined, 'the second player\'s blow lands too (the band reads the gap and the weapon, never the side)');
+  const inBand1 = hitDamage(1.5, 1), off1 = hitDamage(1.0, 1);   // the band reads the gap and the weapon, never the side: the second player's blow is softened off band as well
+  assert.ok(inBand1 !== undefined && off1 !== undefined, 'the second player\'s blow lands at both gaps');
+  assert.ok(off1! < inBand1!, `side 1 off band (${off1}) does less than in band (${inBand1})`);
 });
 
 test('era off: a PvP duel has no bands flag and the gap changes nothing, as before RV79', () => {
