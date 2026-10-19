@@ -134,9 +134,9 @@
   "dynamicRespawn": [
     {
       "id": "respawn",
-      "playersFull": 20,
+      "playersFull": 10,
       "floorS": 15,
-      "note": "dynamic respawn inside a layer (Dom 2026-10-19: about 30 kills an hour per hunter, per-layer copies; Lead's formula; flag ORIGINS_DYNAMIC_RESPAWN): a layer holding more than playersFull players respawns its creatures in base x playersFull / players seconds, never below floorS (about one fight, the first fight measured 13.5 s) and never above the creature's own row, so a crowded layer does not starve. Players, not hunters, are what presence can count, so this is the conservative reading: it assumes everyone present hunts. Only the clock of the spawn changes; the one-paid-kill-per-account window across layers stays the row's own respawn."
+      "note": "dynamic respawn inside a layer (Dom's ruling 2026-10-19 via Strategy, Trinity-style: respawn x min(1, 10 / players), floor 10-15 s; about 30 kills an hour per hunter, per-layer copies; flag ORIGINS_DYNAMIC_RESPAWN): a layer holding more than playersFull players respawns its creatures in base x playersFull / players seconds, never below floorS (about one fight, the first fight measured 13.5 s) and never above the creature's own row, so a crowded layer does not starve. Players, not hunters, are what presence can count, so this is the conservative reading: it assumes everyone present hunts. Only the clock of the spawn changes; the one-paid-kill-per-account window across layers stays the row's own respawn."
     }
   ],
   "strictRevert": [

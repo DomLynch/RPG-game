@@ -107,7 +107,7 @@ test('dynamic respawn: a crowded layer respawns faster on the spawn\'s own clock
   const s = stub({ tokenLayer: 2 });
   await ops({ spawnLayers: true, damageShare: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }), verifyRecord: async () => ({ ok: true, ticks: 1, damage: wolf.hp }) }).kill_report!(ctx(s.db, standing(2)), { token: TOKEN, hits: 50, record: 'r' });
   const sharedKill = [...s.calls].reverse().find((c) => c.fn === 'origins_spawn_kill_v2');
-  assert.equal(Number(sharedKill?.vars.r), Math.min(wolf.respawnS, Math.max(15, Math.round(wolf.respawnS * 20 / 80))), 'the kill carries the dynamic clock');
+  assert.equal(Number(sharedKill?.vars.r), Math.min(wolf.respawnS, Math.max(15, Math.round(wolf.respawnS * 10 / 80))), 'the kill carries the dynamic clock');
   assert.ok(Number(sharedKill?.vars.r) < wolf.respawnS, 'which is shorter than the row\'s');
   assert.equal(last(s, 'origins_spawn_check_layer')?.vars.r, String(wolf.respawnS), 'the cooldown window is still the row\'s');
 });
@@ -115,7 +115,7 @@ test('dynamic respawn: a crowded layer respawns faster on the spawn\'s own clock
 test('dynamic respawn: the plain kill path carries it too; a layer at or under the full count keeps the row\'s respawn', async () => {
   const crowded = stub({ tokenLayer: 2 }), quiet = stub({ tokenLayer: 2 });
   await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }) }).kill_report!(ctx(crowded.db, standing(2)), { token: TOKEN, hits: 50 });
-  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 12 }) }).kill_report!(ctx(quiet.db, standing(2)), { token: TOKEN, hits: 50 });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 10 }) }).kill_report!(ctx(quiet.db, standing(2)), { token: TOKEN, hits: 50 });
   assert.ok(Number(killR(crowded)) < wolf.respawnS);
   assert.equal(killR(quiet), String(wolf.respawnS));
 });
