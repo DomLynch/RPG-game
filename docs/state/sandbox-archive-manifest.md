@@ -68,7 +68,7 @@ Receipt after the run: the TAGGED/MOVED/EXISTS lines, `git ls-remote --tags orig
 
 ## RUN RECEIPT (2026-10-19, after JP 979f4513f went live; Lead's written GO, Strategy's written exception for Z1b and CS35 item 2)
 
-24 of 26 tags created and pushed (`git ls-remote --tags origin 'sandbox-archive-2026-10-19/*'` = 24). Skipped by the moved-tip guard, NOT tagged, because the branch moved after drafting: `zone/promotion-list-jh2` (drafted c6cb14561, now 3963193c0) and `zone/tz-evidence-jh2` (drafted 9d1313489, now a8763edc0). Both are Test Zone evidence/list branches; tag their current tips only on the owner's word. No branch deleted, no folder removed, nothing under ARMAGEDOM touched.
+26 of 26 tags created and pushed (`git ls-remote --tags origin 'sandbox-archive-2026-10-19/*'` = 26). 24 ran first; two were skipped by the moved-tip guard because the branches moved after drafting: `zone/promotion-list-jh2` (drafted c6cb14561, final 3963193c0) and `zone/tz-evidence-jh2` (drafted 9d1313489, final a8763edc0). The TZ Sandbox confirmed both as its final tips, and they were tagged at those tips afterwards. No branch deleted, no folder removed, nothing under ARMAGEDOM touched.
 
 ## Open before it runs (historical, from the draft)
 
