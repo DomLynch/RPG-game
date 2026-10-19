@@ -480,7 +480,7 @@ test('--cap and --path are separate modes, and --cap is nowhere in the scheduled
   const r = run(['--cap', '--path=/tmp/x']); assert.equal(r.status, 2); assert.match(r.stderr, /separate modes/);
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   const capBlock = src.slice(src.indexOf('# --cap mode'), src.indexOf('# work/: lane scratch'));
-  assert.equal(src.split('sweep_cap_order').length - 1, 2, 'defined once and called once, inside the --cap block');
+  assert.equal(src.replace(/#[^\n]*/g, '').split('sweep_cap_order').length - 1, 2, 'defined once and called once, inside the --cap block');
   assert.ok(capBlock.includes('sweep_cap_order "$WORK" "$CAP_MIN_AGE_H"') && capBlock.startsWith('# --cap mode') && /if \[ "\$CAPMODE" = 1 \]; then/.test(capBlock));
   assert.doesNotMatch(capBlock.replace(/#[^\n]*/g, ''), /\brm\b|delete_only/, 'the cap removes nothing itself: only archive_then_delete');
   assert.doesNotMatch(readFileSync('ops/vps-scratch-sweep.service', 'utf8'), /--cap/, 'the timer never runs it');
