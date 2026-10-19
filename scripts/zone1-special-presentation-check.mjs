@@ -45,7 +45,8 @@ try {
     for (const [slot, skill, sel] of [[1, a, '#skill-button'], [2, b, '#skill2-button']]) {
       const before = await counts(page); let after = before, tries = 0;
       for (; tries < 8 && (after.fx === before.fx || after.cues === before.cues); tries++) {
-        await page.evaluate(() => window.originsPreview.press('light'));   // keep the exchange going: the creature is in reach and the fight is open
+        if (!(await page.evaluate(() => document.body.classList.contains('infight')))) await page.evaluate(() => window.originsPreview.press('light'));   // engage once; inside the fight only the special is pressed (a light spam starves the stamina a special costs)
+        await page.waitForFunction(() => { const h = window.originsPreview.combat().hero; return !h || h.dead || (h.phase === 'ready' && h.stamina >= 60); }, null, { timeout: 90000 }).catch(() => {});
         await page.waitForFunction((s) => document.querySelector(s)?.getAttribute('aria-disabled') !== 'true', sel, { timeout: 60000 }).catch(() => {});
         await page.locator(sel).tap({ timeout: 20000 }).catch((e) => console.log(skill, 'tap failed:', String(e).slice(0, 120)));
         const seen = []; for (let k = 0; k < 7; k++) { await page.waitForTimeout(500); seen.push(await page.evaluate((s) => { const c = window.originsPreview.combat(), f = c.fighters?.[0]; return `${c.hero?.phase}/${c.hero?.move ?? c.trace?.move ?? ''}|${document.querySelector(s)?.getAttribute('aria-disabled')}|${f ? `${f.id}:${f.phase}:${Math.hypot((f.x ?? 0) - (c.hero?.x ?? 0), (f.z ?? 0) - (c.hero?.z ?? 0)).toFixed(1)}:${f.health}` : 'nofoe'}|${JSON.stringify(window.__specials)}`; }, sel)); }
