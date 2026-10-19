@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~18:3x +04 (Dom: every remaining line goes live tonight; review by path in parallel with Lead and Hooks Dev; the first PASS ships; a red twice is parked).
+**PASS posted:** JZ #3318 @7c9c5b3ea (candidate, #3316 alone, + candidate:pass), #3315 @9b60ee83c (per-layer spawns; scavengers back to 40 s via source rows, 0/47 respawns differ from trunk; the full browser set ran at that head), #3319 @be2bbb84d (Pit backdrop edge fade).
+**NOT YET:** #3317 RV80 @8da82ae4e. The era keying is sound (underRecord → underRows80; the verifier uses record.v). Two fixes: rows80.ts in eslint SIM_DATA → SIM; origins/server/encounter-verify.test.ts:108-110 is false at RV80. Sent to Combat [6515a2].
+**Pre-read:** #3313 @8952d563b (draft): the reorder puts the t6 warhammer, not the maul, on cave-troll-1; the troll loot is a paid economy change to name; check:as-data owed.
+**Gap found (not this lane's fix):** no CI job runs `origins/server/*.test.ts` (unit-ci globs tests/*.test.ts only). Told Lead.
+**Gotchas.** (bbbbb) zsh: `echo ====` is `=cmd` expansion and aborts the script; use `echo '----'`. (ccccc) A generated file (header "GENERATED … do not edit") must change via its package source + `npm run packages`, or shard 4's package-registry test + the browser build go red (#3315 db30d0813).
+
 ## 2026-10-19 ~17:5x +04. LIVE = JY b0f852037, **verified** (#3312: writer/presence/verifier all on it, NRestarts 0, ORIGINS_DAMAGE_SHARE=1). The damage-share re-check on #3303 is still 0 kills and 0 events.
 **PASS #3316 @45697ac9d** (Zone 1 painted sky, one file; a faithful port of tag sandbox-archive-2026-10-19/zone/goblin-field-dome; World's browser-gate receipt exits 0; stills checked; nit: the HUD text over the busy picture). Deploy cuts it alone.
 **#3315:** the migration is APPLY-READY @20861e258 (my repro now refuses both holes; rehearsal on real prod rows 7/15/0/5 accepted by Lead; the export copy in the storage-box archive accepted by Lead). Head moved to **ecfbd26d1** (archive → its own schema `origins_rollback_archive`; prod has no global/schema default ACLs, so it's owner-only; the up is unchanged). **PASS on green shards at ecfbd26d1** (Lead). Name the behaviour change in the PASS: the 12 cinder-scavengers in Zones 2 and 5 go 40 s → 300 s (they'd been inheriting Zone 1's row; I measured it with scratchpad respawn-dump.ts over both trees).
