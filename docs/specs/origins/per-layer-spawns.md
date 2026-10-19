@@ -2,7 +2,9 @@
 
 Backend, 2026-10-19. Lead's brief: you lead, World co-writes the zone/spawn-row side. Dom reads this before any code. Builds on `one-shard.md` §5 (layers) and the launch load tests (receipts 1-7 on #3282). Every number below is either a measured receipt (named) or arithmetic from a stated input; guesses are marked *est.*
 
-## Summary (Lead's two lines)
+## Summary (Lead's two lines, and Dom's kill-credit ruling)
+
+**Dom's ruling, 2026-10-19:** kill credit (XP, loot, quest count) is split **in proportion to damage dealt**: no first-hit claim, no last-hit, no most-damage-takes-all. Section 3c is now a damage-share settle (replacing the earlier winner-first claim/settle), built first and on its own; thresholds, tag timeout and group pooling are rows. One reading for Strategy to confirm: quest count is given in full to every contributor above the minimum share (a count is not used up by sharing).
 
 1. **Production presence `maxLayers` is 8, so one presence process is capped at 640 players (80 per layer) today. That is the real ceiling now, lower than the 1,000-player mark.**
 2. **The 30 kills/h per hunter target in section 4 is an ASSUMPTION for Dom to set**, as is the 25% hunting share; the tables scale linearly with both.
@@ -14,7 +16,7 @@ World writes the zone/spawn-row section after Z1b ships. This PR stays docs-only
 1. **Zone 1 has 24 spawns, respawn 75-300 s.** If every spawn were killed the instant it respawned, the whole zone yields **0.148 kills/s = 8.9 a minute = 533 an hour**, however many players are online (24 spawns / 0.148 per second = a 162 s average cycle). Real yield is lower (walking, 13.5 s to 20 min fights).
 2. **Today every player shares that one pool.** At 100 players with a quarter hunting: 25 hunters, 21 kills/h each. At 1,000 players: 250 hunters, **2.1 kills/h each**. Supply does not grow with the crowd, so the crowd starves.
 3. **Presence already splits the crowd into layers** (soft 80, hard 100 players, fill-first, closed after 300 s empty; `origins/presence/interest.ts`), but **spawn state ignores layers**: `origins_spawns` is keyed by the creature id alone, so all layers fight over the same 24 rows.
-4. **The writer replays every kill_report that holds an open token before the database picks the winner**: 12 / 22 / 45 replays per paid kill at 200 / 400 / 800 arrivals/s (receipt 6), the 1-worker queue (16) overflowed at 800/s with **100 of 1,091 replays 'busy' (9%)**.
+4. **The writer replays every kill_report that holds an open token before the database picks the winner** (and the first report takes the whole kill, which Dom has ruled out: credit is split by damage, section 3c): 12 / 22 / 45 replays per paid kill at 200 / 400 / 800 arrivals/s (receipt 6), the 1-worker queue (16) overflowed at 800/s with **100 of 1,091 replays 'busy' (9%)**.
 
 Two layer-sized facts the plan must carry:
 
@@ -65,20 +67,39 @@ Why it works: it is exactly the rule a single shared copy gave every player impl
 
 Also: the token binds the layer (3a), so there is no way to engage in one copy and report in another; and a fresh account added to a layer has nothing to farm that an older account does not.
 
-### 3c. Winner-first replay (the 12 / 22 / 45 problem)
+### 3c. Damage-share settle (replaces winner-first; the 12 / 22 / 45 problem)
 
-Today: `kill_report` queues the replay (`void run()`), then `origins_spawn_kill` decides the winner. Only one of N reports on a creature wins; the other N-1 already burned a replay (a refused replay costs about as much CPU as an accepted one: 55 ms against 44 ms). That is the abuse surface: open many tokens on one creature, report them all.
+**Dom's ruling (2026-10-19, via Strategy):** credit for a kill (XP, loot, quest count) is split in proportion to damage dealt. No first-hit claim, no last-hit, no most-damage-takes-all: nobody steals a kill by landing the last blow. Thresholds, tag timeout and group pooling are **rows**, not code constants (the rows are listed below with proposed values, all *est.*).
 
-**Fix: split the kill into claim and settle.**
+**What today does.** `kill_report` queues the replay (`void run()`), then `origins_spawn_kill` makes the first valid report the only winner; the other N-1 already burned a replay (a refused replay costs about as much CPU as an accepted one: 55 ms against 44 ms) and get `dead`. That is both the unfairness Dom ruled out and the abuse surface (12 / 22 / 45 replays per paid kill).
 
-1. `origins_spawn_claim(account, token, layer...)`: one short transaction takes the spawn's row lock, checks alive + generation (+ the hit/time/cap/cooldown refusals the database already owns) and writes a **claim** on the spawn (`claimed_by token, claim_expires = now() + 5 s`, longer than a full queue wait (16 jobs x about 18 ms) plus the 3 s job timeout). The loser answers `dead` here **before any replay is queued**.
-2. The writer replays **only the claim holder's record**.
-3. `origins_spawn_settle(token, verdict)`: on success it does today's kill (mark dead, respawn clock, pay, ledger) in one transaction. On a failed replay it **releases the claim** (the spawn stays alive for everyone else; the cheater gets the 'unverified' tally and, under the strict flip, no reward). An expired claim is released by the next claim attempt (no timer job).
-4. **Per-account cap on queued replays: 2** (max open engages is 4 today). A fifth open token cannot become five replays.
+**A fact the design must start from.** The world fight is played on each player's own page (`world-spawns.ts` header); the server holds the creature's life (alive / respawn clock), **not its health**. A player's damage therefore exists only in that player's own record, which the server replays. So "damage dealt" = the damage the hero dealt to the creature in the account's **replayed, verified record**, capped at the creature's health. The replay result must start returning it (`Replayed` today returns kills and ticks, not damage): a verifier change, small, in the code PR, not here.
 
-Numbers beside the 9% busy figure: with the claim step, replays per paid kill is **1.00** by construction (receipt 7 measured 1.00 / 1.04 / 2.03 at 20 / 50 / 100 clone cycles per second, 2.03 because the burst queued behind the 1-worker pool), against 12 / 22 / 45 on one shared creature (receipt 6). Receipt 6's 100 busy verdicts at 800 arrivals/s were replays that should never have been queued: at 24 paid kills the pool sees 24 jobs, not 1,091.
+**The settle (one settlement per spawn per generation):**
 
-**The claim also fits the strict flip.** Today the kill pays now and the replay is advisory (flag off). Under strict (pay only if verified) the order must be replay, then pay; winner-first without a claim cannot do that (two reports would both replay, then race). With the claim the order is claim, replay, settle, so strict is a flag on step 3, not a redesign. Lead's sizing rule (workers = kills/s x replay seconds, with 2x margin, at the real fight mix) is computed in section 4c.
+1. **Tag.** An engage token on (layer, instance, generation) is a *contributor* while it is open and touched within `tagTimeoutS` (est. 30 s; the token itself still lives `engage_ttl_s`, 120 s). Nothing is decided at engage.
+2. **First report opens the settlement.** The first kill_report on a generation marks the spawn dead (respawn clock starts now, so no second kill of it) and reads its open sibling contributors. **No siblings: settle at once, share 100%, the same latency as today** (the solo case stays instant). **Siblings: hold** until each has reported or dropped out (token expired or untouched past `tagTimeoutS`), at most `settleWindowS` (est. 20 s). A sibling's kill_report during the hold **joins** the settlement (it does not answer `dead`).
+3. **Replay every admitted contribution** (not only one): at most `maxContributors` per settlement (est. 8); a report beyond it answers `full` **before any replay is queued**; per-account cap on queued replays 2 (max open engages is 4 today). Replays per settled kill therefore equal the contributors, not the number of bogus tokens: bounded at 8 against the 12 / 22 / 45 measured, and **1.00 for a solo kill** (receipt 7: 1.00 / 1.04 / 2.03 at 20 / 50 / 100 clone cycles a second, the 2.03 being a burst queued behind the 1-worker pool).
+4. **Share** of contributor i = min(d_i, HP) / sum over verified contributors of min(d_j, HP), where d is the verified damage. A contributor whose replay fails (`strict` row on) is dropped and its damage leaves the denominator. A share under `minShare` (est. 10%) earns nothing (a one-hit tag is not a contribution); the dropped share is re-spread over the rest.
+5. **Pay, in one transaction** (`origins_spawn_settle`, idempotent: the first contributor who finds the window closed settles for all; every contributor's answer carries its own receipt, which the V5 receipt read already serves if an answer is lost):
+   - **CP / XP and bronze** (divisible): each contributor gets share x the amount the kill rolls. Rounding: floors, the remainder to the largest share (ties: earliest tag); the sum is exactly the rolled amount.
+   - **Loot** (items are indivisible): the kill rolls its drops **once** (server seed, as today); each drop goes to one contributor by a weighted draw on the shares from the same seed. Expected value is proportional to damage; no one is paid twice for one item. Row `lootSplit`: `weighted` (proposed) or `top-share` (rejected by Dom's ruling: most-damage-takes-all).
+   - **Quest count:** a count is not consumed by being shared, so every contributor above `minShare` gets the +1 (row `questSplit`: `all-qualifying`, proposed, or `weighted`). **This is the one reading of Dom's "split in proportion" I am unsure of: a flag for Strategy.**
+6. **Group pooling:** row `groupPool` (default off: parties and guilds are Dom's call and not built). When on, members of one party count as a single contributor whose damage is the sum, and split their slice by the same rule inside the party.
+
+Not used anywhere: who reported first, who landed the last blow, who has the biggest share. Report order only decides who finds the window closed and runs the (idempotent) settle.
+
+**Rows (all in `server-rules.json`, none a constant in code; values est., World/Combat set the real ones):** `tagTimeoutS` 30, `settleWindowS` 20, `maxContributors` 8, `minShare` 0.10, `lootSplit` weighted, `questSplit` all-qualifying, `groupPool` off, `queuedReplaysPerAccount` 2.
+
+**Limits Dom should know before he builds on this (honest, not blockers):**
+- Because each page runs its own copy of the creature, two players who each killed their own copy alone each show a damage of one full creature, so each gets **50%**: the creature died once and its reward is shared. They will not see each other's hits (presence carries no combat). That is correct for "split in proportion to damage", but it will feel like a halved reward for the same fight; whether a shared server-side health bar is wanted is a Combat/Dom question and is **not** in this design.
+- Contributors are only players whose token was open **before the first report**; a player who engages after the creature is settling gets `dead`. That is the line between "was in the fight" and "arrived after".
+- A solo hunter is untouched; the delay (up to `settleWindowS`) falls only on a report that meets open siblings.
+- An alt-account sybil gains nothing: its share comes out of its owner's other account, and per-account kill caps still bind.
+
+**Replay load against the 9% busy figure.** Receipt 6 queued 1,091 replays for 24 paid kills at 800 arrivals/s and 100 came back `busy` (9%, 1-worker queue of 16): replays nobody needed. With the settle the pool sees at most 24 settlements x `maxContributors` and in practice about one per solo kill, and the `full` answer costs no replay.
+
+**Strict flip.** Today the kill pays now and the replay is advisory (flag off). The settle pays only after the contributions are replayed, so **strict is a row on step 4 (drop unverified), not a redesign**; the order is tag, replay, settle. Lead's sizing rule (workers = kills/s x replay seconds, with 2x margin, at the real fight mix) is in section 4c, now times the mean contributors per kill.
 
 ## 4. Loot per layer: the economy (c)
 
@@ -111,7 +132,7 @@ A target of **30 kills/h per hunter** (one every 2 minutes, *est.*, Dom/Strategy
 - **Total minting scales with layers, i.e. with concurrent players:** 13x the 533/h at 1,000 players. **Per player it is flat** (about 27 kills/h at a quarter hunting once layers are full), where today it falls 10x between 100 and 1,000. Loot per kill is unchanged (`mobBatch` and the loot tables are not touched by this note).
 - **The hard bound on minting is unchanged by layers:** `kills_per_hour` 120 and `kills_per_min` 6 per account (database), and the new one-paid-kill-per-spawn-per-window rule. At 1,000 accounts that is at most 120,000 kills/h, against a layer ceiling of 6,929/h: the economy ceiling is the layer supply, not the cap.
 - **The partial layer is rich.** Fill-first leaves the newest layer short of players, and its 24 spawns serve few hunters: the 20-player layer in the 100-player row gives 106 kills/h each, 4x a full layer. That is today's night-time situation too (a lone player today owns all 533/h), not a new inflation vector, but it is the number to watch; a later knob is occupancy-scaled respawn (respawn x max(1, 80 / players present)). **Not in v1**: v1 ships the same respawn rows per layer, and a kill-rate readout per layer (ledger `at` grouped by layer) decides whether the knob is needed.
-- **Replay capacity at that supply** (Lead's rule, kills/s x replay seconds x 2): 13 layers = 6,929/h = **1.9 kills/s**. At receipt 4's 0.022 ms per tick, a 30 s fight (1,800 ticks) replays in about 40 ms: 1.9 x 0.04 x 2 = **0.15 worker**, so one worker holds with room. **The unmeasured tail is long fights:** a 20-minute fight is 72,000 ticks, about **1.6 s per replay** at the same rate, close to the 3 s job timeout; if every kill were that long, 1.9 x 1.6 x 2 = **6.1 workers**. The real fight-length mix is the missing input; it comes from the soak's `world record verified (N ticks)` log lines, and the worker count is set from it before any strict flip.
+- **Replay capacity at that supply** (Lead's rule, kills/s x replay seconds x 2): 13 layers = 6,929/h = **1.9 kills/s**. At receipt 4's 0.022 ms per tick, a 30 s fight (1,800 ticks) replays in about 40 ms: 1.9 x 0.04 x 2 = **0.15 worker**, so one worker holds with room (times the mean contributors per kill: at 2, 0.3 worker; solo kills are 1.0). **The unmeasured tail is long fights:** a 20-minute fight is 72,000 ticks, about **1.6 s per replay** at the same rate, close to the 3 s job timeout; if every kill were that long, 1.9 x 1.6 x 2 = **6.1 workers**. The real fight-length mix is the missing input; it comes from the soak's `world record verified (N ticks)` log lines, and the worker count is set from it before any strict flip.
 
 ## 5. Sizing and opening/closing a layer (d)
 
@@ -123,7 +144,7 @@ A target of **30 kills/h per hunter** (one every 2 minutes, *est.*, Dom/Strategy
 
 ## 6. Build order (after Dom's yes)
 
-1. **Winner-first claim/settle + per-account replay cap**, on the current single layer (no schema change to the key). It stands alone: it fixes the abuse surface and the 9% busy at today's single copy, and is the order the strict flip needs. Migration: one column + two functions, additive.
+1. **The damage-share settle (section 3c) + per-account replay cap**, on the current single layer (no schema change to the spawn key). **Dom ruled this goes first, on its own.** It stands alone: it ends first-report-takes-all, fixes the abuse surface and the 9% busy at today's single copy, and is the order the strict flip needs. Pieces: the verifier returns damage dealt; a contributions table (token, damage, verdict, share) and an idempotent `origins_spawn_settle`; the eight rows in `server-rules.json`; the writer's tag/hold/replay loop. Migration: one table + functions, additive (the old `origins_spawn_kill` stays for the flag-off path).
 2. **Layer column + v2 functions + janitor + `/internal/layers`**, behind a flag (`ORIGINS_SPAWN_LAYERS=0` keeps layer 1 for everyone, exactly today's behaviour). Rehearsed on a prod-shaped copy.
 3. **`maxLayers` 8 to 20**, and a per-layer kill-rate readout.
 4. Second presence process and layer-id ranges when concurrency nears 1,000.
@@ -136,4 +157,5 @@ A target of **30 kills/h per hunter** (one every 2 minutes, *est.*, Dom/Strategy
 - Replay cost per tick (0.022 ms) is from receipt 4 on a busy HF host, an upper bound, at short fights; long fights and the real mix are unmeasured (section 4c).
 - Layer-hopping behaviour of real players is unknown; the cross-layer cooldown (3b) is designed to hold whatever it is, but it has not been tried against a live hop.
 - The kill caps are the migration defaults; the live `origins_world_config` row was not re-read for this note.
+- The eight settle rows (3c) are my proposals; none is measured. Whether the replay can report damage dealt cheaply is read from the code (it returns kills and ticks today), not tested.
 - The WoW layering abuse history (section 1) is not from a donor repo.
