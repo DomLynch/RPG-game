@@ -13,7 +13,7 @@ const id = 'ground:zone1.rusty-sword-1', row = GROUND_ITEMS[id]!;
 const raw = (patch: object = {}, starters: object = STARTER_ITEMS, limits: object = GROUND_LIMITS) => ({ starterItems: starters, groundLimits: { ground: limits }, groundItems: { [id]: { ...row, ...patch } } });
 
 test('the shipped rows: a rusty sword (cinder-fields), a knife, gladius, cleaver and estoc, and the goblin scrap cap (cinder-fields) and shin plates (cinder-hold), one each, per account, hidden while taken, at places that exist in their zone', () => {
-  assert.deepEqual(Object.keys(GROUND_ITEMS), [id, 'ground:zone1.knife-1', 'ground:zone1.gladius-1', 'ground:zone1.cleaver-1', 'ground:zone1.estoc-1', 'ground:zone1.goblin-scrap-cap-1', 'ground:zone1.goblin-shin-plates-1']);
+  assert.deepEqual(Object.keys(GROUND_ITEMS), [id, 'ground:zone1.knife-1', 'ground:zone1.bow-1', 'ground:zone1.staff-1', 'ground:zone1.gladius-1', 'ground:zone1.cleaver-1', 'ground:zone1.estoc-1', 'ground:zone1.goblin-scrap-cap-1', 'ground:zone1.goblin-shin-plates-1']);
   assert.deepEqual([row.item, row.qty, row.scope, row.respawnSec], ['item:starter.rusty-sword', 1, 'account', 3600]);
   assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.item.replace('item:starter.', '')), ['rusty-sword', 'knife', 'gladius', 'cleaver', 'estoc', 'goblin-scrap-cap', 'goblin-shin-plates']);
   assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.place), ['cinder-fields', 'ferry-landing', 'blood-ruin', 'cinder-hold', 'mere-end', 'cinder-fields', 'cinder-hold'], 'one weapon per place, in the same order, then the two armour finds on the goblin ground and the hold (placements per Strategy 2026-10-16)');
