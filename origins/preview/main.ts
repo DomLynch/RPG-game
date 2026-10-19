@@ -206,7 +206,12 @@ const GAP = previewRule('gateGap');   // radians either side of the gate
 arena.group.traverse((o) => {
   if (o.name !== 'backdrop' || !(o instanceof THREE.Mesh)) return;
   o.geometry.dispose();
-  o.geometry = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  const geo = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  // The cut edges fade out (vertex alpha) so the painting never ends in a hard-edged rectangle against the sky: u runs 0..1 along the arc, and the alpha ramps over gateGapFade of it at each end
+  const FADE = previewRule('gateGapFade'), WHITE = [1, 1, 1], uv = geo.attributes.uv, channels = WHITE.length + 1, tint = new Float32Array(uv.count * channels);
+  for (let i = 0; i < uv.count; i++) { const u = uv.getX(i); tint.set([...WHITE, THREE.MathUtils.smoothstep(Math.min(u, 1 - u), 0, FADE)], i * channels); }
+  geo.setAttribute('color', new THREE.BufferAttribute(tint, channels)); (o.material as THREE.MeshBasicMaterial).vertexColors = true; o.material.needsUpdate = true;
+  o.geometry = geo;
 });
 function environment(sky?: THREE.Texture) {
   const pmrem = new THREE.PMREMGenerator(renderer), room = sky ? null : new RoomEnvironment();
