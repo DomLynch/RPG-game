@@ -21,6 +21,7 @@
     "mere-end"
   ],
   "camera": {
+    "preset": "b",
     "passage": {
       "zMax": -9,
       "zMin": -26.5,
@@ -364,7 +365,7 @@
   },
   "looks": {
     "zone1": {
-      "fog": "#6e5f52",
+      "fog": "#5d5a60",
       "fogDensity": 0.012,
       "hemiSky": "#9fb2d4",
       "hemiGround": "#4a3426",
@@ -389,12 +390,12 @@
       ]
     },
     "frontier-haze": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.012,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#6a5238",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -409,12 +410,12 @@
       ]
     },
     "cinder-haze": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.0095,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#52402c",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#443a33",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -429,12 +430,12 @@
       ]
     },
     "frontier-duel": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.0095,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#6a5238",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.04,
       "sunPos": [
         -24,
