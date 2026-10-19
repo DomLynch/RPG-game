@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/fight/moves.ts';
-import { createRecorder, type FightRecord } from '../../src/fight/record.ts';
+import type { FightRecord } from '../../src/fight/record.ts';
 import { liveRecorder } from '../../tests/lib/live-recorder.ts';
 import { recordSpecials } from '../../src/fight/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/fight/twist.ts';
