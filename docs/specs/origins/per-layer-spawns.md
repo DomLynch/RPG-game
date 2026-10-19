@@ -142,6 +142,60 @@ A target of **30 kills/h per hunter** (one every 2 minutes, *est.*, Dom/Strategy
 - **Process ceiling:** about **1,500 players per presence process** (tick p99 62 ms of 100, 75% of a core), hard ceiling near 2,000 (p99 84 ms) and over budget at 3,000 (receipts 2, 3, 5). At 80 per layer: 18.75 layers per process at 1,500. **Required rule change: `maxLayers` from 8 to 20** for the first process (it now stops at 640). The Lead's second-process trigger (sharded by layer group, ready before 1,000 concurrent) needs **globally unique layer ids across processes**: process k allocates ids from k x 1000, so (layer) stays one integer in the database and a layer is never confused with another process's. That is a presence change in the sharding PR, not this one.
 - **Where the writer asks:** with one process, one URL. Once sharded, `where` and `layers` go through a router by layer group; the database never learns about processes.
 
+## 5b. Zone and spawn rows (World)
+
+World, 2026-10-19. This is the zone-data side: which rows hold the numbers, what a layer copies, and the starter-tier values for Zone 1. **Rows only; no code.** The kill-rate figures are ceilings (every spawn killed the moment it stands, a hunter always waiting), not measured rates.
+
+### Where the numbers live (all data, none in code)
+
+- **Respawn** is the creature row's `respawnSeconds` (`origins/zone-rows/zone<N>.row.json`, `spawns.rows[]`). A row without one takes the `respawnDefault` world rule, **300 s** (`src/fight/world-rules-defs.json`). The legal range is `respawnMin` 30 to `respawnMax` 300 s (`src/core/world/wildlife-rules-defs.json`); `validateMobRow` rejects anything outside it. The same number is the paid-kill window the server binds (`mob-rewards.ts` `respawnRows`), so 3b's "one paid kill per account per spawn id per respawn window" follows the row.
+- **Spawn count** per zone is the sum of its camps: each `place.spawns[]` group stands one camp at one landmark, sized by the row's `behaviour.campSize` (min..max), plus one opener per zone. A camp is at most **4** (`campMax`; 6 only on a `bossCamp` row). So density is a row-and-group edit (more groups at landmarks, or a larger `campSize` up to 4), never code.
+- **A layer copies exactly this list.** Layer N of a zone holds the same spawn ids with the same rows; it adds nothing to the zone row. A zone's spawn count therefore **multiplies by the number of open layers** and the zone row stays the single source (section 2: the layer is a column, not part of the creature id).
+- **Named creatures** (`named: true` rows, bounty foes, the matriarch, the cave troll at 300 s) keep their long clocks and are not part of the starter tier.
+
+### Zone 1 today (counted from the preview spawn list, `origins/preview/mobs.golden.json`)
+
+24 spawns. The starter tier, the level-1 creatures a new hunter fights first (Cinder Fields and the East Road):
+
+| row | spawns | respawn today |
+|---|---|---|
+| cinder scavenger (camp of 4 + the Cinder Fields opener) | 5 | **300 s** (no row value: the default) |
+| ash wolf (camp 2..3, the golden list has 2) | 2 | 75 s |
+| ash boar | 1 | 75 s |
+| pit goblin (camp of 2, East Road) | 2 | 75 s |
+| **starter tier** | **10** | |
+
+At the ceiling that is 5 x 3600 / (300 + 15) + 5 x 3600 / (75 + 15) = 57 + 200 = **257 kills/h for the whole tier**, so 20 hunters get **12.9 kills/h each**. (15 s = one fight; the first fight measured 13.5 s.) The tier already holds the 8-10 spawns that 2004Scape's chicken pen has (9 chickens at 30 s, about 1,080 kills/h: the 9 is Lead's count; the clock is read from 2004Scape-Server `data/src/scripts/_unpack/all.npc:1074`, `[chicken]` `respawnrate=50` ticks of 0.6 s = 30 s); what it lacks is the pen's respawn clock.
+
+### The proposal: respawn, not density
+
+Starter-tier respawn goes to the 30-60 s band; the spawn count stays at 10 (the golden list, no new groups, no `campSize` change):
+
+| row | spawns | respawn | cycle (respawn + 15 s fight) | ceiling per spawn | tier ceiling |
+|---|---|---|---|---|---|
+| cinder scavenger | 5 | 40 s | 55 s | 65 /h | 327 /h |
+| ash boar | 1 | 45 s | 60 s | 60 /h | 60 /h |
+| pit goblin | 2 | 45 s | 60 s | 60 /h | 120 /h |
+| ash wolf | 2 | 60 s | 75 s | 48 /h | 96 /h |
+| **starter tier** | **10** | | | | **603 /h** |
+
+603 / 20 hunters = **30.2 kills/h each**, which is the target at the ceiling. The wolf stays the slowest (it is the strongest starter, aggro 9 and a pack). One spawn per hunter is **0.5**, so a hunter is never short of a target at a 20-hunter layer; the pen's 9 spawns serve its crowd the same way.
+
+**Why not 8-10 spawns per hunter.** Read literally that is 160-200 spawns per layer, 16-20 times the starter tier and 7-8 times the whole zone. The 4-per-camp cap alone would need about 45 camps, and at 45 s (a 60 s cycle) the ceiling would be 160-200 x 60 = 9,600-12,000 kills/h per layer, 16-20 times the 600 the target needs. The pen reading (8-10 spawns per area at a 20-hunter layer) gives the target with the respawn change alone. If Dom meant more spawns, it is a groups edit in the zone row, and Backend's 120 kills/h per account cap is the real bound.
+
+### What this means for the layer economy
+
+- **Per layer** the starter tier is now **603 kills/h at the ceiling** (was 257). The rest of Zone 1 (brood, ghouls, ferry opener and the troll at 300 s, salamander 90 s, bear 75 s; the four bounty and matriarch encounters left out) adds about 165/h at the same 15 s fight, so a Zone 1 layer is about **770 kills/h** (was about 420).
+- **A full layer (80 players, 25% hunting = 20 hunters)** gets about 30 kills/h each from the starter tier. A **partial layer** is richer, as 4c says: 5 hunters get 120/h each, which meets the 120 kills/h account cap. That is the number to watch on the per-layer readout, and the occupancy-scaled respawn in section 6 step 5 is the knob if it mints out of line.
+- **Cost to the replay worker:** 13 layers x 770 = about 10,000 kills/h = 2.8 kills/s at the ceiling, against the 1.9 kills/s in 4c. At 0.04 s a replay and the x2 rule that is 2.8 x 0.04 x 2 = **0.22 worker**, still one worker (the long-fight tail in 4c is unchanged).
+- **Loot per kill is unchanged**; only the number of kills moves.
+
+### What I am NOT claiming (World)
+
+- The 15 s fight and the "hunter always waiting" are assumptions; real walking between spawns lowers the rate, so 30 kills/h is the top of the range, not the expected value.
+- The new clocks (40 / 45 / 45 / 60 s) are mine, chosen inside the legal band to land the arithmetic on 30; Dom or Strategy can set others, the table scales linearly.
+- Zone 2 and the L2 Zone 1 rows (brood 300 s, ghouls 300 s, bear 75 s, salamander 90 s) are untouched here.
+
 ## 6. Build order (after Dom's yes)
 
 1. **The damage-share settle (section 3c) + per-account replay cap**, on the current single layer (no schema change to the spawn key). **Dom ruled this goes first, on its own.** It stands alone: it ends first-report-takes-all, fixes the abuse surface and the 9% busy at today's single copy, and is the order the strict flip needs. Pieces: the verifier returns damage dealt; a contributions table (token, damage, verdict, share) and an idempotent `origins_spawn_settle`; the eight rows in `server-rules.json`; the writer's tag/hold/replay loop. Migration: one table + functions, additive (the old `origins_spawn_kill` stays for the flag-off path).
