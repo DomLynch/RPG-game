@@ -19,7 +19,7 @@ const ID = 'character:pit-goblin';
 test('the camp goblin\'s look is the engine goblin undyed at native height, on the generated world body', () => {
   const look = mobLook(ID)!;
   assert.equal(look.opponent, 'goblin'); assert.ok(ROSTER.goblin.body === 'goblin', 'the roster body the engine fights');
-  assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1, { soot: 0, burnt: 0 }]);
+  assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1.25, { soot: 0, burnt: 0 }]);   // 1.25: the Test Zone's goblin (Zone 1 = Test Zone look, Dom-approved 2026-10-18)
 });
 
 test('the world body is phone-safe: the engine goblin\'s 65-joint rig at ~8k tris, one texture, under 2.2 MB (scripts/character/world_body.py, receipt: artifacts/character/pit-goblin/)', () => {
