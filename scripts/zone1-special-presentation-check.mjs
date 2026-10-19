@@ -48,7 +48,7 @@ try {
         await page.evaluate(() => window.originsPreview.press('light'));   // keep the exchange going: the creature is in reach and the fight is open
         await page.waitForFunction((s) => document.querySelector(s)?.getAttribute('aria-disabled') !== 'true', sel, { timeout: 60000 }).catch(() => {});
         await page.locator(sel).tap({ timeout: 20000 }).catch((e) => console.log(skill, 'tap failed:', String(e).slice(0, 120)));
-        const seen = []; for (let k = 0; k < 7; k++) { await page.waitForTimeout(500); seen.push(await page.evaluate((s) => { const c = window.originsPreview.combat(), f = c.fighters?.[0]; return `${c.hero?.phase}/${c.hero?.move ?? c.trace?.move ?? ''}|${document.querySelector(s)?.getAttribute('aria-disabled')}|${f ? `${f.id}:${f.phase}:${Math.hypot((f.x ?? 0) - (c.hero?.x ?? 0), (f.z ?? 0) - (c.hero?.z ?? 0)).toFixed(1)}:${f.health}` : 'nofoe'}|${JSON.stringify(window.__specials)}`; }, sel))); }
+        const seen = []; for (let k = 0; k < 7; k++) { await page.waitForTimeout(500); seen.push(await page.evaluate((s) => { const c = window.originsPreview.combat(), f = c.fighters?.[0]; return `${c.hero?.phase}/${c.hero?.move ?? c.trace?.move ?? ''}|${document.querySelector(s)?.getAttribute('aria-disabled')}|${f ? `${f.id}:${f.phase}:${Math.hypot((f.x ?? 0) - (c.hero?.x ?? 0), (f.z ?? 0) - (c.hero?.z ?? 0)).toFixed(1)}:${f.health}` : 'nofoe'}|${JSON.stringify(window.__specials)}`; }, sel)); }
         if (tries < 3) console.log(skill, 'try', tries, seen.join(' ; '));
         if (tries === 0) console.log(skill, 'raw', JSON.stringify(await page.evaluate(() => ({ h: window.originsPreview.combat().hero, f: window.originsPreview.combat().fighters?.slice(0, 2) }))).slice(0, 700));
         after = await counts(page);
