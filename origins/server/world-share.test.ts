@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { openInventory, ACCOUNT, PC, type CharacterInstanceId } from '../../src/core/server.ts';
+import { loadEncounterContent } from '../encounters/encounters.ts';
+import { PC } from '../../src/core/server.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { portion } from './damage-share.ts';
 import type { Verdict, VerifyJob } from './world-verify.ts';
@@ -18,7 +18,6 @@ const wolf: Spawn = { ...base, spec: { ...base.spec, level: 1 } };
 const spawns = new Map([[wolf.spec.id, wolf]]);
 const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', TOKEN = 'T'.repeat(32);
 const row = (): CareerRow => ({ seed_credit: 0, world_credit: 0, total_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 });
-void openInventory; void ACCOUNT; void lookupOf;
 const open = { token: TOKEN, character: PC, instance: wolf.spec.id, generation: 0, issuedAt: '2026-10-08T10:00:00Z', expiresAt: '2026-10-08T10:02:00Z' };
 
 type Stub = { kills: { fn: string; b: Json[]; d?: string }[]; checks: number; db: Db };
