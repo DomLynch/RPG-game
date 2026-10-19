@@ -1,5 +1,10 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~08:0x +04. LIVE = JH2 3b8ae64ed (verified on #3262: all 3 services, NRestarts 0, flags unset). The Test Zone is in the game.
+**Now (Strategy's order):** the small-train heads, then World's rows-only "Zone 1 takes zone 90's look rows" (confirm the four receipts only), then the JH candidate PASS + candidate:pass label, then #3257 BULK-CS when it leaves draft (head b4b6e2a59 at last look) with shards (1)–(8) and static green. #3230 waits for World's rebase (it's 77 behind and conflicting). #3261 is a draft with no shards run.
+**PASS posted:** #3260 @e08c992e8. Still standing at the current heads: #3218 @79cebea42, #3246 @e099336cb, #3259 @dc32f7b79.
+**Trap (Strategy):** the publisher reads only a line that starts exactly `Auditor: PASS @<head9>`. One line to Strategy per PASS. The auditor:ready poll is unarmed until Dom arms it.
+
 ## 2026-10-18 ~19:1x +04: STAND-DOWN (Dom via PicoClaw: tokens nearly out). READ FIRST. LIVE = JG 4ae50340a (verified on #3253: writer/presence/verifier on it, NRestarts 0, verify timers success, strict flags unset)
 **Now:** JH2 #3262 @3b8ae64ed = BULK-TZ #3258 @ee92443c4 alone on JG (tree = clean merge-tree b593f79e2, checked). The candidate PASS + candidate:pass label go up when shard (1)–(8), quality, static, the row groups and the browser gates are green. If the watcher posted it before the stop, check #3262's thread. After it publishes, verify the 3 services. Then #3254 (labels to rows) and the #3257 BULK-CS morning read.
 
