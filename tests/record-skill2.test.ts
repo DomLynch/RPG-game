@@ -24,7 +24,7 @@ test('a SPECIAL 2 fight is stamped at the skill2 era, round-trips its pick and i
 });
 
 test('every pick of the six round-trips, and a fight with no pick has no skill2 field and the same bytes as before', () => {
-  for (const p of ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp'] as const) assert.equal(unpackRecord(packRecord(fight({ skill2: p }))).skill2, p);
+  for (const p of ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp'] as const) assert.equal(unpackRecord(packRecord(fight({ skill2: p }))).skill2, p);
   const plain = fight(); assert.ok(!('skill2' in plain) && !('skill2' in unpackRecord(packRecord(plain))));
   const a = fight({ skill2: 'lunge' }), b = fight({ skill2: 'stomp' });
   assert.equal(packRecord(a).length, packRecord(b).length, 'a pick is one fixed byte whichever skill it names');

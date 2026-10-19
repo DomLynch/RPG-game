@@ -24,15 +24,13 @@ test('tier per move kind: a skill is special; heavy, charged and guard break are
   for (const type of ['AttackMissed', 'Dodged', 'Killed', 'Staggered'] as CombatEvent['type'][]) assert.equal(impactTier(event(type, { move: 'heavy_overhead' })), null, type);
 });
 
-test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides; nothing without a landed blow', () => {
-  assert.equal(IMPACT.full.frames, 5); assert.equal(IMPACT.half.frames, 3);
-  near(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), 5 * FRAME);
-  near(impactStopMs([event('Hit', { move: 'kick' })]), 3 * FRAME);
-  near(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), 5 * FRAME);
+test('hit-stop: each tier holds its row\'s frames (RV80: the sandbox\'s 0, a special 6), the strongest blow of the frame decides; nothing without a landed blow', () => {
+  // The rows (hit-stop-defs.json) are pinned once, literally, in hit-stop-rows.test.ts; here the mechanism reads them, so the tests stay true when a row moves.
+  near(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), IMPACT.full.frames * FRAME);
+  near(impactStopMs([event('Hit', { move: 'kick' })]), IMPACT.half.frames * FRAME);
+  near(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), IMPACT.full.frames * FRAME);
   assert.equal(impactStopMs([event('AttackMissed'), event('Dodged')]), 0);
-  // guard tiers: a parry is the longest beat in the game (today's 70 ms + 11 frames > a heavy hit's 90 ms + 5); a block is short
-  near(impactStopMs([event('Parried')]), 11 * FRAME); near(impactStopMs([event('Blocked')]), 2 * FRAME);
-  assert.ok(70 + impactStopMs([event('Parried')]) > 90 + impactStopMs([event('Hit', { move: 'heavy_overhead' })]));
+  near(impactStopMs([event('Parried')]), IMPACT.parry.frames * FRAME); near(impactStopMs([event('Blocked')]), IMPACT.block.frames * FRAME);
   assert.equal(impactStopMs([]), 0);
 });
 
@@ -50,7 +48,8 @@ test('knock: away from the side the blow arrives from, on every side, full 4 cm 
     for (const side of [{ actor: 0, target: 1 }, { actor: 1, target: 0 }] as const) {
       const e = event('Hit', { move, ...side }), s = impactShove(e, direction)!;
       assert.equal(Math.abs(s.screen ?? 0), 0, `${move} does not knock sideways`);
-      assert.ok(Math.abs(s.drop - (shoveFor(e)!.drop + knock)) < 1e-12, `${move} drops by ${knock}`);
+      const push = IMPACT[move === 'skill_pommel' ? 'special' : move === 'heavy_overhead' ? 'full' : 'half'].push;   // a tier with a push row (RV80: the special's 0.08) jolts toward the attacker instead of dropping the camera
+      if (push) assert.equal(Math.abs(s.push ?? 0), push, `${move} pushes by ${push}`); else assert.ok(Math.abs(s.drop - (shoveFor(e)!.drop + knock)) < 1e-12, `${move} drops by ${knock}`);
     }
   }
   const s = impactShove(event('Hit', { move: 'heavy_overhead' }), 'overhead')!;
@@ -87,7 +86,7 @@ function fight(readImpact: boolean) {
     if (!readImpact) continue;
     const events = practice.events.map((e) => Object.freeze({ ...e }));
     Object.freeze(events);
-    if (impactStopMs(events)) landed++;
+    if (events.some((e) => impactTier(e))) landed++;   // a landed contact (RV80: the stop itself is 0 ms in the Pit now, so count the tier)
     for (const e of events) impactShove(e, 'right');
     for (const e of practice.events) Object.freeze(e);
   }
@@ -100,7 +99,7 @@ test('kick and roll, pick C (Dom 2026-09-30): a landed kick drops the camera 10 
     assert.ok(landedKick(e));
     assert.deepEqual(impactShove(e, 'low'), { along: 0, drop: 0.1, side: 0, hold: 0, settle: KNOCK_SETTLE }, 'straight down, no push, no side');
   }
-  near(KICK.stopMs, 2 * FRAME);   // main.ts stopFor: the whole stop, in place of the hit's 50 ms + 3 frames (in a duel the same ms hold only the drawn frame, main.ts pvpShown; the sim never pauses)
+  near(KICK.stopMs, 0);   // RV80: the sandbox's kick row is 0 frames (was a 2-frame beat). main.ts stopFor: the whole stop, in place of the hit's 50 ms + 3 frames (in a duel the same ms hold only the drawn frame, main.ts pvpShown; the sim never pauses)
   for (const e of [event('Blocked', { move: 'kick' }), event('AttackMissed', { move: 'kick' }), event('Hit', { move: 'light_right' })]) assert.equal(landedKick(e), false, `${e.type} ${e.move}`);
   assert.deepEqual({ ...ROLL_TUMBLE, angle: Math.round((ROLL_TUMBLE.angle * 180) / Math.PI) }, { angle: 8, seconds: 0.6, shift: 0.046, dip: 0.08 });
 });

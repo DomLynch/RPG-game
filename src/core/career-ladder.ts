@@ -40,6 +40,7 @@ export const betaMarks = (marks: number): number => Math.min(marks, BETA_MAX_LEV
 // off through `spellsOff` (the code and the 20-spell `spells` list stay in the row, inert) except the `utilitySpells` (heal, the one utility pick). Lifting it is the row: `spellsOff` 0 puts the spell list back, an empty `specialPick` lifts the pick.
 export const BETA_SPECIAL_SLOTS: number = BETA.specialSlots;   // how many SPECIAL slots the pick fills (the row says 2: SPECIAL 1 on the 'skill' button, SPECIAL 2 on 'skill2'; the HUD has those two buttons)
 export const BETA_SPELLS_OFF: boolean = Boolean(BETA.spellsOff), BETA_UTILITY_SPELLS: ReadonlySet<string> = new Set(BETA.utilitySpells), BETA_SPECIAL_PICK: readonly string[] = BETA.specialPick, BETA_SPECIAL_ROLES: Readonly<Record<string, string>> = BETA.specialRoles;
+export const BETA_SLOT2_DEFAULT: string = BETA.slot2Default, BETA_SLOT2_ALT: string = BETA.slot2Alt;   // RV80 (Dom 2026-10-19: the sandbox pre-fills SPECIAL 2): what SPECIAL 2 holds until the player picks, and what it holds instead when SPECIAL 1 is that same skill (never the same move in both buttons)
 export const inBetaSpells = (legend: string): boolean => BETA_SPELLS_OFF ? BETA_UTILITY_SPELLS.has(legend) : BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
 /** Whether `skill` may sit in a SPECIAL slot under the cut (an empty pick list lifts the pick). */
 export const inBetaSpecials = (skill: string): boolean => BETA_SPECIAL_PICK.length === 0 || BETA_SPECIAL_PICK.includes(skill);

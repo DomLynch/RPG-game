@@ -7,7 +7,7 @@
 // CI only (quality.yml `duel-two-page`): no local browser runs (Lead). Receipt: artifacts/duel-two-page/receipt.json.
 /* global document */
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { setTimeout } from 'node:timers';
 import { URL } from 'node:url';
 import process from 'node:process';
@@ -18,7 +18,9 @@ import { launch, quietDebug } from './lib/harness.mjs';
 
 const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifacts/duel-two-page';
 const started = Date.now();
-const count = (list, re) => list.filter((f) => re.test(f)).length;
+// RV80 (Dom: all sandbox behaviours on by default): the Pit's hit-stop rows for a plain hit and block are 0 frames (src/fight/hit-stop-defs.json, only the special holds), so a fight of plain exchanges draws no hold; the hold counters are asserted only while those rows are on, the lag cap always.
+const hitStopOn = ['hitLight', 'hitHeavy', 'blockLight', 'blockHeavy'].some((k) => JSON.parse(readFileSync('src/fight/hit-stop-defs.json', 'utf8')).contacts[k].frames > 0);
+const count =(list, re) => list.filter((f) => re.test(f)).length;
 const glbs = { challenger: [], guest: [] };   // every .glb each page fetched: the peer is drawn on the hero's rig, so no roster body (veteran) may appear
 const receipt = { passed: false, why: '', soloTempo: { challenger: 50, guest: 60 }, link: false, artReady: false, glbs, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
 
@@ -98,7 +100,7 @@ try {
     : !kicked || receipt.kick?.backUp !== true ? `the guest's relay socket was ${kicked ? 'cut but its link never came back' : 'never cut'}: ${JSON.stringify(receipt.kick)}`
     : receipt.glbsWhileWaiting.length ? `the challenger loaded rigs before the guest came: ${JSON.stringify(receipt.glbsWhileWaiting)}`
     : ['challenger', 'guest'].some((who) => count(glbs[who], /\/veteran\.glb.*\(fetch\)/) > 0 || count(glbs[who], /\/warrior\.glb.*\(fetch\)/) < 2) ? `the peer is not on the hero rig: rig loads (fetch) veteran ${count(glbs.challenger, /\/veteran\.glb.*\(fetch\)/)}/${count(glbs.guest, /\/veteran\.glb.*\(fetch\)/)}, warrior ${count(glbs.challenger, /\/warrior\.glb.*\(fetch\)/)}/${count(glbs.guest, /\/warrior\.glb.*\(fetch\)/)} (the hero and the peer are two warrior loads and no veteran load)`   // Option A
-    : receipt.hold.some((h) => !h || h.holds < 1 || h.held < 3 || h.maxQueue > 6) ? `the drawn hit-stop did not show on both ends (or the picture lagged past 6 ticks): ${JSON.stringify(receipt.hold)}`
+    : receipt.hold.some((h) => !h || (hitStopOn && (h.holds < 1 || h.held < 3)) || h.maxQueue > 6) ? `the drawn hit-stop did not show on both ends (or the picture lagged past 6 ticks): ${JSON.stringify(receipt.hold)}`
     : !receipt.link ? `the challenge link carried more than the guest's token: ${link}`
     : receipt.errors.length ? `page errors: ${receipt.errors[0]}` : '';
   receipt.passed = !receipt.why;
