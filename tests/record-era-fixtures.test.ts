@@ -1,7 +1,7 @@
 // Record-era fixtures (external audit 2026-10-18 F5): one stored kill-link record per era stamp, append-only, each replaying to its pinned ticks, outcome and
 // landed hits forever or retired by a REACH bump that names its fight (scripts/record-era-fixtures.mjs). The negative controls are the audit's acceptance:
 // dropping an era's entry, mutating a pin, or a record that replays to a different fight must fail.
-import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
+import './lib/era-on.ts';   // RV79: the fixtures replay under the era each record's own version names (v78 sandbox, v79 the RV79 rows), and the live recorder stamps the shipped rules, so no force (era-on.ts lifts the one tests/lib/era-off.ts sets; import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
