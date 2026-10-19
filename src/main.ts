@@ -67,6 +67,7 @@ import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
 import { createHud } from './fight/hud.ts';
+import { mountManaBar } from './fight/mana-bar.ts';
 import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
@@ -262,6 +263,7 @@ const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
 const hud = createHud(element);
+mountManaBar();
 const runButton = element<HTMLButtonElement>('run-button');
 const input = element<HTMLInputElement>('fighter-name');
 // A browser that refuses storage (Safari with site data blocked throws on `localStorage` itself) reads as empty: every setting
