@@ -4,22 +4,12 @@
 // Pieces are written through the `put` the plan gives, in the order the plan walks, so the build is byte-identical to the one the plan used to draw itself. Pure: no three.js, no DOM.
 import { toWorld } from '../world/derive.ts';
 import { stageRule } from '../world/stage-rules.ts';
-import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
+import type { Figure, Layer, Shape, Tint } from './exchange-plan.ts';
 import { off } from './frontier-geom.ts';
 import type { At, Board, Sign, ZonePlan } from './frontier-plan.ts';
-import type { BuildingSkin, ModelPlacement } from './frontier-skin.ts';
 
 export type Put = (layer: Layer, shape: Shape, x: number, y: number, z: number, tint: Tint, rotY?: number, foot?: number) => void;
 type Pt = { x: number; z: number };
-// A skin's pieces go through the same `put` as every other piece, so their order in the build is the order the plan walks.
-const putAll = (put: Put, pieces: readonly Piece[]): void => { for (const p of pieces) put(p.layer, p.shape, p.x, p.y, p.z, p.tint, p.rotY, p.foot); };
-// A kind with a fit row stands as that model node scaled to the footprint (dome 2026-10-16); true when it did.
-const stand = (skin: BuildingSkin | null, models: ModelPlacement[], kind: string, x: number, z: number, facing: number, w: number, d: number, strict = false): boolean => {
-  const m = skin?.model(kind, x, z, facing, w, d, strict) ?? null;
-  if (!m) return false;
-  models.push(m);
-  return true;
-};
 
 const ASH: Tint = [0.5, 0.47, 0.44], DARK: Tint = [0.62, 0.6, 0.57], SAND: Tint = [1.05, 1, 0.92], TIMBER: Tint = [0.42, 0.3, 0.2], SOOT: Tint = [0.1, 0.09, 0.08];
 const GROUND: Record<string, Tint> = { ash: ASH, paving: [0.86, 0.83, 0.78], sand: [0.95, 0.82, 0.62] };
@@ -46,12 +36,9 @@ export function drawGround(put: Put, z: ZonePlan, i: number): void {
 }
 /** One gate post of a way on, at `p`. */
 export function drawGatePost(put: Put, p: Pt, facing: number): void { put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, facing, 0); }
-/** A building of `kind` on the landmark `a`: body, eaves and a soot strip. `c` is its centre and (w, d) its footprint, all from the plan's rows. With a `skin` the block is its model node (pushed to `models`) or its parts; the footprint is the block's own either way. */
-export function drawBlock(put: Put, a: At, kind: string, c: Pt, w: number, d: number, skin: BuildingSkin | null = null, models: ModelPlacement[] = []): void {
+/** A building of `kind` on the landmark `a`: body, eaves and a soot strip. `c` is its centre and (w, d) its footprint, all from the plan's rows. */
+export function drawBlock(put: Put, a: At, kind: string, c: Pt, w: number, d: number): void {
   const [h, tint] = LOOK[kind]!;
-  if (stand(skin, models, kind, c.x, c.z, a.facing, w, d)) return;   // the skin's model stands where the block stood
-  const parts = skin?.parts(kind, c.x, c.z, a.facing, w, h, d) ?? null;
-  if (parts) { putAll(put, parts); return; }   // the skin replaces the brick box, eaves and door
   put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
   put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
   if (w > 2) put('soot', ['box', Math.min(stageRule('sootWidthMax'), w / 3), Math.min(stageRule('sootHeightMax'), h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(stageRule('sootCenterMax'), (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
@@ -74,28 +61,6 @@ export function drawBank(put: Put, a: At): void {
 export function drawRuinPost(put: Put, p: Pt, facing: number): void { put('stone', ['box', 1, 4.5, 1], p.x, 2.25, p.z, DARK, facing, 0); }
 export function drawLintel(put: Put, a: At): void { put('stone', ['box', 6.4, 0.9, 1.2], a.x, 4.9, a.z, DARK, a.facing); }
 export function drawCairn(put: Put, a: At): void { put('stone', ['box', 0.8, 1, 0.8], a.x, 0.5, a.z, DARK, a.facing, 0); }
-/** A way on, at the link `a`: a skin may dress it as a gate (a model node, else its parts), otherwise the two plain gate posts at `posts`. */
-export function drawWayOn(put: Put, a: At, posts: readonly Pt[], skin: BuildingSkin | null, models: ModelPlacement[]): void {
-  const gm = stand(skin, models, 'gate', a.x, a.z, a.facing, 7.4, 1.02, true), gp = skin?.landmark('gate', a.x, a.z, a.facing, 6.4, 5.4, 1.2) ?? null;
-  if (!gm && gp) putAll(put, gp);
-  if (!gp && !gm) for (const p of posts) drawGatePost(put, p, a.facing);
-}
-/** The ruin's gate on the landmark `a`: a skin's gate (a model node, else its parts), otherwise the two stone posts at `posts` and the lintel across the way. */
-export function drawRuinGate(put: Put, a: At, posts: readonly Pt[], skin: BuildingSkin | null, models: ModelPlacement[]): void {
-  if (stand(skin, models, 'gate', a.x, a.z, a.facing, 7.4, 1.02, true)) return;
-  const gp = skin?.landmark('gate', a.x, a.z, a.facing, 6.4, 5.4, 1.2) ?? null;
-  if (gp) { putAll(put, gp); return; }
-  for (const p of posts) drawRuinPost(put, p, a.facing);
-  drawLintel(put, a);
-}
-/** A plain landmark (a spawn spot, a camp): the stone cairn, or a skin's marker. false = the skin leaves it bare and nothing stands there. */
-export function drawMarker(put: Put, a: At, skin: BuildingSkin | null): boolean {
-  if (!skin) { drawCairn(put, a); return true; }
-  const mp = skin.landmark('marker', a.x, a.z, a.facing, 0.8, 1, 0.8);
-  if (!mp) return false;
-  putAll(put, mp);
-  return true;
-}
 /** The town's name on a board at its centre (both faces) and the post it stands on. */
 export function townBoards(c: Pt, name: string): Board[] { return [{ x: c.x, y: 2.6, z: c.z + 0.01, facing: 0, lines: [name] }, { x: c.x, y: 2.6, z: c.z - 0.01, facing: Math.PI, lines: [name] }]; }
 export function drawTownPost(put: Put, c: Pt): void { put('soot', ['box', 0.14, 2.2, 0.14], c.x, 1.9, c.z, SOOT, 0, 0.8); }

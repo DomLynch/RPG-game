@@ -166,6 +166,11 @@ try {
     for (let i = 0; i < before.length; i++) { const c = before[i]!; if (open) { if (c === '\\') i++; else if (c === open) open = null; } else if (c === '\'' || c === '"' || c === '`') open = c; }
     return open !== null || /\b(?:console\.\w+|logger?\.\w+|log\w*)\s*\(/.test(before);
   };
+  // The half-extent class (Auditor's rule, Lead-approved 2026-10-18): `<extent> / 2`, the centre or half-size of a width / depth / size, is a geometric identity nobody tunes. ONLY the literal 2, ONLY the `/ 2` form
+  // (`* 0.5` stays counted, so neither can be traded for the other), and ONLY when the operand's last name is on this CLOSED list (a member or a bare identifier: `z.width / 2`, `plan.depth / 2`, `size / 2`).
+  // Halving a range, a reach or a timing (`aggro / 2`, `windup / 2`) is a design choice and stays counted. Growing the list is a Lead/Strategy ruling, not a PR's choice.
+  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)';
+  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent)\s*\/$/;
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -185,6 +190,7 @@ try {
       if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
       if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
       if (/\*$/.test(before) && /^-\s*1\b/.test(after) && /\b(?:Math\.random\(\)|(?:random|rand|rng|roll|draw|seedUnit|hash|unit|k|t|u)(?:\([^()]*\))?)\s*\*$/.test(before)) return 'math: the * 2 - 1 remap of a unit draw';   // level * 2 - 1 is a count, not a draw: it stays counted
+      if (HALF_EXTENT_BEFORE.test(before)) return HALF_EXTENT_CLASS;
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';

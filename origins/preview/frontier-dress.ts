@@ -15,10 +15,7 @@ export const footprintOf = (p: Piece): Solid => {
   return { x: p.x, z: p.z, r };
 };
 
-/** How much of each kind of clutter to keep: 1 = as it always was; a look's dress set (props-defs.json dress) thins it (0 = none). drifts/rings/cracks/scrub/trees/skyline are the Cinder pass's; rocks, ruins, fill (the mid-distance heaps, wall stubs, spires) posts (burnt posts, fences, carts) and walls (the brick wall stubs among the fill: 0 = none, anything else = as before) are this base dressing's; `reach` scales how far the Cinder ground is carried past the zone's edges (a wide reach hides the ground's edge from a low camera). */
-export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number; readonly walls: number };
-export const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1, rocks: 1, ruins: 1, fill: 1, posts: 1, reach: 1, walls: 1 };
-export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[]; strips?: { x: number; z: number }[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
+export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 export const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
@@ -32,8 +29,8 @@ const SLAB = stageRule('dressSlab'), TOP = { ash: previewRule('decalTopAsh'), ro
 const ASHPALE: Tint = [1.45, 1.42, 1.38], SCORCH: Tint = [0.38, 0.34, 0.32], ROAD: Tint = [1.2, 1.12, 1.02], RUT: Tint = [0.7, 0.64, 0.58];
 const BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.88, 0.8, 0.7], [0.56, 0.54, 0.54]], WALL: Tint = [0.95, 0.84, 0.7];
 
-export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress {
-  const pieces: Piece[] = [], ground: Piece[] = [], solids: Solid[] = [], roadStrips: { x: number; z: number }[] = [];
+export function frontierDress(f: Frontier, b: Build): Dress {
+  const pieces: Piece[] = [], ground: Piece[] = [], solids: Solid[] = [];
   const put = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = 0) => { pieces.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot }); };
   const lay = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { ground.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: -1 }); };
   const decal = (r: number, top: number, x: number, z: number, tint: Tint, rotY = 0) => lay(['cylinder', r, r, top, 14], x, top / 2, z, tint, rotY);
@@ -56,7 +53,7 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
         for (const side of [-0.75, 0.75]) lay(['box', 0.2, TOP.rut, len / n + 0.8], x - uz * side, TOP.rut / 2, zz + ux * side, RUT, rot);
       }
     }
-    lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub); roadStrips.push(...strips);
+    lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub);
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
     const rd = f.road;
@@ -73,7 +70,7 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
     for (let i = 0; i < Math.round(area / 150); i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (inZone(z, p.x, p.z, 1) && !onRoad(f, p.x, p.z) && !strips.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 2.6)) decal(between(0.8, 3.4), TOP.scorch, p.x, p.z, SCORCH, between(0, 6)); }
 
     // Rock clusters: tapered five- to seven-sided boulders in a heap, with a basalt shard or two.
-    for (let c = 0; c < Math.round(area / 500 * thin.rocks); c++) {
+    for (let c = 0; c < Math.round(area / 500); c++) {
       const o = spot(3.4); if (!o || nearTown(o.x, o.z)) continue;
       const n = 3 + Math.floor(R() * 4);
       for (let i = 0; i < n; i++) {
@@ -85,7 +82,7 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
     }
 
     // Broken ruins: a corner of wall with gaps and different heights, a column stump and rubble.
-    for (let c = 0; c < (thin.ruins > 0 ? Math.max(1, Math.round(area / 3600 * thin.ruins)) : 0); c++) {
+    for (let c = 0; c < Math.max(1, Math.round(area / 3600)); c++) {
       const o = spot(7); if (!o || nearTown(o.x, o.z)) continue;
       const rot = R() * 3.14, ux = Math.sin(rot), uz = Math.cos(rot);
       for (const base of [rot, rot + Math.PI / 2]) {
@@ -104,17 +101,17 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
     // Mid-distance fill, 6 to 45 m off the road's line (the bulk 8 to 40): rubble heaps, wall stubs, spires and dead scrub sized to read at phone width. Same free()/sight rule; low pieces (rubble, scrub: knee height) may lie
     // in the first view but never within 6 m of the line, where the camera and the walker stand; tall ones keep to 18 m and beyond.
     const lateral = (x: number, zz: number) => roadFrame(f, x, zz).across, farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 45, nearOff = (x: number, zz: number) => lateral(x, zz) > 6 && lateral(x, zz) < 40 && Math.hypot(rd.to.x - x, rd.to.z - zz) > 22;
-    for (let c = 0; c < Math.round(area / 70 * thin.fill); c++) {
+    for (let c = 0; c < Math.round(area / 70); c++) {
       const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.6, nearOff, true) : spot(2, farOff);
       if (!o) continue;
       if (kind < 0.5) { for (let i = 0; i < 5 + Math.floor(R() * 4); i++) { const r = between(0.4, 1.0); put(['cylinder', r * 0.6, r, r * between(0.7, 1.3), 5], o.x + between(-2, 2), r * 0.35, o.z + between(-2, 2), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
-      else if (kind < 0.7) { if (thin.walls > 0) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); } }
+      else if (kind < 0.7) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
       else if (kind < 0.85) { const h = between(4, 8); put(['cone', between(0.9, 1.6), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 1.1); }
       else { for (let i = 0; i < 6; i++) { const h = between(0.7, 1.4); put(['box', 0.09, h, 0.09], o.x + between(-0.8, 0.8), h / 2, o.z + between(-0.8, 0.8), BURNT, R() * 6, 0); } }
     }
 
     // Burnt posts, broken fence runs, dead trees, a charred cart or barrels.
-    for (let c = 0; c < Math.round(area / 700 * thin.posts); c++) {
+    for (let c = 0; c < Math.round(area / 700); c++) {
       const o = spot(2.5); if (!o) continue;
       const kind = R(), rot = R() * 3.14, dx = Math.sin(rot), dz = Math.cos(rot);
       if (kind < 0.4) { for (let i = 0; i < 3 + Math.floor(R() * 4); i++) { const x = o.x + dx * i * 2.1, zz = o.z + dz * i * 2.1, h = between(0.8, 2.4); put(['box', 0.2, h, 0.2], x, h / 2, zz, BURNT, rot, 0); if (i && R() < 0.6) put(['box', 0.1, 0.1, 2.1], x - dx * 1.05, 0.9 + R() * 0.4, zz - dz * 1.05, BURNT, rot, 0); } solid(o.x, o.z, 0.5); }
@@ -123,5 +120,5 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
       else { for (let i = 0; i < 3; i++) { const x = o.x + between(-0.9, 0.9), zz = o.z + between(-0.9, 0.9); put(['cylinder', 0.38, 0.4, 0.9, 8], x, 0.45, zz, BURNT, 0, 0); } solid(o.x, o.z, 1.1); }
     }
   }
-  return { ground, pieces, solids, strips: roadStrips };   // strips: where the worn roads and hubs are (read by the Cinder pass and the prop kits, so they never guess at shape sizes)
+  return { ground, pieces, solids };
 }
