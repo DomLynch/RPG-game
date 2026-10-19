@@ -156,7 +156,8 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (!key) { res.writeHead(HTTP_NOT_FOUND); return void res.end(); }
     const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
     if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) return reply(HTTP_UNAUTHORISED, { error: 'unauthorised' });
-    reply(HTTP_OK, { layers: [...world.layers.keys()].sort((x, y) => x - y) });
+    const ids = [...world.layers.keys()].sort((x, y) => x - y);
+    reply(HTTP_OK, { layers: ids, players: Object.fromEntries(ids.map((id) => [id, world.layers.get(id)?.players.size ?? 0])) });   // players: how many are in each layer now (the writer's dynamic respawn); counts only, no account
   };
 
   // POST /internal/rejoin {account} (Bearer <internalKey>, loopback): the writer says this account's ACTIVE CHARACTER changed (create or switch). Presence drops the old
