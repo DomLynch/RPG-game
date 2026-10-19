@@ -57,7 +57,7 @@ test('the row markers (default, natural, look) are read as data, never inherited
   assert.equal(DEFAULT_WEAPON, 'longsword');
   assert.deepEqual([...NATURAL_WEAPONS], ['bite']);
   const pommel = Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.pommelBash);
-  assert.deepEqual(pommel.sort(), ['cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'trident', 'warhammer']);
+  assert.deepEqual(pommel.sort(), ['bow', 'cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'staff', 'trident', 'warhammer']);   // bow and staff (2026-10-19) carry the knife's and the trident's look, as the sandbox's stand-ins did
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.baked), ['longsword']);
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.stabs), ['estoc']);
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.lowerArm === false), ['reaper']);
