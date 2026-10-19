@@ -114,4 +114,4 @@ try {
  } finally {await unsupported.close();}
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
-} catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await writeReceipt(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',receipt);await browser.close();await site.close();}
+} catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,sim:receipt.sim,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await writeReceipt(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',receipt);await browser.close();await site.close();}
