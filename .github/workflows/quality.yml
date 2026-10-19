@@ -292,6 +292,8 @@ jobs:
           - { name: seamless-quiet, script: scripts/origins-seamless-check.mjs, required: false, seamless: '1' }
           # Other players in Zone 1 (Web, #2929): a real presence server on loopback, the built preview as a signed-in client, headless bots from origins/presence/test-client.ts. Optional until it has a sample on this runner.
           - { name: remote-heroes, script: scripts/origins-remote-heroes-check.mjs, required: false }
+          # The same row with the kit warm FORCED (?kitwarm=soft): software GL links every kit, and the row asserts warmed > 0 and not failed. Optional until it has a sample on this runner (Characters, 2026-10-19).
+          - { name: remote-heroes-soft, script: scripts/origins-remote-heroes-check.mjs, required: false, kitsoft: '1' }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
@@ -319,6 +321,7 @@ jobs:
           SEAMLESS_QUIET: ${{ matrix.gate.seamless }}
           SEAMLESS_STRIKE: ${{ matrix.gate.seamless }}
           SEAMLESS_PROGRAMS: ${{ matrix.gate.seamless }}
+          KITWARM_SOFT: ${{ matrix.gate.kitsoft }}
         timeout-minutes: 30
       - if: always()
         continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
