@@ -135,6 +135,8 @@
     { "id": "hiddenTickMs", "value": 100, "unit": "ms" },
     { "id": "hiddenCheckMs", "value": 500, "unit": "ms" },
     { "id": "loadCoverFadeMs", "value": 400, "unit": "ms" },
-    { "id": "loadCoverHoldMs", "value": 12000, "unit": "ms" }
+    { "id": "loadCoverHoldMs", "value": 12000, "unit": "ms" },
+    { "id": "deferredLookFrames", "value": 30, "unit": "frames" },
+    { "id": "deferredLookGapFrames", "value": 2, "unit": "frames" }
   ]
 }
