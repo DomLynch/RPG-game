@@ -1,0 +1,9 @@
+bow-v1.glb  (647,332 bytes; sha256 79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd, pinned in tests/ranged-model.test.ts)
+
+The painted bow of the combat sandbox, ported to the game (CS23, Dom's blanket approval 2026-10-18 "port all of it"; Lead's ruling (b) 2026-10-19: the model, its loader and its row, dormant).
+Origin: Dom's own pick, the concept image bow-concept-s71 (his word at the time: the picks bow-concept-s71 / crossbow-concept-top-s71). Mesh by TRELLIS.2 from that concept, fitted and exported by Characters & Art
+in Blender (glTF Blender I/O 5.2.40), single mesh, two WebP maps (EXT_texture_webp), node WeaponDrawn with its own userData (weapon bow-v1, hand hand_l, contact 0.1-0.7, nock 0,0,0.0797).
+Source of this file: sandbox/painted/bow-v1.glb in the BULK-CS tree (DomLynch/RPG-game #3257 @9611442f6), first added at Characters & Art 3febe084b on sandbox/page; copied byte for byte, nothing edited.
+The hold (rotation -1.9, 34.6, 114.3 deg under hand_l) is the sandbox's own (scripts/weapon-stage/holds.json, Characters & Art 2026-10-15), now a row: src/fight/ranged-model-defs.json.
+The crossbow (crossbow-v1.glb) is NOT shipped: removed by Dom 2026-10-18 (CS22, DROPPED-BY-DOM).
+TRELLIS exports metalness 1 / roughness 1, which draws black with no environment map; the row carries the matte (0.08 / 0.85) the sandbox applied.
