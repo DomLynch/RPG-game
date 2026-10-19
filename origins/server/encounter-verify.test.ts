@@ -24,7 +24,7 @@ function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightR
   if (!isOpponentId(enemy)) throw new Error(`unknown opponent ${enemy}: not a row of the roster`);
   const flags = spec.flags ?? [], opponent = OPPONENTS[enemy], profile = profileAt(opponent, level), rand = lcg(intentSeed);
   const specials = liveSpecials(level);
-  const rec = (spec.stances ? liveRecorder : createRecorder)({ build: kitBuild('test'), opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(spec.stances ? { stances: spec.stances } : {}) });
+  const rec = liveRecorder({ build: kitBuild('test'), opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(spec.stances ? { stances: spec.stances } : {}) });
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }), undefined, spec.stances);
   if (spec.bar && flags.some((f) => f.kind === 'one-health-bar')) p = withBar(p, spec.bar);
   const layer = spec.layer ? mobLayer(spec.layer) : undefined;
@@ -55,7 +55,10 @@ test('the server\'s parameters win over the record\'s claims: a different seed, 
   for (const [name, p] of [['seed', params(spec, { seed: 732 })], ['enemy', params(spec, { enemy: 'veteran' })], ['level', params(spec, { level: 7 })]] as const) {
     const v = verifyEncounter(record, p); assert.equal(v.ok, false, name);
   }
-  assert.equal(verifyEncounter({ ...record, specials: true }, params(spec)).ok, false, 'a record that claims specials where the warden has none');
+  assert.equal(record.specials, true, 'RV80: level 6 fights with specials');
+  assert.equal(verifyEncounter({ ...record, v: 79, specials: true }, params(spec)).ok, false, 'a v79 record that claims specials where the warden has none (the Veteran rung is 16)');
+  const bare: Partial<FightRecord> = { ...record }; delete bare.specials;
+  assert.equal(verifyEncounter(bare as FightRecord, params(spec)).ok, false, 'a v80 record that omits specials at level 6');
   const high: Spec = { enemy: 'veteran', level: 30, seed: 9 }, hi = finished(high).record;
   const noSpecials: Partial<FightRecord> = { ...hi }; delete noSpecials.specials;
   assert.equal(verifyEncounter(noSpecials as FightRecord, params(high)).ok, false, 'and the reverse');
@@ -128,7 +131,7 @@ test('kit mismatch: a record played on another mob kit is refused as a kit misma
 // circle, late notice and stab globally: kept LAST in this file so no earlier test sees those globals.
 test('a stances record verifies with its pick (v34), win or loss, for every pick', () => {
   for (const pick of PICKS) {
-    const spec: Spec = { enemy: 'knight', level: 6, seed: 731, stances: pick }, { record } = finished(spec), v = verifyEncounter(record, params(spec));
+    const spec: Spec = { enemy: 'knight', level: 20, seed: 731, stances: pick }, { record } = finished(spec), v = verifyEncounter(record, params(spec));   // level 20, not 6: this record has no sheet, so it stamps v54 (below RV80), where specials start at the Veteran rung (16); a live sheet fight stamps 80 (cast-penalty-era.ts SHEET_ERA_VERSION)
     assert.equal(record.stances, pick);
     assert.equal(v.ok, true, v.ok ? '' : `${pick}: ${v.reason}`);
     if (v.ok) assert.equal(v.result, record.outcome === 'killed' ? 'won' : 'lost');
