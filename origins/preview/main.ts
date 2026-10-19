@@ -56,6 +56,8 @@ import { chromeText as repairText } from './repair-view.ts';
 import { mountStats } from './stats-screen.ts';
 import { chromeText as statsText } from './stats-view.ts';
 import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
+import { STARTER_WIELD } from '../region1/starter-wield.ts';
+import { sessionWeapons } from './guest-weapons.ts';
 import { chromeText as shopText } from '../shops/shop-view.ts';
 import { mountShop } from './shop-screen.ts';
 import { buyOne, newOp, readStock } from './shop-net.ts';
@@ -746,7 +748,7 @@ if (frontier) {
       chips.append(boardEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
       // P0-b: worn gear changes the combat sheet (gearMount.sheet), so onWorn tells the loop: a record window open on the old sheet is dropped ('gear-change') and the next opens on the new one
-      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; try { wc.heroChanged(); } catch { /* the world loop is not up yet: nothing is open to drop */ } void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, signedIn: pageSignedIn, sessionWeapons: () => sessionWeapons(guestHeld.items(), (item) => STARTER_WIELD.get(item)), onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; try { wc.heroChanged(); } catch { /* the world loop is not up yet: nothing is open to drop */ } void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
