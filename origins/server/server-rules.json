@@ -131,6 +131,14 @@
       "note": "per-layer spawn clocks (docs/specs/origins/per-layer-spawns.md, migration 20261019170000, flag ORIGINS_SPAWN_LAYERS): once every janitorEveryS seconds the writer asks presence which layers exist and deletes the spawn rows of every layer that does not (presence closes a layer after it has been empty for emptyLayerMs). A presence that cannot be asked deletes nothing."
     }
   ],
+  "dynamicRespawn": [
+    {
+      "id": "respawn",
+      "playersFull": 10,
+      "floorS": 15,
+      "note": "dynamic respawn inside a layer (Dom's ruling 2026-10-19 via Strategy, Trinity-style: respawn x min(1, 10 / players), floor 10-15 s; about 30 kills an hour per hunter, per-layer copies; flag ORIGINS_DYNAMIC_RESPAWN): a layer holding more than playersFull players respawns its creatures in base x playersFull / players seconds, never below floorS (about one fight, the first fight measured 13.5 s) and never above the creature's own row, so a crowded layer does not starve. Players, not hunters, are what presence can count, so this is the conservative reading: it assumes everyone present hunts. Only the clock of the spawn changes; the one-paid-kill-per-account window across layers stays the row's own respawn."
+    }
+  ],
   "strictRevert": [
     {
       "id": "revert",
