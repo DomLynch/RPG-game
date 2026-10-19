@@ -1,6 +1,7 @@
 {
   "name": "The Cinder Fields",
   "defaultKind": "goblin",
+  "biome": "goblin-fortress",
   "names": {
     "east-road": "The East Road",
     "ferry-landing": "The Grey Ferry",
@@ -20,6 +21,7 @@
     "mere-end"
   ],
   "camera": {
+    "preset": "b",
     "passage": {
       "zMax": -9,
       "zMin": -26.5,
@@ -363,7 +365,7 @@
   },
   "looks": {
     "zone1": {
-      "fog": "#6e5f52",
+      "fog": "#5d5a60",
       "fogDensity": 0.012,
       "hemiSky": "#9fb2d4",
       "hemiGround": "#4a3426",
@@ -388,12 +390,12 @@
       ]
     },
     "frontier-haze": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.012,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#6a5238",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -408,12 +410,12 @@
       ]
     },
     "cinder-haze": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.0095,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#52402c",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#443a33",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.6,
       "sunPos": [
         -24,
@@ -428,12 +430,12 @@
       ]
     },
     "frontier-duel": {
-      "fog": "#d6bf9a",
+      "fog": "#b9aea4",
       "fogDensity": 0.0095,
-      "hemiSky": "#b4c4da",
-      "hemiGround": "#6a5238",
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
       "hemiIntensity": 1.35,
-      "sunColor": "#ffd6a0",
+      "sunColor": "#e8cfb4",
       "sunIntensity": 5.04,
       "sunPos": [
         -24,
@@ -519,7 +521,9 @@
       "character:pit-goblin": {
         "opponent": "goblin",
         "tint": 16777215,
-        "scale": 1,
+        "scale": 1.25,
+        "loadout": "goblin.t4.gladius",
+        "body": "world/kit/goblin-bare.glb",
         "dressing": {
           "soot": 0,
           "burnt": 0
@@ -546,6 +550,7 @@
       "character:ash-wolf": {
         "opponent": "wolf",
         "tint": 9077624,
+        "scale": 2.8,
         "dressing": {
           "soot": 0.4,
           "burnt": 0
@@ -562,6 +567,7 @@
       "character:ash-boar": {
         "opponent": "boar",
         "tint": 8021330,
+        "scale": 2.7,
         "dressing": {
           "soot": 0.35,
           "burnt": 0
@@ -570,6 +576,7 @@
       "character:giant-salamander": {
         "opponent": "giant-salamander",
         "tint": 16777215,
+        "scale": 6,
         "dressing": {
           "soot": 0.2,
           "burnt": 0.1
@@ -578,6 +585,8 @@
       "character:cave-troll": {
         "opponent": "cave-troll",
         "tint": 16777215,
+        "scale": 1.52,
+        "loadout": "troll.pit.t4.cleaver",
         "dressing": {
           "soot": 0.15,
           "burnt": 0
@@ -634,6 +643,34 @@
         "scale": 0.08,
         "soot": 0.2,
         "burnt": 0.2
+      },
+      "character:cave-troll": {
+        "tints": [
+          16777215
+        ],
+        "scale": 0,
+        "soot": 0,
+        "burnt": 0,
+        "loadouts": [
+          "troll.pit.t7.cleaver",
+          "troll.pit.t4.cleaver"
+        ]
+      },
+      "character:pit-goblin": {
+        "tints": [
+          13421715,
+          12632176,
+          14719136
+        ],
+        "scale": 0.08,
+        "soot": 0.25,
+        "burnt": 0.15,
+        "loadouts": [
+          "goblin.t4.gladius",
+          "goblin.t4.cleaver",
+          "goblin.t7.longsword",
+          "goblin.t7.estoc"
+        ]
       }
     }
   },
