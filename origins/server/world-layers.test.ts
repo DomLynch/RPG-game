@@ -7,6 +7,7 @@ import type { Where } from '../presence/where.ts';
 import type { CareerRow } from './store.ts';
 import type { Db } from './db.ts';
 import { Refused } from './errors.ts';
+import { spawnFlagError } from './spawn-flags.ts';
 
 // Per-layer spawn clocks at the writer (spawnLayers on): which function is asked, with which layer, and what a layer change or a missing presence does. A fake database; the real functions are proven on a
 // disposable cluster by scripts/origins-spawns-check.mjs and scripts/origins-damage-share-check.mjs.
@@ -126,6 +127,18 @@ test('dynamic respawn is off with its flag, without a layer, or when presence ca
   await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 1: 80 }) }).kill_report!(ctx(noLayer.db, standing(1)), { token: TOKEN, hits: 50 });
   await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: async () => { throw new Error('presence down'); } }).kill_report!(ctx(down.db, standing(2)), { token: TOKEN, hits: 50 });
   for (const s of [off, noLayer, down]) assert.equal(killR(s), String(wolf.respawnS));
+});
+
+test('writer flags: ORIGINS_DYNAMIC_RESPAWN is refused unless the layers flag, the presence key AND damage share are set (the damage-share pre-check holds the cross-layer hop window at the row respawn)', () => {
+  const full = { ORIGINS_SPAWN_LAYERS: '1', ORIGINS_DYNAMIC_RESPAWN: '1', ORIGINS_DAMAGE_SHARE: '1' };
+  assert.equal(spawnFlagError(full, 'k'), null, 'all three plus the key: starts');
+  assert.match(spawnFlagError({ ...full, ORIGINS_DAMAGE_SHARE: undefined }, 'k') ?? '', /needs ORIGINS_DAMAGE_SHARE=1/, 'dynamic respawn without damage share is refused');
+  assert.match(spawnFlagError({ ...full, ORIGINS_DAMAGE_SHARE: '0' }, 'k') ?? '', /needs ORIGINS_DAMAGE_SHARE=1/);
+  assert.match(spawnFlagError({ ...full, ORIGINS_SPAWN_LAYERS: undefined }, 'k') ?? '', /needs ORIGINS_SPAWN_LAYERS=1/, 'and without the layers flag');
+  assert.match(spawnFlagError(full, undefined) ?? '', /PRESENCE_INTERNAL_KEY/, 'and without the presence key');
+  assert.equal(spawnFlagError({ ORIGINS_SPAWN_LAYERS: '1' }, 'k'), null, 'layers alone (today) still starts');
+  assert.match(spawnFlagError({ ORIGINS_SPAWN_LAYERS: '1' }, undefined) ?? '', /needs PRESENCE_INTERNAL_KEY/);
+  assert.equal(spawnFlagError({}, undefined), null, 'nothing set: starts');
 });
 
 test('a token from before the migration (no layer) is never refused moved, even with the flag on', async () => {

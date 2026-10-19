@@ -204,7 +204,9 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       if (stands.known && stands.layer !== layer) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused moved (layer ${layer} -> ${stands.layer})`); return refuse('moved'); }
     }
     // Dynamic respawn (behind `dynamicRespawn`, rows `dynamicRespawn`): a layer holding more than the row's players respawns its creatures faster, down to a floor, so a crowded layer does not starve. It changes ONLY the spawn's
-    // own clock; the cross-layer one-kill-per-window check above keeps the creature's row respawn, so a hop between layers still gains nothing. No count (flag off, presence unreachable or older): the row's respawn.
+    // own clock (the SQL kill functions take the same p_respawn_s for respawn_at AND for the cross-layer hop window, so the shortened value would shrink that window too). The row window is held by the damage-share
+    // pre-check below, which passes spawn.respawnS (the ROW's) to origins_spawn_check_layer before the kill; so the writer refuses ORIGINS_DYNAMIC_RESPAWN unless ORIGINS_DAMAGE_SHARE is on (spawn-flags.ts). No count
+    // (flag off, presence unreachable or older): the row's respawn.
     let respawnS = spawn.respawnS;
     if (deps.dynamicRespawn && layer !== undefined && deps.layerCounts) respawnS = dynamicRespawnS(spawn.respawnS, (await deps.layerCounts().catch(() => null))?.players[layer]);
     // Reach: a fresh placed pose in the spawn's zone is checked (too far = refused). Anything else is 'unchecked', and an unchecked kill PAYS IN FULL unless `refuseUnchecked`
