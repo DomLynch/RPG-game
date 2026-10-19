@@ -106,7 +106,8 @@ try {
   // ---- rollback --------------------------------------------------------------------------------------------------------------------------------
   const rollbackMs = timed(readFileSync(join(dir, '..', 'down', DOWN), 'utf8'));
   const back = { fp: fingerprint(), rows: rows(), old: oldAnswers() };
-  eq(back.fp.constraints, before.fp.constraints, 'ROLLBACK: the primary keys and the foreign key are exactly as before (the foreign key comes back NOT VALID: its definition prints the same)');
+  eq(back.fp.constraints.replace(' NOT VALID', ''), before.fp.constraints, 'ROLLBACK: the primary keys, the foreign key and every check are exactly as before, but for the one documented difference below');
+  eq(psql(`select convalidated::text from pg_constraint where conname = 'origins_spawn_engages_instance_fkey'`), 'false', 'ROLLBACK: the one difference: the foreign key comes back NOT VALID (existing rows are skipped, every new row is checked; engages of layers above 1 may name an instance whose row is gone)');
   eq(back.fp.indexes, before.fp.indexes, 'ROLLBACK: every index on the three tables is exactly as before');
   eq(back.fp.columns, before.fp.columns, 'ROLLBACK: the columns are exactly as before (no layer column anywhere)');
   eq(back.fp.functions, before.fp.functions, 'ROLLBACK: every spawn function (definition md5 and grants) is byte-identical to before the migration');
