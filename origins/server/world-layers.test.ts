@@ -20,7 +20,9 @@ const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', TOKEN = 'T'.repeat(32);
 const row = (): CareerRow => ({ seed_credit: 0, world_credit: 0, total_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 });
 
 type Call = { fn: string; vars: Record<string, string> };
-function stub(opts: { tokenLayer?: number; layersAbsent?: boolean; refused?: string } = {}): { calls: Call[]; db: Db } {
+// hopAgoS models the SQL's cross-layer window: the account killed this instance in ANOTHER layer that many seconds ago, and BOTH the check and the kill functions refuse 'cooldown' while their one p_respawn_s is
+// longer than that (migration 20261019170000 uses the same p_respawn_s for respawn_at and for this window).
+function stub(opts: { tokenLayer?: number; layersAbsent?: boolean; refused?: string; hopAgoS?: number } = {}): { calls: Call[]; db: Db } {
   const calls: Call[] = [];
   const db = { async run(sql: string, v: Record<string, string> = {}) {
     const call = sql.includes('\\if :') ? sql.slice(sql.indexOf('\\if :')) : sql;
@@ -30,9 +32,10 @@ function stub(opts: { tokenLayer?: number; layersAbsent?: boolean; refused?: str
     if (fn === 'origins_spawn_state' || fn === 'origins_spawn_state_layer') return JSON.stringify({ now: 'N', spawns: [] });
     if (fn === 'origins_spawn_engage' || fn === 'origins_spawn_engage_layer') return JSON.stringify({ token: TOKEN, instance: wolf.spec.id, generation: 0, expiresAt: 'E' });
     if (fn === 'origins_spawn_engage_get') return JSON.stringify({ token: TOKEN, character: PC, instance: wolf.spec.id, ...(opts.tokenLayer === undefined ? {} : { layer: opts.tokenLayer }), generation: 0, issuedAt: '2026-10-08T10:00:00Z', expiresAt: '2026-10-08T10:02:00Z' });
-    if (fn === 'origins_spawn_check_layer' || fn === 'origins_spawn_check') return JSON.stringify(opts.refused ? { refused: opts.refused } : { ok: true, mode: 'first', instance: wolf.spec.id, generation: 0 });
+    const hopped = opts.hopAgoS !== undefined && Number(v.r) > opts.hopAgoS;
+    if (fn === 'origins_spawn_check_layer' || fn === 'origins_spawn_check') return JSON.stringify(opts.refused || hopped ? { refused: opts.refused ?? 'cooldown' } : { ok: true, mode: 'first', instance: wolf.spec.id, generation: 0 });
     if (fn === 'origins_spawn_damage_read_layer' || fn === 'origins_spawn_damage_read') return '[]';
-    if (fn === 'origins_spawn_kill_v2' || fn === 'origins_spawn_kill') return JSON.stringify(opts.refused ? { refused: opts.refused } : { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' });
+    if (fn === 'origins_spawn_kill_v2' || fn === 'origins_spawn_kill') return JSON.stringify(opts.refused || hopped ? { refused: opts.refused ?? 'cooldown' } : { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' });
     if (/origins_metal_of/.test(sql)) return 'absent';
     return JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] });
   } } as Db;
@@ -127,6 +130,24 @@ test('dynamic respawn is off with its flag, without a layer, or when presence ca
   await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 1: 80 }) }).kill_report!(ctx(noLayer.db, standing(1)), { token: TOKEN, hits: 50 });
   await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: async () => { throw new Error('presence down'); } }).kill_report!(ctx(down.db, standing(2)), { token: TOKEN, hits: 50 });
   for (const s of [off, noLayer, down]) assert.equal(killR(s), String(wolf.respawnS));
+});
+
+// A hop: the account killed this spawn in another layer `ago` seconds ago, past the SHORTENED respawn of a crowded layer (80 players) but inside the ROW's. The crowded layer's respawn is what the kill functions would get as
+// p_respawn_s, so the only thing holding the row window is the damage-share pre-check, which passes the row's value (Auditor NOT YET @506b606dc, #3328).
+const crowdedS = Math.min(wolf.respawnS, Math.max(15, Math.round(wolf.respawnS * 10 / 80))), hopAgo = Math.floor((crowdedS + wolf.respawnS) / 2);
+test('dynamic respawn + damage share: a layer hop inside the row respawn but past the shortened one is refused (cooldown), nothing is killed', async () => {
+  assert.ok(crowdedS < hopAgo && hopAgo < wolf.respawnS, 'the fixture sits between the shortened and the row respawn');
+  const s = stub({ tokenLayer: 2, hopAgoS: hopAgo });
+  await assert.rejects(() => Promise.resolve(ops({ spawnLayers: true, damageShare: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }), verifyRecord: async () => ({ ok: true, ticks: 1, damage: wolf.hp }) }).kill_report!(ctx(s.db, standing(2)), { token: TOKEN, hits: 50, record: 'r' })), (e: unknown) => e instanceof Refused && e.status === 422 && e.code === 'cooldown');
+  assert.equal(last(s, 'origins_spawn_check_layer')?.vars.r, String(wolf.respawnS), 'the pre-check carried the row window');
+  assert.ok(!s.calls.some((c) => /spawn_kill/.test(c.fn)), 'no kill reached the database');
+});
+
+test('the hazard the writer flag rule closes: dynamic respawn WITHOUT damage share lets the same hop pay (the kill function gets only the shortened window), which is why spawnFlagError refuses that combination', async () => {
+  const s = stub({ tokenLayer: 2, hopAgoS: hopAgo });
+  await ops({ spawnLayers: true, dynamicRespawn: true, layerCounts: counts({ 2: 80 }) }).kill_report!(ctx(s.db, standing(2)), { token: TOKEN, hits: 50 });
+  assert.equal(killR(s), String(crowdedS), 'the kill carries the shortened window');
+  assert.ok(!s.calls.some((c) => /spawn_check/.test(c.fn)), 'and nothing checked the row window first');
 });
 
 test('writer flags: ORIGINS_DYNAMIC_RESPAWN is refused unless the layers flag, the presence key AND damage share are set (the damage-share pre-check holds the cross-layer hop window at the row respawn)', () => {
