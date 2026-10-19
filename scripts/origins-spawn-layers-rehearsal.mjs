@@ -110,6 +110,8 @@ try {
   eq(psql(`select convalidated::text from pg_constraint where conname = 'origins_spawn_engages_instance_fkey'`), 'false', 'ROLLBACK: the one difference: the foreign key comes back NOT VALID (existing rows are skipped, every new row is checked; engages of layers above 1 may name an instance whose row is gone)');
   eq(back.fp.indexes, before.fp.indexes, 'ROLLBACK: every index on the three tables is exactly as before');
   eq(back.fp.columns, before.fp.columns, 'ROLLBACK: the columns are exactly as before (no layer column anywhere)');
+  const lineDiff = (a, b) => { const A_ = new Set(a.split('\n')), B_ = new Set(b.split('\n')); return [...a.split('\n').filter(l => !B_.has(l)).map(l => `- ${l.slice(0, 160)}`), ...b.split('\n').filter(l => !A_.has(l)).map(l => `+ ${l.slice(0, 160)}`)]; };
+  eq(lineDiff(before.fp.functions, back.fp.functions), [], 'ROLLBACK (differing functions):');
   eq(back.fp.functions, before.fp.functions, 'ROLLBACK: every spawn function (definition md5 and grants) is byte-identical to before the migration');
   eq(back.rows, before.rows, 'ROLLBACK: every row of spawns, engages and the ledger is unchanged');
   eq(back.old, before.old, 'ROLLBACK: the old state and engage_get answer exactly as before');
