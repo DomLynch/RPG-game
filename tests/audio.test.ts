@@ -1,4 +1,4 @@
-import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
+import './lib/era-on.ts';   // RV78: the scripted exchange is the audio release row's ruler (row 4 plays the era the game ships), so it runs the sandbox rules (wardenHealth 65 is sized for the plate warden); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
