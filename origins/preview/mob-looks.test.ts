@@ -61,7 +61,8 @@ test('visual spread: variant 0 is the table look, the others are distinct, stabl
       assert.ok([base.tint, ...spread.tints].includes(l.tint), `${id}#${v}: the tint comes from the pool`);
       seen.add(`${l.tint}/${l.scale}/${l.loadout ?? ''}`);   // a camp may differ by loadout alone (the troll: one tint, one height, two loadouts)
     }
-    assert.equal(seen.size, VARIANTS, `${id}: ${VARIANTS} variants, all different`);
+    const want = spread.scale === 0 && spread.tints.length <= 1 ? new Set([base.loadout, ...(spread.loadouts ?? [])]).size : VARIANTS;   // a camp that differs by loadout alone has as many looks as loadouts
+    assert.equal(seen.size, want, `${id}: ${want} variants, all different`);
   }
 });
 
