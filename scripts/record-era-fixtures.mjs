@@ -14,7 +14,7 @@ import { RECORD_VERSION } from '../src/fight/record.ts';
 import { spellRefusal } from '../origins/server/spell-gate.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
-import { forceSandbox, ROWS79_ON, sandboxFor, SANDBOX_ON, setRows79, setSandbox } from '../src/fight/sandbox-era.ts';
+import { forceSandbox, ROWS79_ON, ROWS80_ON, sandboxFor, SANDBOX_ON, setRows79, setRows80, setSandbox } from '../src/fight/sandbox-era.ts';
 
 export const FIXTURE = new URL('../tests/fixtures/era-records.json', import.meta.url);
 const BASE = { build: 'era', opponent: 'veteran', weapon: 'longsword', level: 6, seed: 731 };
@@ -27,9 +27,9 @@ const loaderOf = (server) => ({ held: async () => server?.held ?? { grimoire: {}
 // A STORED record replays under the era its own version names (v31..v77 old rules, v78 the sandbox, v79 the RV79 rows), exactly as the paying sweeps do. The unit suite forces the era OFF for everything it
 // FIGHTS (tests/lib/era-off.ts), which would replay a v78/v79 record under the wrong rules, so the force is lifted for the replay and put back after (RV79; a script run has no force and nothing to restore).
 const replayByVersion = (run) => {
-  const forced = !sandboxFor(RECORD_VERSION), sandbox = SANDBOX_ON, rows79 = ROWS79_ON;
-  if (forced) { forceSandbox(undefined); setSandbox(true); setRows79(true); }
-  try { return run(); } finally { if (forced) { forceSandbox(false); setSandbox(sandbox); setRows79(rows79); } }
+  const forced = !sandboxFor(RECORD_VERSION), sandbox = SANDBOX_ON, rows79 = ROWS79_ON, rows80 = ROWS80_ON;
+  if (forced) { forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(true); }
+  try { return run(); } finally { if (forced) { forceSandbox(false); setSandbox(sandbox); setRows79(rows79); setRows80(rows80); } }
 };
 export const ERA_ONLY = new Set(['meleeSpecial']);   // recipes whose fight differs from the plain one only in the live era: with the era forced off they stamp what plain stamps, so they are not part of the distinct-stamps check
 const replayChecked = async (record, server) => {   // what a sweep would conclude: the sheet against the stored one, the spell through the gate, then the replay with its landed hits
