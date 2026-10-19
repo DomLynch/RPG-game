@@ -1,0 +1,364 @@
+{
+  "url": "http://127.0.0.1:5192/preview/origins/?region=1&presence=0",
+  "tag": "after-aa4775d56",
+  "at": "2026-10-19T04:28:30.922Z",
+  "frames": [
+    {
+      "name": "hut-1",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-hut-1-375.jpg",
+      "note": "hero 9 m west of watchtower at -87,-62.80000000000002",
+      "hero": {
+        "x": -96,
+        "z": -62.8,
+        "zone": "The East Road"
+      }
+    },
+    {
+      "name": "hut-2",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-hut-2-375.jpg",
+      "note": "hero 9 m west of ferry-house at -162,-32.000000000000036",
+      "hero": {
+        "x": -171,
+        "z": -32,
+        "zone": "The Grey Ferry"
+      }
+    },
+    {
+      "name": "hut-3",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-hut-3-375.jpg",
+      "note": "hero 9 m west of boathouse at -174,-68.00000000000003",
+      "hero": {
+        "x": -183,
+        "z": -68,
+        "zone": "The Grey Ferry"
+      }
+    },
+    {
+      "name": "giant-salamander-fight2",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-giant-salamander-fight2-375.jpg",
+      "note": "hero 5 m from brood-4 (Giant salamander Lv 2), two heavy presses, frame 1.3 s after the first",
+      "hero": {
+        "x": -164.26,
+        "z": -111.13,
+        "zone": "The Black Mere"
+      }
+    }
+  ],
+  "landmarks": [
+    {
+      "zone": "pit-yard",
+      "id": "centre",
+      "x": 3.061616997868383e-15,
+      "z": 0,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "pit-yard",
+      "id": "pit-gate",
+      "x": 4.947573068555308e-15,
+      "z": -15.400000000000006,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "exchange",
+      "id": "outer-gate",
+      "x": 6.123233995736767e-15,
+      "z": -25.000000000000007,
+      "facing": -2.4492935982947064e-16
+    },
+    {
+      "zone": "exchange",
+      "id": "covenant-stone",
+      "x": 8.572527594031473e-15,
+      "z": -45.00000000000001,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "exchange",
+      "id": "contract-board",
+      "x": -12.199999999999992,
+      "z": -36.00000000000001,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "exchange",
+      "id": "forge",
+      "x": -10.499999999999991,
+      "z": -60.50000000000001,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "exchange",
+      "id": "bank",
+      "x": 1.126675055215565e-14,
+      "z": -67,
+      "facing": -2.4492935982947064e-16
+    },
+    {
+      "zone": "exchange",
+      "id": "west-gate",
+      "x": -19.99999999999999,
+      "z": -50.000000000000014,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "exchange",
+      "id": "square-arch",
+      "x": 20.00000000000001,
+      "z": -50,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "east-road",
+      "id": "exchange-gate",
+      "x": -31.99999999999999,
+      "z": -50.000000000000014,
+      "facing": 1.5707963267948963
+    },
+    {
+      "zone": "east-road",
+      "id": "milestone",
+      "x": -61.999999999999986,
+      "z": -50.00000000000002,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "east-road",
+      "id": "watchtower",
+      "x": -87,
+      "z": -62.80000000000002,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "east-road",
+      "id": "fields-turn",
+      "x": -102,
+      "z": -30.000000000000025,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "east-road",
+      "id": "crossroads",
+      "x": -132,
+      "z": -50.00000000000003,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "ferry-landing",
+      "id": "road-end",
+      "x": -132,
+      "z": -50.00000000000003,
+      "facing": 1.5707963267948963
+    },
+    {
+      "zone": "ferry-landing",
+      "id": "ferry-house",
+      "x": -162,
+      "z": -32.000000000000036,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "ferry-landing",
+      "id": "boathouse",
+      "x": -174,
+      "z": -68.00000000000003,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "ferry-landing",
+      "id": "mere-shore",
+      "x": -156,
+      "z": -80.00000000000003,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "ferry-landing",
+      "id": "dock",
+      "x": -186,
+      "z": -50.000000000000036,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "road-gate",
+      "x": -102,
+      "z": -30.00000000000003,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "ash-pits",
+      "x": -102,
+      "z": 29.99999999999997,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "shrine",
+      "x": -138,
+      "z": 65.99999999999997,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "hold-road",
+      "x": -78.00000000000001,
+      "z": 89.99999999999999,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "troll-cave",
+      "x": -138,
+      "z": 5.999999999999974,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "cinder-fields",
+      "id": "cave-mouth",
+      "x": -144,
+      "z": 29.999999999999964,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "black-mere",
+      "id": "landing-shore",
+      "x": -156,
+      "z": -80.00000000000003,
+      "facing": 0
+    },
+    {
+      "zone": "black-mere",
+      "id": "reed-bank",
+      "x": -170,
+      "z": -115.00000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "black-mere",
+      "id": "mere-hollow",
+      "x": -205,
+      "z": -130.00000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "black-mere",
+      "id": "causeway",
+      "x": -254,
+      "z": -130.00000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "black-mere",
+      "id": "causeway-foot",
+      "x": -247,
+      "z": -155.00000000000003,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-gate",
+      "x": -78,
+      "z": 89.99999999999999,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-centre",
+      "x": -90.00000000000001,
+      "z": 122.99999999999999,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-hall",
+      "x": -111.00000000000001,
+      "z": 132,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-forge",
+      "x": -87.00000000000001,
+      "z": 138,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-fence",
+      "x": -105.00000000000001,
+      "z": 107.99999999999997,
+      "facing": 1.5707963267948963
+    },
+    {
+      "zone": "cinder-hold",
+      "id": "hold-jail",
+      "x": -108.00000000000003,
+      "z": 144,
+      "facing": -2.220446049250313e-16
+    },
+    {
+      "zone": "blood-ruin",
+      "id": "causeway-end",
+      "x": -254,
+      "z": -130.00000000000003,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "blood-ruin",
+      "id": "ruin-jetty",
+      "x": -270,
+      "z": -100.00000000000003,
+      "facing": 0
+    },
+    {
+      "zone": "blood-ruin",
+      "id": "ruin-gate",
+      "x": -290,
+      "z": -130.00000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "blood-ruin",
+      "id": "crypt",
+      "x": -322,
+      "z": -130.00000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "mere-end",
+      "id": "end-gate",
+      "x": -247,
+      "z": -155.00000000000003,
+      "facing": 0
+    },
+    {
+      "zone": "mere-end",
+      "id": "end-centre",
+      "x": -247,
+      "z": -182.50000000000003,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "mere-end",
+      "id": "end-hall",
+      "x": -266,
+      "z": -185.00000000000003,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "mere-end",
+      "id": "end-healer",
+      "x": -242,
+      "z": -197.50000000000003,
+      "facing": -3.141592653589793
+    },
+    {
+      "zone": "mere-end",
+      "id": "end-jail",
+      "x": -264.5,
+      "z": -200.00000000000003,
+      "facing": -3.141592653589793
+    }
+  ]
+}

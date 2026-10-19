@@ -1,0 +1,157 @@
+{
+  "url": "http://127.0.0.1:5192/preview/origins/?region=1&presence=0",
+  "tag": "after-aa4775d56",
+  "at": "2026-10-19T04:27:22.144Z",
+  "frames": [
+    {
+      "name": "start",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-start-375.jpg",
+      "note": "hero at the start, 9 s after the page opened",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -72.64,
+        "z": 62.91,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-goblin-ready-375.jpg",
+      "note": "hero 9 m from opener-cinder-fields-1 (Cinder scavenger Lv 1), not engaged; creature centre on screen at {\"x\":128.30715302033383,\"y\":289.5621177080248}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08,
+        "z": 70.6,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-goblin-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08,
+        "z": 69.8,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "giant-salamander-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-giant-salamander-ready-375.jpg",
+      "note": "hero 9 m from brood-4 (Giant salamander Lv 2), not engaged; creature centre on screen at {\"x\":249.10591969574884,\"y\":366.244948447035}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -164.73,
+        "z": -106.69,
+        "zone": "The Black Mere"
+      }
+    },
+    {
+      "name": "giant-salamander-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-giant-salamander-fight-375.jpg",
+      "note": "stood 3.2 m off and pressed heavy, 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0.1199961631680165,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0.9999680264001376
+      },
+      "hero": {
+        "x": -164.95,
+        "z": -112.3,
+        "zone": "The Black Mere"
+      }
+    },
+    {
+      "name": "cave-troll-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-cave-troll-ready-375.jpg",
+      "note": "hero 9 m from cave-troll-1 (Cave troll Lv 3, loadout troll.pit.t4.cleaver), not engaged; creature centre on screen at {\"x\":257.446841439148,\"y\":325.5364971598806}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -139.12,
+        "z": 12.9,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "cave-troll-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z1after2/after-aa4775d56-cave-troll-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0.09718104060678517,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0.8098420050565431
+      },
+      "hero": {
+        "x": -139.14,
+        "z": 12.1,
+        "zone": "The Cinder Fields"
+      }
+    }
+  ],
+  "console": [
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: zone dome: the backdrop did not paint; the painted sky stays zones/goblin-fortress-panorama.jpg TypeError: Failed to execute 'createLinearGradient' on 'CanvasRenderingContext2D': The provided double v",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: zone dome: the backdrop did not paint; the painted sky stays zones/goblin-fortress-panorama.jpg TypeError: Failed to execute 'createLinearGradient' on 'CanvasRenderingContext2D': The provided double v",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: zone dome: the backdrop did not paint; the painted sky stays zones/goblin-fortress-panorama.jpg TypeError: Failed to execute 'createLinearGradient' on 'CanvasRenderingContext2D': The provided double v",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: zone dome: the backdrop did not paint; the painted sky stays zones/goblin-fortress-panorama.jpg TypeError: Failed to execute 'createLinearGradient' on 'CanvasRenderingContext2D': The provided double v"
+  ],
+  "zone": {
+    "region": {
+      "region": "region:ash-frontier",
+      "zone": "cinder-fields",
+      "name": "The Cinder Fields",
+      "preset": "frontier-haze"
+    },
+    "bodies": [
+      "knight",
+      "pitborn",
+      "witch",
+      "goblin",
+      "wolf",
+      "giant-salamander",
+      "bear",
+      "boar",
+      "cave-troll"
+    ],
+    "count": 26,
+    "start": {
+      "x": -72.64,
+      "z": 62.91
+    }
+  }
+}
