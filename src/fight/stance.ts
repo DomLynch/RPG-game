@@ -4,6 +4,7 @@
 // A sim file: no Math.random, no clock, no transcendental. The numbers are Dom's table; the damage delta starts at +-5% (Lead), his +-10% is the ceiling the battery may raise it to.
 import { rollUnit } from './roll.ts';
 import CATALOGUE_ROWS from './catalogue-data.ts';
+import { fieldOf } from './catalogue-fields.ts';
 import { loadRegistry, tableFromFile, type Manifest } from '../core/registry.ts';
 import { STANCE_ROWS_ON } from './stance-era.ts';
 import STANCE_DEFS from './stance-defs.json' with { type: 'json' };
@@ -24,7 +25,8 @@ const TABLE = tableFromFile(STANCE_MANIFEST.tables[0] as Manifest, STANCE_DEFS, 
 const WOUND_TABLE = tableFromFile(STANCE_MANIFEST.tables[1] as Manifest, STANCE_DEFS, 'stance-defs.json');
 const TABLE_79 = tableFromFile(ROWS79_MANIFEST.tables[0] as Manifest, ROWS79_DEFS, 'rows79-defs.json');   // RV79 (sandbox-era.ts): the stance numbers 2x bigger (Dom 2026-10-13), for a live fight and a record at 79 or later
 const CAP_TABLE_79 = tableFromFile(ROWS79_MANIFEST.tables[2] as Manifest, ROWS79_DEFS, 'rows79-defs.json');   // a floor per stance quantity (rows79-defs.json stanceCaps): a specific Dom value beats the 2x multiplier
-loadRegistry([TABLE, WOUND_TABLE, TABLE_79, CAP_TABLE_79]);
+const MOOD_TABLE = tableFromFile(STANCE_MANIFEST.tables[2] as Manifest, STANCE_DEFS, 'stance-defs.json');   // the default `homeShare` row (moodOf below)
+loadRegistry([TABLE, WOUND_TABLE, TABLE_79, CAP_TABLE_79, MOOD_TABLE]);
 export function stanceRows(rows: readonly Record<string, unknown>[]): Readonly<Record<StanceId, Deltas>> {
   const out: Record<string, Record<string, number>> = {};
   for (const { id, ...deltas } of rows) {
@@ -73,10 +75,14 @@ export const stanced = (f: Scarred, key: StanceKey | 'window' | 'counter', x: nu
 // The AI's mood: drawn from the fight seed (a replay re-sims it exactly), 50% its home stance and 50% one of the other three picks. Home stances are the ruling's; every other opponent's home is Neutral.
 const HOME = new Map<string, PickedStance>(CATALOGUE_ROWS.map((r) => [r.id, r.home as PickedStance]));   // each opponent's home stance is its catalogue row's `home` field (catalogue-data.ts)
 export const homePick = (opponent: string): PickedStance => HOME.get(opponent) ?? 'neutral';
-export function moodOf(seed: number, opponent: string): PickedStance {
-  const home = homePick(opponent), u = rollUnit((seed ^ 0x3c6ef372) >>> 0, 0);
-  if (u < 0.5) return home;
+const DEFAULT_HOME_SHARE = (MOOD_TABLE.rows as unknown as { homeShare: number }[])[0]!.homeShare;   // the stance-defs.json `mood` row
+/** The share of its fights an opponent opens in its home stance: its catalogue row's `homeShare` field, else the default mood row. */
+export const homeShareOf = (opponent: string): number => { const s = fieldOf(opponent, 'homeShare'); return typeof s === 'number' ? s : DEFAULT_HOME_SHARE; };
+/** The draw as a pure function of a unit roll: below `share` the home stance, else the roll spread evenly over the other three picks. */
+export function pickMood(home: PickedStance, share: number, u: number): PickedStance {
+  if (u < share) return home;
   const others = PICKS.filter(p => p !== home);
-  return others[Math.min(others.length - 1, Math.floor((u - 0.5) * 2 * others.length))];
+  return others[Math.min(others.length - 1, Math.floor(((u - share) / (1 - share)) * others.length))];
 }
+export const moodOf = (seed: number, opponent: string): PickedStance => pickMood(homePick(opponent), homeShareOf(opponent), rollUnit((seed ^ 0x3c6ef372) >>> 0, 0));
 export const asStance = (pick: PickedStance): StanceId | undefined => (pick === 'neutral' ? undefined : pick);

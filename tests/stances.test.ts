@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, feintable, guardOf, mirror, stepDuel, withStances, type Duel } from '../src/fight/duel.ts';
 import { underStanceRows } from '../src/fight/stance-era.ts';
-import { PICKS, STANCES, asStance, homePick, moodOf, stanced, type StanceId } from '../src/fight/stance.ts';
+import { PICKS, STANCES, asStance, homePick, homeShareOf, moodOf, pickMood, stanced, type StanceId } from '../src/fight/stance.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { hashDuel } from '../src/net/rollback.ts';
@@ -76,6 +76,14 @@ test('the AI\'s mood is drawn from the seed: half its home stance, the other hal
     for (const p of PICKS) if (p !== homePick(foe)) assert.ok(Math.abs((count.get(p) ?? 0) / N - 1 / 6) < 0.035, `${foe}: ${p} about a sixth`);
   }
   assert.equal(asStance('neutral'), undefined); assert.equal(asStance('trickster'), 'trickster');
+});
+
+test('a creature row\'s homeShare: absent = the default mood row (half), 1 = always home, 0 = never home; the default split is the old one exactly', () => {
+  assert.equal(homeShareOf('goblin'), 0.5);
+  const us = Array.from({ length: 1000 }, (_, i) => i / 1000);
+  assert.ok(us.every((u) => pickMood('aggressive', 1, u) === 'aggressive'), 'share 1: always its home stance');
+  assert.ok(us.every((u) => pickMood('aggressive', 0, u) !== 'aggressive'), 'share 0: never its home stance');
+  for (const u of us) { const others = PICKS.filter((p) => p !== 'trickster'); assert.equal(pickMood('trickster', 0.5, u), u < 0.5 ? 'trickster' : others[Math.min(2, Math.floor((u - 0.5) * 2 * 3))], `u=${u}: the pre-row formula`); }
 });
 
 test('no stances: the fight grows no stance field and is the plain fight, hash for hash', () => {

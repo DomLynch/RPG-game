@@ -4,5 +4,8 @@
     { "id": "defensive", "damage": -50, "block": -150, "recover": 250, "damageTaken": -100, "poise": -100 },
     { "id": "trickster", "heavyDamage": -50, "feint": -500, "kickPosture": 500 }
   ],
-  "wounds": []
+  "wounds": [],
+  "mood": [
+    { "id": "default", "homeShare": 0.5 }
+  ]
 }

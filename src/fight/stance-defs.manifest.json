@@ -1,6 +1,7 @@
 {
   "tables": [
     { "table": "stance", "file": "stance-defs.json", "at": "stances", "key": "id", "required": {} },
-    { "table": "wound", "file": "stance-defs.json", "at": "wounds", "key": "id", "required": {} }
+    { "table": "wound", "file": "stance-defs.json", "at": "wounds", "key": "id", "required": {} },
+    { "table": "mood", "file": "stance-defs.json", "at": "mood", "key": "id", "required": { "homeShare": { "type": "number", "min": 0, "max": 1 } } }
   ]
 }

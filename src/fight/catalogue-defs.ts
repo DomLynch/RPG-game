@@ -15,6 +15,7 @@ const CATALOGUE_DEFS = {
     { id: "atOnce", kind: "number", min: 1, max: 3, sim: false, world: true },   // the most creatures of this row on one player at once, never above MAX_ATTACKERS (attackers.ts); absent = that cap (world.ts stepCombat; Lead 2026-10-13: the goblin camps, until Combat's retune)
     { id: "immuneTier", kind: "ref", of: "ccTiers", sim: true },   // the CC families it never takes (cc-ladder.ts CC_LADDER.tiers; programme item 7)
     { id: "firstSight", kind: "boolean", sim: false },   // the zone preview stands the player 15-25 m from this creature's camp and faces it, so it is the first thing he sees (origins/preview/mobs.ts spawnAmong); absent = no
+    { id: "homeShare", kind: "number", min: 0, max: 1, sim: true },   // the share of its fights this creature opens in its `home` stance (stance.ts moodOf); absent = the stance-defs.json mood row (0.5, half), so only a row that sets it changes a fight
     { id: "resist", kind: "ref", of: "ccResists", sim: true },   // the percent of each CC it keeps (cc-ladder.ts CC_LADDER.resists)
   ],
   rigs: [
