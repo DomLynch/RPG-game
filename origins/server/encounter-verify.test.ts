@@ -106,8 +106,10 @@ test('a mob layer is the server\'s: a record played under the layer verifies wit
 
 test('the special-move phase rule covers every level and agrees with the Veteran rung', () => {
   const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
-  assert.equal(on[0], false); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
-  assert.equal(on.indexOf(true), 15, 'level 16 is the first with specials (tests/match-specials-boundary.test.ts)');
+  assert.equal(on[0], true, 'RV80 (the default): specials from level 1'); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
+  assert.equal(on.indexOf(true), 0, 'level 1 is the first with specials at RV80');
+  const old = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1, 79));
+  assert.equal(old[0], false); assert.equal(old[LEVELS - 1], true); assert.equal(old.indexOf(true), 15, 'a v79 record keeps the Veteran rung: level 16 is the first with specials (tests/match-specials-boundary.test.ts)');
 });
 
 test('kit mismatch: a record played on another mob kit is refused as a kit mismatch (not judged, not a loss); no layer, no check', () => {

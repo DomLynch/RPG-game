@@ -25,7 +25,7 @@ export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => 
 
 export const MAX_FIGHT_TICKS = Math.round(SERVER_RULES.fightLimit[0]!.maxFightSec / STEP);   // a fight longer than the fightLimit row (900 s, 15 minutes) is not a fight
 
-// Special Moves are on for a warden from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
+// Special Moves: a record below RV80 has them from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on), RV80 and later from level 1 (below): the server dictates it, the record's flag must agree.
 const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');
 // RV80 (rows80-defs.json specialsFromLevel, Dom 2026-10-19): a record at 80 or later fights specials from level 1; an older record keeps the Veteran rung. `version` is the record's own.
 export const liveSpecials = (level: number, version: number = RECORD_VERSION): boolean => Number.isInteger(level) && level >= specialsFromLevelAt(version, SPECIALS_FROM) && level <= LEVELS;
