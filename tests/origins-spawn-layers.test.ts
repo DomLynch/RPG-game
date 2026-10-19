@@ -2,3 +2,4 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import '../origins/server/world-layers.test.ts';
 import '../origins/server/spawn-janitor.test.ts';
+import '../origins/server/dynamic-respawn.test.ts';
