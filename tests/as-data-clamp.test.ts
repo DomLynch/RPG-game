@@ -1,6 +1,7 @@
 // Rule (e) of the as-data checker (scripts/as-data/clamp.yml + check.ts): a number written straight into Math.max / Math.min, held to a ratchet (clamp-baseline.json, per file and
 // literal). Pinned on a fixture tree with its own baseline, never the live count: a new literal is red under --gate, a baseline above the tree is stale (exit 3), and the
 // baseline can only be rewritten downward.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

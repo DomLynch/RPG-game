@@ -1,11 +1,21 @@
 // Positioning bands (spec docs/specs/combat/positioning-gates.md): the rows, the pure band functions, the damage factor behind duel.bands and the AI's holdBand. Default off: no `bands`, no change.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BANDS, BEST_BAND, OFF_BAND, bandAt, bandFactor, bestRange, spanOf } from '../src/fight/bands.ts';
-import { TACTIC_ROWS } from '../src/fight/tactic-rows.ts';
-import { WEAPONS } from '../src/fight/moves.ts';
-import { stepDuel, type Duel } from '../src/fight/duel.ts';
-import { act, arena, idle } from './strategies.ts';
+import BAND_DEFS from '../src/fight/band-defs.json' with { type: 'json' };
+import SANDBOX_DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import { offDefs } from './lib/sandbox-defs-off.ts';
+offDefs(SANDBOX_DEFS);   // the fractions pin fights with the sandbox rules OFF, as trunk did
+
+// BULK-CS (ruling B): this file pins the span-FRACTIONS mode (edgesMode 0), byte for byte what trunk fought with; the shipped rows default to the fixed-cm mode (tests/bands-edges.test.ts). The mode is a row read at load, so it is set
+// before the sim loads.
+BAND_DEFS.rules.find((r) => r.id === 'edgesMode')!.value = 0;
+const { BANDS, BEST_BAND, OFF_BAND, bandAt, bandFactor, bestRange, spanOf } = await import('../src/fight/bands.ts');
+const { TACTIC_ROWS } = await import('../src/fight/tactic-rows.ts');
+const { WEAPONS } = await import('../src/fight/moves.ts');
+const { stepDuel } = await import('../src/fight/duel.ts');
+type Duel = import('../src/fight/duel.ts').Duel;
+const { act, arena, idle } = await import('./strategies.ts');
 
 test('the band rows: three rings inside out, every banded weapon is a weapon row with a known best band, an off-band blow is never stronger', () => {
   assert.deepEqual([...BANDS], ['inner', 'mid', 'outer']);

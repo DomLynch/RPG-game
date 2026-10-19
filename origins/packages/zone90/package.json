@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "id": "zone90",
+  "zone": 90,
+  "unlisted": true,
+  "world": [
+    "test-field"
+  ],
+  "owns": {
+    "exits": [],
+    "dungeon": null,
+    "theme": null,
+    "biome": "goblin-fortress",
+    "warps": []
+  },
+  "inbound": {
+    "exits": []
+  },
+  "uses": {
+    "kit": [
+      "/world/kit/zone1-kit.glb"
+    ],
+    "theme": null,
+    "characters": [
+      "character:ash-boar",
+      "character:ash-wolf",
+      "character:cave-troll",
+      "character:giant-salamander",
+      "character:pit-goblin"
+    ],
+    "loot": [
+      "loottable:ash-boar",
+      "loottable:ash-wolf",
+      "loottable:giant-salamander",
+      "loottable:pit-goblin",
+      "loottable:tz-cave-troll"
+    ]
+  },
+  "files": {
+    "zone.row.json": {
+      "bytes": 13705,
+      "sha256": "9e18b1a817647b976731c19b5a5a9a26937885e10f534ea5b631651aca084c81"
+    },
+    "biome.row.json": {
+      "bytes": 7294,
+      "sha256": "91fbd8a8adb3e2924b11520895888e45a20b2f92541ed52a131248bb83a0e42b"
+    },
+    "exits.json": {
+      "bytes": 35,
+      "sha256": "ad85511e21ab2703d73e715e880e14bda2cfd74ffb1a7b3037728960fedea093"
+    }
+  }
+}

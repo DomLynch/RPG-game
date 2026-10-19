@@ -1,5 +1,6 @@
 // Rule (c) of the as-data checker (scripts/as-data/map.yml + check.ts): a pair keyed by a content id whose value is a string OR an array of strings (widened 2026-10-15: CLASS_SPECIALS
 // slipped past the string-only shape), held to a ratchet (map-baseline.json, per file and id key). Pinned on a fixture tree with its own baseline, never the live count.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

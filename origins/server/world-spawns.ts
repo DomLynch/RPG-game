@@ -53,14 +53,16 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
-export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number };
+export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's)
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
-  for (const spec of mobSpecs(f, frontierBuild(f), listedZone(zoneId).spawns.rows)) {
+  const rows = listedZone(zoneId).spawns.rows;
+  for (const spec of mobSpecs(f, frontierBuild(f), rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND) });
+    const loot = rows.find((r) => r.id === spec.character)?.loot;
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
   }
   return out;
 }
@@ -191,7 +193,8 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       if (!withinReach(spawn.spec, worldMetres(seen.pose.x, seen.pose.z))) return refuse('away');
       reach = 'checked';
     }
-    deps.reachTally?.add(reach === 'checked' ? 'checked' : seen.why.split(':')[0]!);   // the flip readout's reach count (flipReadiness): checked, or the why's kind (offline, other-zone, ...)
+    const qaState = await qaOf(db, account), qa = qaState === 'yes', cohort = qa ? 'qa' : 'organic';   // the QA account (fighter_profiles.is_test): it counts (checks, tallies, split by cohort) but persists nothing
+    deps.reachTally?.add(reach === 'checked' ? 'checked' : seen.why.split(':')[0]!, cohort);   // the flip readout's reach count (flipReadiness): checked, or the why's kind (offline, other-zone, ...)
     if (reach === 'unchecked' && deps.refuseUnchecked) { log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: refused unchecked (${seen.why})`); return refuse('unchecked'); }
     const setup = fightSetup(spawn.fight, content, { level: spawn.spec.level });   // the spawn's own level (mobSpecs, by distance), never the form's: a level-1 wolf pays level-1 CP and loot
     if (!setup.ok) throw new Refused(503, `the server cannot price ${spawn.fight}`);
@@ -201,7 +204,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // The record (BASE): replayed on the server. During the soak every kill pays as before whatever the record says (verdict logged, with its reason); with scorecardOnlyUnverified
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
     let record = recText === undefined ? 'none' : 'unverified';
-    if (recText === undefined) deps.tally?.add(drop ? `dropped: ${drop}` : 'no record');   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
+    if (recText === undefined) deps.tally?.add(drop ? `dropped: ${drop}` : 'no record', cohort);   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
     if (recText !== undefined) {
       const tag = `kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
@@ -209,16 +212,15 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
         const rv = deps.heroOf ? (await decodeWorldRecord(recText).catch(() => null))?.rv : undefined;   // the claim's own record version: the worn set is held to the rules of the era the page recorded under, not this build's
         const limit = deps.heroOf ? await deps.heroOf(account, open.character, rv).catch(() => null) : null;
         const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / MS_PER_SECOND) });
-        deps.tally?.add(v.ok ? 'verified' : v.reason);
+        deps.tally?.add(v.ok ? 'verified' : v.reason, cohort);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;
       };
       if (deps.scorecardOnlyUnverified) { const v = await run(); record = v.ok ? 'verified' : `refused: ${v.reason}`; }
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
-    const qaState = await qaOf(db, account), qa = qaState === 'yes';   // the QA account (fighter_profiles.is_test): it counts above (checks, tallies) but persists nothing
     const pays = (record === 'verified' || deps.scorecardOnlyUnverified !== true) && !qa;
-    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level })
+    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level, loot: spawn.loot })
       : { batch: [] as store.Json[], summary: { cp: 0, cpReason: qa ? 'qa' : 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,

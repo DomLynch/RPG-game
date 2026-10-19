@@ -1,4 +1,5 @@
 // Weapons as data (RV44): the resolved table is byte-identical to the code tables it replaced, a weapon is one row, and the loader refuses a broken table at load.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

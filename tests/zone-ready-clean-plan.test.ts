@@ -1,6 +1,7 @@
 // [zone ready] is declared only after a CLEAN plan: a look at the scene (planUpload) taken after every kind and the hero were warmed that found nothing left to compile or upload. Declared between two looks (the 3 s re-plan), a material that
 // streamed in after the last plan links at the first engage (seamless row #87: 71 programs at ready, 72 after the engage; 73 vs 71 on the same tree). The behaviour is the browser row (scripts/origins-seamless-check.mjs, 0 new programs after
 // ready, and its receipt names each new program's owner); this pins the shape of the gate in origins/preview/main.ts so a refactor cannot drop the clean-plan condition.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

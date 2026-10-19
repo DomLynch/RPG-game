@@ -1,5 +1,6 @@
 // THE TEST ZONE (zone 90, zone sandbox, Strategy 2026-10-15): a new zone is a content job. Zone 90 is ONLY rows (origins/zone-rows/zone90.row.json): a dome (look.sky), dusk fog, light and
 // ground tint (look.*), a goblin camp (look.props.kit), no creatures, unlisted. Outside the 1-50 ladder; not "Zone 3" (Zone N = level N creatures). DELETE this file with the row when Zone 1 graduates.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -8,16 +9,45 @@ test('the server never sees the test zone: not listed, and its road is not on Zo
   assert.ok(!zoneIds().includes('90')); assert.ok(!zonePlaces().some((p) => p.joins.some((j) => j.to === 'test-field')));
   assert.equal(loadZone('90', true).unlisted, true, 'loadable by its own id on a build with the VITE_UNLISTED_ZONES opt-in');
 });
-test('its own page: the rows give it a dome, a camp in its field and a start off the camp, with no code of its own (the kit build belongs to the preview PR)', async () => {
+test('its own page: the rows give it a dome, a camp in its field and a start off the camp, with no code of its own', async () => {
   process.env.VITE_UNLISTED_ZONES = '1';   // a sandbox preview build: the explicit opt-in that opens an unlisted zone
   (globalThis as { location?: unknown }).location = { pathname: '/zone/90/', search: '' };   // the page /zone/90/ (world.ts reads the places at import, so this file imports after setting it)
   try {
-    const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zoneCamp } = await import('../origins/world/goblin-field-rules.ts');
-    const { frontierPlan, FRONTIER } = await import('../origins/preview/frontier-plan.ts');
+    const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zonePropKit, zoneMarkers } = await import('../origins/world/goblin-field-rules.ts');
+    const { frontierPlan, frontierBuild, FRONTIER } = await import('../origins/preview/frontier-plan.ts'), { frontierDress } = await import('../origins/preview/frontier-dress.ts'), { propKit } = await import('../origins/preview/prop-kit.ts');
     assert.ok(zoneIds().includes('90'));
-    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'dusk'); assert.equal(zoneCamp(z), 'test-field');
-    const F = frontierPlan(true, '90'); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
-    // the camp's pieces (goblinFieldKit) are built by the preview page's kit PR, which carries its own check
-    assert.equal(z.spawns.rows.length, 0, 'no creatures: nothing at level 90 exists');
+    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'test-field', rim: true }); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: true, lock: 'hard' }, 'the biome turns the creature markers off'); assert.equal(z.fields?.['look.sky'], 'fortress', 'the biome row, not the zone row, sets the sky'); assert.equal(z.fields?.['look.props.density'], 0.25, 'and thins the game\'s own rock and scrub kit');
+    const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
+    const K = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
+    const { buildingSkin } = await import('../origins/preview/building-skin.ts'), SK = frontierBuild(F, buildingSkin('goblin')), zp = F.zones.find((q) => q.zone === 'test-field')!;   // the goblin huts and tower (Dom 2026-10-16) stand as skinned plank buildings with the same solids
+    for (const name of ['test-hut-1-house', 'test-hut-2-house', 'test-tower-watchtower']) assert.ok(zp.landmarks[name], `${name} is a landmark of the Test Field`);
+    assert.deepEqual([...new Set(SK.models.map((m) => m.node))].sort(), ['goblin_gate', 'goblin_hut', 'goblin_tower'], 'the huts, tower and gate stand as the goblin kit\'s model nodes'); assert.equal(B.models.length, 0, 'unskinned: no model'); assert.ok(B.solids.length > 0);
+    const gone = B.solids.filter((s) => !SK.solids.some((k) => k.x === s.x && k.z === s.z && k.r === s.r)); assert.ok(gone.every((s) => s.r === 0.6), 'only the bare landmark markers stop blocking (r 0.6); every building and gate footprint stays'); assert.ok(SK.solids.every((s) => B.solids.some((k) => k.x === s.x && k.z === s.z && k.r === s.r)), 'the skin adds no obstacle of its own');
+    const bricks = (b: typeof B) => b.pieces.filter((p) => p.layer === 'stone' && p.shape[0] === 'box' && ((p.shape[1] === 0.8 && p.shape[2] === 1) || (p.shape[1] === 0.6 && p.shape[2] === 3)));   // the cairn marker (0.8 x 1 x 0.8) and the way-on gate post (0.6 x 3 x 0.6); signs are boards, not bricks   // the brick cairn markers and gate posts on the plain landmarks
+    assert.ok(bricks(B).length >= 16,'unskinned, each plain landmark and the gate posts stand as brick boxes'); assert.equal(bricks(SK).length, 0, 'the goblin skin leaves no brick marker or gate post at the spawn spots and the gate');
+    const KR = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp', undefined, true); assert.ok(KR.models.length >= 20 && KR.models.every((m) => /^goblin_(palisade_[abc]|totem|banner)$/.test(m.node)), `the stake ring and the camp's banners and totems stand as the kit's nodes: ${KR.models.length} placements`); assert.equal(K.models.length, 0, 'no rim, no ring');
+    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll', 'character:pit-goblin', 'character:ash-wolf', 'character:ash-boar'], 'Dom 2026-10-16: salamander, troll, pit goblin, wolf and boar stand here, at the level-1 band its row asks for');
+    assert.ok(z.spawns.rows.every((r) => r.behaviour.campSize?.join() === '1,1'), 'every spot holds ONE creature (Dom: spread evenly, one in each location)'); assert.deepEqual(['character:giant-salamander', 'character:ash-wolf', 'character:pit-goblin'].map((id) => z.mobLooks?.looks[id]?.scale), [6, 2.8, 1.25], 'Dom 2026-10-16: salamander 6x, wolf 2.8x (4x less 30%), goblin a quarter bigger');
+    const groups = z.place!.spawns, count = (id: string) => groups.filter((g) => g.characters[0] === id).length, lay = (z.place!.zones['test-field'] as { layout: Record<string, { u: number; v: number }> }).layout;
+    assert.deepEqual(['character:cave-troll', 'character:giant-salamander', 'character:pit-goblin', 'character:ash-wolf', 'character:ash-boar'].map(count), [4, 4, 6, 2, 2], 'trolls, salamanders, goblins, wolves, boars (Dom 2026-10-16: 4 trolls and 4 salamanders)');
+    const spots = groups.map((g) => lay[g.at]!), ring = spots.map((p) => Math.hypot(p.u - 0.5, p.v - 0.5) * 100);   // a 100 m zone: metres from its centre
+    assert.ok(Math.max(...ring) <= 40, `no spot in the outer 10% (45 m) plus roam room: ${Math.max(...ring)}`); assert.ok(Math.min(...ring) >= 12, 'none on the camp');
+    const gap = Math.min(...spots.flatMap((p, i) => spots.slice(i + 1).map((q) => Math.hypot(p.u - q.u, p.v - q.v) * 100))); assert.ok(gap >= 10, `evenly spread: nearest two spots ${gap} m apart`);
+    const same = Math.min(...groups.flatMap((g, i) => groups.slice(i + 1).filter((h) => h.characters[0] === g.characters[0]).map((h) => Math.hypot(lay[g.at]!.u - lay[h.at]!.u, lay[g.at]!.v - lay[h.at]!.v) * 100))); assert.ok(same >= 22, `Dom: no two of a kind side by side, they rotate: nearest same-type pair ${same} m apart`);
+    const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
+    for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
+    const { bodyScale } = await import('../origins/preview/mob-looks.ts');   // a look's scale is the ABSOLUTE draw size; an omitted one is the body's own (catalogue render.scale)
+    assert.ok(Math.abs(z.mobLooks!.looks['character:cave-troll']!.scale! - 0.8 * bodyScale('cave-troll')) < 1e-9, 'Dom 2026-10-16: the Test Zone troll is 80% of its normal size (a zone-90 look only; the main game\'s troll row is untouched)');
+    assert.ok(Math.abs(z.mobLooks!.looks['character:ash-boar']!.scale! - 1.5 * bodyScale('boar')) < 1e-9, 'Dom: boars +50%');
+    const { fxNum } = await import('../src/fight/fx-rows.ts'); assert.deepEqual(['reach.default', 'reach.giant-salamander', 'reach.hero-edge', 'reach.gap'].map(fxNum), [0.5, 0.5, 0.45, 2.2], 'a creature drawn bigger than its rig stands back until its mouth (0.5 m per unit of scale from its centre) is 2.2 m short of the hero\'s edge (Dom 2026-10-16/17: the wolf and the salamander overlapped the hero)');
+    assert.equal(z.level, 1);
+    const { VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts'), { loadoutRow, droppedPiece } = await import('../origins/world/loadouts-rules.ts');   // Dom 2026-10-16/17: goblins vary, each variant wears a loadout row (weapon + armour pieces) from the zone row (data)
+    const looks = Array.from({ length: VARIANTS }, (_, v) => variantLook('character:pit-goblin', v, z)!), rows = looks.map((l) => loadoutRow(l.loadout));
+    assert.ok(new Set(looks.map((l) => l.loadout)).size >= 2, `goblin variants wear at least two different loadouts (the one-handed set until Characters' #3247 clip packs bring the rest back): ${looks.map((l) => l.loadout).join()}`);
+    assert.ok(rows.every((r) => r && isWeaponId(r.weapon)) && looks.every((l, i) => l.gear === rows[i]!.weapon), 'every loadout is a row, its weapon a real weapon row, and the look carries it');
+    assert.ok(looks.every((l) => l.body === 'world/kit/goblin-bare.glb'), 'every goblin variant is drawn on the bare body, so what it wears is its loadout');
+    assert.ok(new Set(rows.map((r) => r!.tier)).size >= 1, 'a tier is worn (medium and heavy both come back with #3250\'s t7 longsword and estoc)'); assert.ok(rows.every((r) => ['Veteran', 'Champion', 'Praetorian', 'Master'].includes(r!.rung ?? '')), 'Dom 2026-10-18: Zone 1 goblins wear the level 4-7 finishes (Veteran, Champion, Praetorian, Master), not level 1');
+    assert.ok(new Set(rows.map((r) => r!.weapon)).size >= 2, `weapons rotate across at least two types (the one-handed set until Characters' #3247 clip packs bring the rest back): ${rows.map((r) => r!.weapon).join()}`); const captain = loadoutRow('goblin.captain')!;
+    assert.ok(captain.pieces.includes(droppedPiece(captain, 'z90:test-t-06-goblin-1')!) && droppedPiece(captain, 'a') === droppedPiece(captain, 'a'), 'a kill drops ONE piece the goblin wore, the same one every time for the same goblin');
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });

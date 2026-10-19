@@ -14,6 +14,13 @@
     {"file": "src/core/items/inventory.ts", "name": "GRIDS", "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)", "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"}
   ],
   "branchIds": [
+    {"file": "origins/preview/prop-kit.ts", "literal": "rim", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the kit placer switches on, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "ring", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the kit placer switches on, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "fire", "reason": "what a prop `emits` ('fire' puts a smoke column and light on it): a closed effect vocabulary of the prop rows, not a content id"},
+    {"file": "origins/world/building-skins-rules.ts", "literal": "default", "reason": "the fallback parts-list name every skin must carry (a schema convention: a kind with no parts of its own takes it), not a content row id"},
+    {"file": "origins/world/props-rules.ts", "literal": "default", "reason": "the fallback dress-set name (all multipliers 1, the base clutter as it was): a schema convention, not a content row id"},
+    {"file": "origins/world/props-rules.ts", "literal": "rim", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the recipe reader switches on, not a content id"},
+    {"file": "origins/world/props-rules.ts", "literal": "ring", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the recipe reader switches on, not a content id"},
     {"file": "origins/gear/wear-repair.ts", "literal": "kill", "reason": "a wear event kind (kill | hit): the closed event vocabulary of the wear rules (tier.killWear / hitWear are the rows), not a content id"},
     {"file": "origins/boss/boss.ts", "literal": "wake", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},
     {"file": "origins/boss/boss.ts", "literal": "damage", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},

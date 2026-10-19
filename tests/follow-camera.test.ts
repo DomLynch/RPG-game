@@ -1,4 +1,5 @@
 // The world follow camera (src/fight/follow-camera.ts): the numbers main.ts used inline before it moved, pinned; a passage is a parameter a zone supplies.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';
@@ -52,7 +53,8 @@ test('both zones carry presets a and b in their rows and neither SETS camera.pre
   const { loadZone } = await import('../origins/zones/loader.ts');
   for (const id of ['1', '2']) {
     const z = loadZone(id), p = z.fields!['camera.presets'] as Record<string, { back: number; up: number }>;
-    assert.deepEqual(Object.keys(p).sort(), ['a', 'b'], `zone ${id}`); assert.ok(p.a!.back < p.b!.back && p.a!.up < p.b!.up, 'a is the close shoulder, b the wide fight frame');
-    assert.ok(!z.set?.includes('camera.preset'), `zone ${id} walks the generic framing until a preset is chosen`);
+    assert.deepEqual(Object.keys(p).sort(), ['a', 'b'], `zone ${id}`);
+    assert.ok(p.a!.back < p.b!.back && p.a!.up < p.b!.up, 'a is the close shoulder, b the wide fight frame');
+    assert.equal(!!z.set?.includes('camera.preset'), id === '1', `zone ${id}: only Zone 1 names a preset (b, the Test Zone's, Dom-approved 2026-10-18); Zone 2 walks the generic framing`);
   }
 });

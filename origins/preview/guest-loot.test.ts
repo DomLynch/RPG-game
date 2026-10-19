@@ -23,6 +23,17 @@ test('a guest kill pays the same table, seed and level as the server roll, for e
   assert.equal(guestKillLoot(content, 'character:nobody', 3, 1), null, 'a row with no table drops nothing');
 });
 
+test('a spawn row that names its own loot table rolls that table in place of the character\'s, as the server does; a kill whose character pays no loot never gains one', () => {
+  const [a, b] = creatures.filter((id) => content.local.creatureLoot[id] !== content.local.creatureLoot[creatures[0]!]);
+  assert.ok(a && b, 'two creatures with different tables');
+  for (const seed of [1, 7, 42]) {
+    const server = rollLoot(content.local.creatureLoot[b!], seed, content, { foeLevel: level(a!) }), guest = guestKillLoot(content, a!, level(a!), seed, content.local.creatureLoot[b!]);
+    assert.ok(server.ok && guest);
+    assert.deepEqual(guest, { loot: server.value.items.map((d) => ({ item: d.item, quantity: d.quantity })), bronze: server.value.metal }, `seed ${seed}`);
+  }
+  assert.equal(guestKillLoot(content, 'character:nobody', 3, 1, content.local.creatureLoot[b!]), null, 'no own table: the row cannot add one');
+});
+
 test('the guest bag holds the session loot in memory, adds up stacks, and a fresh page starts empty', () => {
   const bag = guestBag();
   bag.add({ loot: [{ item: 'pelt', quantity: 2 }], bronze: 3 }); bag.add({ loot: [{ item: 'pelt', quantity: 1 }, { item: 'fang', quantity: 1 }], bronze: 2 });

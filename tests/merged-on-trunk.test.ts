@@ -1,6 +1,7 @@
 // scripts/merged-on-trunk.mjs against a throwaway origin and a fake `gh`: a PR merged into a side branch that had already landed on
 // trunk fails (the #358 miss), the same PR re-landed by cherry-pick passes by content, a stacked PR whose base is still in flight is
 // only noted, and a PR merged to trunk but missing from the deployed tree fails. No network: `gh` is a stub on PATH.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';

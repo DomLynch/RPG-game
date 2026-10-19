@@ -1,5 +1,6 @@
 // The release train (scripts/release-train.mjs cutter + scripts/release-train-publish.sh publisher, Lead 2026-10-12): the plan's order and stacking,
 // a conflict skipped without blocking the rest, the push retry, the publisher's pick, its no-double-publish lock and its stop on failure.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -201,9 +202,9 @@ case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | 
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)', authorAssociation: 'OWNER' }], statusCheckRollup: OK }]));
-  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
+  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, MAX_PENDING_TAILS: '99', ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
-  const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
+  const env = { MAX_PENDING_TAILS: '99', PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
   return { dir, state, run, calls, cand, env, reset: () => writeFileSync(log, '') };
 }
 
@@ -247,6 +248,78 @@ test('publisher (#3177): a post-publish tail marker whose tail is DEAD, or never
   try {
     assert.match(fresh.run().stdout, /published #2400/, 'a marker younger than the grace is a tail that has not started yet');
   } finally { rmSync(fresh.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead cap): with MAX_PENDING_TAILS=2 a third publish waits while two live tails are unconfirmed; one live tail, no cap, or a cap of 0 do not block', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const withTails = (n: number) => { const p = publisher(); for (let i = 0; i < n; i++) writeFileSync(join(p.state, `post-publish-pending-aaaaaa0${i}`), `rev=${'a'.repeat(40)}\nrows=9\nat=${now - 60}\npid=${process.pid}\n`); return p; };
+  const two = withTails(2);
+  try {
+    const r = two.run({ MAX_PENDING_TAILS: '2' });
+    assert.match(r.stdout, /2 detached post-publish tail\(s\) still unconfirmed \(MAX_PENDING_TAILS=2\): the next publish waits/);
+    assert.doesNotMatch(two.calls(), /git push|deploy/, 'nothing publishes');
+  } finally { rmSync(two.dir, { recursive: true, force: true }); }
+  const one = withTails(1);
+  try { assert.match(one.run({ MAX_PENDING_TAILS: '2' }).stdout, /published #2400/, 'one live tail is under the cap'); } finally { rmSync(one.dir, { recursive: true, force: true }); }
+  // FAIL CLOSED (Auditor nit, Lead's requirement): a missing, empty, zero or malformed row is no publish plus a reason, never unlimited.
+  for (const [label, row] of [['missing', null], ['malformed', 'export MAX_PENDING_TAILS=two\n'], ['zero', 'export MAX_PENDING_TAILS=0\n']] as const) {
+    const bad = withTails(0);
+    try {
+      if (row !== null) writeFileSync(join(bad.state, 'release-train.env'), row);
+      const r = bad.run({ MAX_PENDING_TAILS: '' });
+      assert.match(r.stdout, /MAX_PENDING_TAILS is missing or malformed/, label);
+      assert.doesNotMatch(bad.calls(), /git push|deploy/, `${label}: nothing publishes`);
+    } finally { rmSync(bad.dir, { recursive: true, force: true }); }
+  }
+  const fromEnvFile = withTails(2);
+  try {
+    writeFileSync(join(fromEnvFile.state, 'release-train.env'), 'export MAX_PENDING_TAILS=2   # Lead\n');
+    const r = fromEnvFile.run({ MAX_PENDING_TAILS: '' });
+    assert.match(r.stdout, /cap=2 pending=2/, 'the cap is DATA: read from release-train.env, and logged each tick');
+    assert.match(r.stdout, /MAX_PENDING_TAILS=2/);
+  } finally { rmSync(fromEnvFile.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (window): the first release of a window owns the one tail (marker carries window=N); a release inside the open window JOINS it (member line, no tail, no marker of its own); an expired window opens a new one', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const setup = (existing: string | null) => {
+    const p = publisher();
+    const deploy = join(p.dir, 'bin', 'deploy-tail'), postcheck = join(p.dir, 'bin', 'postcheck');
+    writeFileSync(deploy, `#!/usr/bin/env bash\nprintf 'Published %s\\npost-publish CI tail: rows 9,46,3 for %s (detached)\\n' "$CAND" "$CAND"\n`); chmodSync(deploy, 0o755);
+    writeFileSync(postcheck, `#!/usr/bin/env bash\necho "tail $1 $2" >> "${p.dir}/postcheck.out"\n`); chmodSync(postcheck, 0o755);
+    if (existing !== null) writeFileSync(join(p.state, 'post-publish-pending-aaaaaaaa'), existing);
+    const run = () => p.run({ RELEASE_TRAIN_DEPLOY: deploy, RELEASE_TRAIN_POSTCHECK: postcheck, CAND: p.cand, TAIL_MIN_INTERVAL_S: '720', MAX_PENDING_TAILS: '99' });
+    const tailRan = () => { for (let i = 0; i < 20 && !existsSync(join(p.dir, 'postcheck.out')); i++) spawnSync('sleep', ['0.1']); return existsSync(join(p.dir, 'postcheck.out')); };
+    return { p, run, tailRan };
+  };
+  const first = setup(null);
+  try {
+    const r = first.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(readFileSync(join(first.p.state, `post-publish-pending-${first.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/);
+    assert.ok(first.tailRan(), 'the opener starts the tail');
+  } finally { rmSync(first.p.dir, { recursive: true, force: true }); }
+  const open = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    const r = open.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /joined the open window of a{40} \(rows 9,46,3\): no tail or CI run of its own/);
+    assert.match(readFileSync(join(open.p.state, 'post-publish-pending-aaaaaaaa'), 'utf8'), new RegExp(`\nmember=${open.p.cand} 9,46,3\n`));
+    assert.equal(existsSync(join(open.p.state, `post-publish-pending-${open.p.cand.slice(0, 8)}`)), false, 'a joiner has no marker of its own');
+    assert.equal(open.tailRan(), false, 'and starts no tail');
+  } finally { rmSync(open.p.dir, { recursive: true, force: true }); }
+  const expired = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 1000}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    expired.run();
+    assert.match(readFileSync(join(expired.p.state, `post-publish-pending-${expired.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the old window closed: this release opens a new one');
+    assert.ok(expired.tailRan());
+  } finally { rmSync(expired.p.dir, { recursive: true, force: true }); }
+  const closed = setup(null);
+  try {
+    writeFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), `rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+    closed.run();
+    assert.doesNotMatch(readFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), 'utf8'), /member=/, 'a CLOSED window takes no joiner');
+    assert.match(readFileSync(join(closed.p.state, `post-publish-pending-${closed.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the late publish opens a new window with its own tail');
+    assert.ok(closed.tailRan());
+  } finally { rmSync(closed.p.dir, { recursive: true, force: true }); }
 });
 
 test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {

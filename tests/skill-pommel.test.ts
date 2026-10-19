@@ -1,6 +1,7 @@
 // The hero's day-one skill, Pommel Strike (Dom, 2026-09-25: "Hero starts with Pommel Strike; one skill slot; a take swaps it").
 // The move's numbers live in one MoveDef (moves.ts skill_pommel) and its name in one SKILLS entry (loot.ts); these tests pin both,
 // the stagger that is the point of it, the day-one default and the one-slot swap, and the fairness caps against every opponent.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';

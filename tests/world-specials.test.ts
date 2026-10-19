@@ -1,5 +1,6 @@
 // SPECIAL 1 / SPECIAL 2 in the open world (the specials PR, RV75 / WSV52): the hero's two class skills ride the world hero (Fighter.skill, Fighter.skill2), the record header carries them (RecordHero.skill / skill2),
 // the cast / cast2 presses fire the skills' own move rows, and the replay reaches the same fight. A hero with no pick is the hero he was.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';

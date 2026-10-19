@@ -245,7 +245,34 @@ if [[ -n "$presence_prev" ]]; then
   presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
   printf '%s\n' "$presence_install"
 fi
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; exit 1; }
+# The replay verifiers flip with the site too (Auditor, 2026-10-18: verify-daily ran JD's rules against JE for two minutes because the install came after the switch; on an RV bump
+# a record from the new version would be verified by old code). Ship the closure and flip /opt/frankendom-verifier/current just before the switch, gated by the dry import;
+# the timers are (re)installed in the "verifier" step after the switch, as before.
+verifier="/opt/frankendom-verifier/$revision"
+deploy_step "verifier install"
+verifier_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-verifier/current || true")
+# Same rule as writer_back: put `current` back at the outgoing install only while the site has NOT moved to $release.
+verifier_back() {
+  [[ -n "$verifier_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "test \"\$(readlink -f /var/www/frankendom/current)\" = '$release' || ln -sfn '$verifier_prev' /opt/frankendom-verifier/current" >&2 || echo "VERIFIER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $verifier_prev" >&2
+}
+# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
+# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
+verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
+printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
+  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE' || { echo "verifier install failed for $revision; the site has not moved" >&2; writer_back; presence_back; verifier_back; exit 1; }
+set -euo pipefail
+# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
+# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
+(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
+echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
+ln -sfn "$1" /opt/frankendom-verifier/current
+REMOTE
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; verifier_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -295,23 +322,11 @@ curl --fail --silent --show-error --output /dev/null https://frankendom.com/prev
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
-verifier="/opt/frankendom-verifier/$revision"
 deploy_step "verifier"
-# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
-# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
-verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
-ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
-printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
-rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
-  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+# The files and the `current` flip happened before the switch (the "verifier install" step above); this step arms the timers.
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
-# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
-# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
-(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
-  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
-echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
-ln -sfn "$1" /opt/frankendom-verifier/current
+test "$(readlink /opt/frankendom-verifier/current)" = "$1"
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
   install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" \
@@ -357,7 +372,7 @@ printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
 if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi
-node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
+node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?') (open release PRs excluded); running T4 jobs: $(node scripts/lib/prelaunch-jobs.mjs running "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
 # The Published block carries presence's state (Strategy + Lead joint GO): active, restarts before -> after, the local health curl and what release.json says.
 if [[ -n "$presence_prev" ]]; then
   presence_state=$(ssh "${ssh_options[@]}" "$host" 'P=$(grep -E "^PRESENCE_PORT=" /etc/frankendom/presence.env 2>/dev/null | cut -d= -f2); echo "active=$(systemctl is-active frankendom-presence) NRestarts=$(systemctl show -p NRestarts --value frankendom-presence) health=$(curl -s -m 8 -o /dev/null -w "%{http_code}" http://127.0.0.1:${P:-8793}/origins/presence/health)"' || echo 'state unreadable')
@@ -378,6 +393,7 @@ POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.
 # The deferred non-Mac group goes to the GitHub runners (post_publish_ci_start: CI-trusted by tree, else one release-checks dispatch, returns at once); the Mac group below, which can roll the
 # release back, never waits on CI; post_publish_ci_collect then waits for the run and leaves only what CI could not prove for the Mac.
 pp_all="$post_publish"
+if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && "${TAIL_MIN_INTERVAL_S:-0}" =~ ^[1-9][0-9]*$ ]]; then export POST_PUBLISH_DISPATCH=true; fi   # coalesced window (release-train.env): the window's tail dispatches ONE CI run for the newest member, not one per release
 pp_open=$(post_publish_ci_start "$revision" "$post_publish")
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0

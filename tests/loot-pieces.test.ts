@@ -1,4 +1,5 @@
 // The per-opponent loot is ROWS (src/core/loot-pieces.json): a new piece is one slot in a row and no code. loot.ts builds LOOT, NOT_WORN and NOT_WORN_AT from them.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import PIECES from '../src/core/loot-pieces.json' with { type: 'json' };

@@ -23,12 +23,12 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const receipt = { shape, combatcam: process.env.COMBATCAM ?? 'default', errors: [] };
+const receipt = { shape, combatcam: process.env.COMBATCAM ?? 'default', extra: process.env.EXTRA ?? '', errors: [] };
 try {
   const ctx = await browser.newContext({ viewport: shape === 'landscape' ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
-  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0${process.env.COMBATCAM === '0' ? '&combatcam=0' : ''}`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0${process.env.COMBATCAM === '0' ? '&combatcam=0' : ''}${process.env.EXTRA ?? ''}`, { waitUntil: 'load' });   // EXTRA: more query params, e.g. EXTRA='&ready=2&hurt=2' (the CS31 pose styles)
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
   await page.waitForTimeout(3000);

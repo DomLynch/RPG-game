@@ -1,4 +1,5 @@
 // The Hades cloud's and the boss specials' effect pool sizes and tunes as rows (special-fx.ts and special-fx-boss.ts): every default is the literal the code held before (special-fx-core-rows.json).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,5 @@
 // The world-combat rules are rows (src/fight/world-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table, and a new row is one entry.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { WORLD_RULES, loadWorldRules, worldRule } from '../src/fight/world-rules.ts';

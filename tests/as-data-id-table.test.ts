@@ -1,5 +1,6 @@
 // Rule (i) of the as-data checker (scripts/as-data/id-table.yml + check.ts; hard-coding audit 2026-10-17, gap 4): an array literal of 3+ id-bearing object literals kept in TypeScript is a content table, held to a ratchet
 // (id-table-baseline.json, per file and first row id). Pinned on a fixture tree with its own baselines, never the live count.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

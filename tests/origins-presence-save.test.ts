@@ -1,5 +1,6 @@
 // Position save (TOP10 row 3, Dom 2026-10-08): presence posts its own observation to the writer on leave, on a zone change and every checkpoint, through one
 // bounded queue; a fresh join starts at the place `locate` serves (else presence's memory, else the spawn). origins/presence/saves.ts + origins/presence/server.ts.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES } from '../origins/presence/interest.ts';

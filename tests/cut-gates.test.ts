@@ -2,6 +2,7 @@
 // Gate 1 (checkRangeHasPrs): a commit in <live>..<base> that belongs to no PR stops the cut, except the exempt shas in the data file.
 // Gate 2 (checkWatchedPaths): a cut that changes .github/workflows, .vscode or public/fonts stops.
 // Both run on a fixture repo. The last test is the mutation check: each gate's decision line is broken in a copy of the script, and the scenarios must catch every mutant.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';

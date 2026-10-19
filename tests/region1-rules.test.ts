@@ -1,4 +1,5 @@
 // Region 1's spec numbers and its two world layers are data (origins/region1/region1-rules.json, region1-world.json): every value equals the literal it replaced.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BOUNTY_DAILY_CAP, BOUNTY_METAL, MIN_TOWNS_FOR_WAR, TIERS, TOWN_SAFE_CLEARANCE_M, maxOf, span, tierOf } from '../origins/region1/load.ts';

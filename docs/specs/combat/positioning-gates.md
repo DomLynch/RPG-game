@@ -1,5 +1,7 @@
 # Positioning gates: bands, the AI band row, the marker (spec, sandbox first)
 
+**Edge modes (BULK-CS, ruling B, Lead + Strategy 2026-10-18).** There are TWO ways to cut the rings, one mechanism, one row `edgesMode` in `band-defs.json`, both behind `Duel.bands` (default off): **0 = span FRACTIONS** (this spec: `innerFrac` / `midFrac` of each weapon's own span, off-band `offBandMult`; pinned byte for byte in `tests/bands.test.ts`) and **1 = FIXED cm edges** (Dom's hands-on sandbox numbers: inner under `innerEdgeCm` 135, mid up to `midEdgeCm` 180, outer beyond, the same metres for every weapon; an off-band blow lands `offBandMultCm` 0.4; `tests/bands-edges.test.ts`). **The shipped row is mode 1** (the sandbox's values win when the flag flips on); fractions is the preserved alternative. A blow that lands off-band also carries `glance` on its Hit event (dull impact, quieter cue, recoil cut). The sandbox's own second band code (`bandPerMille`, `bandStop`) is retired: `holdBand` reads `bestRange`, which follows the mode.
+
 Status: **spec, Combat, 2026-10-15, from Strategy's answers (a)-(d) the same day.** No code or row yet. Strategy's ruling: bow step 2 (`docs/specs/combat/bows.md`) does not start until these gates ship and prove out in the sandbox ("a bow without bands is just a ranged tap"). Lead's v1 ruling: Pit archetypes only. Anything that changes a blow's damage in the Pit is an RV bump, so it ships behind `?bands=1` first and nothing in the default path moves.
 
 ## What exists today (read on trunk, 2026-10-15)

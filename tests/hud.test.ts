@@ -1,4 +1,6 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { readFileSync } from 'node:fs';
+import { setSandbox } from '../src/fight/sandbox-era.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/fight/hud.ts';
@@ -87,6 +89,20 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next figh
   assert.equal(get('reset-button').textContent, 'Next fight', 'a win with a next rung (match.ts nextRung) offers Next fight, the one primary');
   const fresh = dom(); createHud(fresh.element as never).update(won, view({ opponentId: 'veteran' }));
   assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight): Rematch');
+});
+
+test('floatDamage: a refused special press (SpecialRefused, cue far) floats the specialCue text over the HERO only, and survives the damage-numbers setting being off', () => {
+  const { element, get } = dom(3), hud = createHud(element as never);
+  const fighters = [{ body: { x: 1, z: 2 }, scale: 1 }, { body: { x: -1, z: -2 }, scale: 1.13 }];
+  const project = (p: [number, number, number]): [number, number] | null => [p[0] * 100, p[2] * 10];
+  const refused = (actor: 0 | 1) => ({ type: 'SpecialRefused', actor, cue: 'far' }) as CombatEvent;
+  hud.floatDamage([refused(1), { type: 'Hit', actor: 1, target: 0, damage: 24 } as CombatEvent], fighters, project, false);
+  const spans = [...get('dmg-pool').children];
+  assert.deepEqual(spans.map((s) => s.textContent), ['', '', ''], 'the foe\'s refusal floats nothing, and with damage numbers off the hit floats nothing');
+  setSandbox(true);   // RV78: the cue text is a sandbox row, read only under the ON era (this file runs era OFF)
+  try { hud.floatDamage([refused(0)], fighters, project, false); } finally { setSandbox(false); }
+  assert.equal(spans[0]!.textContent, 'too far', 'the cue text is the specialCue row');
+  assert.equal(spans[0]!.className, 'dmg taken heavy'); assert.equal(spans[0]!.style.left, '100px'); assert.ok(!spans[0]!.hidden);
 });
 
 test('floatDamage: pooled spans round-robin at the projected victim, classed by side and heavy class; no pool or projection floats nothing', () => {

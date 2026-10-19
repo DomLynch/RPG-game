@@ -1,6 +1,7 @@
 // Wave A1 PR1b: what the player wears reaches the fight. `wornGear` reads the paperdoll and the rung each piece was won at (the same lookup as the Gear tab's numbers) and gives the worn SET's
 // dial deltas (plate: +armour / -magic resist; robes the reverse; plus quality); `sheetOfLoot` puts it on the player's build (`buildOf`: the default build until Backend stores the real one), and a live
 // career/practice Match takes that from its `sheet` port at EVERY begin(), so a piece swapped since boot counts, the record carries it (v48), and a naked player fights exactly as before.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GEAR_IN_FIGHTS, fightSheet, sheetFor, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';

@@ -1,4 +1,5 @@
 // The zone schema (A1, docs/specs/origins/zone-schema.md): one field registry, defaults < biome < zone, versioned, unknown fields refused with the nearest known one. The five tests Strategy named.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadZone, zoneIds } from '../origins/zones/loader.ts';
@@ -33,7 +34,7 @@ test('3. WIRED REPORT: what takes effect today, and what does not (the unwired c
   const report = wiredReport();
   console.log(`zone schema: ${FIELDS.length} rows = ${report.wired.length} wired + ${report.unwired.length} unwired; wired fields (${report.wired.join(', ')}); unwired by owner: ${JSON.stringify(report.unwired.reduce<Record<string, number>>((m, u) => ({ ...m, [u.owner]: (m[u.owner] ?? 0) + 1 }), {}))}`);
   for (const w of ['name', 'level', 'spawns', 'kit', 'looks', 'camps']) assert.ok(report.wired.includes(w), `${w} is wired`);
-  assert.ok(report.unwired.length > 0 && report.unwired.length <= 75, 'ratchet: wire fields, never add unwired ones without lowering this (75 since A0, 2026-10-18: the declared, unread-on-trunk fields of the Test Zone row (look.dress, look.buildings, look.props.rim, look.creatures.*, camera.combat/combatPreset/fightBack/fightBackPortrait/landscapeZoom, boundary.*) are unwired; each flips to wired and lowers this when its lane promotes its reader: see the reader notes in schema.ts)');
+  assert.equal(report.unwired.length, 61, 'ratchet, pinned EXACT (Auditor 2026-10-18): wiring a field lowers this number in the same PR, adding an unwired one raises it with a reason (75 since A0, 2026-10-18; 74 since B3a: look.buildings is read by main.ts (zoneBuildings -> buildingSkin); 58 since BULK-TZ, 2026-10-18: the sandbox bulk port brings the readers of look.dress, look.props.rim, look.creatures.*, camera.fightBack/fightBackPortrait and boundary.*, so thirteen flip to wired; 61 not 58 because camera.combat, combatPreset and landscapeZoom have no page reader (tests only: Auditor 2026-10-18), they stay unwired until the Web camera work reads them)');
   assert.equal(FIELDS.length, new Set(FIELDS.map((f) => f.path)).size, 'one row per path');
   for (const f of FIELDS) assert.equal(badValue(f, f.default), null, `${f.path}: the default is a legal value of its own field`);
 });

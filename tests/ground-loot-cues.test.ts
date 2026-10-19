@@ -1,4 +1,5 @@
 // Ground-loot cues (src/fight/sound/ground-loot.ts): a drop, a take and a lost race are three audio-rules rows on EXISTING sprite cues: no new loader, no new sprite bytes.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFeedback } from '../src/fight/sound/feedback.ts';

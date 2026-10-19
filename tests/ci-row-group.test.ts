@@ -1,4 +1,5 @@
 // scripts/ci-row-group.mjs + scripts/lib/row-groups.mjs: several release rows in ONE job, receipts still per row (Deploy, release speed 2026-10-13).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';

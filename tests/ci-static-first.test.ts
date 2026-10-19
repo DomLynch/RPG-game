@@ -2,6 +2,7 @@
 // quality shard, browser job and unit-ci shard `needs:` it on a pull request, so a red tsc costs one job, not 30; (2) scope: release-checks rows run
 // only for release-* candidates, never a feature PR (label or not); a feature PR's browser jobs run only once it carries auditor:ready.
 // The workflows' own `needs:` / `if:` / concurrency expressions are evaluated here per event, so this tests what Actions would schedule.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';

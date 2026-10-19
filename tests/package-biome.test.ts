@@ -1,4 +1,5 @@
 // Gap 8: a zone package can bring its own biome preset (biome.row.json), merged into the biome table through the generated biomes.packages.json; the shared presets in biomes.json stay hand-edited and cannot be redefined by a package.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -35,7 +36,8 @@ test('a package that brings a biome imports it unlisted, and the generated table
   try {
     assert.deepEqual(importFolder(folder, root), [], 'a new unlisted package with its own biome imports');
     const table = JSON.parse(readFileSync(join(root, 'origins/zones/biomes.packages.json'), 'utf8')) as { biomes: Record<string, unknown> };
-    assert.deepEqual(table.biomes, { 'goblin-fortress-test': SPEC });
+    assert.deepEqual(table.biomes['goblin-fortress-test'], SPEC, 'the generated table carries the new package\'s preset (and the repo\'s own, e.g. zone 90\'s goblin-fortress)');
+    assert.ok(Object.hasOwn(table.biomes, 'goblin-fortress'), 'zone 90\'s own preset is still carried');
     assert.equal(readFileSync(join(root, 'origins/zone-rows/zone91.row.json'), 'utf8').includes('"biome": "goblin-fortress-test"'), true, 'its zone row names the preset');
     assert.ok(Object.keys(generate(root) as object).includes('origins/zones/biomes.packages.json'));
   } finally { rmSync(root, { recursive: true, force: true }); }

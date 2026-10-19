@@ -1,4 +1,5 @@
 // Engine-slice wording on PRs (scripts/pr-wording.mjs): the word list, the allowed phrases, code spans, and the 24 h clock. No GitHub call.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

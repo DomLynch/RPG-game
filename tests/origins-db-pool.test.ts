@@ -1,5 +1,6 @@
 // The writer's pooled psql sessions (origins/server/db.ts pooledDb) against a stand-in psql that speaks just enough of the protocol: a script on stdin, a marker echoed at
 // the end, and `ERROR:  <code>: <text>` + exit 3 on a refusal (ON_ERROR_STOP on a pipe). No database. The real-psql half is scripts/origins-writer-check.mjs, which runs pooled.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

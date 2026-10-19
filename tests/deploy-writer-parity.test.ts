@@ -1,5 +1,6 @@
 // The writer-parity gate (2026-10-13 DN published with the writer still on DM): writer_parity_gaps against a scratch "installed writer", and deploy.sh's wiring:
 // the check runs before the publish lock and a non-empty answer exits 1.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -41,7 +42,7 @@ test('deploy.sh: a site switch that fails after the writer install puts the outg
   assert.ok(prev > 0 && prev < back && back < install, 'the outgoing writer is read before the install; writer_back is defined before it is needed');
   const body = deploy.slice(back, install);
   assert.match(body, /writer_back_cmd "\$writer_prev" "\$release"/);   // the command itself is tested in deploy-writer-back.test.ts
-  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer back on failure');
+  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; verifier_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer (and presence, and the verifier) back on failure');
 });
 
 test('deploy.sh: presence flips with the site like the writer: read before the install, installed inside the window before the switch, rolled back on a failed switch, parity before Published', () => {
@@ -51,7 +52,7 @@ test('deploy.sh: presence flips with the site like the writer: read before the i
   assert.ok(prev > 0 && prev < install && install < sw && sw < gate && gate < published, 'order: read < install < switch < parity < Published');
   assert.match(deploy.slice(install, sw), /install-presence\.sh --if-changed '\$revision'/);
   assert.match(deploy.slice(install, sw), /the site has not moved[^}]*writer_back; presence_back; exit 1/, 'a failed presence install puts both back');
-  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; exit 1; \}/, 'a failed switch puts both back');
+  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; verifier_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'a failed switch puts both back (and the verifier, tested in verifier-closure.test.ts)');
   assert.match(deploy.slice(install - 400, install), /if \[\[ -n "\$presence_prev" \]\]/, 'only when presence is installed on the box');
   assert.match(deploy.slice(gate, published), /RED: site moved, presence differs/);
   assert.match(deploy, /frankendom-presence presence nginx\)/, 'the presence rollback adds nginx -t and a reload');

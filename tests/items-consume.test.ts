@@ -1,6 +1,7 @@
 // O2 burns: consume (quest hand-in) and applyUpgrade (the smith's material cost) spend units for good, all or nothing, once per op id
 // (a same-request retry returns the original burn), each into the ledger, so conservation reads minted = held + burned per root mint key.
 // Story-critical pieces burn only on a quest step that names them.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Result } from '../src/core/server.ts';

@@ -1,5 +1,6 @@
 // Which named special an opponent casts is a ROW (src/fight/special-set-defs.json, built by src/fight/special-set-rows.ts; recce #2554 group B, slice 3). The move is byte-identical: the canonical JSON
 // of SPECIAL_SETS and of specialOf for every opponent at every level 0..50 hashes to what the hand-written literal and the 36 / 41 / 46 thresholds in moves.ts hashed to on slice 2's chain before they went.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';

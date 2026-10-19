@@ -1,5 +1,6 @@
 // The scripted first loss (src/first-loss.ts, Match mode 'lesson'): the player loses on every seed and every kind of player, each of the five
 // lessons fires exactly once and in order, the fight is not recorded or awarded, and nothing the ladder owns moves.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LESSONS, type LessonId } from '../src/first-loss.ts';

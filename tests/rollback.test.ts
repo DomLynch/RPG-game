@@ -1,6 +1,7 @@
 // scripts/rollback.sh against a fake release tree: `ssh` runs the remote half locally, `curl` serves the fake `current`, so nothing
 // touches the VPS. A rollback swaps current <-> previous and passes the live check; --dry-run changes nothing; a named release goes
 // live; a deploy in flight or a bundle without the Supabase host fails loudly.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

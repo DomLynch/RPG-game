@@ -7,6 +7,7 @@
 //      mispredicted): at every frame the confirmed state's fingerprint must equal a plain replay of the finally agreed log at that tick,
 //      both sides agree, no desync is flagged, and the run really did roll back (a quiet link would prove nothing).
 // Any sim change that breaks re-sim determinism (state that survives a step, a clock, an unrestored field) fails here, not in a live duel.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/fight/ai.ts';

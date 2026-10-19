@@ -5,7 +5,7 @@ import DEFS from '../presence/warp-landmarks.json' with { type: 'json' };
 import { allZoneIds, loadZone, type Zone } from '../zones/loader.ts';
 import { EXITS, type ExitRow } from '../zones/exits.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
-import { packageProblems, type PackageCtx } from './zone-package-check.ts';
+import { loadoutDropProblems, packageProblems, type PackageCtx } from './zone-package-check.ts';
 import { keyProblemsOf } from './world-spawns.ts';
 
 // The server-side package check (zone package gap 2). It runs over EVERY zone package in the registry, listed or not, so a package imported into origins/zone-rows/ is checked in CI before it can stop the writer or presence at module load.
@@ -23,6 +23,21 @@ test('a spawn row whose loot table does not exist is a problem', () => {
   const z = zones(), z1 = z['1']!, row = z1.spawns.rows[0]!;
   const noLoot = { ...z1, spawns: { ...z1.spawns, rows: [{ ...row, loot: 'loottable:no-such-table' }, ...z1.spawns.rows.slice(1)] } } as Zone;
   assert.ok(packageProblems(noLoot, ctx(z)).some((p) => p.includes(`spawn row ${row.id}: loot loottable:no-such-table is not a loot table`)));
+});
+
+test('an UNLISTED package: every piece a creature\'s loadouts can wear is in its spawn row\'s table (derived from loadouts.json, no hand list); a listed zone is not held to it', () => {
+  const z = zones(), tz = z['90']!;
+  assert.equal(tz.unlisted, true, 'zone 90 is the unlisted Test Zone');
+  assert.deepEqual(loadoutDropProblems(tz, loaded.value), [], 'zone 90 as shipped drops everything it can be seen wearing');
+  const troll = tz.spawns.rows.find((r) => r.id === 'character:cave-troll')!;
+  const back = { ...tz, spawns: { ...tz.spawns, rows: tz.spawns.rows.map((r) => (r === troll ? { ...r, loot: 'loottable:cave-troll' } : r)) } } as Zone;
+  const bad = packageProblems(back, ctx(z));
+  assert.ok(bad.some((p) => p.includes('wears pitborn.Greaves, which loottable:cave-troll does not drop')), bad.join('\n'));
+  assert.ok(bad.some((p) => p.includes('wears pitborn.Boots, which loottable:cave-troll does not drop')));
+  const ghost = { ...tz, mobLooks: { ...tz.mobLooks!, looks: { ...tz.mobLooks!.looks, 'character:pit-goblin': { ...tz.mobLooks!.looks['character:pit-goblin']!, loadout: 'no.such.loadout' } } } } as Zone;
+  assert.ok(packageProblems(ghost, ctx(z)).some((p) => p.includes('loadout "no.such.loadout" is not a loadouts.json row')));
+  const listedWithGear = { ...back, unlisted: false } as Zone;   // the same gap on a LISTED zone is not this check's business (its drops are frozen)
+  assert.ok(!packageProblems(listedWithGear, ctx(z)).some((p) => p.includes('does not drop')));
 });
 
 test('the key rule is per zone: a key that reads as another zone, does not fit the table or repeats is named', () => {

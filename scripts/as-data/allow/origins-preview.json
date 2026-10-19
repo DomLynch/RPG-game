@@ -1,10 +1,15 @@
 {
   "tunables": [
     {"file": "origins/preview/presence-client.ts", "name": "OPEN", "kind": "exempt", "reason": "browser API constant WebSocket.OPEN (1): not a number we choose", "owner": "World & Audio"},
-    {"file": "origins/preview/daynight.ts", "name": "MINUTES_PER_DAY", "kind": "exempt", "reason": "a unit fact (24 h x 60 min = 1440 minutes in a day), not a tuning: nobody tunes how long a day is in minutes; the game day's real length is the gameDayMinutes row (Lead 2026-10-18)", "owner": "Web"}
+    {"file": "origins/preview/daynight.ts", "name": "MINUTES_PER_DAY", "kind": "exempt", "reason": "a unit fact (24 h x 60 min = 1440 minutes in a day), not a tuning: nobody tunes how long a day is in minutes; the game day's real length is the gameDayMinutes row (Lead 2026-10-18)", "owner": "Web"},
+    {"file": "origins/preview/horizon-dome.ts", "name": "COLUMN_SALT", "kind": "exempt", "reason": "salt that separates the smoke columns' draws from the ridges' (golden-ratio constant): part of the seed format, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
+    {"file": "origins/preview/prop-kit.ts", "literal": "rim", "reason": "the prop recipe KIND vocabulary (scatter | rim | ring | ...): the closed set of placement algorithms the kit builder switches on (props-defs.json rows name which one they use), a mechanism category, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "ring", "reason": "the prop recipe KIND vocabulary (scatter | rim | ring | ...): the closed set of placement algorithms the kit builder switches on (props-defs.json rows name which one they use), a mechanism category, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "fire", "reason": "a prop's `emits` category (fire | smoke | ...): the closed set of effects a placed prop can start, which the kit builder collects into fires[]; a mechanism category, not a content id"},
     {"file": "origins/preview/ground-looks.ts", "literal": "loot", "reason": "the asset family name in a ground-look row (`asset: \"loot\"` = loot.glb's node, else a path): a schema category the loader validates, not a content id"},
-    {"file": "origins/preview/main.ts", "literal": "exchange", "reason": "the page's prompt rule 'the bank is the Exchange's' compares the zone it stands in with the town zone id; the page cannot import origins/presence/zones.ts (it loads the presence registry and server frame), whose town-zones.json row carries `trade: true` for the same zone; the page's own zone rows (frontier plan) do not flag it. OWED: a `trade` flag on the page's zone rows"}
+    {"file": "origins/preview/main.ts", "literal": "exchange", "reason": "the page's prompt rule 'the bank is the Exchange's' compares the zone it stands in with the town zone id; the page cannot import origins/presence/zones.ts (it loads the presence registry and server frame), whose town-zones.json row carries `trade: true` for the same zone; the page's own zone rows (frontier plan) do not flag it. OWED: a `trade` flag on the page's zone rows"},
+    {"file": "origins/preview/main.ts", "literal": "first", "reason": "the saved View setting's value (localStorage 'origins-preview.view.v1' is 'first' or 'third'): a two-value setting the page itself writes, a closed vocabulary of the ☰ menu's View toggle, not a content id (Auditor 2026-10-18)"}
   ]
 }

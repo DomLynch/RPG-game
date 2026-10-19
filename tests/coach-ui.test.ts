@@ -1,5 +1,6 @@
 // The Coach on the page (src/coach-ui.ts, TOP10 row 8 Web): the toggle saves per device, a press hands the fight over the SAME tick it happened (the Coach is not stepped, the player's intent is read),
 // the events carry tick and reason, the spans reach the build string, ?coach=off is the kill switch. Fake start/stop events, no sim: the page contract only.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COACH_KEY, coachKilled, createCoachSession, loadCoachPref, type CoachEvent } from '../src/fight/coach-ui.ts';

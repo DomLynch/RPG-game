@@ -1,6 +1,7 @@
 // scripts/ci-unit-trust.mjs waits for the unit-ci.yml run on the exact sha (Lead 2026-10-12: CK's deploy looked before its green run finished), bounded,
 // and says unit-ci-down when it cannot vouch; deploy.sh then falls back to the HF/VPS receipt with that reason and logs which source it trusted.
 // A stub gh (CI_UNIT_GH) and a throwaway git repo; nothing reaches GitHub.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';

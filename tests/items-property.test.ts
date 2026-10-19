@@ -6,6 +6,7 @@
 //     bank moves and trades never create or destroy units; receive/remove/trade only move them across the border);
 //   - every instance that survives a step keeps its provenance unchanged and its history as a prefix (checkHistoryKept).
 // The RNG is a seeded mulberry32 in the test, so every run is the same run; the module itself draws no randomness.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checkHistoryKept, type ItemInstance } from '../src/core/server.ts';

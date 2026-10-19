@@ -1,5 +1,6 @@
 // The boss presentation table (src/fight/bosses.json + manifest, read by boss-rows.ts): the rows are well-formed, every verb id on a row names a real code verb, each row
 // agrees with Combat's special table, the registry/cue/class-skill/BossKind derivations match what the hand-written lists were, and a new boss over an existing fx is ONE row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';

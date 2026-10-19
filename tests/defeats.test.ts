@@ -1,5 +1,6 @@
 // The per-legend defeat record (loot.ts `defeats`, Strategy 2026-09-30, the Pit's 10×10 skull wall): portrait keys `<opponent>-<rank>`,
 // set on every career win (tests/match.test.ts), backfilled from every tiered kill on record, a union on every merge, and a reason to save.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanLoot, decline, defeat, keepsLoot, killAt, mergeLoot, store, type Loot, type Provenance } from '../src/core/loot.ts';

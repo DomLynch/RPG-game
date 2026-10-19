@@ -11,16 +11,22 @@ import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Fin
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
+import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
-import { groundLook } from './ground-looks.ts';
+import { groundLook, dropLook } from './ground-looks.ts';
+import { createOutfit, dressedSet, dropSet, groundItemOf } from './outfit.ts';
+import { createFound, createKillDrops } from './kill-drop.ts';
+import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
+import { fxNum, regenOn, regenRules } from '../../src/fight/index.ts';
 import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
+import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
+import { createWarBandRun } from './war-band-run.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { createLoadoutGate } from './loadout-gate.ts';
@@ -29,10 +35,18 @@ import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { createHorizonDome } from './horizon-dome.ts';
+import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { propKit, withPropKit } from './prop-kit.ts';
+import { createAmbience } from './ambience.ts';
+import { createGoblinSmoke } from './goblin-smoke.ts';
+import { goblinDirtMaterial } from './goblin-ground.ts';
+import { buildingSkin } from './building-skin.ts';
+import { loadSkinModels } from './skin-models.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast, receiptToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast, receiptToast, reportsKills } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -83,9 +97,11 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneFightBack, zoneHour } from './look.ts';
+import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
+import { gfxOn } from './gfx-flag.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
@@ -114,6 +130,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
+// ?gfx=1 (gfx-lift.ts, Test Zone C16): height fog, half-res bloom, grade. Off = none of it is fetched. The chunk loads while the zone loads, so the fog patch lands before the first material compiles; until it is in, the frame is drawn plainly.
+let gfx: { render(): void; setSize(w: number, h: number): void } | null = null;
+if (gfxOn(location.search)) void import('./gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); });
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -124,14 +143,17 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
+const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier, buildingSkin(zoneBuildings(loadZone())));   // a zone row's look.buildings names a skin (building-skins.json); none = the brick blocks
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
-const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields (Test Zone port). Zones 1-4 set none of them, so they are unchanged
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow && zoneRow.set?.includes('look.dress') ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // a zone row's look.props.kit stands its camp props (prop-kit.ts) on the dressed ground
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
-const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
+const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!, zoneRow?.set?.includes('look.props.density') ? Number(zoneRow.fields?.['look.props.density']) : undefined) : null;
 if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 // The hills (frontier-relief.ts): flat pads under everything the plan and the dressing put down, hills in the open ground between; ?relief=0 is the kill switch. groundY is the ground under a world point (0 off the Frontier).
@@ -146,18 +168,27 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
   if (!p) gltfScenes.set(url, (p = (async () => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); const loaded = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; if (phoneTier()) budgetTextures(loaded, FIGHTER_TEXTURE_CAP); return loaded; })().catch((error: unknown) => { gltfScenes.delete(url); throw error; })));
   return p;
 };
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: sceneOf });
+const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: sceneOf });
+// A creature's dropped loot piece (unlisted zones only, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
-let frontierGroup: THREE.Group | null = null;
+const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
+let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins).
 const settled = { hero: false, kit: !zoneKit };
 const coverEl = document.getElementById('cover');
 const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 if (frontier && frontierParts) {
-  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
+  const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
+  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
+  { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; if (standing.length) void loadSkinModels(standing, groundY).then((g) => frontierGroup?.add(g)); }   // the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
+  if (ZONE_SKY) { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
+  if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
@@ -226,6 +257,7 @@ let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
@@ -245,7 +277,9 @@ const measureHud = () => {
   labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));   // the Pit's bars (.combat-hud) sit under the HUD stack (index.html)
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level);
+const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag and the info card style this page's zone asks for
+const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
@@ -337,7 +371,11 @@ function step(dt: number) {
     const i = duel!.worldIntent(), k = i.run ? 2 : 1;
     forward = Math.max(-previewRule('walkBackMax'), Math.min(previewRule('stickRange'), -i.z)) * k; strafe = Math.max(-previewRule('stickRange'), Math.min(previewRule('stickRange'), i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
-    if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
+    if (lockOn) {   // the Pit's lock: the camera swings behind the hero to face it. 'soft' (the zone's look.creatures.lock): a gentler pull that lets go while he runs away (stick pushed back) or looks round (a drag), for lockPauseSec
+      const soft = MARKERS.lock === 'soft', now = performance.now();
+      if (soft && forward < -previewRule('lockAwayStick')) lockPausedUntil = now + previewRule('lockPauseSec') * 1000;
+      if (!soft || now >= lockPausedUntil) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-previewRule(soft ? 'lockPullSoft' : 'lockPull') * dt));
+    }
     const a = i.action;
     if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
     else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
@@ -356,7 +394,9 @@ function step(dt: number) {
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
   // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
-  const px = state.x, pz = state.z, ground = running ? RUN / 2 : WALK;   // Intent.running, not a guess from the stick size
+  const rimZone = RIM.margin && frontier ? frontierZoneAt(frontier, state.x, state.z) : null, rim = rimZone ? rimScale(edgeDistance(rimZone, state.x, state.z), RIM.margin, RIM.slow) : 1;   // the soft rim (boundary.* on the zone): slower near the edge, with one line
+  if (rim < 1 && forward) { rimUntil = performance.now() + 3000; hint.textContent = RIM.line; hint.hidden = !RIM.line; } else if (rimUntil && performance.now() > rimUntil) { rimUntil = 0; hint.hidden = true; }
+  const px = state.x, pz = state.z, ground = (running ? RUN / 2 : WALK) * rim;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
@@ -376,14 +416,19 @@ function step(dt: number) {
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
+  { const head = warriors?.player.anchor.getObjectByName('Head'); if (firstPerson) { head?.scale.setScalar(fxNum('fp.head-scale')); headCollapsed = true; } else if (headCollapsed) { head?.scale.setScalar(1); headCollapsed = false; } }   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it, and given back ONCE when the view leaves first person (never forced every frame: nothing else's scale on the Head is overwritten); the body, arms and weapon stay in view
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap'), bobJumpM: fxNum('fp.bob-jump-m'), bobWalkMps: fxNum('fp.bob-walk-mps'), bobFade: fxNum('fp.bob-fade') } } : {}) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
   applyCombatView();
+  fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
+  if (firstPerson) followCam.kick(fpArm.kick(), heading, { roll: fxNum('fp.kick-roll'), yaw: fxNum('fp.kick-yaw'), lunge: fxNum('fp.kick-lunge') });   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
+  warBandRun.tick(dt);
+  killDrops.update(state);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true;
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
@@ -422,6 +467,12 @@ function showZone(id: string | null) {
 // The follow camera only places the camera; what a fight adds to the lens (a lift off the thumb buttons, fov, zoom) is applied here, only when it changed.
 const COMBAT_CAM = /[?&;]combatcam=0\b/.test(location.search) ? undefined : wideCombatCam(), BASE_FOV = camera.fov, MAN_M = previewRule('camPSizeFrom');
 let lastView = '';
+// First person (the ☰ menu's View setting, Dom 2026-10-17; first-person-arm.ts): the camera is the hero's head and his own right arm holds his own sword between swings. Default stays over the shoulder; `?view=first|third` overrides the saved setting for a link.
+const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { return localStorage.getItem(BOB_KEY) !== 'off'; } catch { return true; } })();   // head bob on unless the player turned it off (the ☰ menu)
+const fpArm = createFirstPersonArm();
+let headCollapsed = false;   // the head is collapsed only while the view is first person
+const fpPose = (): ArmPose => ({ handRight: fxNum('fp.hand-right'), handUp: fxNum('fp.hand-up'), handForward: fxNum('fp.hand-forward'), poleRight: fxNum('fp.pole-right'), poleUp: fxNum('fp.pole-up'), poleForward: fxNum('fp.pole-forward'), bladeRight: fxNum('fp.blade-right'), bladeUp: fxNum('fp.blade-up'), bladeForward: fxNum('fp.blade-forward'), rate: fxNum('fp.arm-rate'), kickRest: fxNum('fp.kick-rest') });
+const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());
 const foeSizes = new Map<string, number>();
 const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
   let s = foeSizes.get(id); if (s !== undefined) return s;
@@ -435,7 +486,7 @@ function applyCombatView() {
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -497,9 +548,14 @@ const secondActor = () => { if (!warriors) throw new Error('the hero rig has not
 // at the next frame. ONE dressing path (dress-remote.ts); self keeps the full rig (hero.glb), the near/far LODs are for remotes only. A newer set supersedes an older one still being built.
 let selfWorn: { ids: readonly string[]; tiers: Record<string, Tier> } | null = null, selfSeq = 0, selfBusy = 0;
 const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [id, id]));
+// What the hero took off the bodies of creatures: PAGE MEMORY ONLY, local to this tab (Lead 2026-10-18: nothing stored, nothing sent to an account or the DB). In an UNLISTED zone each taken piece replaces the
+// account's piece in its paperdoll slot (dressedSet); a listed zone ignores it, and a reload or leaving the zone brings the account gear back.
+const outfit = createOutfit();
+const NO_GEAR = { ids: [] as readonly string[], tiers: {} as Record<string, Tier> };
 async function applySelf() {
-  if (!warriors || !selfWorn) return;
-  const mine = selfWorn, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  const unlisted = !!loadZone().unlisted;
+  if (!warriors || !(selfWorn ?? (unlisted ? NO_GEAR : null))) return;
+  const dressed = dressedSet(selfWorn ?? NO_GEAR, outfit, unlisted), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
     const pieces = await sharedLoot();
@@ -620,12 +676,14 @@ const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
   step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
-  camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
-  renderer.render(scene, camera);
+  ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
+  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
+  if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 renderer.setAnimationLoop(walkLoop);
@@ -682,6 +740,16 @@ if (frontier) {
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
     paint();
+    if (chips) {   // View: over the shoulder (the main game's camera B) or first person (Dom 2026-10-17); a setting on this device, ?view=first|third overrides it for a link
+      const v = document.createElement('button'); v.id = 'menu-view';
+      const paintView = () => { v.textContent = `View: ${firstPerson ? 'First person' : 'Over the shoulder'}`; v.setAttribute('aria-pressed', String(firstPerson)); };
+      v.addEventListener('click', () => { firstPerson = !firstPerson; try { localStorage.setItem(VIEW_KEY, firstPerson ? 'first' : 'third'); } catch { /* storage blocked */ } followCam.snap(); lastView = ''; paintView(); });
+      paintView(); chips.append(v);
+      const b = document.createElement('button'); b.id = 'menu-head-bob';   // first person only matters, but the setting is kept either way
+      const paintBob = () => { b.textContent = `Head bob: ${headBob ? 'On' : 'Off'}`; b.setAttribute('aria-pressed', String(headBob)); };
+      b.addEventListener('click', () => { headBob = !headBob; try { localStorage.setItem(BOB_KEY, headBob ? 'on' : 'off'); } catch { /* storage blocked */ } paintBob(); });
+      paintBob(); chips.append(b);
+    }
   }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
 }
 const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
@@ -852,17 +920,38 @@ function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
   document.body.append(veil);
-  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+}
+// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox zones only (row `warband.enabled`).
+const warBandRun = createWarBandRun({
+  mobs: () => mobs ?? undefined, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
+  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => !!loadZone().unlisted && fxNum('warband.enabled') > 0,
+});
+// A creature of an UNLISTED zone drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
+const killDrops = createKillDrops({
+  view: dropItems, itemOf: groundItemOf, found: createFound(), reach: fxNum('drop.reach'),
+  onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
+});
+function dropLoot(spec: MobSpec, at: { x: number; z: number }) {
+  const row = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), pieces = dropSet(row, spec.id, fxNum('zoneloot.take-limit'));
+  pieces.forEach((piece, i) => {
+    const a = (i / pieces.length) * fxNum('zoneloot.turn');
+    try { killDrops.drop(piece, pieceLabel(piece), spec.name, at.x + Math.cos(a) * fxNum('zoneloot.ring-m'), at.z + Math.sin(a) * fxNum('zoneloot.ring-m'), row?.rung); } catch (error) { console.error(`${spec.name}'s ${piece} could not be laid on the ground`, error); }   // loud, and the kill goes on
+  });
 }
 function creatureFell(spec: MobSpec) {
+  warBandRun.fell(spec.id);
+  const fellAt = mobs?.find(spec.id);
   mobs?.fell(spec.id);
-  const answer = spawnNet.killed(spec.id, wc.record(), wc.recordDrop()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
+  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved
+  if (sandbox && fellAt) dropLoot(spec, fellAt);
+  const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record(), wc.recordDrop())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
-    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
+    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0, loadZone().spawns.rows.find((r) => r.id === spec.character)?.loot) : null;
     if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
-    worldToast(killToast(k, itemName, spec.name, bountyTaken, guest));
+    worldToast(killToast(k, itemName, spec.name, bountyTaken, guest, sandbox));
   });
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
@@ -892,7 +981,7 @@ let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a cr
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
-for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => zoneSound.unlock(), { passive: true });
+for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
@@ -930,10 +1019,12 @@ const buildCopy = {
 // The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
 const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh().then(() => wc.heroChanged()); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
  wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
+const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
+  regen: () => (regenOn(!!(zoneRow ?? loadZone()).unlisted) ? regenRules(regenSeconds) : null),   // sandbox zones only; the Pit and every listed zone get none (hero-regen.ts)
   loadoutReady,
   canPlay: canPlayFinisher,
-  onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
+  onCreatureHit: (spec, hit) => { warBandRun.hit(spec.id); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),

@@ -11,6 +11,7 @@ import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
 import { stageRule } from '../world/stage-rules.ts';
 import { heightProblems } from './height-ladder.ts';
+import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
 
@@ -103,6 +104,11 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
+    if (sp.loadouts && !(Array.isArray(sp.loadouts) && sp.loadouts.every((l) => loadoutRow(l)))) bad.push(`mob spread ${id}: loadouts is a list of loadout row ids (origins/world/loadouts.json)`);
+  }
+  for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
+    if (l.loadout && !loadoutRow(l.loadout)) bad.push(`mob look ${id}: loadout "${l.loadout}" is not a loadout row`);
+    if (l.body !== undefined && !/^world\/kit\/[\w-]+\.glb$/.test(l.body)) bad.push(`mob look ${id}: body is a world/kit/<name>.glb file`);
   }
   for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
   const warpIds = new Set<string>();
@@ -147,4 +153,11 @@ export function loadZone(id: string = pageZoneId(), opens: boolean = opensNow())
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
   const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
   loaded.set(id, full); return full;
+}
+
+/** A zone seen as if it were in another biome (`?look=goblin` on Zone 1): its own package resolved with `biome` swapped, plus any `extra` fields set outright. Only look readers use it; the zone itself is untouched. */
+export function zoneAsBiome(id: string, biome: string, extra: Record<string, unknown> = {}): Zone {
+  const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
+  const r = resolveZone(id, { ...z, biome } as unknown as Spec);
+  return { ...z, fields: { ...r.values, ...extra }, set: [...r.explicit, ...Object.keys(extra)] };
 }

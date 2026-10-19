@@ -1,6 +1,7 @@
 // The engine's MOVES and PATHS are rows (src/fight/move-defs.json, built by src/fight/move-rows.ts; recce #2554 group B, slice 2). The move is byte-identical: the canonical JSON of both
 // records, key order included, hashes to what the hand-written literals and the light() / skill() helpers in moves.ts hashed to on slice 1's head c040b326f before they went (the receipt),
 // and no object literal named MOVES or PATHS is kept in code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';

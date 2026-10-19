@@ -1,5 +1,6 @@
 // Special Moves on the SKILL slot (RULES.special, duel.ts withSpecials; Dom 2026-09-29 via Strategy / Lead). Constructed states and scripted
 // intents, no AI: deterministic. A fight without withSpecials is the fight it always was (tests/fixtures/fight-records.json, v20, still replays).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';

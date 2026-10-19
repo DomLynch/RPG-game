@@ -1,6 +1,7 @@
 // scripts/lib/deploy-lock.sh (release pipelining): two deploy.sh runs may be in flight, only the publish window is exclusive. Every lock
 // lives in a tmp dir (DEPLOY_LOCK and friends), never ~/.claude/state. The legacy marker the hooks and rollback.sh read always names a live
 // run; a publish lock held by a live run is waited for, a dead holder's is broken; a candidate the live release contains is "superseded".
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';

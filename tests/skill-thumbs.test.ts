@@ -1,5 +1,6 @@
 // A move has no mesh, so its take tile draws public/game/img/loot/<SkillId>.thumb.svg (main.ts skillThumb). Every SkillId in SKILLS
 // must have one, or the tile shows an empty slot; SCOPE 8's nine moves ship as one batch (Lead 2026-09-26), their thumbs ahead of their SKILLS entries.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

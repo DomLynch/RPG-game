@@ -1,4 +1,5 @@
 // Series PR 4 (fail-first, written against Lead's interface 2026-10-13; rebase onto combat/world-hero when it lands): the hero's SHEET rides the world record's header.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';

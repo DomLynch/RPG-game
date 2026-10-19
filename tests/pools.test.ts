@@ -1,4 +1,5 @@
 // Resource pools as an open registry (RV43): defaults equal what the duel always used, a row's own pools reach the fighter, and a NEW pool is one data row with no code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RULES, OPPONENTS } from '../src/fight/moves.ts';

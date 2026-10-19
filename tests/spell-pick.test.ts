@@ -1,4 +1,5 @@
 // The client's spell pick (src/fight/spell-pick.ts): rows only, owned only, the skill from the character's value in the spell's school.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

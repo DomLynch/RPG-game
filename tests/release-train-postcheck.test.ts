@@ -1,5 +1,6 @@
 // Overlapping publishes (Lead GO 2026-10-18, Dom: "get this live"): with POST_PUBLISH_DETACH=1 deploy.sh leaves the CI-routed post-publish rows to scripts/release-train-postcheck.sh, which the train
 // publisher starts after it releases the hold. The tail holds the NEXT publish on a red or unproved row and never rolls back or re-trusts one.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -99,7 +100,57 @@ test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the 
   assert.match(deploy, /echo "post-publish CI tail: rows \$detach_rows for \$revision \(detached/);
   assert.equal((deploy.match(/post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/g) ?? []).length, 2, 'the default path (flag off) and the nothing-to-detach path still wait for CI');
   // The Mac group (which can roll back) runs BEFORE the branch, inside the hold.
-  assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('POST_PUBLISH_DETACH'));
+  assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && -n "$pp_open" ]]'));
+});
+
+test('postcheck (window): at the window close it dispatches ONE CI run for the NEWEST member, with the union of the rows, and names every member on green and on red', () => {
+  for (const trusted of ['3,9,10,46', '3,9']) {
+    const state = mkdtempSync(join(tmpdir(), 'postcheck-window-'));
+    const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40);
+    const marker = join(state, `post-publish-pending-${A.slice(0, 8)}`);
+    const now = Math.floor(Date.now() / 1000);
+    writeFileSync(marker, `rev=${A}\nrows=3,9\nat=${now - 5}\nwindow=1\nmember=${B} 9,10\nmember=${C} 3,46\n`);
+    const trust = join(state, 'trust.sh'); writeFileSync(trust, `#!/bin/sh\necho "$1" > "${state}/trusted-for"\necho "${trusted}"\n`, { mode: 0o755 });
+    const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, `#!/bin/sh\necho "$POST_PUBLISH_REV" >> "${state}/dispatched"\n`, { mode: 0o755 });
+    const comments = join(state, 'comments.txt'); const commenter = join(state, 'comment.sh'); writeFileSync(commenter, `#!/bin/sh\necho "$1" >> "${comments}"\n`, { mode: 0o755 });
+    const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', A, '3,9', '3175'], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POSTCHECK_COMMENT: commenter, POST_PUBLISH_CI_SETTLE_S: '0', POSTCHECK_WINDOW_TICK_S: '0.1', RELEASE_TRAIN_NOTIFY: '' } });
+    assert.equal(readFileSync(join(state, 'dispatched'), 'utf8').trim().split('\n').length, 1, 'exactly ONE dispatch');
+    assert.match(readFileSync(join(state, 'dispatched'), 'utf8'), new RegExp(C), 'against the newest member');
+    assert.equal(readFileSync(join(state, 'trusted-for'), 'utf8').trim(), C, 'and the trust lookup is for it too');
+    assert.match(r.stdout, new RegExp(`members ${A}, ${B}, ${C}`));
+    assert.match(readFileSync(comments, 'utf8'), new RegExp(`window members: ${A} ${B} ${C}`), 'every member named');
+    if (trusted === '3,9,10,46') { assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, /rows 3,9,10,46 for c{40}: all CI-trusted/, 'rows are the union'); assert.equal(existsSync(join(state, 'deploy_hold')), false); }
+    else { assert.equal(r.status, 1); assert.match(readFileSync(join(state, 'deploy_hold'), 'utf8'), new RegExp(`rows 10,46 not green on CI for the tree.*window members: ${A} ${B} ${C}`)); }
+    assert.equal(existsSync(marker), false, 'decided either way: marker cleared');
+    rmSync(state, { recursive: true, force: true });
+  }
+});
+
+test('postcheck (window race, Auditor + Lead on #3214): the window is closed atomically BEFORE the members are read; a joiner that slips in after the read fails closed and is named in the hold', () => {
+  const state = mkdtempSync(join(tmpdir(), 'postcheck-race-'));
+  const A = 'a'.repeat(40), D = 'd'.repeat(40);
+  const marker = join(state, `post-publish-pending-${A.slice(0, 8)}`);
+  const now = Math.floor(Date.now() / 1000);
+  writeFileSync(marker, `rev=${A}\nrows=3,9\nat=${now - 5}\nwindow=1\n`);
+  // during the CI wait (after the members were read) a late publish appends to the CLOSED file's old path AND recreates a stray at the open name, as a racing joiner can
+  const trust = join(state, 'trust.sh');
+  writeFileSync(trust, `#!/bin/sh\nif [ -e "${marker}.closed" ]; then echo "closed-at-wait-time" > "${state}/saw-closed"; echo "member=${D} 3" >> "${marker}.closed"; fi\nprintf 'rev=${D}\\nrows=3\\nat=1\\nmember=${D} 3\\n' > "${marker}"\necho 3,9\n`, { mode: 0o755 });
+  const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, '#!/bin/sh\ntrue\n', { mode: 0o755 });
+  const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', A, '3,9', ''], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_CI_SETTLE_S: '0', POSTCHECK_WINDOW_TICK_S: '0.1', RELEASE_TRAIN_NOTIFY: '' } });
+  try {
+    assert.ok(existsSync(join(state, 'saw-closed')), 'at the CI wait the marker was already the .closed name: a joiner finds no open window');
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, new RegExp(`${D} joined the window after its members were read: never proved on CI`));
+    assert.match(readFileSync(join(state, 'deploy_hold'), 'utf8'), new RegExp(D), 'the hold names the late joiner');
+    assert.equal(existsSync(marker), false, 'the stray at the open name is removed once named');
+    assert.equal(existsSync(`${marker}.closed`), false);
+  } finally { rmSync(state, { recursive: true, force: true }); }
+});
+
+test('deploy.sh (window): with detach AND a TAIL_MIN_INTERVAL_S window the release dispatches no CI run of its own (the window tail does)', () => {
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(deploy, /POST_PUBLISH_DETACH:-0\}" == 1 && "\$\{TAIL_MIN_INTERVAL_S:-0\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]; then export POST_PUBLISH_DISPATCH=true; fi/);
+  assert.ok(deploy.indexOf('export POST_PUBLISH_DISPATCH=true') < deploy.indexOf('pp_open=$(post_publish_ci_start'), 'set before the CI step looks');
 });
 
 test('deploy.sh (IT fix): rows CI never proves (POST_PUBLISH_MAC_ROWS, default 9) run on the Mac inside the hold, only the rest is detached; nothing left to detach takes the old path', () => {
@@ -140,6 +191,6 @@ test('release-train-publish.sh: releases the hold, THEN starts the tail from its
   assert.ok(marker > 0 && marker < release, 'the pending marker is written BEFORE the hold is released');
   assert.ok(release > 0 && spawn > release, 'the tail starts after the hold is released');
   assert.match(pub, /\^post-publish CI tail: rows/);
-  assert.match(pub, /if \[ -n "\$tail_rows" \]; then/);
+  assert.match(pub, /if \[ -z "\$joined" \] && \[ -n "\$tail_rows" \]; then/);
   assert.match(pub, /"\$\(dirname "\$0"\)\/release-train-postcheck\.sh"/, 'run from the train checkout, not a release slot');
 });

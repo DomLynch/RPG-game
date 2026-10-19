@@ -1,5 +1,6 @@
 // scripts/deploy.sh publishes the origins preview after the switch and fails the run when /zone1/ does not serve the bundle just built
 // (deploy.sh only carried previews forward, so /zone1/ stayed on the 2026-10-08 build through Releases A to H).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

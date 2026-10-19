@@ -1,6 +1,7 @@
 // Guard (Lead's ruling 2026-10-18, the second presentation-list addition): origins/preview/frontier-greybox.ts is DRAWING only. It owns no collision (never handed `solids`, no walkable / stand / view decision), reads no
 // rows (every footprint and solid number reaches it as an argument from frontier-plan.ts), and keeps no copy of a footprint. A file on inline-number-scope.json's presentation list is not gated, so this is what keeps
 // a number a player can bump into from drifting into it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -16,7 +17,8 @@ const scope = JSON.parse(readFileSync(new URL('../scripts/as-data/inline-number-
 test('the greybox is on the presentation list, and nothing about collision, rows or the plan\'s decisions is in its code', () => {
   assert.ok(scope.presentation.files.includes('origins/preview/frontier-greybox.ts'));
   for (const banned of [/\bsolids?\b/i, /\bSolid\b/, /walkable/i, /\bonRoad\b/, /\binFirstView\b/, /\binZone\b/, /frontierRule/, /frontierBlock/, /frontier-plan-rules/, /frontier-plan-defs/, /\bstandBefore\b/, /\bblockPad\b/]) assert.doesNotMatch(code, banned, `frontier-greybox.ts must not mention ${banned}`);
-  assert.deepEqual([...code.matchAll(/^import .* from '([^']+)'/gm)].map((m) => m[1]).sort(), ['../world/derive.ts', '../world/stage-rules.ts', './exchange-plan.ts', './frontier-geom.ts', './frontier-plan.ts'], 'its imports: geometry, stage rules and TYPES only');
+  assert.deepEqual([...code.matchAll(/^import .* from '([^']+)'/gm)].map((m) => m[1]).sort(), ['../world/derive.ts', '../world/stage-rules.ts', './exchange-plan.ts', './frontier-geom.ts', './frontier-plan.ts', './frontier-skin.ts'], 'its imports: geometry, stage rules and TYPES only (the skin seam is types only too)');
+  assert.match(code, /import type \{ BuildingSkin, ModelPlacement \} from '\.\/frontier-skin\.ts'/, 'the skin seam is imported for types only');
   assert.match(code, /import type \{ At, Board, Sign, ZonePlan \} from '\.\/frontier-plan\.ts'/, 'the plan is imported for types only (no value import, so no cycle)');
 });
 

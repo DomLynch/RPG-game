@@ -1,5 +1,6 @@
 // Lead's launch gate: the Origins writer derives a player's place from server presence, never from the request body. This is the presence side: GET /internal/where, the
 // fail-closed client (origins/presence/where.ts) and the fixture the writer's tests inject (origins/presence/fixtures.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence, LIMITS } from '../origins/presence/server.ts';

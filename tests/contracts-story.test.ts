@@ -1,5 +1,6 @@
 // O1 story: QuestDefinition (named stages, branching conditions, soft-lock-free graph, migrations) and QuestState (story version,
 // checked against content, migrated or refused).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Issues, type Result } from '../src/core/contracts/core.ts';

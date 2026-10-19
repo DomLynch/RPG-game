@@ -1,5 +1,6 @@
 // A guest's session-only build (src/core/build-guest.ts, Lead 2026-10-17): placed in memory, level from the local career counter, nothing stored or sent, a reload resets it, and his world kills stay unverified and
 // unpaid. The fight's sheet takes it (sheetFor, as the Pit does) so a newcomer is no longer stuck on the base sheet whatever the HUD level says.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuestBuild } from '../src/core/build-guest.ts';

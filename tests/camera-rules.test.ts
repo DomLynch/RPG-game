@@ -1,4 +1,5 @@
 // The camera and stage-timing numbers are rows (src/fight/camera-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CAMERA_RULES, cameraRule, loadCameraRules } from '../src/fight/camera-rules.ts';
@@ -12,12 +13,12 @@ test('every camera rule equals the literal it replaced', () => {
   assert.equal(cameraRule('arenaClamp'), 11.5);   // the four camera clamps (lock, follow pose, finisher, tours) read this one row
   assert.deepEqual(['worldGapFloor', 'worldSideMax', 'worldSideBase', 'worldSideLow', 'worldSideRef'].map((id) => cameraRule(id as 'lowSide')), [0.8, 1.1, 0.7, 0.4, 4], 'the world fight camera side step');
   assert.deepEqual(['lockBackFloor', 'lockLiftFloor', 'lockGapFloor'].map((id) => cameraRule(id as 'lowSide')), [4.2, 3.2, 0.8], 'the lock camera floors');
-  assert.equal(CAMERA_RULES.length, 42);
+  assert.equal(CAMERA_RULES.length, 44);   // +2: fightBackDefault (the zone's fight-back scale, 1 = the duel as it was) and combatPitchMax (the cap on the combat camera's look-down angle), R15 from the Test Zone sandbox, Web, deliberate; was 42
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadCameraRules({ rules: rows.filter((r) => r.id !== 'shoulder') }), /"shoulder" rule by name/);
   assert.throws(() => loadCameraRules({ rules: rows.map((r) => (r.id === 'tourLap' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadCameraRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadCameraRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 43);
+  assert.equal(loadCameraRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 45);
 });
