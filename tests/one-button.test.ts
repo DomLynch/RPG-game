@@ -1,4 +1,4 @@
-// CS31 one-button strike + touch layout A (Combat sandbox @93b1138c7): off by default, rows with the sandbox's values, the stab sector, and the layout's positions (the sandbox's numbers for the default variant).
+// CS31 one-button strike + touch layout A (Combat sandbox @93b1138c7): ON by default since RV80, rows with the sandbox's values, the stab sector, and the layout's positions (the sandbox's numbers for the default variant).
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +8,8 @@ import { touchLayoutCss } from '../src/fight/touch-layout.ts';
 import { idleIntent, initialDuel, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
 
-test('the one-button strike is still off by default (Dom flips it himself), and its rows hold the sandbox values (heavyHold 220)', () => {
-  assert.equal(ONE_BUTTON, false, 'off = today\'s Light, Thrust and Heavy buttons; ?onebutton=1 turns touch layout A on');
+test('the one-button strike is ON by default (RV80, Dom 2026-10-19: "turn it on, I\'m not going to add different urls"), and its rows hold the sandbox values (heavyHold 220)', () => {
+  assert.equal(ONE_BUTTON, true, 'on = layout A and the STRIKE wheel are the default pad; the row input.one-button 0 is the one-row way back to the Light, Thrust and Heavy buttons');
   assert.deepEqual([HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE], [220, 18, 50]);
 });
 
@@ -60,11 +60,12 @@ test('touch layout A, default variant: the sandbox\'s placement (px from the rig
   const css = touchLayoutCss('');
   const at = (id: string) => css.match(new RegExp(`\\.actions #${id}\\{right:(-?\\d+(?:\\.\\d+)?)px!important;bottom:(-?\\d+(?:\\.\\d+)?)px!important;width:(\\d+)px!important`))!.slice(1).map(Number);
   assert.deepEqual(at('attack-button'), [68, 92, 72], 'STRIKE at the thumb\'s rest point, 72 px');
-  assert.deepEqual(at('skill-button'), [150, 174, 50], 'special upper-left');
+  assert.deepEqual(at('skill-button'), [150, 174, 50], 'special 1 upper-left');
+  assert.deepEqual(at('skill2-button'), [8, 174, 50], 'special 2 upper-right (RV80: the sandbox\'s second special button, the game\'s own #skill2-button)');
   assert.deepEqual(at('guard-button'), [150, 32, 50], 'guard lower-left');
   assert.deepEqual(at('dodge-button'), [8, 32, 50], 'roll lower-right');
   assert.deepEqual(at('kick-button'), [180, 106, 44], 'kick far left, a touch smaller than the rest but at the 44 px touch-target minimum (CS36b; was 42)');
-  for (const label of ['STRIKE', 'SPECIAL', 'GUARD', 'ROLL', 'KICK']) assert.match(css, new RegExp(`::after\\{content:"${label}"`));
+  for (const label of ['STRIKE', 'SPECIAL 1', 'SPECIAL 2', 'GUARD', 'ROLL', 'KICK']) assert.match(css, new RegExp(`::after\\{content:"${label}"`));
 });
 
 test('?lay=1 and ?lay=3 grow STRIKE and its zone ring apart; anything else is the default', () => {
