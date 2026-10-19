@@ -273,7 +273,7 @@ try {
     eq(psql(`select count(*) from information_schema.columns where table_name in ('origins_spawns', 'origins_spawn_engages', 'origins_spawn_damage') and column_name = 'layer'`), '0', 'layers down: the layer columns are gone');
     eq(psql(`select count(*) from public.origins_spawns where instance = 'lay-7'`), '0', 'layers down: the rows of layers above 1 are deleted');
     eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%\\_layer%'`), '0', 'layers down: the layer functions are gone');
-    eq(await val(V, ENGAGE(E, pcE, tok(70), 'lay-8')).then(e => e.generation), 0, 'layers down: the old engage works on the single-column key');
+    eq(await val(V, ENGAGE(B, pcB, tok(70), 'lay-8')).then(e => e.generation), 0, 'layers down: the old engage works on the single-column key');
   }
   const LATER_DOWN = '20261019113226_origins_damage_share_down.sql';   // rollbacks run newest first: the damage-share objects (origins_spawn_check / _damage_read / _kill_v2) go before the spawn tables they sit beside
   if (readdirSync(join(dir, '..', 'down')).includes(LATER_DOWN)) psql(readFileSync(join(dir, '..', 'down', LATER_DOWN), 'utf8'));
