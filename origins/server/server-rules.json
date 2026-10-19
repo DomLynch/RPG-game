@@ -124,6 +124,13 @@
       "note": "kill credit is split by damage dealt (Dom 2026-10-19, rules from Lead's donor research): a contributor qualifies at this share of the TOP contributor's damage; a hit counts for tagExpiryS seconds after the contributor's last hit (the replay drops older damage); a report may join an already-killed spawn for joinWindowS seconds after the kill, only with a token engaged before the kill; at most replaysPerAccount replays of one account queued at once (the rest pay as an unreplayed kill). A contributor whose own verified damage reaches the creature's full health is a solo kill at 100% (interim until a shared server health bar). No first-hit and no last-hit bonus."
     }
   ],
+  "spawnLayers": [
+    {
+      "id": "layers",
+      "janitorEveryS": 60,
+      "note": "per-layer spawn clocks (docs/specs/origins/per-layer-spawns.md, migration 20261019170000, flag ORIGINS_SPAWN_LAYERS): once every janitorEveryS seconds the writer asks presence which layers exist and deletes the spawn rows of every layer that does not (presence closes a layer after it has been empty for emptyLayerMs). A presence that cannot be asked deletes nothing."
+    }
+  ],
   "strictRevert": [
     {
       "id": "revert",

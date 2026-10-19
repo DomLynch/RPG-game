@@ -114,11 +114,22 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = worldRule('respawnDefault') * 1000;   // the respawnDefault row (src/fight/world-rules-defs.json, 300 s)
 type RespawnRow = { id: string; respawnSeconds?: number };
-export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => listedZoneIds().flatMap((id) => listedZone(id).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * MS_PER_SECOND] as const] : [])));
+// Keyed (zone, id), not id alone: one creature id lives in several zones (Zone 1's starters, Zone 2's boar and wolf, ...), and a row that sets its respawn in one zone must not drag the same id in another
+// (Lead, per-layer spawns, with World's Zone 1 starter respawns of 40-60 s). Wildlife rows apply in every zone, under the zone key WILD. The layer is not in the key yet: a layer copies its zone's rows;
+// a per-layer respawn (the dynamic respawn of the next PR) adds it as the third part, (layer, zone, id).
+const WILD = '*';
+const respawnKey = (zone: string, id: string): string => `${zone}:${id}`;
+export const respawnRows = (zoneRows: () => readonly { zone: string; rows: readonly RespawnRow[] }[] = () => listedZoneIds().map((zone) => ({ zone, rows: listedZone(zone).spawns.rows }))): Map<string, number> =>
+  new Map([...zoneRows().flatMap(({ zone, rows }) => rows.map((r) => [zone, r] as const)), ...WILDLIFE_ROWS.map((r: RespawnRow) => [WILD, r] as const)]
+    .flatMap(([zone, r]) => (r.respawnSeconds !== undefined ? [[respawnKey(zone, r.id), r.respawnSeconds * MS_PER_SECOND] as const] : [])));
 const ROW_RESPAWN = respawnRows();
-export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
+/** The respawn window of a fight's creature in `zone` (its own row, else a wildlife row, else RESPAWN_MS). No zone (the Pit's encounter path, which does not know one): any zone's row for the character, the last listed wins. */
+export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN, zone?: string): number {
   const setup = fightSetup(fight, content);
-  return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;
+  if (!setup.ok) return RESPAWN_MS;
+  const id = setup.value.opponent.character;
+  const own = zone === undefined ? [...rows].findLast(([k]) => k.endsWith(`:${id}`))?.[1] : rows.get(respawnKey(zone, id)) ?? rows.get(respawnKey(WILD, id));
+  return own ?? RESPAWN_MS;
 }
 
 // The writer's `rewards` for encounterOps: the respawn window, then the character's pack and career row (one origins_open) and the bronze row, then price the kill.

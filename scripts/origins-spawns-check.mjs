@@ -217,8 +217,64 @@ try {
   psql(readFileSync(join(dir, ZONE17), 'utf8'));
   eq(psql(probe), 'z1000:wolves-1=1000,z2:wolves-1=2', '0017 up again after down');
 
+  // ---- 20261019170000 per-layer spawns: every layer keeps its own clocks; a kill reads the TOKEN's layer; one paid kill per account per spawn id per respawn window across layers; the janitor ------------------------
+  const LAYERS = '20261019170000_origins_spawn_layers.sql';
+  if (readdirSync(dir).includes(LAYERS)) {
+    const [D, E] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
+    psql(`insert into auth.users values ('${D}'), ('${E}'); insert into public.origins_access(account) values ('${D}'), ('${E}');`);
+    const [pcD, pcE] = [mk(D, 'Dara'), mk(E, 'Edda')];
+    const ENGAGE_L = (layer, acct, pc, t, inst) => `select public.origins_spawn_engage_layer(${layer}, '${acct}', '${pc}', '${t}', '${inst}', 'character:ash-wolf')::text;`;
+    const STATE_L = (layer, inst) => `select public.origins_spawn_state_layer(${layer}, array['${inst}'])::text;`;
+    const alive = async (layer, inst) => (await val(V, STATE_L(layer, inst))).spawns.map(s => [s.alive, s.generation]);
+    const FNS_L = ['origins_spawn_state_layer(int,text[])', 'origins_spawn_engage_layer(int,uuid,text,text,text,text)', 'origins_spawn_check_layer(uuid,text,int,int,int)', 'origins_spawn_damage_read_layer(int,text,int)', 'origins_spawn_layers_sweep(int[])'];
+    for (const fn of FNS_L) eq(psql(`select has_function_privilege('${V}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('${O}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${fn}'::regprocedure, 'execute')::int::text`), '1100', `layers grants: ${fn} is the two writer roles only`);
+    eq(psql(`select count(*) from public.origins_spawns where layer <> 1`), '0', 'layers: every row that existed before is layer 1');
+    const [t60, t61, t62, t64, t65] = [60, 61, 62, 64, 65].map(tok);
+    eq((await val(V, ENGAGE_L(1, D, pcD, t60, 'lay-1'))).layer, 1, 'layers: engage in layer 1');
+    eq((await val(V, ENGAGE_L(2, E, pcE, t61, 'lay-1'))).layer, 2, 'layers: the SAME spawn id in layer 2 is its own row');
+    eq(psql(`select string_agg(layer::text, ',' order by layer) from public.origins_spawns where instance = 'lay-1'`), '1,2', 'layers: two rows for one id, one per layer');
+    eq(await val(V, KILL(D, t60, 0, 100, EV(t60, D, pcD))).then(k => k.result), 'killed', 'layers: a kill in layer 1');
+    eq([await alive(1, 'lay-1'), await alive(2, 'lay-1')], [[[false, 0]], [[true, 0]]], 'layers: layer 1\'s clock runs and layer 2\'s creature is still alive');
+    eq(await val(V, `select public.origins_spawn_state(array['lay-1'])::text;`).then(s => s.spawns.map(x => x.alive)), [false], 'layers: the layer-less state is layer 1');
+    eq((await val(V, ENGAGE_L(2, D, pcD, t62, 'lay-1'))).layer, 2, 'layers: D engages the same creature in layer 2 (it is alive there)');
+    eq(await val(V, KILL(D, t62, 0, 100, EV(t62, D, pcD))), { refused: 'cooldown' }, 'layers: ONE PAID KILL PER ACCOUNT PER SPAWN ID PER RESPAWN WINDOW ACROSS LAYERS: D killed lay-1 in layer 1 a moment ago');
+    eq([used(t62), events(t62)], ['open', '0'], 'layers: the cooldown refusal writes nothing and leaves the token open');
+    eq(await val(V, `select public.origins_spawn_check_layer('${D}', '${t62}', 0, 120, 100)::text;`), { refused: 'cooldown' }, 'layers: the read-only check says the same, before any replay');
+    psql(`update public.origins_spawn_engages set used_at = used_at - interval '200 seconds' where token = '${t60}'`);
+    eq(await val(V, `select public.origins_spawn_check_layer('${D}', '${t62}', 0, 120, 100)::text;`).then(c => [c.ok, c.mode, c.layer]), [true, 'first', 2], 'layers: past the window the check passes and names the token\'s layer');
+    eq(await val(V, KILL(D, t62, 0, 100, EV(t62, D, pcD))).then(k => k.result), 'killed', 'layers: past the respawn window D may kill it in layer 2');
+    eq(await val(V, KILL(E, t61, 0, 100, EV(t61, E, pcE))), { refused: 'dead' }, 'layers: E\'s token in layer 2 finds the creature dead there (D killed it first IN layer 2)');
+    eq((await val(V, ENGAGE_L(1, E, pcE, t64, 'lay-3'))).token, t64, 'layers: E engages lay-3 in layer 1');
+    eq((await val(V, ENGAGE_L(2, E, pcE, t65, 'lay-3'))).layer, 2, 'layers: ... then in layer 2');
+    eq([used(t64), used(t65)], ['dead', 'open'], 'layers: moving layers closes the old layer\'s token (no token crosses copies)');
+    eq(await val(V, `select coalesce(public.origins_spawn_engage_get('${E}', '${t65}'), 'null'::jsonb)::text;`).then(g => g.layer), 2, 'layers: engage_get carries the token\'s layer');
+    eq(await val(V, KILL(E, t65, 0, 100, EV(t65, E, pcE))).then(k => k.result), 'killed', 'layers: the kill is on the TOKEN\'s layer');
+    eq(psql(`select string_agg(layer || ':' || alive, ',' order by layer) from public.origins_spawns where instance = 'lay-3'`), '1:true,2:false', 'layers: layer 1\'s lay-3 is untouched by a kill in layer 2');
+    eq((await val(V, ENGAGE(E, pcE, tok(66), 'lay-4'))).instance, 'lay-4', 'layers: the old engage name still works');
+    eq(psql(`select layer from public.origins_spawns where instance = 'lay-4'`), '1', 'layers: ... on layer 1');
+    eq(await code(V, ENGAGE_L(0, E, pcE, tok(67), 'lay-5')), 'O0002', 'layers: a layer is a positive number');
+    eq(await val(V, ENGAGE_L(3, E, pcE, tok(68), 'lay-6')).then(e => e.layer), 3, 'layers: layer 3 opens on its first engage');
+    // the janitor: delete every layer not live; a null list is refused; no writer can read or delete a row any other way
+    eq(await code('anon', `select public.origins_spawn_layers_sweep(array[1]);`), '42501', 'sweep: anon cannot call it');
+    eq(await code(V, `select public.origins_spawn_layers_sweep(null);`), 'O0002', 'sweep: a null list (presence did not answer) is refused, never read as "no layer is live"');
+    const before2 = psql(`select count(*) from public.origins_spawns where layer in (2, 3)`);
+    eq(await val(V, `select public.origins_spawn_layers_sweep(array[1])::text;`), Number(before2), 'sweep: every row of layers presence no longer holds is deleted');
+    eq(psql(`select count(*) from public.origins_spawns where layer <> 1`), '0', 'sweep: layer 1 survives');
+    eq(psql(`select count(*) from public.origins_spawn_engages where layer <> 1`) > '0', true, 'sweep: engages are never touched (receipts stay readable)');
+    eq(await val(V, `select public.origins_spawn_layers_sweep(array[1])::text;`), 0, 'sweep: a second sweep deletes nothing');
+    await val(V, ENGAGE_L(2, E, pcE, tok(69), 'lay-7'));   // a layer-2 row left for the rollback to delete
+  }
+
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
+  const LAYERS_DOWN = '20261019170000_origins_spawn_layers_down.sql';   // rollbacks run newest first: the layers restore the pre-layer bodies (damage-share's included), so they go before the damage-share down
+  if (readdirSync(join(dir, '..', 'down')).includes(LAYERS_DOWN)) {
+    psql(readFileSync(join(dir, '..', 'down', LAYERS_DOWN), 'utf8'));
+    eq(psql(`select count(*) from information_schema.columns where table_name in ('origins_spawns', 'origins_spawn_engages', 'origins_spawn_damage') and column_name = 'layer'`), '0', 'layers down: the layer columns are gone');
+    eq(psql(`select count(*) from public.origins_spawns where instance = 'lay-7'`), '0', 'layers down: the rows of layers above 1 are deleted');
+    eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%\\_layer%'`), '0', 'layers down: the layer functions are gone');
+    eq(await val(V, ENGAGE(E, pcE, tok(70), 'lay-8')).then(e => e.generation), 0, 'layers down: the old engage works on the single-column key');
+  }
   const LATER_DOWN = '20261019113226_origins_damage_share_down.sql';   // rollbacks run newest first: the damage-share objects (origins_spawn_check / _damage_read / _kill_v2) go before the spawn tables they sit beside
   if (readdirSync(join(dir, '..', 'down')).includes(LATER_DOWN)) psql(readFileSync(join(dir, '..', 'down', LATER_DOWN), 'utf8'));
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));

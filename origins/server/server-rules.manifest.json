@@ -166,6 +166,16 @@
       }
     },
     {
+      "table": "spawnLayers",
+      "file": "server-rules.json",
+      "at": "spawnLayers",
+      "key": "id",
+      "required": {
+        "janitorEveryS": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "strictRevert",
       "file": "server-rules.json",
       "at": "strictRevert",

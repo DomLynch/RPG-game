@@ -154,14 +154,27 @@ test('a zone kill leaves the Pit rank alone: it writes only events, the zone car
 
 test('respawn window covers every zone: a Zone 2/3 creature (the ember wolf) keeps its own respawnSeconds, not the 300 s fallback', () => {
   const rows = respawnRows();
-  assert.equal(rows.get('character:ember-wolf'), 75_000);
-  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(r.id), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
+  assert.ok([...rows].some(([k, v]) => k.endsWith(':character:ember-wolf') && v === 75_000));
+  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(`${id}:${r.id}`), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
 });
 
 test('respawn window: a Zone 2 row with respawnSeconds=45 gives 45 000 ms, not the 300 000 fallback', () => {
-  const rows = respawnRows(() => [{ id: 'character:zone2-test', respawnSeconds: 45 }, { id: 'character:plain' }]);
-  assert.equal(rows.get('character:zone2-test'), 45_000);
-  assert.equal(rows.get('character:plain') ?? RESPAWN_MS, RESPAWN_MS);
+  const rows = respawnRows(() => [{ zone: '2', rows: [{ id: 'character:zone2-test', respawnSeconds: 45 }, { id: 'character:plain' }] }]);
+  assert.equal(rows.get('2:character:zone2-test'), 45_000);
+  assert.equal(rows.get('2:character:plain') ?? RESPAWN_MS, RESPAWN_MS);
+});
+
+test('respawn rows are keyed (zone, id): a row in one zone never sets the respawn of the same creature id in another (the Zone 1 starters of 40-60 s must not drag Zone 2)', () => {
+  const rows = respawnRows(() => [{ zone: '1', rows: [{ id: 'character:wolf', respawnSeconds: 40 }] }, { zone: '2', rows: [{ id: 'character:wolf' }] }]);
+  assert.equal(rows.get('1:character:wolf'), 40_000);
+  assert.equal(rows.get('2:character:wolf'), undefined, 'Zone 2 has no row of its own: it falls to the default, never to Zone 1\'s');
+});
+
+test('respawnMsOf by zone: a creature with a row in Zone 1 only reads that row in Zone 1 and the default in Zone 2; with no zone (the Pit path) it reads the row as before', () => {
+  const rows = respawnRows(() => [{ zone: '1', rows: [{ id: 'character:ember-wolf', respawnSeconds: 40 }] }, { zone: '2', rows: [{ id: 'character:ember-wolf' }] }]);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows, '1'), 40_000);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows, '2'), RESPAWN_MS);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows), 40_000);
 });
 
 test('respawnMsOf with its default ROW_RESPAWN: the ember wolf (rows in Zones 2 and 3 only) gets its 75 s, so a Zone-1-only map fails', () => {

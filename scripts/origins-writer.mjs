@@ -18,7 +18,8 @@ import { createLiveOps } from '../origins/server/live-ops.ts';
 import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
-import { presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
+import { presenceLayers, presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
+import { createSpawnJanitor } from '../origins/server/spawn-janitor.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
@@ -56,5 +57,11 @@ const flusher = process.env.ORIGINS_WRITER_INTERNAL_KEY && flushMs > 0 ? createL
 flusher?.start();
 const liveOps = createLiveOps(db);
 liveOps.start();
-const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1', damageShare: process.env.ORIGINS_DAMAGE_SHARE === '1' }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
-for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });
+// Per-layer spawn clocks (migration 20261019170000; the kill switch is unsetting it): each presence layer keeps its own creature clocks, and a janitor deletes the rows of layers presence has closed.
+// Needs the presence key (without it no layer is known and every account reads layer 1, today's single pool), so the flag without the key is refused at start.
+const spawnLayersOn = process.env.ORIGINS_SPAWN_LAYERS === '1';
+if (spawnLayersOn && !presenceKey) { console.error('origins-writer: ORIGINS_SPAWN_LAYERS=1 needs PRESENCE_INTERNAL_KEY'); process.exit(1); }
+const spawnJanitor = spawnLayersOn && presenceKey ? createSpawnJanitor(db, presenceLayers(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey)) : undefined;
+spawnJanitor?.start();
+const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1', damageShare: process.env.ORIGINS_DAMAGE_SHARE === '1', spawnLayers: spawnLayersOn }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); spawnJanitor?.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });
