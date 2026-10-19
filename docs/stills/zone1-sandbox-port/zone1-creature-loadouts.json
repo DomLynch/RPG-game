@@ -1,0 +1,184 @@
+[
+ {
+  "id": "bounty-shrine-1",
+  "body": "knight",
+  "loadout": null,
+  "x": -134.46,
+  "z": 62.46
+ },
+ {
+  "id": "bounty-toll-1",
+  "body": "pitborn",
+  "loadout": null,
+  "x": -67,
+  "z": -50
+ },
+ {
+  "id": "bounty-reeds-1",
+  "body": "witch",
+  "loadout": null,
+  "x": -173.41,
+  "z": -118.66
+ },
+ {
+  "id": "matriarch-1",
+  "body": "witch",
+  "loadout": null,
+  "x": -200,
+  "z": -130
+ },
+ {
+  "id": "scavengers-1",
+  "body": "goblin",
+  "loadout": null,
+  "x": -101.65,
+  "z": 39.68
+ },
+ {
+  "id": "scavengers-2",
+  "body": "goblin",
+  "loadout": null,
+  "x": -92.81,
+  "z": 17.28
+ },
+ {
+  "id": "scavengers-3",
+  "body": "goblin",
+  "loadout": null,
+  "x": -99.83,
+  "z": 42.73
+ },
+ {
+  "id": "scavengers-4",
+  "body": "goblin",
+  "loadout": null,
+  "x": -115.05,
+  "z": 33.16
+ },
+ {
+  "id": "wolves-1",
+  "body": "wolf",
+  "loadout": null,
+  "x": -70.33,
+  "z": 87.05
+ },
+ {
+  "id": "wolves-2",
+  "body": "wolf",
+  "loadout": null,
+  "x": -85.17,
+  "z": 87.16
+ },
+ {
+  "id": "brood-1",
+  "body": "goblin",
+  "loadout": null,
+  "x": -161.8,
+  "z": -116.35
+ },
+ {
+  "id": "brood-2",
+  "body": "goblin",
+  "loadout": null,
+  "x": -174.83,
+  "z": -121.76
+ },
+ {
+  "id": "brood-3",
+  "body": "goblin",
+  "loadout": null,
+  "x": -175.37,
+  "z": -119.01
+ },
+ {
+  "id": "brood-4",
+  "body": "giant-salamander",
+  "loadout": null,
+  "x": -164.73,
+  "z": -115.69
+ },
+ {
+  "id": "ghouls-1",
+  "body": "goblin",
+  "loadout": null,
+  "x": -269.65,
+  "z": -127.86
+ },
+ {
+  "id": "ghouls-2",
+  "body": "goblin",
+  "loadout": null,
+  "x": -268.42,
+  "z": -134.38
+ },
+ {
+  "id": "ghouls-3",
+  "body": "goblin",
+  "loadout": null,
+  "x": -266.43,
+  "z": -135.92
+ },
+ {
+  "id": "bears-1",
+  "body": "bear",
+  "loadout": null,
+  "x": -273.31,
+  "z": -104.63
+ },
+ {
+  "id": "boars-1",
+  "body": "boar",
+  "loadout": null,
+  "x": -84.37,
+  "z": 85.17
+ },
+ {
+  "id": "pit-goblins-1",
+  "body": "goblin",
+  "loadout": "goblin.t7.longsword",
+  "x": -86.67,
+  "z": -57
+ },
+ {
+  "id": "pit-goblins-2",
+  "body": "goblin",
+  "loadout": "goblin.t5.trident",
+  "x": -83.43,
+  "z": -67.22
+ },
+ {
+  "id": "opener-ferry-landing-1",
+  "body": "goblin",
+  "loadout": null,
+  "x": -150.54,
+  "z": -32.69
+ },
+ {
+  "id": "opener-cinder-fields-1",
+  "body": "goblin",
+  "loadout": null,
+  "x": -46.08,
+  "z": 61.6
+ },
+ {
+  "id": "cave-troll-1",
+  "body": "cave-troll",
+  "loadout": "troll.pit.t5.maul",
+  "x": -139.91,
+  "z": 3.78
+ },
+ {
+  "id": "legend-kobold-ash-pits",
+  "body": "goblin",
+  "loadout": null,
+  "x": -102,
+  "z": 30
+ },
+ {
+  "id": "legend-bedivere-hold-road",
+  "body": "knight",
+  "loadout": null,
+  "x": -78,
+  "z": 90
+ }
+]
