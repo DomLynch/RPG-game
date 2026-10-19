@@ -36,6 +36,9 @@
   "ALLOW_DUPLICATE_SLOTS": 1
  },
  "src/fight/bands.ts": {
+  "EDGES_FIXED": 1,
+  "INNER_EDGE": 1,
+  "MID_EDGE": 1,
   "HOLD_BACK_ON": 1,
   "HOLD_ONLY_IN_OPENING": 1
  },
@@ -52,6 +55,15 @@
  "src/fight/record.ts": {
   "OLD_CIRCLE_VERSION": 1,
   "YAW_UNIT": 1
+ },
+ "src/fight/sandbox-rules.ts": {
+  "ARMOUR_ON": 1,
+  "GLANCE_RATE": 1,
+  "WARD_ON": 1,
+  "POISON_ON": 1,
+  "OID_ON": 1,
+  "MANA_COST_MULT": 1,
+  "VFX_GROUND_Y": 1
  },
  "src/fight/sim.ts": {
   "STEP": 1
