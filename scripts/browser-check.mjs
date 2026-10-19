@@ -22,7 +22,7 @@ try {
  const gameUrl=new URL(url);gameUrl.searchParams.set('debug','1');
  await page.goto(gameUrl.href);await waitForGame(page);{ const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap({timeout:120000}); }await page.waitForFunction(()=>document.querySelector('#welcome').hidden,null,{timeout:120000});await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL, and its first real render compiles every shader while the
    // Enter tap waits on the main thread: load waits (120 s), not behaviour waits — behaviour is on the harness clock below
- const {run,until}=await harnessClock(page);   // from here on, page time moves only when the gate advances it
+ const {run,until,untilTicks}=await harnessClock(page);   // from here on, page time moves only when the gate advances it
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
  const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
@@ -41,7 +41,7 @@ try {
  await page.getByRole('button',{name:'Fight',exact:true}).tap();
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
- await until(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,20000);
+ await untilTicks(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,1200);   // 1200 sim ticks (20 s of fight at 60 Hz), not 20 s of page time: a sim that is not ticking fails at once with the stall named (harness-clock.mjs tickWaiter)
  // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (a right cut arrives on the
  // defender's left; overhead, thrust and low by name). The tell's AttackStarted carries `direction`; a straight thrust needs no slide.
  const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted' && e.actor===1);return e?e.direction:null;});

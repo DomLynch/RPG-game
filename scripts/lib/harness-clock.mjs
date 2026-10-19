@@ -31,7 +31,32 @@ export async function harnessClock(page) {
       await run(16);
     }
   };
-  return { run, until };
+  return { run, until, untilTicks: tickWaiter(page, run) };
+}
+
+/** Reads the sim's tick from the game's ?debug=1 element (main.ts writes data-tick each frame); NaN when the element is absent. Exported so a test can stand in for the page. */
+export const READ_TICK = () => Number(document.querySelector('#debug')?.dataset.tick ?? NaN);
+
+/**
+ * A wait whose budget is SIM TICKS, not page milliseconds (the Auditor's follow-up on K3g's tell wait): a starved runner can run frames, and advance page time,
+ * without the sim ticking (main.ts paused(): hidden document, graphics lost, a sheet up), so a page-ms budget burns down against a standing sim and fails for the
+ * wrong reason. Here the budget (`ticks`) is spent only when the tick advances; if the tick does not move for `stallMs` of page time the wait fails at once and
+ * says so (the receipt.sim in browser-check.mjs then names why). Returns the ticks it took.
+ */
+export function tickWaiter(page, run) {
+  return async (predicate, ticks = 1200, arg, stallMs = 5000) => {
+    const first = await page.evaluate(READ_TICK);
+    if (Number.isNaN(first)) throw new Error('harness clock: no sim tick to count (#debug data-tick missing: is ?debug=1 on?)');
+    let last = first, still = 0;
+    for (;;) {
+      if (await page.evaluate(predicate, arg)) return last - first;
+      if (last - first >= ticks) throw new Error(`harness clock: not met within ${ticks} sim ticks: ${String(predicate).slice(0, 140)}`);
+      if (still >= stallMs) throw new Error(`harness clock: the sim did not tick for ${stallMs} ms of page time (tick ${last}); waiting for: ${String(predicate).slice(0, 140)}`);
+      await run(16);
+      const now = await page.evaluate(READ_TICK);
+      if (now > last) { last = now; still = 0; } else still += 16;
+    }
+  };
 }
 
 // Frames without pictures, for a stretch a gate only needs to get through (a scripted duel to reach the kill screen). On a GPU-less
