@@ -1,5 +1,7 @@
 # Launch track: Backend (auth, login, scale for thousands)
 
+**Headline: scale is UNPROVEN until the Hugging Face load test runs (section 2).** Everything below the line about the database being healthy is a read of today's state, not a capacity claim.
+
 Owner: Backend lane (Mac session until the VPS twin takes over). Written 2026-10-19 on Strategy's rulings (Dom: Backend owns auth, login and scale for thousands, after the sandbox archive). PLAN ONLY: nothing below has been run. Security freeze on: no new secrets, no tokens on the VPS. Read-only audit of production `rxbewmzmovelckzoosss` taken 2026-10-19 ~11:00 +04 (Supabase advisors, `list_tables`, three SQL reads); every number is from that read.
 
 ## 1. What is true today (measured, 2026-10-19)
@@ -8,7 +10,8 @@ Owner: Backend lane (Mac session until the VPS twin takes over). Written 2026-10
 - `max_connections` 60, 14 in use with 3 users. The origins writer pool is 4.
 - Auth: 3 users, 2 Google identities, 1 email, 0 anonymous.
 - RLS is enabled on every public table; every public table has a primary key; anon can SELECT only `daily_board` and `pit_ladder`.
-- 73 migration files on trunk, 72 versions applied on prod (not diffed file by file; do that in the schema review).
+- Migrations: 73 files on trunk, 74 rows in prod's history (`werewolf_skeleton_encounters` is recorded twice). By name (Auditor's read, #3276 comment 6261654948): two early files (`creature_encounters`, `fighter_profiles`) have no history row, though their tables exist; and two history rows (`revert_werewolf_skeleton_encounters`, `werewolf_skeleton_encounters_v2`) have no file. Reconcile at the launch schema review; not a blocker.
+- Connections: of the 60, about 14 are Supabase's own and in use today (5 background, 4 supabase_admin, 2 postgres, 1 authenticator, 1 pgbouncer, 1 frankendom_verifier), so pool headroom is about 46 of 60 before any pooler. Size against Supavisor (pgbouncer is present), not raw `max_connections`; read the compute tier from the dashboard.
 - Scale: UNMEASURED. The one 100-account attempt never ran (`DEADLINE: load5 never under 6`, scale-1539.log) and #1692 was closed by the sweep. There is no number for "thousands concurrent".
 
 ## 2. Load test plan (not run)
@@ -27,6 +30,11 @@ Goal: one honest number per line, then the sizing ask to Dom with cost.
 5. Postgres: CPU, locks/waits on `origins_item_ledger` and `origins_career` (the hot rows), table and WAL growth per 1,000 sessions.
 6. Writer process: CPU, RSS, event-loop lag; one writer or many (the writer is single-instance on the VPS today).
 
+**Beyond the writer + Postgres (Auditor's gap list): "thousands of players" also goes through three more paths, each gets its own measured line:**
+7. **Presence WebSocket server** (other players in Zone 1; a single instance on the VPS): concurrent sockets held, broadcast fan-out p95, server CPU and RSS, at 100 / 250 / 500 / 1,000 connected clients.
+8. **nginx and static-asset egress** on the VPS: bytes/s and requests/s at the same four steps (the 3D assets dominate a first load), and whether one nginx and one uplink carry it.
+9. **Supabase Auth sign-in rate:** sign-ins per minute the project accepts (Google OAuth and email), the per-IP and per-hour limits, and what a launch-hour burst of new sign-ins does. Read the limits from the dashboard; a burst test only against a branch Dom approves.
+
 **What a local Postgres cannot tell us (must be read or tested on Supabase, not guessed):** Supabase compute tier and its connection ceiling, pooler (Supavisor) limits, PostgREST/Auth rate limits (sign-ins per hour per IP, email sends per hour on the default SMTP), egress. Action: read the org's plan and limits from the dashboard, then run a small (100-session) confirm against a Supabase branch only if Dom approves the branch cost. Nothing is assumed about the tier here.
 
 **Exit:** a table of the six lines above at 100/250/500/1,000, the bottleneck named, and a sizing ask: Supabase tier, pool size, writer count, with monthly cost.
@@ -40,7 +48,12 @@ Each was checked against the function/view definition and the repo's own tests.
 3. **anon can execute `mint_share` (WARN).** Intended. Guest share links; rate-limited per hashed IP, per minute and in total (`share_limits`), 16 KB record cap; asserted in `account-database-check.mjs:193-205`. Keep.
 4. **Leaked-password protection OFF (WARN, Auth).** A dashboard toggle (Supabase Auth, password security), not a migration. Matters only for email+password accounts (1 today). Dom's checklist below.
 
-Result: all three SQL items are by design, so there is no migration to write today. The only open choices are the `daily_board` redesign and revoking anon on `daily_fight`; each needs Strategy's ruling and the Auditor's read before any migration.
+5. **Advisor 0029: ten SECURITY DEFINER functions callable by `authenticated` (WARN).** The Auditor read each one (#3276 comment 6261654948) and found them safe: every one either scopes to `auth.uid()` (the `report_*` functions refuse a null uid and cap starts per hour) or returns public, non-PII data (`leaderboards` capped at 50, excludes `is_test`); every one pins `search_path`. They are: `daily_fight` (seed; see the ruling below), `fight_records_recent` (own share count for the hourly cap), `leaderboards` (public board), `mint_share` (guest and fighter share links), `my_standing` (own standing), `origins_me_allowed` (own access flag), `origins_me_owns` (own character check), `report_duel`, `report_duel_record`, `report_duel_start` (own duel reports). The other 85 SECURITY DEFINER functions are callable by neither anon nor authenticated.
+6. **The 27 "RLS enabled, no policy" INFO findings are correct, do not add policies.** They are the deny-by-default writer tables (`origins_item_ledger`, `origins_trades`, `share_limits`, ...): no policy means neither `anon` nor `authenticated` can touch them, and every write goes through a function or the writer. Adding a policy to "fix" the lint would open them.
+
+Rulings (Strategy, 2026-10-19): `daily_board` stays security-definer (exposes no user data, tested); redesign only at the launch schema review if the load test shows it. Anon EXECUTE on `daily_fight` is revoked by #3277 (unused surface), applied after today's sandbox archive.
+
+Result: all the SQL items are by design (the ten signed-in functions, the two anon ones, the view). The one change ruled is revoking anon on `daily_fight` (#3277, its own Auditor read and Lead's GO).
 
 Later PR (not now): 13 unindexed foreign keys (`duel_counted_wins.opponent`, `duel_records.user_id`, `duel_reports.user_id`, `duel_season_ratings.user_id`, `duel_starts.user_id`, `origins_creature_claims.token`, `origins_encounters.account` and `.character`, `origins_events.character`, `origins_items.loc_from`, `origins_skill_practice.character`, `origins_spawn_engages.instance`, `origins_trade_audit.character`) and 17 never-used indexes. Index adds are cheap; index drops wait until real traffic, because "unused" is true of a 3-user database.
 
