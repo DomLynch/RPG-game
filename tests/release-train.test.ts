@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -169,6 +169,29 @@ test('passAt is anchored at a line start: "waiting for Auditor: PASS @…" is no
   const h = 'abcdef123'.padEnd(40, '0');
   assert.ok(passAt([own('**Auditor: PASS @abcdef123** (x)')], h) && passAt([own('notes\nLead: PASS @abcdef123')], h));
   assert.ok(!passAt([own('waiting for Auditor: PASS @abcdef123')], h) && !passAt([own('> Auditor: PASS @abcdef123')], h));
+});
+
+test('optional rows (Strategy 2026-10-19): a red quality.yml matrix row marked required: false never blocks a publish; a red required row still does; optional names come from the matrix itself', () => {
+  const yml = [
+    '          - { name: combat, script: scripts/browser-check.mjs, required: true }',
+    '          - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }',
+    '          - { name: remote-heroes-soft, script: scripts/origins-remote-heroes-check.mjs, required: false, kitsoft: \'1\' }',
+    '          - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }',
+  ].join('\n');
+  const names = optionalRowNames(yml);
+  assert.deepEqual(names, ['seamless', 'remote-heroes-soft', 'counter-slash'], 'only required: false rows');
+  const head = 'f'.repeat(40);
+  const red = (name: string) => ({ __typename: 'CheckRun', workflowName: 'quality', name: `browser (${name})`, status: 'COMPLETED', conclusion: 'FAILURE', startedAt: '2026-10-19T10:00:00Z', completedAt: '2026-10-19T10:10:00Z' });
+  const cand = (extra: unknown[]) => ({ number: 7, headRefName: 'release-T7', baseRefName: TRUNK, headRefOid: head, createdAt: 'a', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [own('Auditor: PASS @fffffffff')], statusCheckRollup: [...OK, ...extra] });
+  assert.equal(pickPublish([cand([red('remote-heroes-soft')])], TRUNK, names)?.number, 7, 'an optional red is publishable');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft'), red('seamless')])], TRUNK, names)?.number, 7, 'several optional reds are');
+  assert.equal(pickPublish([cand([red('combat')])], TRUNK, names), null, 'a red required row still blocks');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft'), red('combat')])], TRUNK, names), null, 'an optional red does not hide a required one');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft')])], TRUNK, []), null, 'with no optional rows known (unreadable file) the gate is as strict as before');
+  assert.deepEqual(optionalRedRows(cand([red('remote-heroes-soft'), red('combat')]).statusCheckRollup, names), ['browser (remote-heroes-soft)'], 'the ignored optional reds are named for the log');
+  assert.ok(optionalRowNames().includes('remote-heroes') || optionalRowNames().length > 0, 'the real quality.yml of this checkout lists optional rows');
+  const src = readFileSync('scripts/release-train.mjs', 'utf8');
+  assert.match(src, /optional \(required: false\) rows not green, ignored: /, 'the pick logs what it let through');
 });
 
 test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at the head AND unit-ci/quality/release-checks present and green; oldest first', () => {
