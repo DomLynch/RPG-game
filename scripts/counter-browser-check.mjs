@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 // Three independent counters, each on a fresh page with its own arena boot. COUNTER_ONLY=<move> runs just one of them so CI
 // can fan them out across runners (quality.yml); unset runs all three, which is what deploy.sh and .quality-gate.json do.
-const COUNTERS=[['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]];
+const COUNTERS=[['attack-button','slash_riposte','Attack',14],['thrust-button','riposte','Riposte',22],['heavy-button','heavy_riposte','Heavy',18]];   // RV78 sandbox era (Dom-approved 2026-10-18): the warden is a veteran in plate; sandbox armourVs heavy: slash 600, pierce 900 per mille: 24 x .6 = 14, 24 x .9 = 22, 30 x .6 = 18
 const only=(process.env.COUNTER_ONLY||'').trim();
 const selected=only?COUNTERS.filter(([,move])=>move===only):COUNTERS;
 // A typo must fail the gate, never pass it by running nothing.

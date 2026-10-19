@@ -55,8 +55,8 @@ try {
  await page.evaluate(()=>{window.__floats=[];new MutationObserver(list=>{for(const m of list){const span=m.target;if(!span.hidden&&span.textContent)window.__floats.push(span.textContent);}}).observe(document.querySelector('#dmg-pool'),{attributes:true,attributeFilter:['hidden'],subtree:true});});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await run(350);
  await until(()=>window.__floats.length>0,1000);   // hit-impact.ts: the parry now holds 11 frames longer, so the riposte lands later than a fixed 350 ms; wait for its float
- receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,receipt.parry.enemy-24,'the riposte takes 24');   // from the enemy's HP before it: a level-1 novice starts below HP (moves.ts opponentAt)
- receipt.dmg=(await page.evaluate(()=>window.__floats))[0];assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
+ receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,receipt.parry.enemy-14,'the riposte takes 14');   // RV78 sandbox era (Dom-approved 2026-10-18): the warden is a veteran in plate, and the sandbox armourVs row slash vs heavy is 600 per mille: 24 x 0.6 = 14   // from the enemy's HP before it: a level-1 novice starts below HP (moves.ts opponentAt)
+ receipt.dmg=(await page.evaluate(()=>window.__floats))[0];assert.equal(receipt.dmg,'14','the riposte floats its 14 off the warden');
  await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
  // Observe accepted player attacks, not the last HUD message (an opponent's kick can overwrite it).
  // A counter may interrupt an accepted attack. Make at most three real attempts; only a completed
