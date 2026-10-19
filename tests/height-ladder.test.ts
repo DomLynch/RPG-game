@@ -10,17 +10,17 @@ import DEFS from '../origins/zones/height-ladder.json' with { type: 'json' };
 const zone = (level: number, rows: { id: string; opponent: string; scale?: number }[], id = '1') => ({ id, level, mobLooks: { looks: Object.fromEntries(rows.map((r) => [r.id, { opponent: r.opponent, scale: r.scale }])) }, spawns: { rows: rows.map((r) => ({ id: r.id })) } });
 
 test('Zone 1\'s cap is the cave troll drawn at 1.52, and size is body height x drawn scale', () => {
-  assert.deepEqual(heightCap(1), { tier: 'tier-1', capM: 2.644 });
-  assert.deepEqual(heightCap(90), { tier: 'tier-1', capM: 2.644 }, 'a level above the last tier keeps the last tier\'s cap');
-  assert.ok(Math.abs(drawnHeight('cave-troll', 1.52)! - 2.643) < 0.001);
+  assert.deepEqual(heightCap(1), { tier: 'tier-1', capM: 2.639 });
+  assert.deepEqual(heightCap(90), { tier: 'tier-1', capM: 2.639 }, 'a level above the last tier keeps the last tier\'s cap');
+  assert.ok(Math.abs(drawnHeight('cave-troll', 1.52)! - 2.639) < 0.001);
   assert.ok(drawnHeight('cave-troll', 1.52)! <= heightCap(1).capM, 'the cap is the troll at 1.52 rounded up to the millimetre');
   assert.equal(drawnHeight('nobody'), null, 'a body no row measures has no drawn height');
-  assert.ok(Math.abs(drawnHeight('cave-troll')! - 1.739 * 1.9) < 1e-9, 'an omitted scale is the catalogue\'s render.scale (1.9 for the troll today)');
+  assert.ok(Math.abs(drawnHeight('cave-troll')! - 1.736 * 1.9) < 1e-9, 'an omitted scale is the catalogue\'s render.scale (1.9 for the troll today)');
 });
 
 test('a creature over its zone\'s cap is refused with a message that says what to do; a named exception lets it through', () => {
   const over = zone(1, [{ id: 'character:big', opponent: 'cave-troll', scale: 2 }]);
-  assert.match(heightProblems(over).join(';'), /creature character:big: drawn 3\.47\d* m, over zone 1's cap of 2\.644 m \(tier-1\)/);
+  assert.match(heightProblems(over).join(';'), /creature character:big: drawn 3\.47\d* m, over zone 1's cap of 2\.639 m \(tier-1\)/);
   assert.deepEqual(heightProblems(zone(1, [{ id: 'character:troll', opponent: 'cave-troll', scale: 1.52 }])), []);
   const named = { ...HEIGHT_LADDER, exceptions: [{ id: 'x', zone: '1', character: 'character:big', reason: 'test' }] };
   assert.deepEqual(heightProblems(over, named), []);

@@ -1,6 +1,6 @@
 {
   "ladder": [
-    { "id": "tier-1", "fromZone": 1, "capM": 2.644, "note": "Dom 2026-10-18 (via Lead): size rises with zone tier. Zone 1's cap is the cave troll's drawn height at scale 1.52 (1.739 m x 1.52 = 2.643, rounded up to the millimetre). A creature's DRAWN height is its body's rest-pose height (bodies below) times the scale it is drawn at (the look's, else the catalogue's render.scale), not the raw scale factor. A higher tier's row is Dom's to set." }
+    { "id": "tier-1", "fromZone": 1, "capM": 2.639, "note": "Dom 2026-10-18 (via Lead): size rises with zone tier. Zone 1's cap is the cave troll's drawn height at scale 1.52 (1.736 m x 1.52 = 2.6387, rounded up to the millimetre; the troll body was re-measured 1.739 -> 1.736 when its GLB changed on trunk). A creature's DRAWN height is its body's rest-pose height (bodies below) times the scale it is drawn at (the look's, else the catalogue's render.scale), not the raw scale factor. A higher tier's row is Dom's to set." }
   ],
   "bodies": [
     { "id": "cave-troll", "heightM": 1.736, "lengthM": 0.994, "glb": "/world/cave-troll.glb", "sha256": "72cefc872d6f009a729b7a8bf61dbfdd5dff22adb3cd798ee881d003741c39b6" },
