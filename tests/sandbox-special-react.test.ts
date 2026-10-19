@@ -1,4 +1,5 @@
 // sandbox specialMeleeWindup + specialReact: a MELEE special (no spell) is committed for the row's ticks (a heavy swing's pace, not the spell's 2 s) and, when it lands, staggers, shoves and shakes the victim by its move row like a landed blow.
+import './lib/era-on.ts';   // RV78: this file tests the ON rules; era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
@@ -7,7 +8,7 @@ const rule = (id: string) => (DEFS as unknown as { rules: { id: string; value: n
 rule('specialMeleeWindup').value = 32; rule('specialReact').value = 1;
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
-const duelOf = () => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }) as never as { fighters: { special?: number; phase: string; stun: number; body: { z: number }; health: number; maxHealth: number; posture: number }[]; events: { type: string; ticks?: number }[] };
+const duelOf = () => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never, picked: true as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }) as never as { fighters: { special?: number; phase: string; stun: number; body: { z: number }; health: number; maxHealth: number; posture: number }[]; events: { type: string; ticks?: number }[] };
 
 test('a melee special is committed for the row\'s windup, not the spell windup', () => {
   let d = stepDuel(duelOf() as never, [{ ...idle(), action: 'skill' }, idle()]) as never as ReturnType<typeof duelOf>;
@@ -35,8 +36,9 @@ test('specialReactFloor: a lunge (move row stagger 0) still staggers the victim 
     return d.fighters[1]!.stun;
   };
   const rows = (DEFS as unknown as { specialReactFloor: { id: string; stagger: number }[] }).specialReactFloor;
+  const shipped = rows.splice(0);   // RV78: the bulk ships a lunge floor row; this test patches from none
   assert.equal(run('lunge'), 0, 'no floor row: the percent of a zero row is zero');
   rows.push({ id: 'lunge', stagger: 36 });
   assert.ok(run('lunge') >= 35, 'the floor row gives the lunge its stagger');
-  rows.length = 0;
+  rows.splice(0, rows.length, ...shipped);
 });

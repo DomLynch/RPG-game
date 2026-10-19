@@ -1,4 +1,5 @@
 // sandbox-mech: castPushback. A hit that does not cut a cast pushes its release back `castPushback` ticks, up to `castPushbackMax` times per cast (WoW pushback); 0 = trunk.
+import './lib/era-on.ts';   // RV78: this file tests the ON rules; era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
@@ -7,14 +8,15 @@ offDefs(DEFS);   // the sandbox tests patch from the OFF baseline; the shipped r
 
 const rule = (id: string) => DEFS.rules.find((r) => r.id === id) as { value: number };
 const shipped = [rule('castPushback').value, rule('castPushbackMax').value];
-rule('castPushback').value = 30; rule('castPushbackMax').value = 2;   // before duel.ts loads: the rows are read once
+rule('castPushback').value = 30; rule('castPushbackMax').value = 2; rule('specialMeleeWindup').value = 120;   // before duel.ts loads: the rows are read once
 const { stepDuel, withSpecials } = await import('../src/fight/duel.ts');
 const { OPPONENTS, RULES } = await import('../src/fight/moves.ts');
 const { act, arena, idle } = await import('./strategies.ts');
 type Duel = Parameters<typeof stepDuel>[0];
 
 const cast = (): Duel => {   // a sturdy caster: blows push the cast back without cutting it
-  const d = withSpecials(arena(OPPONENTS.veteran), 6, 'shove'); d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0; d.fighters[0].maxHealth *= 20; d.fighters[0].health = d.fighters[0].maxHealth;
+  const d = withSpecials(arena(OPPONENTS.veteran), 6, 'shove'); d.fighters[0].picked = true;   // RV78: pushback applies to the player's PICKED special (or a spell); the melee windup row is set to the class special's 120 below, so the geometry is the one this test was written for
+  d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0; d.fighters[0].maxHealth *= 20; d.fighters[0].health = d.fighters[0].maxHealth;
   return stepDuel(d, [act('skill'), idle()]);
 };
 // Ticks until the caster's special lands, while the foe swings `lights` light blows (one every 45 ticks, a light's whole swing) at a caster who stands still.
