@@ -3,6 +3,7 @@
 // own layer (A in layer 1 with 2 players, B in layer 2 with 40 players), then the DATABASE is read back: the ledger, the damage rows, and the spawn rows by layer with their respawn clocks (layer 2's is the
 // dynamic one, layer 1's the row's). Then the hop: A, who killed the instance in layer 1, tries to kill it in layer 2 after layer 2's SHORTENED respawn has passed but inside the ROW's: it must be refused (cooldown).
 // Run on the VPS: runuser -u frankrows -- env PG_BIN=/usr/lib/postgresql/16/bin node --experimental-strip-types scripts/origins-layers-smoke.mjs
+import '../tests/lib/era-off.ts';   // FIRST: the scripted hero is the legacy-rules bot (the same fixture the verifier's tests use); record and replay run under the same rules in this process, as the tests do
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
