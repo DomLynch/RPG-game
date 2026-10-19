@@ -27,7 +27,7 @@ const until = async (ok, ms = 20000) => { for (let t = 0; t < ms; t += 100) { if
 const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LIMITS, ipSockets: 64, ipJoinsPerMinute: 600 } });   // every client is 127.0.0.1: the per-address caps (a production defence) would refuse the ninth socket
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch({ args: process.env.GPU_REAL === '1' ? ['--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });   // GPU_REAL=1: the machine's own GPU (the Mac, a T4 job), not software GL
 const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();

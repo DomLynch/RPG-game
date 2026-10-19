@@ -585,7 +585,7 @@ let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number;
 // The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after [zone ready]. The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
 // the threshold used to answer differently from the next. Storage may be blocked: then it is the per-load measure, as before.
 const SLOW_KEY = 'origins-preview-slow-device';
-let deviceSlow: boolean | undefined;
+let deviceSlow: boolean | undefined, probeMedianMs: number | undefined;   // the median of this load's probe (undefined when the verdict was kept from storage), for the skip warning
 async function slowDevice(): Promise<boolean> {
   if (deviceSlow !== undefined) return deviceSlow;
   let kept: boolean | undefined;
@@ -600,7 +600,7 @@ async function slowDevice(): Promise<boolean> {
   const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
   for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
   document.removeEventListener('visibilitychange', onVisibility);
-  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs'));
+  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')); probeMedianMs = [...gaps].sort((a, b) => a - b)[gaps.length >> 1];
   if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now(), release)); } catch { /* storage blocked: not kept */ }
   return deviceSlow;
 }
@@ -633,7 +633,7 @@ async function warmRemoteKits() {
   // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
   // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
   if (!/[?&]kitwarm=soft\b/.test(location.search) && await slowDevice()) {
-    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
+    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device${probeMedianMs === undefined ? ', kept verdict' : `, measured ${Math.round(probeMedianMs)} ms`}), remotes keep the base figure`);
     kitsResult = { failed: false, skipped: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };   // skipped is not failed: the page chose not to warm; remotes keep the base figure either way
     return;
   }
