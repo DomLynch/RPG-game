@@ -7,7 +7,7 @@ import { legal, stepDuel, withSkill2, type CombatEvent, type Duel } from '../src
 import { OPPONENTS, RULES, SKILL_MOVE, weaponOf, DEFAULT_WEAPON, type SkillId } from '../src/fight/moves.ts';
 import { act, arena, idle } from './strategies.ts';
 
-const PICKS = ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp'] as SkillId[];
+const PICKS = ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp'] as SkillId[];
 const fight = (skill?: SkillId): Duel => { let d = arena(OPPONENTS.veteran); d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0; return skill ? withSkill2(d, 0, skill) : d; };
 const run = (d: Duel, ticks: number) => { const ev: CombatEvent[] = []; for (let t = 0; t < ticks; t++) { d = stepDuel(d, [t === 0 ? act('skill2') : idle(), idle()]); ev.push(...d.events); } return { d, ev }; };
 
