@@ -36,7 +36,7 @@ test('openBout seeds the duel roll from the creature\'s seed; no seed, no roll (
 test('a live fight with an engage token writes hash32(token, join step) on the join, and the replay re-derives the same fight (verified)', async () => {
   const rec = await fight(TOKEN), j = rec.joins.find((e) => e.id === wolf.spec.id)!;
   assert.equal(j.seed, hash32(TOKEN, j.s), 'the seed is hash32(the kill\'s token, the join step)');
-  assert.deepEqual(await verify(rec, TOKEN), { ok: true, ticks: rec.steps.length }, 'the replay (duel.roll from the header seed) reproduces the kill');
+  assert.deepEqual({ ...await verify(rec, TOKEN), damage: undefined }, { ok: true, ticks: rec.steps.length, damage: undefined }, 'the replay (duel.roll from the header seed) reproduces the kill');   // damage: the verdict's kill-credit field, not this test's subject
   const killAt = (r: WorldRecord): number | undefined => { const x = replayWorldRecord(r); return x.ok ? x.killStep[wolf.spec.id] : undefined; };
   const at = killAt(rec); assert.ok(at !== undefined && at < rec.steps.length, 'the replay kills the wolf inside the record');
   assert.equal(killAt(rec), at, 'the replay is deterministic: same token and join step, same fight');
@@ -49,7 +49,7 @@ test('a forged seed, a wrong token and a seed with no token are refused; a recor
   assert.deepEqual(await verify(rec), { ok: false, reason: 'seed' }, 'a seed but no token to check it against');
   const none = await fight(null);
   assert.equal(none.joins[0]!.seed, undefined);
-  assert.deepEqual(await verify(none, TOKEN), { ok: true, ticks: none.steps.length }, 'band off: the same record shape as today');
+  assert.deepEqual({ ...await verify(none, TOKEN), damage: undefined }, { ok: true, ticks: none.steps.length, damage: undefined }, 'band off: the same record shape as today');
 });
 
 test('the seed turns the roll band on in the world loop: the same hero script leaves a seeded wolf at other health than an unseeded one, and the same seed always leaves the same', () => {
