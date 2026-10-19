@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, keepVerdict, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { previewRule } from './preview-rules.ts';
 
 test('the slow-device verdict is keyed to the release: same release kept, new release re-measured, unreadable release uses the time limit, malformed record re-measured', async () => {
@@ -77,6 +77,17 @@ test('a kit that outlasts the hard bound is still compiling when the warm-up ret
   assert.equal(compiled.length, 1, 'ended waited for that one kit'); assert.equal(cleaned, 1, 'cleanup ran once, at the end');
   await sleep(300);
   assert.equal(compiled.length, 1, 'nothing compiles after `ended`');
+});
+
+test('medianGap and the ?probe=1 readout: the median is the one tooSlow compares, the readout names it, the limit, the verdict and the release', () => {
+  assert.equal(medianGap([16, 17, 16, 33, 16]), 16);
+  assert.equal(medianGap([250, 300, 280]), 280);
+  assert.equal(medianGap([]), undefined);
+  assert.equal(tooSlow([167, 167, 167], previewRule('kitSlowFrameMs')), true, 'the quiet-Mac reading that prompted the window move');
+  assert.equal(previewRule('kitProbeSettleMs'), 1000, 'the settle after the cover lifts is a row');
+  assert.equal(probeReadout(167.4, 100, 'a'.repeat(40)), 'probe 167 ms median (limit 100 ms): slow | release aaaaaaaaa');
+  assert.equal(probeReadout(16, 100, undefined), 'probe 16 ms median (limit 100 ms): ok | release unread');
+  assert.equal(probeReadout(undefined, 100, undefined), 'probe no sample (limit 100 ms): ok | release unread');
 });
 
 test('tooSlow: the median frame gap above the limit is slow; one spike in a smooth run is not; an empty sample is not', () => {

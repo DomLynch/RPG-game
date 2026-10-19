@@ -71,7 +71,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, keepVerdict, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { wideCombatCam } from './combat-cam.ts';
@@ -582,7 +582,7 @@ async function kitSlice(until: number) {
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
 let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
-// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after [zone ready]. The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after first playable (the load cover lifted, then kitProbeSettleMs). The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
 // the threshold used to answer differently from the next. Storage may be blocked: then it is the per-load measure, as before.
 const SLOW_KEY = 'origins-preview-slow-device';
 let deviceSlow: boolean | undefined, probeMedianMs: number | undefined;   // the median of this load's probe (undefined when the verdict was kept from storage), for the skip warning
@@ -591,16 +591,20 @@ async function slowDevice(): Promise<boolean> {
   let kept: boolean | undefined;
   // The verdict is keyed to the live release (slowVerdictByRelease): a new sha re-measures. /release.json unreadable (dev server, offline): the time limit (slowVerdictMs) applies.
   const release = previewRule('slowVerdictByRelease') === 1 ? await readReleaseId(fetchReleaseJson, previewRule('releaseReadMs')) : undefined;
-  try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs'), release); } catch { /* storage blocked: measure */ }
+  const showProbe = /[?&]probe=1\b/.test(location.search);   // ?probe=1: measure fresh (a kept verdict is skipped) and print the median on screen, for a number from a real phone
+  if (!showProbe) try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs'), release); } catch { /* storage blocked: measure */ }
   if (kept !== undefined) return (deviceSlow = kept);
   // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).
   const visibleAtStart = document.visibilityState === 'visible'; let hiddenSeen = false;
   const onVisibility = () => { if (document.visibilityState !== 'visible') hiddenSeen = true; };
   document.addEventListener('visibilitychange', onVisibility);
+  // The window opens AFTER first playable (Strategy 2026-10-19: 167 ms on a quiet M5 was the page's own load work, not the device): the load cover has lifted, then kitProbeSettleMs more. The wait is bounded (the cover's own max hold, then the settle).
+  { const until = performance.now() + previewRule('loadCoverHoldMs') + previewRule('kitProbeSettleMs'); while (!cover.lifted() && performance.now() < until) await nextFrame(); await new Promise<void>((r) => { setTimeout(r, previewRule('kitProbeSettleMs')); }); }
   const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
   for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
   document.removeEventListener('visibilitychange', onVisibility);
-  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')); probeMedianMs = [...gaps].sort((a, b) => a - b)[gaps.length >> 1];
+  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')); probeMedianMs = medianGap(gaps);
+  if (showProbe) { const el = document.createElement('div'); el.id = 'probe-readout'; el.textContent = probeReadout(probeMedianMs, previewRule('kitSlowFrameMs'), release); el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;padding:6px 8px;background:#000c;color:#fff;font:12px/1.3 monospace;border-radius:6px;pointer-events:none'; document.body.appendChild(el); }
   if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now(), release)); } catch { /* storage blocked: not kept */ }
   return deviceSlow;
 }

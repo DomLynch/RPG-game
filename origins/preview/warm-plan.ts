@@ -26,7 +26,12 @@ export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Cam
 }
 
 /** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
-export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { if (!gapsMs.length) return false; const sorted = [...gapsMs].sort((a, b) => a - b); return sorted[sorted.length >> 1]! > limitMs; };
+export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { const m = medianGap(gapsMs); return m !== undefined && m > limitMs; };
+/** The median of the sampled frame gaps (ms), the figure the verdict compares to the limit; undefined for an empty sample. */
+export const medianGap = (gapsMs: readonly number[]): number | undefined => (gapsMs.length ? [...gapsMs].sort((a, b) => a - b)[gapsMs.length >> 1] : undefined);
+/** The `?probe=1` readout (Strategy 2026-10-19: a real-phone number for the 100 ms limit): the measured median against the limit, the verdict it gives, and the release the verdict is keyed to. Pure text, so the page only draws it. */
+export const probeReadout = (medianMs: number | undefined, limitMs: number, release: string | undefined): string => (
+  `probe ${medianMs === undefined ? 'no sample' : `${Math.round(medianMs)} ms median`} (limit ${limitMs} ms): ${medianMs !== undefined && medianMs > limitMs ? 'slow' : 'ok'} | release ${release ? release.slice(0, 9) : 'unread'}`);
 
 /** The slow-device verdict is STICKY for the device: one measure on one load gave a different answer from the next load of the same machine, so a phone near the threshold got a different game each load. A stored record is `<1|0>@<epoch ms>`;
  *  it is trusted for `ttlMs` (a row: slowVerdictMs) and then re-measured, so a device that changed (a new browser, a cooler phone) is not stuck for ever. `undefined` = no usable record (absent, malformed, from the future or past its ttl): measure. Pure. */
