@@ -219,6 +219,8 @@ try {
 
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
+  const LATER_DOWN = '20261019150000_origins_damage_share_down.sql';   // rollbacks run newest first: the damage-share objects (origins_spawn_check / _damage_read / _kill_v2) go before the spawn tables they sit beside
+  if (readdirSync(join(dir, '..', 'down')).includes(LATER_DOWN)) psql(readFileSync(join(dir, '..', 'down', LATER_DOWN), 'utf8'));
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%'`), '0', 'down: the functions are gone');
   eq(psql(`select count(*) from pg_class where relname in ('origins_world_config', 'origins_spawns', 'origins_spawn_engages', 'origins_beta_ledger')`), '0', 'down: the tables are gone');
