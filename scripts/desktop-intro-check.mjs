@@ -34,7 +34,7 @@ try {
     const controls = [...document.querySelectorAll('#actions button, #joystick, .combat-hud')].filter((el) => box(el));   // drawn = visible
     const over = controls.filter((el) => { const c = card.getBoundingClientRect(), e = el.getBoundingClientRect(); return e.x < c.x + c.width && c.x < e.x + e.width && e.y < c.y + c.height && c.y < e.y + e.height; });
     const hiddenNow = Object.fromEntries(['#joystick', '#actions', '.combat-hud'].map((sel) => [sel, getComputedStyle(document.querySelector(sel)).visibility === 'hidden']));   // nothing of the fight stays drawn or tappable under the card
-    return { hiddenNow, centre: hitAt(r.x + r.width / 2, r.y + r.height / 2), lower: hitAt(r.x + r.width / 2, r.y + r.height * 0.85), button: box(button), welcome: box(card), hud: box(document.querySelector('.combat-hud')), performance: box(document.querySelector('#performance')), actions: box(document.querySelector('#actions')), fightControlsOverCard: over.map((el) => el.id || el.className || el.tagName) };
+    return { hiddenNow, centre: hitAt(r.x + r.width / 2, r.y + r.height / 2), lower: hitAt(r.x + r.width / 2, r.y + r.height * 0.85), button: box(button), welcome: box(card), hud: box(document.querySelector('.combat-hud')), performance: box(document.querySelector('#performance')), actions: box(document.querySelector('#actions')) ?? box(document.querySelector('#attack-button')), fightControlsOverCard: over.map((el) => el.id || el.className || el.tagName) };
   };
   const checkCard = async (page, name) => {
     const got = await page.evaluate(probe);
@@ -55,7 +55,10 @@ try {
     await page.goto(origin, { waitUntil: 'commit' });
     await page.waitForFunction(() => document.querySelector('#attack-button'), null, { timeout: 120000 });   // the page's own readiness: the button exists once main.ts has run
     await page.waitForFunction(() => document.querySelector('#welcome').hidden, null, { timeout: 60000 });
-    const first = await page.evaluate(() => { const shown = (el) => { const r = el?.getBoundingClientRect(); return !!r && r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; }; return { card: shown(document.querySelector('#welcome')), actions: shown(document.querySelector('#actions')), hud: shown(document.querySelector('.combat-hud')) }; });
+    // The loading card (the versus card, main.ts versusUp) holds the fight controls and the HUD asleep until the rigs are in (assetsReady): a first-visit sample taken while it is up
+    // reads them as hidden (row 46 at 1024x768 on K5f, job 118220902160), so the check waits for the card to be gone and the art status to be empty (its "ready") before it samples.
+    await page.waitForFunction(() => document.querySelector('#versus')?.hidden !== false && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000 });
+    const first =await page.evaluate(() => { const shown = (el) => { const r = el?.getBoundingClientRect(); return !!r && r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; }; return { card: shown(document.querySelector('#welcome')), actions: shown(document.querySelector('#attack-button')), hud: shown(document.querySelector('.combat-hud')) }; });
     await page.screenshot({ path: `${dir}/${name}-first-visit.png` });
     assert.equal(first.card, false, `${name}: a first visit shows no name card`);
     assert.ok(first.actions && first.hud, `${name}: the fight controls and the HUD are visible on a first visit`);
