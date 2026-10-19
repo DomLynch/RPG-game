@@ -191,7 +191,7 @@ if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
   { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => frontierGroup?.add(g)).catch(() => {}); }   // the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
-  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; });   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
@@ -532,7 +532,7 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 }
 // "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
-let zoneReadyAt = -1;
+let zoneReadyAt = -1, domeDrawn = !ZONE_SKY;   // domeDrawn: the painted dome exists and has been drawn for a few frames, so its sector programs (the zero-scale twin, horizon-dome.ts) are built: [zone ready] waits for it, or the first draw of them would compile after it (seamless-quiet, K3b)
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
@@ -676,7 +676,7 @@ function zoneReadyCheck() {
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
-  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
