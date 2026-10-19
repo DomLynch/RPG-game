@@ -1033,7 +1033,7 @@ test('each beast is drawn the same size in the duel as in the world: one scale p
     assert.equal(opponent.anchor.scale.x, k); assert.equal(opponent.anchor.scale.y, k);
     const top = (o: Parameters<Box3['setFromObject']>[0]) => { o.updateMatrixWorld(true); const b = new Box3().setFromObject(o); return b.max.y - b.min.y; };
     const native = top(rig.scene), drawn = top(opponent.anchor);
-    assert.ok(Math.abs(drawn / native - k) < .02, `${id}: drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
+    assert.ok(Math.abs(drawn / native - k) < .02 * k, `${id}: drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
     assert.ok(Math.abs(drawn - height) < .06, `${id} stands ${drawn.toFixed(3)} m (expected about ${height})`);
     assert.equal(OPPONENTS[id].scale, .8, `${id}: the sim's capsule is untouched (render only)`);
   }
