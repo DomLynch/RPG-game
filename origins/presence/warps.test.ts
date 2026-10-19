@@ -5,6 +5,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
+import { propKit } from '../preview/prop-kit.ts';
+import { frontierDress } from '../preview/frontier-dress.ts';
+import { fxNum } from '../../src/fight/index.ts';
 import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
@@ -41,8 +44,9 @@ test('the exit warps are DERIVED from the exit rows and the zone plan, not copie
 test('the rows equal the places the page teleports to (a zone or mob edit that moves one fails here)', () => {
   const F = frontierPlan(false), B = frontierBuild(F);
   for (const signedIn of [true, false]) {
-    const start = spawnAmong(F, B, mobSpecs(F, B, previewRows('', signedIn)))!;
-    near(m('zone1-start').x, start.x, 0.006); near(m('zone1-start').z, start.z, 0.006);   // signed in or a guest: the same start (a row is centimetres)
+    const start = spawnAmong(F, B, mobSpecs(F, B, previewRows('', signedIn)))!, kit = propKit(F, B, frontierDress(F, B), 'cinder-fields', 'goblin-camp');
+    const at = kit.centre && fxNum('start.camp-on') > 0 ? { x: kit.centre.x + Math.sin(fxNum('start.camp-angle')) * fxNum('start.camp-radius'), z: kit.centre.z + Math.cos(fxNum('start.camp-angle')) * fxNum('start.camp-radius') } : start;   // the page's start: by the camp wall (rows start.camp-*), else among the creatures
+    near(m('zone1-start').x, at.x, 0.006); near(m('zone1-start').z, at.z, 0.006);   // signed in or a guest: the same start (a row is centimetres)
   }
   const r = F.road, back = { x: r.from.x + Math.sin(r.inward) * 2, z: r.from.z + Math.cos(r.inward) * 2 };   // main.ts goBack
   // The page's goBack stands at the Exchange's west gate, which is inside a trade area: a warp may not land there (Lead's rule), so the row is where presence clears it to, the Pit yard's edge.
