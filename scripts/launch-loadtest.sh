@@ -7,7 +7,7 @@
 # Every result block is printed after a `RESULT <name>` line (and, for presence, saved whole under /tmp/loadtest/) so `hf jobs logs` can be cut by it.
 set -uo pipefail
 if env | grep -qE '^(DATABASE_URL|SUPABASE_[A-Z_]*|PGHOST|PGPASSWORD)='; then echo "REFUSED: a database variable is set; this test uses only a throwaway cluster"; exit 3; fi
-MODE="${MODE:-all}"; case "$MODE" in all|presence|writer|verify) ;; *) echo "bad MODE $MODE"; exit 2;; esac
+MODE="${MODE:-all}"; case "$MODE" in all|presence|writer|verify|mix) ;; *) echo "bad MODE $MODE"; exit 2;; esac
 if [ "$MODE" = verify ]; then   # the replay-verification pool under load: no database, no PG install (scripts/verify-loadtest.mjs --grid)
   echo "HOST mode=verify cpus=$(nproc) load=$(cut -d' ' -f1-3 /proc/loadavg) node=$(node -v)"
   echo "RESULT verify grid"; node scripts/verify-loadtest.mjs --grid --seconds=30 2>&1; echo "verify exit=$?"
@@ -23,6 +23,17 @@ if [ "$MODE" != presence ]; then
   systemctl stop postgresql >/dev/null 2>&1 || true   # the packaged cluster is not used; the test builds its own in a temp dir
   chown -R postgres "$PWD"; lap pg-installed
   as_pg() { runuser -u postgres -- env PATH="$PATH" PG_BIN="$PGB" "$@"; }
+fi
+if [ "$MODE" = mix ]; then   # the writer + world-kill mix (scripts/writer-mix-loadtest.mjs), each phase stops at its first break (a 5xx or a p95 over 500 ms)
+  for rate in 200 400 800; do
+    echo "RESULT mix real-set rate=$rate pool=4"; as_pg node scripts/writer-mix-loadtest.mjs --rate=$rate --seconds=60 --accounts=1000 --pool=4 --kill-share=0.1 2>&1 | tee /tmp/mix.out | tail -95; lap "mix-real-$rate"
+    grep -q "^writer-mix-loadtest: .*BROKE" /tmp/mix.out && { echo "STOP real-set phase at rate=$rate (broke)"; break; }
+  done
+  for rate in 20 50 100; do
+    echo "RESULT mix clones=2000 cycles/s=$rate pool=4"; as_pg node scripts/writer-mix-loadtest.mjs --rate=$rate --seconds=45 --accounts=1000 --pool=4 --kill-share=1 --clones=2000 2>&1 | tee /tmp/mix.out | tail -95; lap "mix-clones-$rate"
+    grep -q "^writer-mix-loadtest: .*BROKE" /tmp/mix.out && { echo "STOP clone phase at cycles/s=$rate (broke)"; break; }
+  done
+  echo "DONE $(( $(date +%s) - t0 ))s load=$(cut -d' ' -f1-3 /proc/loadavg)"; exit 0
 fi
 if [ "$MODE" != presence ]; then
   for rate in 10 25 50 100; do
