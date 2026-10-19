@@ -514,7 +514,7 @@
         "opponent": "goblin",
         "tint": 14079702,
         "scale": 1.25,
-        "loadout": "goblin.guard",
+        "loadout": "goblin.t4.gladius",
         "dressing": {
           "soot": 0,
           "burnt": 0
@@ -628,9 +628,8 @@
         "soot": 0.25,
         "burnt": 0.15,
         "loadouts": [
-          "goblin.guard",
-          "goblin.cutter",
-          "goblin.scrapper"
+          "goblin.t4.gladius",
+          "goblin.t4.cleaver"
         ]
       },
       "character:mere-brood": {
