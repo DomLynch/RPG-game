@@ -29,6 +29,18 @@ export function presenceWhere(baseUrl: string, key: string, timeoutMs = presence
   };
 }
 
+// The ids of the layers presence holds right now (GET /internal/layers), for the writer's spawn janitor. Anything but a well-formed 200 is an error: the janitor deletes nothing then.
+export type LayersFn = () => Promise<number[]>;
+export function presenceLayers(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): LayersFn {
+  return async () => {
+    const res = await fetchImpl(`${baseUrl}/internal/layers`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) throw new Error(`presence: HTTP ${res.status}`);
+    const o = await res.json() as { layers?: unknown };
+    if (!Array.isArray(o?.layers) || !o.layers.every((n) => Number.isInteger(n) && n >= 1)) throw new Error('presence: malformed answer');
+    return o.layers as number[];
+  };
+}
+
 // The writer tells presence "this account's worn set may have changed" after a gear op succeeded (POST /internal/worn, the server's wornRoute). Fire and forget: the caller ignores any failure, because
 // presence also re-reads every account's worn set on its own timer, so a lost poke only delays what other players see.
 export type WornPokeFn = (account: string) => Promise<void>;
