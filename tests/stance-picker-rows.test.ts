@@ -5,7 +5,7 @@ import { PICKS } from '../src/fight/stance.ts';
 import { STANCE_PICK_ROWS, stancePickRow, stancePickerDial } from '../src/fight/stance-picker-rows.ts';
 
 test('the picker has one row per stance pick, in the record\'s PICKS order, each with a label, a hex colour and an icon path', () => {
-  assert.deepEqual(STANCE_PICK_ROWS.map((r) => r.id), [...PICKS]);
+  assert.deepEqual(STANCE_PICK_ROWS.map((r) => r.pick), [...PICKS]);
   for (const r of STANCE_PICK_ROWS) {
     assert.match(r.colour, /^#[0-9a-f]{6}$/i, r.id);
     assert.ok(r.label.length > 0 && r.icon.startsWith('M'), r.id);
