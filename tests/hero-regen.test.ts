@@ -31,9 +31,8 @@ test('a hit dealt or taken, a creature noticing him, or being down resets the ti
   assert.equal(b.health, kept, 'a quiet second inside the delay still gives nothing'); assert.ok(q.s > 0);
 });
 
-test('never above the max and never below what it was; the rule is on only for sandbox zones and only while the row says so', () => {
+test('never above the max and never below what it was; the rule is on in every open-world zone (Dom 2026-10-19) and only while the row says so', () => {
   const full = run(300, idle, { ...hurt, health: 140, stamina: 99 }); assert.equal(full.health, hurt.maxHealth); assert.equal(full.stamina, hurt.maxStamina);
-  assert.equal(regenOn(false), false, 'a listed zone and the Pit never regenerate');
-  assert.equal(regenOn(true), true);
+  assert.equal(regenOn(), true, 'the row regen.out-of-combat is 1');
   assert.equal(regenRules(45).healthFullS, 45, 'the ?regen= dial');
 });

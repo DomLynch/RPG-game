@@ -42,11 +42,10 @@ export function createOutfit() {
 }
 
 /**
- * The set the hero's figure wears. A LISTED zone is the account gear exactly as it comes (`account`, no change). In an UNLISTED zone (the sandbox) a piece taken from a body REPLACES the account's piece in that
- * paperdoll slot, per slot: the slots nothing was taken for keep the account gear. Weapons are not dressed (the figure's weapon is the sheet's). Pure; `outfit` empty gives back `account`.
+ * The set the hero's figure wears. A piece taken from a body REPLACES the account's piece in that paperdoll slot, per slot (every zone since 2026-10-19; the sandbox's rule moved over, it was unlisted zones
+ * only): the slots nothing was taken for keep the account gear. Weapons are not dressed (the figure's weapon is the sheet's). Pure; `outfit` empty gives back `account`.
  */
-export function dressedSet(account: { ids: readonly string[]; tiers: Readonly<Record<string, string>> }, outfit: Pick<ReturnType<typeof createOutfit>, 'ids' | 'tierOf'>, unlisted: boolean): { ids: string[]; tiers: Record<string, string> } {
-  if (!unlisted) return { ids: [...account.ids], tiers: { ...account.tiers } };
+export function dressedSet(account: { ids: readonly string[]; tiers: Readonly<Record<string, string>> }, outfit: Pick<ReturnType<typeof createOutfit>, 'ids' | 'tierOf'>): { ids: string[]; tiers: Record<string, string> } {
   const taken = outfit.ids(), slots = new Set(taken.map((id) => paperdollOf(slotOf(id as LootId))));
   const ids = [...account.ids.filter((id) => !slots.has(paperdollOf(slotOf(id as LootId)))), ...taken];
   const tiers: Record<string, string> = Object.fromEntries(Object.entries(account.tiers).filter(([id]) => ids.includes(id)));

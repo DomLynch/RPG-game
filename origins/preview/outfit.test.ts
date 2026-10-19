@@ -35,20 +35,20 @@ test('outfit: one piece per slot (a new take replaces the old, keeping its own r
   assert.deepEqual(createOutfit().ids(), [], 'a reload starts empty: nothing is stored');
 });
 
-test('dressedSet (Lead 2026-10-18): a LISTED zone wears the account gear unchanged; an UNLISTED zone replaces the account piece in each slot a piece was taken for and keeps the rest; leaving restores the account gear', () => {
+test('dressedSet (Lead 2026-10-18; every zone since 2026-10-19, Dom: everything from the sandbox): a taken piece replaces the account piece in each slot it was taken for and keeps the rest; leaving restores the account gear', () => {
   const account = { ids: ['knight.Helmet', 'knight.Body', 'knight.Boots'], tiers: { 'knight.Helmet': 'Master', 'knight.Body': 'Master', 'knight.Boots': 'Veteran' } };
   const o = createOutfit(); o.take('goblin.Helmet', 'Champion');
-  // 1. listed zone: no change, whatever was taken
-  assert.deepEqual(dressedSet(account, o, false), { ids: account.ids, tiers: account.tiers });
-  // 2. unlisted zone: the helmet slot is the taken goblin helmet at the rung it was won at; body and boots keep the account gear and its rungs
-  const sandbox = dressedSet(account, o, true);
+  // 1. nothing taken: the account gear unchanged
+  assert.deepEqual(dressedSet(account, createOutfit()), { ids: account.ids, tiers: account.tiers });
+  // 2. the helmet slot is the taken goblin helmet at the rung it was won at; body and boots keep the account gear and its rungs
+  const sandbox = dressedSet(account, o);
   assert.deepEqual([...sandbox.ids].sort(), ['goblin.Helmet', 'knight.Body', 'knight.Boots']);
   assert.deepEqual(sandbox.tiers, { 'knight.Body': 'Master', 'knight.Boots': 'Veteran', 'goblin.Helmet': 'Champion' });
   assert.ok(!sandbox.ids.includes('knight.Helmet'), 'the account helmet is replaced, not stacked');
   // 3. exit: the outfit is page memory; once it is gone (a reload, or leaving the zone) the account gear comes back untouched
   o.clear();
-  assert.deepEqual(dressedSet(account, o, true), { ids: account.ids, tiers: account.tiers });
-  assert.deepEqual(dressedSet(account, createOutfit(), true), { ids: account.ids, tiers: account.tiers }, 'a new page: empty outfit');
+  assert.deepEqual(dressedSet(account, o), { ids: account.ids, tiers: account.tiers });
+  assert.deepEqual(dressedSet(account, createOutfit()), { ids: account.ids, tiers: account.tiers }, 'a new page: empty outfit');
 });
 
 test('every piece the loadouts can drop has a ground look row (armour by its id, a weapon by its slot)', async () => {
