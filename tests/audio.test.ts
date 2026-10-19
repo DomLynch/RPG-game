@@ -1,4 +1,4 @@
-import './lib/era-on.ts';   // RV78: the scripted exchange is the audio release row's ruler (row 4 plays the era the game ships), so it runs the sandbox rules (wardenHealth 65 is sized for the plate warden); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
+import './lib/era-on.ts';   // RV78: the scripted exchange is the audio release row's ruler (row 4 plays the era the game ships), so it runs the sandbox rules (wardenHealth 32 is sized for the plate warden under the reach bands); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,13 +7,17 @@ import { CUE_PROBES, EXCHANGE_BEATS, scriptExchange } from '../src/audio/exchang
 import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
 import { RULES } from '../src/fight/moves.ts';
+import { setRows79, setSandbox } from '../src/fight/sandbox-era.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
 import { createFeedback, VOICES } from '../src/fight/sound/feedback.ts';
 import { armfeelLayers } from '../src/fight/sound/armfeel-sound.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
 // The scripted exchange is the fixed ruler every audio iteration is measured with: same beats, same order, same ticks.
-test('the scripted exchange lands every beat in order and is reproducible', () => {
+// Run under BOTH eras (the rig's health is a row per era, audio-rules-defs.json wardenHealth / wardenHealthEraOff): the unit suite's trunk rules and the sandbox rules the game ships.
+// Both switches move together (the RV78 sandbox era and the RV79 rows: bands, stances 2x): "off" is trunk's rules, "on" is what the game ships; no fight has one without the other.
+const underEra = (on: boolean, run: () => void) => { setSandbox(on); setRows79(on); try { run(); } finally { setSandbox(true); setRows79(true); } };
+for (const on of [false, true]) test(`the scripted exchange lands every beat in order and is reproducible (era ${on ? 'on' : 'off'})`, () => underEra(on, () => {
   const exchange = scriptExchange();
   assert.deepEqual(exchange.beats.map(b => b.name), [...EXCHANGE_BEATS]);
   assert.ok(exchange.beats.every((b, i) => i === 0 || b.tick > exchange.beats[i - 1].tick), 'beats advance in time');
@@ -25,14 +29,14 @@ test('the scripted exchange lands every beat in order and is reproducible', () =
   assert.ok(exchange.ticks.some(t => t.events.some(e => e.type === 'Charged')), 'the death blow is a charged heavy');
   assert.equal(exchange.ticks.filter(t => t.events.some(e => e.type === 'Hit' && e.actor === 1)).length, 1, 'the player takes exactly one hit');
   assert.deepEqual(JSON.parse(JSON.stringify(scriptExchange())), JSON.parse(JSON.stringify(exchange)), 'two runs are identical');
-});
+}));
 
-test('every event type the exchange emits has a cue probe, and probe names are unique', () => {
+for (const on of [false, true]) test(`every event type the exchange emits has a cue probe, and probe names are unique (era ${on ? 'on' : 'off'})`, () => underEra(on, () => {
   const emitted = new Set(scriptExchange().ticks.flatMap(t => t.events.map(e => e.type)));
   const probed = new Set(CUE_PROBES.flatMap(p => p.events.map(e => e.type)));
   for (const type of emitted) assert.ok(probed.has(type), `probe exists for ${type}`);
   assert.equal(new Set(CUE_PROBES.map(p => p.name)).size, CUE_PROBES.length);
-});
+}));
 
 // A hosted feedback (offline render) schedules on the host clock, never on the context clock, and never touches the
 // host's lifecycle: the harness owns rendering.

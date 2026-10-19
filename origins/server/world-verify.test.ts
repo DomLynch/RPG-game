@@ -6,6 +6,9 @@ import type { SpecialsCut } from '../../src/core/server.ts';
 // The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
 const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
+import { Worker } from 'node:worker_threads';
+import { sandboxFor } from '../../src/fight/sandbox-era.ts';
+import { RECORD_VERSION } from '../../src/fight/record.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, flipReadiness, strictRevert, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, dropOf, type Spawn } from './world-spawns.ts';
@@ -223,7 +226,11 @@ test('the pool: one job at a time, a full queue answers busy at once, a timeout 
 });
 
 test('the pool: a real worker thread verifies an honest record and refuses junk', async () => {
-  const { text } = await honest(), pool = createVerifyPool({ timeoutMs: 20_000 });
+  // The record was fought under the era this thread is forced to (tests/lib/era-off.ts via tests/origins-world-verify.test.ts) but stamped with the current version, so a fresh worker thread (era ON by default) would replay
+  // a different fight (RV79 rows: bands, stances 2x). The worker is started with the same preload when the force is on.
+  const { text } = await honest(), forcedOff = !sandboxFor(RECORD_VERSION);
+  const make = (): never => new Worker(new URL('./world-verify-worker.ts', import.meta.url), { execArgv: ['--import', new URL('../../tests/lib/era-off.ts', import.meta.url).href] }) as never;
+  const pool = createVerifyPool({ timeoutMs: 20_000, ...(forcedOff ? { make } : {}) });
   try {
     const good = await pool.verify({ text, spawn: { spec: wolf.spec }, kind: 'wolf' });
     assert.ok(good.ok, JSON.stringify(good));

@@ -14,6 +14,7 @@ import { RECORD_VERSION } from '../src/fight/record.ts';
 import { spellRefusal } from '../origins/server/spell-gate.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
+import { forceSandbox, ROWS79_ON, sandboxFor, SANDBOX_ON, setRows79, setSandbox } from '../src/fight/sandbox-era.ts';
 
 export const FIXTURE = new URL('../tests/fixtures/era-records.json', import.meta.url);
 const BASE = { build: 'era', opponent: 'veteran', weapon: 'longsword', level: 6, seed: 731 };
@@ -23,9 +24,17 @@ const BASE = { build: 'era', opponent: 'veteran', weapon: 'longsword', level: 6,
 const SERVER = { sheet: { sheet: { health: 70, armour: 30 } } };   // the stored views a recipe's record is checked against; absent = the server holds no build and no grimoire
 const ACCOUNT = 'era-fixtures';
 const loaderOf = (server) => ({ held: async () => server?.held ?? { grimoire: {}, xp: {} }, build: async () => server?.build ?? null });
+// A STORED record replays under the era its own version names (v31..v77 old rules, v78 the sandbox, v79 the RV79 rows), exactly as the paying sweeps do. The unit suite forces the era OFF for everything it
+// FIGHTS (tests/lib/era-off.ts), which would replay a v78/v79 record under the wrong rules, so the force is lifted for the replay and put back after (RV79; a script run has no force and nothing to restore).
+const replayByVersion = (run) => {
+  const forced = !sandboxFor(RECORD_VERSION), sandbox = SANDBOX_ON, rows79 = ROWS79_ON;
+  if (forced) { forceSandbox(undefined); setSandbox(true); setRows79(true); }
+  try { return run(); } finally { if (forced) { forceSandbox(false); setSandbox(sandbox); setRows79(rows79); } }
+};
+export const ERA_ONLY = new Set(['meleeSpecial']);   // recipes whose fight differs from the plain one only in the live era: with the era forced off they stamp what plain stamps, so they are not part of the distinct-stamps check
 const replayChecked = async (record, server) => {   // what a sweep would conclude: the sheet against the stored one, the spell through the gate, then the replay with its landed hits
   const gate = await spellRefusal(record, ACCOUNT, loaderOf(server));
-  const hits = [0, 0], v = verifyRecord(record, (p) => { for (const e of p.events) if (e.type === 'Hit') hits[e.actor]++; }, { sheet: server?.sheet });
+  const hits = [0, 0], v = replayByVersion(() => verifyRecord(record, (p) => { for (const e of p.events) if (e.type === 'Hit') hits[e.actor]++; }, { sheet: server?.sheet }));
   return { v, hits, gate };
 };
 // Each recipe is one live-era feature on the base fight; the record's stamp comes from createRecorder, never from here.
@@ -38,10 +47,11 @@ export const RECIPES = {
   sheet: { sheet: { health: 70, armour: 30 } },
   spell: { specials: true, spell: { id: 'alvis', skill: 5 } },
   skill2: { skill2: 'stomp' },
+  meleeSpecial: { specials: true, skill: 'lunge' },   // RV79 (Auditor, BULK-CS note 1): a fight that PRESSES a melee special, so the era fixture fires the sandbox's windup / reach / react rows (the plain recipe never does)
   'cave-troll': { opponent: 'cave-troll', level: 3 },
 };
 const MAX_TICKS = 6000;
-const script = (t) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });
+const script = (t, name) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: name === 'meleeSpecial' && t % 90 === 45 ? 'skill' : t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });   // the melee-special recipe presses its pick (slot a) every 90 ticks; every other recipe is the script it always was
 
 const live = (opponent) => { setPlayScale(playScaleFor(opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); };   // the recorder stamps the LIVE era (as record-replay-check --write does)
 const metaOf = (name) => ({ ...BASE, ...RECIPES[name] });
@@ -50,14 +60,14 @@ const outcomeOf = (finish) => (!finish ? 'abandoned' : finish.draw ? 'draw' : fi
 // holds on every runner, and one that tells apart fights that end on the same tick (a feature that changes the exchange but not the finish).
 
 /** The version the live recorder stamps on this recipe's fight today. */
-export function currentStamp(name) { live(metaOf(name).opponent); const rec = createRecorder(metaOf(name)); rec.push(script(0)); return rec.finish('abandoned').v; }
+export function currentStamp(name) { live(metaOf(name).opponent); const rec = createRecorder(metaOf(name)); rec.push(script(0, name)); return rec.finish('abandoned').v; }
 
 /** Fight the recipe headless and return the finished record (cut at its finish) with what it replays to. */
 export async function fightRecipe(name) {
   const meta = metaOf(name), server = SERVER[name];
   live(meta.opponent);
   const rec = createRecorder(meta);
-  for (let t = 0; t < MAX_TICKS; t++) rec.push(script(t));
+  for (let t = 0; t < MAX_TICKS; t++) rec.push(script(t, name));
   const full = rec.finish('abandoned');
   let end = null;
   const probe = verifyRecord(full, (p) => { if (p.finish && end === null) end = { tick: p.duel.tick, outcome: outcomeOf(p.finish) }; }, { sheet: server?.sheet });
@@ -89,6 +99,7 @@ export async function checkEraFixtures(fixture = load()) {
     results.push({ name: e.name, v: e.expect.v, ticks: e.expect.ticks, outcome: e.expect.outcome, hits });
   }
   for (const name of Object.keys(RECIPES)) {
+    if (ERA_ONLY.has(name) && !sandboxFor(RECORD_VERSION)) continue;   // forced off (the unit suite): this recipe stamps what plain stamps; a live-era run (the script, the release row) checks it
     const v = currentStamp(name);
     if (!fixture.records.some((e) => e.name === name && e.expect.v === v)) problems.push(`${name}: the live recorder stamps v${v} and no stored record has it; run node scripts/record-era-fixtures.mjs --append and commit the entry`);
   }
