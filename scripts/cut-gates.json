@@ -11,6 +11,12 @@
       "blob": "6e8ea0fb9eef82df1a6f0442372ec8e94268d06e",
       "pr": 2929,
       "note": "Lead OK 2026-10-16: GAME_RE adds scripts/lib/json-dup-keys, scripts/lib/origins-preview-harness and scripts/origins-remote-heroes-check; one optional browser matrix row remote-heroes. No new actions, secrets, permissions or triggers."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "e1e3ccac519ce7b61e1b3a81eefe324ebe321211",
+      "pr": 3285,
+      "note": "Lead OK 2026-10-19: one optional browser matrix row remote-heroes-soft (kitsoft '1' → KITWARM_SOFT env). No new actions, secrets, permissions or triggers."
     }
   ],
   "noPrExempt": [
