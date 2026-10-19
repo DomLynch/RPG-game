@@ -5,7 +5,8 @@
 -- on the creature was answered 'dead' and paid nothing. Credit is now split by the damage each contributor's REPLAYED record shows (origins/server/damage-share.ts). This migration gives the writer:
 --   origins_spawn_check(account, token, min_ms, join_s)   READ-ONLY: the same refusals the kill makes (dead, too-fast, caps) decided BEFORE any replay is queued (winner-first: a report the database
 --                                                         would refuse never costs a replay), and whether this report is the 'first' kill of the creature or a 'join' to a kill made while this
---                                                         token was open. A join needs: the creature is dead at THIS token's generation, it died at or after the token was issued, it is still
+--                                                         token was open. A join needs: the creature was killed by SOMEONE ELSE (an account never joins its own kill; origins_spawn_engage
+--                                                         already keeps one open token per account per creature, so this is a guard, not a repair), the creature is dead at THIS token's generation, it died at or after the token was issued, it is still
 --                                                         inside its respawn window, and at most join_s seconds have passed (the row worldShare.joinWindowS).
 --   origins_spawn_damage_read(instance, generation)       the damage ledger of one incarnation of a creature (token, damage), so a later report knows what the earlier ones dealt.
 --   origins_spawn_kill_v2(... , p_damage, p_join_s)       origins_spawn_kill with the join: a 'first' report kills the creature as before; a 'join' report pays its own (already share-scaled) batch
@@ -36,7 +37,7 @@ begin
   if not found then raise exception 'engage token unknown, used or expired' using errcode = 'O0009'; end if;
   select * into s from public.origins_spawns where instance = e.instance;
   if s.alive and s.generation = e.generation then mode := 'first';
-  elsif not s.alive and s.generation = e.generation and s.killed_at >= e.issued_at and s.respawn_at > now() and now() - s.killed_at <= make_interval(secs => greatest(p_join_s, 0)) then mode := 'join';
+  elsif not s.alive and s.generation = e.generation and s.killed_by is distinct from p_account and s.killed_at >= e.issued_at and s.respawn_at > now() and now() - s.killed_at <= make_interval(secs => greatest(p_join_s, 0)) then mode := 'join';
   else return jsonb_build_object('refused', 'dead', 'respawnAt', s.respawn_at); end if;
   if extract(epoch from (now() - e.issued_at)) * 1000 < greatest(p_min_ms, 0) then return jsonb_build_object('refused', 'too-fast'); end if;
   if (select count(*) from public.origins_spawn_engages where account = p_account and result = 'killed' and used_at > now() - interval '1 minute') >= cfg.kills_per_min
@@ -63,7 +64,7 @@ begin
   if not found then raise exception 'engage token unknown, used or expired' using errcode = 'O0009'; end if;
   select * into s from public.origins_spawns where instance = e.instance for update;
   if s.alive and s.generation = e.generation then mode := 'first';
-  elsif not s.alive and s.generation = e.generation and s.killed_at >= e.issued_at and s.respawn_at > now() and now() - s.killed_at <= make_interval(secs => greatest(p_join_s, 0)) then mode := 'join';
+  elsif not s.alive and s.generation = e.generation and s.killed_by is distinct from p_account and s.killed_at >= e.issued_at and s.respawn_at > now() and now() - s.killed_at <= make_interval(secs => greatest(p_join_s, 0)) then mode := 'join';
   else
     update public.origins_spawn_engages set used_at = now(), result = 'dead' where token = p_token;
     return jsonb_build_object('refused', 'dead', 'respawnAt', s.respawn_at);

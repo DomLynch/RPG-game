@@ -97,6 +97,12 @@ try {
   eq(await val(V, DAMAGE('wolves-1', 0)), [{ token: tok(1), damage: 42.5, joined: false }, { token: tok(2), damage: 100, joined: true }], 'damage_read: both contributions, oldest first');
   eq(await val(V, DAMAGE('wolves-1', 1)), [], 'damage_read: another incarnation is empty');
   eq(await code(V, KILL2(B, tok(2), EV(tok(2), B, pcB), 5)), 'O0009', 'v2: a second report on a used token is refused');
+  // an account never joins its OWN kill: engage keeps one open token per account per creature, so a second token is forged here to prove the guard (origins_spawn_engages_open is a plain index)
+  eq(psql(`select count(*) from public.origins_spawn_engages where account = '${A}' and instance = 'wolves-1' and used_at is null`), '0', 'engage: after its kill the account holds no open token on that incarnation');
+  psql(`insert into public.origins_spawn_engages (token, account, character, instance, generation, issued_at, expires_at) values ('${tok(30)}', '${A}', '${pcA}', 'wolves-1', 0, now() - interval '60 seconds', now() + interval '1 minute')`);
+  eq((await val(V, CHECK(A, tok(30)))).refused, 'dead', 'check: the account that killed the creature cannot join its own kill, even with a second open token');
+  eq((await val(V, KILL2(A, tok(30), EV(tok(30), A, pcA), 10))).refused, 'dead', 'v2: ... and the kill refuses it too');
+  eq([events(tok(30)), ledger(tok(30))], ['0', 'none'], 'v2: ... writing no event and no ledger row');
 
   // ---- wolves-2: the refusals of a join ---------------------------------------------------------------------------------------------------------
   await val(V, ENGAGE(B, pcB, tok(3), 'wolves-2')); await val(V, ENGAGE(A, pcA, tok(4), 'wolves-2'));
