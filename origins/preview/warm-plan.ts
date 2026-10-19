@@ -26,17 +26,34 @@ export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Cam
 }
 
 /** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
-export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { if (!gapsMs.length) return false; const sorted = [...gapsMs].sort((a, b) => a - b); return sorted[sorted.length >> 1]! > limitMs; };
+export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { const m = medianGap(gapsMs); return m !== undefined && m > limitMs; };
+/** The median of the sampled frame gaps (ms), the figure the verdict compares to the limit; undefined for an empty sample. */
+export const medianGap = (gapsMs: readonly number[]): number | undefined => (gapsMs.length ? [...gapsMs].sort((a, b) => a - b)[gapsMs.length >> 1] : undefined);
+/** The `?probe=1` readout (Strategy 2026-10-19: a real-phone number for the 100 ms limit): the measured median against the limit, the verdict it gives, and the release the verdict is keyed to. Pure text, so the page only draws it. */
+export const probeReadout = (medianMs: number | undefined, limitMs: number, release: string | undefined): string => (
+  `probe ${medianMs === undefined ? 'no sample' : `${Math.round(medianMs)} ms median`} (limit ${limitMs} ms): ${medianMs !== undefined && medianMs > limitMs ? 'slow' : 'ok'} | release ${release ? release.slice(0, 9) : 'unread'}`);
 
 /** The slow-device verdict is STICKY for the device: one measure on one load gave a different answer from the next load of the same machine, so a phone near the threshold got a different game each load. A stored record is `<1|0>@<epoch ms>`;
  *  it is trusted for `ttlMs` (a row: slowVerdictMs) and then re-measured, so a device that changed (a new browser, a cooler phone) is not stuck for ever. `undefined` = no usable record (absent, malformed, from the future or past its ttl): measure. Pure. */
-export const slowVerdict = (stored: string | null | undefined, nowMs: number, ttlMs: number): boolean | undefined => {
-  const m = /^([01])@(\d+)$/.exec(stored ?? '');
+export const slowVerdict = (stored: string | null | undefined, nowMs: number, ttlMs: number, release?: string): boolean | undefined => {
+  const m = /^([01])@([0-9a-f]{40}|\d{1,15})$/.exec(stored ?? '');
   if (!m) return undefined;
+  if (release !== undefined) return m[2] === release ? m[1] === '1' : undefined;   // keyed to the RELEASE (Strategy 2026-10-19): a new live sha re-measures, so a phone that measured slow once is not stuck without armoured remote heroes
+  if (m[2]!.length === 40) return undefined;   // a release record and the release cannot be read now (offline, dev server): its age is unknown, measure
   const at = Number(m[2]);
-  return at <= nowMs && nowMs - at < ttlMs ? m[1] === '1' : undefined;
+  return at <= nowMs && nowMs - at < ttlMs ? m[1] === '1' : undefined;   // release unreadable: the time limit, so nothing sticks for ever
 };
-export const slowVerdictRecord = (slow: boolean, nowMs: number): string => `${slow ? 1 : 0}@${Math.round(nowMs)}`;
+/** `release` = the id the verdict is keyed to; absent (unreadable) = the epoch ms, the time limit applies. */
+export const slowVerdictRecord = (slow: boolean, nowMs: number, release?: string): string => `${slow ? 1 : 0}@${release ?? Math.round(nowMs)}`;
+/** The page's release id from the same-origin /release.json ({"revision":"<40 hex>"}, written by deploy.sh), or undefined when it cannot be read in `timeoutMs` (a dev server answers its index page, an offline phone nothing). Pure but for the injected fetch. */
+export async function readReleaseId(fetchJson: (signal: AbortSignal) => Promise<unknown>, timeoutMs: number): Promise<string | undefined> {
+  const ctl = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((r) => { timer = setTimeout(() => { ctl.abort(); r(null); }, timeoutMs); });   // raced, so a fetch that ignores the abort cannot hold the probe
+  try {
+    const rev = (await Promise.race([fetchJson(ctl.signal), late]) as { revision?: unknown } | null)?.revision;
+    return typeof rev === 'string' && /^[0-9a-f]{40}$/.test(rev) ? rev : undefined;
+  } catch { return undefined; } finally { clearTimeout(timer); }
+}
 /** Keep (store) a measured verdict only when the page was visible for the WHOLE probe: a hidden or backgrounded tab throttles or suspends rAF, measures as slow and would stick for the ttl. `hiddenSeen` = a visibilitychange to hidden fired during the probe. The verdict still serves this load either way. Pure. */
 export const keepVerdict = (visibleAtStart: boolean, visibleAtEnd: boolean, hiddenSeen: boolean): boolean => visibleAtStart && visibleAtEnd && !hiddenSeen;
 

@@ -14,6 +14,7 @@ import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { joinBot } from '../origins/presence/test-client.ts';
 import { serveOriginsPreview, AUTH_KEY } from './lib/origins-preview-harness.mjs';
 
+const SOFT = process.env.KITWARM_SOFT === '1';   // the forced leg (?kitwarm=soft): software GL links every kit, so the warm must run and warm all of warm-kits.json
 const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview');
 if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
 const acct = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -26,12 +27,13 @@ const until = async (ok, ms = 20000) => { for (let t = 0; t < ms; t += 100) { if
 const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LIMITS, ipSockets: 64, ipJoinsPerMinute: 600 } });   // every client is 127.0.0.1: the per-address caps (a production defence) would refuse the ninth socket
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch({ args: process.env.GPU_REAL === '1' ? ['--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });   // GPU_REAL=1: the machine's own GPU (the Mac, a T4 job), not software GL
 const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(170000);
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
+  const warnings = []; page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text().slice(0, 200)); });
   const port = presence.port();
   await page.addInitScript(([key, exp, p]) => {
     localStorage.setItem(key, JSON.stringify({ access_token: 'stub.token.value', expires_at: exp }));
@@ -44,17 +46,23 @@ try {
     const ok = (result) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
     return op === 'open' ? ok({ characters: [{ id: 'pc:still', name: 'Alice' }] }) : route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'stub' }) });
   });
-  await page.goto(`${origin}/preview/origins/?region=1&zone=1`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=1${SOFT ? '&kitwarm=soft' : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 170000 });
   assert.ok(await page.waitForFunction(() => window.originsPreview.remote() !== null, null, { timeout: 120000 }).then(() => true).catch(() => false), 'the remote view never came up (the hero rig did not load)');
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });   // one atomic read: the linked programs, and which scene objects use each
-  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMs').value;   // the warm-up skips itself on a slow device (software GL: main.ts samples the frame gaps first), so this wait is short there; on a fast one the row bounds it
+  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === (SOFT ? 'kitWarmMsSoft' : 'kitWarmMs')).value;   // the forced leg (?kitwarm=soft) runs under the page's longer kitWarmMsSoft cap, so the row waits for THAT one (software GL links a kit in ~40 s; the 60 s cap stopped the first soft run's wait at 120 s);   // the warm-up skips itself on a slow device (software GL: main.ts samples the frame gaps first), so this wait is short there; on a fast one the row bounds it
   // a main-thread stall probe from [zone ready] on (a 50 ms timer inside the page; its worst lateness is the longest stall): the kit warm-up's sync links showed as 1-2 s gaps on a slow runner (HO). `gapMs` below is read at the end of the warm-up wait and at the end of the run.
   await page.evaluate(() => { const g = (window.__gap = { max: 0, last: performance.now() }); setInterval(() => { const n = performance.now(); g.max = Math.max(g.max, n - g.last - 50); g.last = n; }, 50); });
   // the other-players' gear warm-up links its programs after [zone ready] (#2938): the "before" read waits for it, or its programs would count as added by the bots
   assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 60000 }).then(() => true).catch(() => false), 'the remote kits warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');   // bounded by the kitWarmMs row (it stops starting kits then) plus the one in flight
   receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
+  // The warm either ran or was SKIPPED on purpose (a slow device); never a silent third thing. Skipped: the page logged why, none warmed, not failed. Ran: not failed, and every kit in warm-kits.json warmed.
+  const kitsTotal = JSON.parse(fs.readFileSync('origins/preview/warm-kits.json', 'utf8')).warmKits.length, k = receipt.remoteKitsWarm;
+  receipt.kitWarm = k.skipped ? 'skipped' : 'ran'; receipt.kitsTotal = kitsTotal; receipt.warnings = warnings.slice(0, 10);   // the skip warning carries the probe's measured median
+  if (k.skipped) assert.ok(k.failed === false && k.warmed === 0 && warnings.some((w) => /remote-kit warm-up skipped/.test(w)), `a skipped kit warm must be failed:false, warmed:0 and say why in the console: ${JSON.stringify({ k, warnings })}`);
+  else assert.ok(k.failed === false && k.warmed > 0 && k.warmed === kitsTotal, `the kit warm ran and did not warm every kit: ${JSON.stringify(k)} of ${kitsTotal}`);
+  if (SOFT) assert.ok(!k.skipped && k.warmed === kitsTotal, `?kitwarm=soft must force the warm: ${JSON.stringify(k)}`);
   receipt.gearWarm = await page.evaluate(() => (window.originsPreview.gearWarm ? window.originsPreview.gearWarm() : null));   // the gear sheet's mannequin warm (skipped on this runner's slow-device probe, or bounded: it must never be what holds the flag above)
   receipt.maxGapMsDuringWarm = Math.round(await page.evaluate(() => window.__gap.max));
   const before = await snap(); receipt.programsBeforeBots = before.names.length;
@@ -124,7 +132,7 @@ try {
 } catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 1800); console.error('FAIL', receipt.failure); }
 finally {
   for (const b of bots) try { b.close(); } catch { /* already closed */ }
-  fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync('artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
+  fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync(SOFT ? 'artifacts/origins-remote-heroes-soft.json' : 'artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
   console.log(JSON.stringify(receipt));
   await browser.close(); await close(); await presence.close();
   process.exit(receipt.pass ? 0 : 1);

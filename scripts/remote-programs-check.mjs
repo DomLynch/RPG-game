@@ -49,6 +49,6 @@ try {
   const twice = Object.entries(glbRequests).filter(([, n]) => n > 1).map(([u]) => u.split('/').pop());
   console.log('glbRequests:', Object.keys(glbRequests).length, 'files, fetched more than once:', JSON.stringify(twice));
   if (process.env.GATE && twice.length) { console.log(`GATE FAIL: ${twice.join(', ')} fetched more than once`); process.exitCode = 1; }
-  if (process.env.GATE && (!kitsWarm || kitsWarm.failed)) { console.log(`GATE FAIL: the remote kits never finished warming (${JSON.stringify(kitsWarm)})`); process.exitCode = 1; }
+  if (process.env.GATE && (!kitsWarm || kitsWarm.failed || kitsWarm.skipped)) { console.log(`GATE FAIL: the remote kits never finished warming (${JSON.stringify(kitsWarm)})`); process.exitCode = 1; }
   if (process.env.GATE && receipt.totalNew > 0) { console.log(`GATE FAIL: ${receipt.totalNew} programs link at a remote's first sight`); process.exitCode = 1; }
 } finally { await browser.close(); server.close(); }
