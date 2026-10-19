@@ -46,6 +46,9 @@
   "THIN": 1,
   "LONG": 1
  },
+ "src/fight/match.ts": {
+  "CLASS_B_FROM": 1
+ },
  "src/fight/open-fight.ts": {
   "TICK": 1
  },
