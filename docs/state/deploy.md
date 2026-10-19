@@ -1,5 +1,7 @@
 # Deploy lane — state
 
+**OWED (Lead, 2026-10-19): "Mac pre-flight" PR.** Run a candidate's Mac-only rows (the browser gates, audio rows 4 and 22, row 9 and the rest of the Mac group) on the candidate head BEFORE the candidate PASS (2-3 min), so a red is caught before merge. On 10-19 two candidates (JK #3269, JK2 #3272) stranded trunk ahead of live because those rows only ran at publish time. Scripts and tests only; rides a candidate first, Auditor reads.
+
 ## 2026-10-18 19:17 (+04) — STAND DOWN (Dom's word via the PicoClaw dev: tokens out). READ FIRST, then the 16:07 entry below
 
 **Now (first morning step: confirm live == trunk, then this list from where it stopped).** LIVE = JG `4ae50340a` (#3253). Nothing of mine is mid-flight and nothing is armed in my session; the train is a launchd job and publishes by itself.
