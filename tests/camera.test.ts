@@ -7,6 +7,8 @@ import { createHash } from 'node:crypto';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { initialState, RADIUS, TARGET } from '../src/fight/sim.ts';
 
+setFightBack(1);   // the pose pins below are the lock camera as it was (Dom 2026-10-05); the live default row fightBackDefault is 1.3 (RV80 follow-up), so these tests state their scale
+
 test('all edge angles and orbit positions keep camera inside scenery', () => {
   for (let angle = 0; angle < 2 * Math.PI; angle += 0.1) {
     for (let yaw = 0; yaw < 2 * Math.PI; yaw += 0.1) {

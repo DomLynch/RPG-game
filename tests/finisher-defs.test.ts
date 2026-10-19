@@ -13,7 +13,9 @@ import type { WeaponId } from '../src/fight/moves.ts';
 import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { BoxGeometry, Group, Mesh, Object3D, PerspectiveCamera, Texture } from 'three';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
-import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
+import { createCameraRig, finisherSidePose, setFightBack } from '../src/fight/camera.ts';
+
+setFightBack(1);   // the rig digest below covers plain lock frames (finisher null) and the opening of a finish: the pins are the camera at fight-back 1; the live row fightBackDefault is 1.3 and a finish eases it out (camera.ts), so a settled kill frames as it did
 import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate, PICKER_OPTIONS, PLAIN_DEATH } from '../src/fight/finisher-look.ts';
 import { hamstrungPick, poseOf as hamstrungPoseOf, resolveHamstrung } from '../src/fight/hamstrung.ts';
 import { executionPick, poseOf as executionPoseOf, resolveExecution } from '../src/fight/execution.ts';
