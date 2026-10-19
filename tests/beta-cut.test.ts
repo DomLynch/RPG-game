@@ -46,7 +46,7 @@ test('beta cut: spells are OFF (spellsOff), the 20-spell list stays in the row i
 });
 
 test('beta cut: the two SPECIAL slots take the six signed-off class skills, and nothing else', () => {
-  assert.deepEqual([...BETA_SPECIAL_PICK], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp']);
+  assert.deepEqual([...BETA_SPECIAL_PICK], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp']);   // RV80: Whirlwind joins the pick (SPECIAL 2's alternative)
   assert.ok(BETA_SPECIAL_PICK.every((id) => inBetaSpecials(id) && BETA_SPECIAL_ROLES[id]), 'each pick is in the cut and has a role line');
   assert.ok(!inBetaSpecials('witchfire') && !inBetaSpecials('hewer'), 'hewer is the alternate, not on the list');
 });

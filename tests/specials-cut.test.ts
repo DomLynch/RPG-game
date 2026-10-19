@@ -14,7 +14,7 @@ import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { defaultZoneSpawns, type Spawn } from '../origins/server/world-spawns.ts';
 
 test('the default cut is the betaCut row: spells off, the six picks', () => {
-  assert.equal(BETA_SPECIALS_CUT.spellsOff, true); assert.deepEqual([...BETA_SPECIALS_CUT.pick], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp']);
+  assert.equal(BETA_SPECIALS_CUT.spellsOff, true); assert.deepEqual([...BETA_SPECIALS_CUT.pick], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp']);   // RV80: the sandbox's Whirlwind (reaping) joins the pick as SPECIAL 2's alternative
   assert.equal(viaAwards, specialsRefusal, 'awards.ts re-exports the one judge');
 });
 
