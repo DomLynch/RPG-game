@@ -36,10 +36,14 @@ const rows = () => ({
   engages: psql(`select count(*) || ':' || md5(coalesce(string_agg((to_jsonb(t) - 'layer')::text, '|' order by token), '')) from public.origins_spawn_engages t`),
   ledger: psql(`select count(*) || ':' || md5(coalesce(string_agg(to_jsonb(t)::text, '|' order by event_id), '')) from public.origins_beta_ledger t`),
 });
-const oldAnswers = () => ({   // what a writer that does not know layers reads (the clock `now` is the one field that moves, so it is dropped)
-  state: psql(`select (public.origins_spawn_state(array['wolves-1','wolves-2','wolves-3','wolves-4','wolves-5','z2:wolves-1','opener-ash-1']) - 'now')::text`),
-  engageGet: psql(`select coalesce(public.origins_spawn_engage_get('${A}', '${T(1)}'), 'null'::jsonb)::text`),
+const oldAnswers = () => ({   // what a writer that does not know layers reads, for EVERY spawn and every engage in the tables (the clock `now` is the one field that moves, so it is dropped)
+  state: psql(`select (public.origins_spawn_state((select coalesce(array_agg(instance order by instance), '{}') from public.origins_spawns)) - 'now')::text`),
+  engageGet: psql(`select coalesce(jsonb_agg(coalesce(public.origins_spawn_engage_get(account, token), 'null'::jsonb) order by token), '[]'::jsonb)::text from public.origins_spawn_engages`),
 });
+// PROD_ROWS=<dir>: the rows are LOADED from a read-only export of prod's four tables (<table>.csv + <table>.cols, one csv per table, made with psql \copy) instead of the synthetic seed; the cluster still comes from this repo's migrations.
+const REAL = process.env.PROD_ROWS, TABLES = ['origins_spawns', 'origins_spawn_engages', 'origins_spawn_damage', 'origins_beta_ledger'];
+const csvRows = t => readFileSync(join(REAL, `${t}.csv`), 'utf8').split('\n').filter(Boolean).length - 1;
+const loadReal = () => { for (const t of TABLES) psql(`\\copy public.${t}(${readFileSync(join(REAL, `${t}.cols`), 'utf8').trim()}) from '${join(REAL, `${t}.csv`)}' with (format csv, header)`); };
 const timed = sql => { const t0 = process.hrtime.bigint(); psql(sql); return Number((process.hrtime.bigint() - t0) / 1_000_000n); };
 
 let started = false;
@@ -62,7 +66,7 @@ try {
   const pcs = Object.fromEntries([[A, 'Aria'], [B, 'Bran'], [C, 'Cara']].map(([a, n]) => [a, psql(`set role frankendom_origins; select public.origins_create_character('${a}', '${n}');`).split('\n').pop()]));
 
   // seed: spawn rows in every state (Zone 1 ids, a Zone 2 id, an opener), engages open / killed / dead / expired, ledger rows; no damage rows (prod has none yet)
-  psql(`insert into public.origins_spawns (instance, kind, generation, alive, respawn_at, killed_by, killed_at) values
+  if (REAL) loadReal(); else psql(`insert into public.origins_spawns (instance, kind, generation, alive, respawn_at, killed_by, killed_at) values
       ('wolves-1', 'character:ash-wolf', 0, true, null, null, null),
       ('wolves-2', 'character:ash-wolf', 3, false, now() + interval '90 seconds', '${A}', now() - interval '10 seconds'),
       ('wolves-3', 'character:ash-wolf', 1, false, now() - interval '5 minutes', '${B}', now() - interval '6 minutes'),
@@ -84,23 +88,28 @@ try {
       ('enc:${T(5)}', '${C}', '${pcs[C]}', 'wolves-5', '{}', 20, 4, 'checked');`);
 
   const before = { fp: fingerprint(), rows: rows(), old: oldAnswers() };
-  eq([before.rows.spawns.split(':')[0], before.rows.engages.split(':')[0], before.rows.ledger.split(':')[0]], ['7', '7', '3'], 'seed: the rows are in');
+  const N = REAL ? { spawns: csvRows('origins_spawns'), engages: csvRows('origins_spawn_engages'), damage: csvRows('origins_spawn_damage'), ledger: csvRows('origins_beta_ledger') } : { spawns: 7, engages: 7, damage: 0, ledger: 3 };
+  eq([before.rows.spawns.split(':')[0], before.rows.engages.split(':')[0], before.rows.ledger.split(':')[0], psql(`select count(*) from public.origins_spawn_damage`)], [N.spawns, N.engages, N.ledger, N.damage].map(String), REAL ? 'real rows: loaded from the export, the counts are the export\'s' : 'seed: the rows are in');
+  if (REAL) console.log(`origins-spawn-layers-rehearsal: REAL ROWS loaded: ${N.spawns} spawns, ${N.engages} engages, ${N.damage} damage, ${N.ledger} ledger\npre-migration functions (name:md5) for comparison with prod:\n${before.fp.functions.split('\n').map(l => l.split(':').slice(0, 2).join(':')).join('\n')}`);
   eq(before.fp.constraints.includes('origins_spawns_pkey:PRIMARY KEY (instance)') && before.fp.constraints.includes('FOREIGN KEY (instance) REFERENCES origins_spawns(instance)'), true, 'before: the single-column key and the foreign key (the names the migration drops)');
 
   // ---- apply -----------------------------------------------------------------------------------------------------------------------------------
   const applyMs = timed(readFileSync(join(dir, LAYERS), 'utf8'));
   const after = { fp: fingerprint(), rows: rows(), old: oldAnswers() };
   eq(after.rows, before.rows, 'apply: every row of spawns, engages and the ledger is unchanged (but for the new layer column)');
-  eq(psql(`select count(*) from public.origins_spawns where layer = 1`) + '/' + psql(`select count(*) from public.origins_spawn_engages where layer = 1`), '7/7', 'apply: every existing row is layer 1');
+  eq(psql(`select count(*) from public.origins_spawns where layer = 1`) + '/' + psql(`select count(*) from public.origins_spawn_engages where layer = 1`), `${N.spawns}/${N.engages}`, 'apply: every existing row is layer 1');
   eq(after.fp.constraints.includes('PRIMARY KEY (layer, instance)') && !after.fp.constraints.includes('FOREIGN KEY (instance)'), true, 'apply: the key is (layer, instance) and the foreign key is gone');
   eq(after.old.state, before.old.state, 'apply: the OLD state function answers exactly what it answered before');
-  eq(JSON.parse(after.old.engageGet).layer, 1, 'apply: engage_get now carries the layer (1)');
-  const { layer: _l, ...engageGetNow } = JSON.parse(after.old.engageGet);
-  eq(engageGetNow, JSON.parse(before.old.engageGet), 'apply: ... and nothing else of its answer changed');
+  const gets = JSON.parse(after.old.engageGet);
+  eq(gets.filter(g => g !== null).every(g => g.layer === 1), true, 'apply: engage_get now carries the layer (1) on every open token');
+  eq(gets.map(g => { if (g === null) return null; const { layer: _l, ...rest } = g; return rest; }), JSON.parse(before.old.engageGet), `apply: ... and nothing else of its answer changed (${gets.length} engages read, ${gets.filter(g => g !== null).length} open)`);
   const asWriter = sql => JSON.parse(psql(`begin; set role frankendom_verifier; select (${sql})::text; rollback;`).split('\n').find(l => l.startsWith('{')));   // run in a transaction that is rolled back: the probe leaves no row behind
-  eq(asWriter(`public.origins_spawn_check('${A}', '${T(1)}', 0, 120)`).mode, 'first', 'apply: the OLD check still reads a seeded open token (layer 1)');
-  eq(asWriter(`public.origins_spawn_kill('${A}', '${T(1)}', 0, 75, '[{"op":"event","event_id":"enc:${T(1)}","kind":"mob","account":"${A}","character":"${pcs[A]}","payload":{"result":"won","world":true,"beta":true}}]'::jsonb, '{"reach":"unchecked"}'::jsonb)`).result, 'killed', 'apply: the OLD kill function pays a seeded open token (layer 1) after the migration');
-  eq(asWriter(`public.origins_spawn_engage_layer(2, '${B}', '${pcs[B]}', '${T(8)}', 'wolves-1', 'character:ash-wolf')`).layer, 2, 'apply: a layer-2 engage on a seeded id opens its own row');
+  if (!REAL) {   // the probes name the synthetic seed's tokens; the real rows' tokens belong to real accounts
+    eq(asWriter(`public.origins_spawn_check('${A}', '${T(1)}', 0, 120)`).mode, 'first', 'apply: the OLD check still reads a seeded open token (layer 1)');
+    eq(asWriter(`public.origins_spawn_kill('${A}', '${T(1)}', 0, 75, '[{"op":"event","event_id":"enc:${T(1)}","kind":"mob","account":"${A}","character":"${pcs[A]}","payload":{"result":"won","world":true,"beta":true}}]'::jsonb, '{"reach":"unchecked"}'::jsonb)`).result, 'killed', 'apply: the OLD kill function pays a seeded open token (layer 1) after the migration');
+  }
+  const probeInstance = psql(`select instance from public.origins_spawns order by instance limit 1`);
+  eq(asWriter(`public.origins_spawn_engage_layer(2, '${B}', '${pcs[B]}', '${T(8)}', '${probeInstance}', 'character:ash-wolf')`).layer, 2, `apply: a layer-2 engage on a ${REAL ? 'real' : 'seeded'} id (${probeInstance}) opens its own row`);
   eq(rows(), before.rows, 'apply: the probes were rolled back, the rows are still the seeded ones');
 
   // ---- rollback --------------------------------------------------------------------------------------------------------------------------------
