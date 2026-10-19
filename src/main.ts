@@ -38,8 +38,7 @@ import { beatLegend, describe, initialPractice, type Practice } from './fight/co
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
-import { loadStancePref, mountStanceMenu, saveStancePref, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
-import { stancePickRow } from './fight/stance-picker-rows.ts';
+import { loadStancePref, mountStanceMenu, saveStancePref, stanceColour, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
@@ -861,8 +860,8 @@ function showStances() {
   const mine = match.stancePref, locked = stanceLocked(match.practice.phase, !!match.practice.finish), key = `${mine}/${locked}`;
   if (key === stanceShown) return;
   stanceShown = key; stanceMenu.sync(mine, locked);
-  const card = element('journal-stance'), row = mine ? stancePickRow(mine) : null;   // the character card names the stance in its colour
-  card.textContent = row ? `Stance: ${stanceLabel(mine!)}` : ''; card.hidden = !row; if (row) card.style.color = row.colour;
+  const card = element('journal-stance');   // the character card names the stance in its colour
+  card.textContent = mine ? `Stance: ${stanceLabel(mine)}` : ''; card.hidden = !mine; if (mine) card.style.color = stanceColour(mine);
 }
 function began() {
   nameOpponent();
