@@ -41,7 +41,9 @@ skip() { if [ -n "$dry" ]; then log "DRY RUN: $*; going on"; else log "$*"; exit
 # background (one run at a time, its own checkout MAC_ROWS_DIR, the train's, checked above; under deploy.sh's Mac-rows lock); deploy.sh trusts the rows
 # that passed for that tree. A dry run only says which candidate it would start.
 early_dir="${PRELAUNCH_DIR:-$state/pre-launch}"
-early_cands=$(net_gh 60 pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
+# Run from $repo AND with --repo: this block sits before the tick's own `cd "$repo"` and launchd starts the job outside any repo, so a bare `gh pr list` exited 1 there on every tick
+# since 10-12 (found 2026-10-19 by the failed-query log line). Neither the cwd nor the git remote may decide which repo this asks.
+early_cands=$(cd "$repo" 2>/dev/null && net_gh 60 pr list --repo "${RELEASE_TRAIN_GH_REPO:-DomLynch/RPG-game}" --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
   --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[].headRefOid' 2>/dev/null); early_rc=$?
 # No silent skip (Lead 2026-10-19, JN's Mac rows never started and the train said nothing): a failed query, a missing checkout and a failed start are all logged.
 [ "$early_rc" -eq 0 ] || log "mac rows (early): the open-candidate query failed (exit $early_rc); no start this tick"

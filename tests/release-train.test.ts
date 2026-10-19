@@ -194,7 +194,7 @@ function publisher() {
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));
   mkdirSync(join(repo, 'scripts', 'lib'), { recursive: true }); copyFileSync(join('scripts', 'lib', 'receipt-rule.mjs'), join(repo, 'scripts', 'lib', 'receipt-rule.mjs'));   // release-train.mjs imports the one receipt rule   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
-  sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
+  sh('gh', `echo "gh $*" >> "${log}"; if [ -n "\${GH_REQUIRE_REPO_FLAG:-}" ]; then case " $* " in *" --repo "*) ;; *) echo "not a git repository (no --repo, launchd cwd)" >&2; exit 1 ;; esac; fi; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
   sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
@@ -514,6 +514,22 @@ test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is nev
     r = p.run();   // the default fake succeeds: the marker goes
     for (let i = 0; i < 40 && existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
     assert.equal(existsSync(marker), false, 'a good run clears the marker');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (JQ, 2026-10-19): the early-rows candidate query names its repo, so a launchd cwd outside any repo cannot make it fail; if it does fail it is logged', () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    let r = p.run({ GH_REQUIRE_REPO_FLAG: '1' });   // the stub's gh exits 1 on a `pr list` without --repo, as the real one did outside a repo
+    assert.doesNotMatch(r.stdout, /open-candidate query failed/, 'the query carries --repo');
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    assert.match(p.calls(), /gh pr list --repo DomLynch\/RPG-game --state open --base /);
+    const src = readFileSync('scripts/release-train-publish.sh', 'utf8');
+    assert.match(src, /early_cands=\$\(cd "\$repo" 2>\/dev\/null && net_gh 60 pr list --repo /, 'run from the repo AND with --repo');
+    const before = src.slice(0, src.indexOf('cd "$repo" || {')).split('\n').filter((l) => /net_gh \d+ pr (list|view)/.test(l) && !l.trimStart().startsWith('#'));
+    assert.equal(before.length, 1, 'the early query is the only gh call before the tick cds into the repo');
+    assert.ok(before.every((l) => l.includes('--repo')), 'and it names its repo');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
