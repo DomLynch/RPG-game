@@ -172,7 +172,7 @@ test('respawn rows are keyed (zone, id): a row in one zone never sets the respaw
 });
 
 test('zone-keyed respawn rows lose nothing: a creature that sets respawnSeconds in one listed zone sets it in EVERY listed zone where it spawns (the old id-only key made every zone inherit it), so Dom\'s 30-60 s rule holds in Zones 2 and 5 too', () => {
-  const rowsOf = (id: string) => loadZone(id).spawns.rows as { id: string; respawnSeconds?: number }[];
+  const rowsOf = (id: string) => loadZone(id).spawns.rows as unknown as { id: string; respawnSeconds?: number }[];
   const set = new Map<string, [string, number][]>();
   for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds !== undefined) set.set(r.id, [...(set.get(r.id) ?? []), [z, r.respawnSeconds]]);
   const missing: string[] = [];
