@@ -66,7 +66,11 @@ EOF
 
 Receipt after the run: the TAGGED/MOVED/EXISTS lines, `git ls-remote --tags origin 'sandbox-archive-2026-10-19/*' | wc -l` (expect 26), and the master-list status read at the same minute.
 
-## Open before it runs
+## RUN RECEIPT (2026-10-19, after JP 979f4513f went live; Lead's written GO, Strategy's written exception for Z1b and CS35 item 2)
+
+24 of 26 tags created and pushed (`git ls-remote --tags origin 'sandbox-archive-2026-10-19/*'` = 24). Skipped by the moved-tip guard, NOT tagged, because the branch moved after drafting: `zone/promotion-list-jh2` (drafted c6cb14561, now 3963193c0) and `zone/tz-evidence-jh2` (drafted 9d1313489, now a8763edc0). Both are Test Zone evidence/list branches; tag their current tips only on the owner's word. No branch deleted, no folder removed, nothing under ARMAGEDOM touched.
+
+## Open before it runs (historical, from the draft)
 
 - Gate not yet true (see top). Lead flips the last line; Deploy re-reads the list at run time.
 - Do the two sandbox sessions still need their branches? Each says so on its thread (Test Zone's `docs/sandbox/HANDOFF.md` on `zone/promotion-list`, Combat's `docs/sandbox/promotion-list.md` on `sandbox/port-docs`).
