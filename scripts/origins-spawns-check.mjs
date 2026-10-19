@@ -243,7 +243,7 @@ try {
     psql(`update public.origins_spawn_engages set used_at = used_at - interval '200 seconds' where token = '${t60}'`);
     eq(await val(V, `select public.origins_spawn_check_layer('${D}', '${t62}', 0, 120, 100)::text;`).then(c => [c.ok, c.mode, c.layer]), [true, 'first', 2], 'layers: past the window the check passes and names the token\'s layer');
     eq(await val(V, KILL(D, t62, 0, 100, EV(t62, D, pcD))).then(k => k.result), 'killed', 'layers: past the respawn window D may kill it in layer 2');
-    eq(await val(V, KILL(E, t61, 0, 100, EV(t61, E, pcE))), { refused: 'dead' }, 'layers: E\'s token in layer 2 finds the creature dead there (D killed it first IN layer 2)');
+    eq(await val(V, KILL(E, t61, 0, 100, EV(t61, E, pcE))).then(k => k.refused), 'dead', 'layers: E\'s token in layer 2 finds the creature dead there (D killed it first IN layer 2)');
     eq((await val(V, ENGAGE_L(1, E, pcE, t64, 'lay-3'))).token, t64, 'layers: E engages lay-3 in layer 1');
     eq((await val(V, ENGAGE_L(2, E, pcE, t65, 'lay-3'))).layer, 2, 'layers: ... then in layer 2');
     eq([used(t64), used(t65)], ['dead', 'open'], 'layers: moving layers closes the old layer\'s token (no token crosses copies)');
