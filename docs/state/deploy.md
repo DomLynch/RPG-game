@@ -1,6 +1,6 @@
 # Deploy lane — state
 
-**OWED (Lead, 2026-10-19): "Mac pre-flight" PR.** Run a candidate's Mac-only rows (the browser gates, audio rows 4 and 22, row 9 and the rest of the Mac group) on the candidate head BEFORE the candidate PASS (2-3 min), so a red is caught before merge. On 10-19 two candidates (JK #3269, JK2 #3272) stranded trunk ahead of live because those rows only ran at publish time. Scripts and tests only; rides a candidate first, Auditor reads.
+**OWED (Lead, 2026-10-19): the Mac pre-flight must run BEFORE the candidate PASS.** `scripts/mac-rows-early.sh <sha>` already runs the Mac-only rows [2,4,22,44,45,48,49,52,54] (JL: 9/9, 483 s, receipt posted on #3278), but the train starts it per tick and the Auditor's candidate PASS did not wait for it. JK #3269 (browser gates) and JK2 #3272 (rows 4 and 22) stranded trunk ahead of live on 10-19. The PR: make the candidate PASS (or the cut itself) wait for the macrows.json receipt of that tree, and add the browser gates that failed on JK to the row set if they are not in it. Scripts and tests only; rides a candidate first, Auditor reads. Row 9 stays a post-publish Mac row.
 
 ## 2026-10-18 19:17 (+04) — STAND DOWN (Dom's word via the PicoClaw dev: tokens out). READ FIRST, then the 16:07 entry below
 
