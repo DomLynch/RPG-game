@@ -9,6 +9,6 @@ import { join } from 'node:path';
 
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? (f === 'node_modules' ? [] : walk(p)) : /\.(ts|mjs)$/.test(f) && !/\.test\./.test(f) ? [p] : []; });
 test('no Origins source reads the stance flag, the pick or the panel (world fights stay stance-free until #1791 is live)', () => {
-  const offenders = walk(new URL('../origins', import.meta.url).pathname).filter((f) => /\b(stancePref|stanceFlag|mountStancePanel|stance-panel)\b/.test(readFileSync(f, 'utf8')));
+  const offenders = walk(new URL('../origins', import.meta.url).pathname).filter((f) => /\b(stancePref|stanceFlag|mountStanceMenu|loadStancePref|stance-panel)\b/.test(readFileSync(f, 'utf8')));
   assert.deepEqual(offenders, [], 'Origins files wiring stances: stances in the world need #1791 live and the Auditor\'s POST first');
 });
