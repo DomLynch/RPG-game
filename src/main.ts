@@ -38,7 +38,7 @@ import { beatLegend, describe, initialPractice, type Practice } from './fight/co
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
-import { mountStancePanel, stanceFlag, type StancePanel } from './fight/stance-panel.ts';
+import { loadStancePref, mountStanceMenu, saveStancePref, stanceColour, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
@@ -428,8 +428,9 @@ const skills = createServerSkills({ storage, search: location.search, now: () =>
 try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
 const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), spell2: slot2Pick, ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
-const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
+const stanceAsk = stanceStart(typeof location !== 'undefined' ? location.search : '', loadStancePref(storage, profile.id));   // the character's stored pick (src/fight/stance-panel.ts; ?stances=<pick> overrides it for a look test): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
+let stanceMenu: StanceMenu | null = null, stanceShown = '';   // the menu's setting (showStances below); declared here so no early updateHud can reach them before they exist
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -669,6 +670,7 @@ let lessonNow: LessonLine | undefined, lessonTimer = 0;
 export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  showStances();   // the menu's stance setting follows the fight: locked from the draw to the result (a change only repaints)
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
@@ -849,13 +851,17 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/fight/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
-// The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
-let stancePanel: StancePanel | null = null;
-// Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
+// The stance setting (src/fight/stance-panel.ts): a character setting in the menu's Gear tab, on unless ?stances=off. A pick sets Match.stancePref, is kept per character and applies from the NEXT fight (no restart); its buttons are locked while a fight runs.
+// There is no panel on the fight screen (Dom 2026-10-19) and no reveal line (it would only clutter the fight): the foe's mood is not drawn over it.
+// Called at boot, at every start and every frame's HUD update; it repaints on a change only (the pick or the lock), never per frame.
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
-  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
-  if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+  stanceMenu ??= mountStanceMenu(element('stance-menu'), (p) => { match.stancePref = p; saveStancePref(storage, profile.id, p); showStances(); }, document);
+  const mine = match.stancePref, locked = stanceLocked(match.practice.phase, !!match.practice.finish), key = `${mine}/${locked}`;
+  if (key === stanceShown) return;
+  stanceShown = key; stanceMenu.sync(mine, locked);
+  const card = element('journal-stance');   // the character card names the stance in its colour
+  card.textContent = mine ? `Stance: ${stanceLabel(mine)}` : ''; card.hidden = !mine; if (mine) card.style.color = stanceColour(mine);
 }
 function began() {
   nameOpponent();

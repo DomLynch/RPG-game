@@ -7,9 +7,9 @@ import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { moodOf } from '../src/fight/stance.ts';
-import { stanceFlag, stanceLabel, stanceReveal } from '../src/fight/stance-panel.ts';
+import { stanceFlag, stanceLabel } from '../src/fight/stance-panel.ts';
 
-// The stance preview (?stances=): off unless the URL asks, every live fight is as it was.
+// The ?stances= flag: ON by default; the kill switch is the only way off.
 test('stances are ON by default: no flag, =1, =on and junk pick Balanced; =<pick> starts on it; ?stances=off is the kill switch and the only way off', () => {
   for (const q of ['', '?opponent=goblin', '?stances=', '?stances=bogus', '?stances=1', '?x=1&stances=on']) assert.equal(stanceFlag(q), 'neutral', q || '(no flag)');
   assert.equal(stanceFlag('?stances=off'), undefined); assert.equal(stanceFlag('?a=1&stances=off&b=2'), undefined);
@@ -18,9 +18,6 @@ test('stances are ON by default: no flag, =1, =on and junk pick Balanced; =<pick
   assert.equal(stanceLabel('neutral'), 'Balanced', 'the fourth stance is shown as Balanced; its id stays neutral');
 });
 
-test('the reveal names both stances: the player\'s pick and the opponent\'s mood drawn from the seed', () => {
-  for (const seed of [1, 7, 731, 90210]) assert.equal(stanceReveal('aggressive', seed, 'goblin'), `You: Aggressive · goblin: ${moodOf(seed, 'goblin')[0].toUpperCase() + moodOf(seed, 'goblin').slice(1)}`);
-});
 
 const match = () => {
   const storage = { getItem: () => null, setItem: () => undefined };
