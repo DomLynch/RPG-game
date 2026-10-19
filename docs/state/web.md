@@ -1,3 +1,7 @@
+## 2026-10-19 (+04) — Web: saved VPS web-asdata-ui work as a WIP branch
+
+Branch `wip/web-asdata-ui-vps-2026-10-19` @5a38b8022, base 052f57d99 (web/port-dome-hooks merge): 31 files, unreviewed; the next Web session decides whether any of it is wanted. Saved before the folder moves to the 200 GB disk.
+
 ## 2026-10-16 ~13:40 (+04) — Web & UI: pickup prompts live (GU2 #2843, GX #2857), poll/row-speed PRs all PASSED or in review. READ FIRST: only reviews, cuts and two CI-time lines are owed; features stay on HOLD
 
 **Now (pick up here):** nothing to build. Watch the PRs below for cuts, then post the two CI-time lines Lead asked for (row 55 on #2873's cut, row 14 on #2888's cut) from the candidate run's job log (`check N passed in Ns`), and sweep my VPS scratch dirs by exact path with `vps-scratch-sweep` once each PR merges. #2615 repair screen and the other features stay parked on Dom's hold.
