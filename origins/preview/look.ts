@@ -75,6 +75,8 @@ export function withZoneLook(base: Look, z: ZoneFields): Look {
 }
 /** The Pit arena theme key a zone's walk-out is built and lit with: the zone's look.arena when its row SETS it and the themes have it, else Zone 1's '1' (so a zone that says nothing, and every old link, is unchanged). */
 export const zoneArena = (z: ZoneFields, themes: Readonly<Record<string, unknown>>): string => { const k = z.set?.includes('look.arena') ? z.fields?.['look.arena'] : undefined; return typeof k === 'string' && k in themes ? k : '1'; };
+/** How much further back and up the duel's lock camera stands in this zone (`camera.fightBack`, the schema bounds it 1..2), and the extra on a portrait screen only (`camera.fightBackPortrait`, multiplied on top). A zone that sets neither is 1: the duel as it always was. */
+export const zoneFightBack = (z: ZoneFields, portrait: boolean): number => { const read = (path: string): number => { const v = z.set?.includes(path) ? z.fields?.[path] : undefined; return typeof v === 'number' ? v : 1; }; return read('camera.fightBack') * (portrait ? read('camera.fightBackPortrait') : 1); };
 /** A fixed hour of day when the zone says not to follow the clock (look.timeOfDay.follow false), else null. */
 export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.timeOfDay.follow') && z.fields?.['look.timeOfDay.follow'] === false ? Number(z.fields['look.timeOfDay.hour'] ?? 12) : null;
 /** False when the zone turns the day/night cycle off (dayNight.on false). */

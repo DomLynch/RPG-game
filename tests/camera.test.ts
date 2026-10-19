@@ -2,7 +2,7 @@ import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sa
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/fight/camera.ts';
+import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall, setFightBack } from '../src/fight/camera.ts';
 import { createHash } from 'node:crypto';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { initialState, RADIUS, TARGET } from '../src/fight/sim.ts';
@@ -436,4 +436,18 @@ test('introTour: during a finish the finisher camera is untouched', () => {
   const a = rigAt(0, 3, false, 16 / 9), c = rigAt(0, 3, false, 16 / 9); a.rig.introTour.start();
   for (let i = 0; i < 240; i++) { a.rig.update(1 / 60, a.state, a.enemy, false, finish()); c.rig.update(1 / 60, c.state, c.enemy, false, finish()); }
   assert.ok(a.camera.position.distanceTo(c.camera.position) < 1e-9, 'a finish frames itself, the intro waits');
+});
+
+// R15 (Test Zone sandbox): a zone's camera.fightBack stands the duel's LOCK camera further back and up; 1 (the default) is the camera as it always was, and the walking camera is never scaled.
+test('setFightBack scales the lock camera only; 1 is the duel as it was', () => {
+  const state = { ...initialState(), x: 0, z: 0 }, yaw = 0;   // the middle of the Pit, so the scenery clamp (11.5 m) does not hide the scale
+  const lock = () => cameraPose(state, yaw, 0.45, true), walk = () => cameraPose(state, yaw, 0.45, false);
+  setFightBack(1); const base = lock(), baseWalk = walk();
+  try {
+    setFightBack(1.2); const far = lock();
+    assert.ok(Math.hypot(far.x - state.x, far.z - state.z) > Math.hypot(base.x - state.x, base.z - state.z) * 1.1, 'the lock camera stands further back');
+    assert.ok(far.y > base.y * 1.1, 'and higher');
+    assert.deepEqual(walk(), baseWalk, 'the walking pose never changes');
+  } finally { setFightBack(1); }
+  assert.deepEqual(lock(), base, 'back to 1 is the same pose');
 });

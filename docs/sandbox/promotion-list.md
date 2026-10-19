@@ -1,93 +1,98 @@
-# Combat sandbox promotion list (branch `sandbox/page`, lane combat-sandbox)
+# Test Zone promotion list (zone 90, branch `zone/goblin-field-dome`)
 
-Branch state: `sandbox/page`, code frozen at `678a31f0d` (2026-10-18), one rows-only publish after it (`0013e8230`); 248+ commits ahead and 1,513 behind trunk at the inventory, 25 files changed on both sides. It is **never merged wholesale** (same ruling as the Test Zone): features go in as slices, each by the owner, each under an RV bump where it touches the sim. The branch is archived only on Dom's word once every line below is PORTED or DROPPED-BY-DOM.
+Strategy's ruling (2026-10-18): this branch is Dom's test bed and is **never merged wholesale** into trunk (it is 1003 commits behind and 23 files conflict). Its way into the main game is the **zone package** (alpha item 1, World's #3174/#3176): the ROWS go in as an unlisted zone; the CODE below is promoted piece by piece by the owning lane as trunk PRs with the battery. This list is the work order, and the archive check: the sandbox may be archived only on Dom's own word, once every line is **PORTED** or **DROPPED-BY-DOM** (or SUPERSEDED with the winner named). **Keep it current with every commit.**
 
-Kind: **row** = data, **code** = promoted by the owner as a trunk PR, **asset** = baked clip or model, **tool** = script or test. Feature state (column "State"): DONE (Dom approved or battery-checked), v1 (live, untuned), **experiment** (older sandbox-mech, not re-verified by this lane; Dom decides).
+Lead's ruling (2026-10-18): zone 90 enters trunk as an unlisted package import (World); code lines are ported by the owner lanes named; my FREEZE starts when Dom can play the imported zone 90 on trunk (until then rows only, no new systems); after that I answer porters' questions.
 
-**Port status** vocabulary (Strategy 2026-10-18; the live table is THIS file on trunk, the sandbox branch is frozen at 93b1138c7): PORTED (merged and live) / MERGED / IN PR (#n) / NOT STARTED (owner) / SUPERSEDED (by a merged PR) / DROPPED-BY-DOM. Older cells below that say TODO mean NOT STARTED.
+**Status values** (column `Status`): `TODO (owner lane)` · `IN-PR #n` (open trunk PR) · `PORTED (trunk PR #n)` (merged) · `DROPPED-BY-DOM` · `SUPERSEDED (what wins)`. Owner lanes update PORTED as they land. Every line starts TODO unless a winner already exists.
 
-**Live status, 2026-10-18 evening** (Dom: every line is PORT, including the seven "Dom decides" lines; archive when NOT STARTED and IN PR are both zero):
-- MERGED: melee-special row families + readers #3198 (slice c, empty defaults); melee-digest tool #3206.
-- IN PR: slice a assets/pipeline #3220 (Combat); slice b melee clips #3222 (Combat); windup/react/REACH #3205 (Combat, RV77); special-shards #3229 and specialSound #3233 (combat-sandbox, auditor:ready); this docs PR #3239. (The war band #3235 is the Test Zone lane's, not on this list.)
-- NOT STARTED, owner Combat: SPECIAL 1/2 slots, picker and flip + hit-impact `special` tier (RV78); missile model, missileAnswer, bow specials, staff bolts, cc `pin` kind (RV79).
-- NOT STARTED, owner combat-sandbox: bow-v1.glb (needs Characters' OK); sandbox/ preview dir and its five tools (last: they drive the sandbox page); (view/UI items plainPosture, ready/hurt styles, one-button/touch layout A, impact sparks, crowd: owner Web as author, combat-sandbox reviews, Lead 2026-10-18); sim experiments as rows-OFF readers in the RV chain: reach bands (RV80), mana (RV81), dodge counter/pushback/lockout/execution/enrage/wounds/many-on-one (RV82), bind/disarm + poison/flank/ward/bait/armour (RV83).
-- DROPPED-BY-DOM: crossbow.
+Gate for this branch = the tests of the sandbox's own files. Nine old world tests (`tests/origins-world-combat`, `origins-world-verify`) fail HERE because of the stale creature-motion copy and pass on trunk head; they are not part of this gate.
 
-Proofs held for the sim slices: melee strategy-battery digest `07b44daab172637c` identical at `1d09dd04f` and at the freeze with NO sandbox rows loaded (`scripts/melee-digest.mjs --seeds 8`); sandbox/cc/catalogue targeted tests 246/246; `tsc --noEmit` clean (HF CPU). NOT run: trunk's full suite, `RECORD_VERSION` guard (a porter runs both).
+Kind: **row** = data, comes in with the zone package. **code** = promoted by the owner as a trunk PR.
 
-Slice letters (a to i) are the recommended port order, smallest safe first.
+## Rows (come in with the zone package; the exact ids are in the manifest below)
 
-## Assets and pipeline (slices a, b)
-
-| Slice | Path | Kind | State | Owner | Trunk already has | Port status |
-|---|---|---|---|---|---|---|
-| a | `scripts/character/mixamo_dump.py`, `scripts/build-special-clips.mjs` (modes `mixamo`, `ual2`, new `mixamo-seq`) | tool | DONE | Characters/Combat | no | IN-PR #3220 |
-| a | `src/assets/special-clips.json` (clip rows: role, file, weapons, strike, source, twoHanded grips) | row | DONE | Combat | no | IN-PR #3220 (and #3222 touches the same file) |
-| a | `src/assets/special-{skullcrack,whirlwind,groundslam,lunge}.json` (melee clips, 50-240 KB each, lazy) | asset | DONE | Combat | no | IN-PR #3220 |
-| a | `src/assets/special-{bowquick,bowfan,bowpin,bowpower}.json` (Draw Arrow + Aim Recoil, 55-120 KB each) | asset | v1 | Combat | no | IN-PR #3220 |
-| a | `src/assets/README.md` provenance rows (Adobe Mixamo terms: royalty-free in games, no raw redistribution, no ML training; Dom OK 2026-10-18) | doc | DONE | Characters | no | IN-PR #3220 |
-| b | `src/fight/characters.ts`: `SPECIAL_ROLES` (8), `specialRoleOf`, `specialMove` prefetch, `holdHaft` two-hander grip | code (view) | DONE | Combat | no | IN-PR #3222 |
-
-Mixamo FBX are NOT in git: `/srv/dev-jobs/mixamo-drop/mixamo` on the VPS (private); dumps in `/srv/dev-jobs/mixamo-drop/dump`. A porter who rebakes needs both folders; baked JSON is byte-identical on rebake (checked 2026-10-18 for the four melee clips). Slice (a) waits on Dom's "yes Mixamo" in Combat's own chat.
-
-## Rules readers and rows (slice c)
-
-| Slice | Path | Kind | State | Owner | Trunk already has | Port status |
-|---|---|---|---|---|---|---|
-| c | `src/fight/sandbox-rules.ts` (rows reader: specials, missiles, bowSpecial, missileAnswer, bands, mana, heal) | code (sim read) | DONE | Combat | melee-special families only (#3198, merged, empty defaults; #3205 adds readers) | IN-PR #3198 (merged) + #3205; the missile / bow / mana / heal readers remain TODO |
-| c | `src/fight/sandbox-rules-defs.json` (EVERY row family must be declared here; an undeclared family is silently ignored by the sandbox entry's patch) | row | DONE | Combat | melee-special families (#3198, merged; #3205) | IN-PR #3198 (merged) + #3205; later families (reach, bow, missile, mana) TODO |
-| c | `sandbox/rows.json` rows: `specialPick`, `specialSound`, `specialReactFloor`, `bowSpecial`, `missileAnswer`, `missile`, `missileLanes` (FINAL bow values: missileAnswer 15 / 15 / run 0, see the message to Combat) | row | v1 | Combat | no; needs trunk manifests per the as-data rule | TODO |
-
-## Melee specials and slots (slices d, e)
-
-| Slice | Path | Kind | State | Owner | Trunk already has | Port status |
-|---|---|---|---|---|---|---|
-| d | MELEE SPECIAL REACH (Dom 2026-10-18, "short-mid, a tad more than a normal attack"), commit 3b118938e: rows `specialMeleeReach` 220 cm + `specialMeleeSlack` 40 (sandbox-rules-defs.json 0 = trunk); `sandbox-rules.ts` `meleeSpecialReach`; `duel.ts` press refused beyond reach with the `far` cue (nothing spent), release whiffs (`SpecialFizzled`) beyond reach + slack (before: no range check at release); `ai.ts` casts inside the same reach. Fixes a special landing from across the arena. 231 sandbox/special tests green on the VPS. | code (SIM: RV bump, WSV) + rows | DONE | Combat | no | TODO |
-| d | `src/fight/duel.ts` `specialMeleeWindup`, `specialReact` (stagger/knock/posture rows), `specialReactFloor`; `src/fight/hit-impact.ts` `special` tier; `src/fight/sound/cues.ts` `specialSound` | code (SIM: RV bump, WSV, batteries) | DONE | Combat | no; trunk has `special-look.ts`, `special-modes.ts`, cc-defs | IN-PR #3205 (duel.ts windup / react, shipped off, RV77); `hit-impact.ts` `special` tier and `specialSound` cues TODO |
-| d | Four specials Skull Crack / Whirlwind / Ground Slam / Lunge on every melee weapon | feature | DONE (Dom approved) | Combat | no | TODO |
-| d | `src/fight/special-shards.ts` (MIT port of World of Claudecraft chips; rows empty by default), `specialTrail` rows | code (view) | DONE | Combat | no | TODO |
-| e | SPECIAL 1 / SPECIAL 2 slots, picker labels + `unlockAfterBossKills` (DATA ONLY: nothing reads it; Combat wires the gate), Heal off (`healOff` row) | code (UI + sim) | DONE | Combat/Web | no | TODO |
-| e | `sandbox/entry.ts` picker, `src/fight/hud.ts`, `match.ts`, `input.ts` (action `skill2` in the record codes) | code | DONE | Combat/Web | no | TODO |
-| d | KNOWN BUG, NOT ON TRUNK: `duel.ts` ~line 360 on this branch, a trailing `//` comment swallows `delete next.castHurt; delete next.castPush; next.phase = 'ready'; ...` after `next.special = castWindup(...)`. Melee specials were approved with it in place: a porter restores the statements, then re-checks the look | code fix | open | Combat | n/a (trunk line has no comment) | TODO |
-
-## Missiles and bow specials (slices f, g, h)
-
-| Slice | Path | Kind | State | Owner | Trunk already has | Port status |
-|---|---|---|---|---|---|---|
-| f | `src/fight/cc-defs.json` kind `pin` (source `pinShot`, also in tier `unstoppable`), `src/fight/cc-ladder.ts` `CcSource`; `tests/cc-swarm-rows.test.ts` expectation | row + code (SIM) | v1 | Combat | no (trunk has the ladder; `pin` is new) | TODO |
-| g | Missile model: `duel.ts` missile fire/arrival, lanes, quiver, bands, `src/fight/missile-fx.ts` (3-arrow fan view) | code (SIM + view) | v1 | Combat | no | TODO |
-| g | `missileAnswer` (warden AI rolls / guards / answers an arrow): `src/fight/ai.ts` + row; guarded-arrow posture (`missileGuardPosture`, bowSpecial `posture`), bow `pierce` + `chipKills` | code (SIM) + rows | v1 | Combat | no | TODO |
-| h | Four bow specials Power Shot / Fan Volley / Pinning Shot / Quick Shot: `bowSpecial` rows, `duel.ts` cast gate / release / arrival, `characters.ts` clip roles `Special_Bow*` | feature | v1 (LIVE on `/preview/sandbox/`, untuned) | Combat | no | TODO |
-| g/h | Staff bolts (white fireball at range, melee up close): `missile` rows kind `staff` | feature | DONE (Dom: staff stays as is) | Combat | no | TODO |
-| g | Crossbow (rows kind `crossbow`, `sandbox/painted/crossbow-v1.glb`): removed 2026-10-18 by Dom; inert row kept only for `tests/sandbox-quiver.test.ts` | rows + asset | removed | | n/a | DROPPED-BY-DOM |
-| h | `sandbox/painted/bow-v1.glb` (Characters and Art's painted bow, hold row `[-1.9, 34.6, 114.3]`) | asset | DONE | Characters | no | TODO |
-
-Open on h: multipliers untuned (Power 2.0 / Fan 0.6 each / Pin 1.0 / Quick 1.2 of the special's damage); the battery's archer is a scripted kiter (a kiter wins ~4 of 16 vs the level-12 warden at normal with missileAnswer 15 / 15 / run 0); victim reaction clip `Standing React Small From Front 02` dumped but unused; Quick Shot's first sheet frame can show the idle stance (14-tick windup fades the clip in; unconfirmed).
-
-## Tools and tests (slice i)
-
-| Slice | Path | Kind | State | Owner | Trunk already has | Port status |
-|---|---|---|---|---|---|---|
-| i | `scripts/special-weapon-sheet.mjs` (`--bow 1`, `--orbit`), `scripts/special-look-clip.mjs`, `sandbox/bow-sheet.sh`, `sandbox/vps-run.sh`, `sandbox/publish.sh` | tool | DONE | Combat | no | TODO |
-| i | `scripts/melee-digest.mjs` (the batteries' before/after digest) | tool | DONE | Combat | PORTED #3206 | PORTED #3206 (merged) |
-| i | `tests/sandbox-bow-special.test.ts` (7), `tests/sandbox-bow-battery.test.ts` ([slow], 16 seeds both ways, `BOW_TUNE` sweep), `tests/sandbox-special-weapons.test.ts` (36), `tests/sandbox-special-look.test.ts`, `tests/sandbox-special-sound.test.ts`, `tests/sandbox-quiver.test.ts`, `tests/cc-swarm-rows.test.ts` | tool | DONE | Combat | no | TODO |
-
-## Older sandbox-mech (experiment, Dom decides; not re-verified by this lane)
-
-| Feature | Paths | State | Owner | Port status |
+| Path | Kind | Owner | Trunk already has | Status |
 |---|---|---|---|---|
-| Mana (third bar, spells paid per cast) | `sandbox-rules.ts` readers, `rows.json` `manaMax`.. rows, `hud.ts` bar | experiment | Combat | TODO (Dom decides) |
-| Reach bands (soft x0.6 off-band, edges 1.35 / 1.8 m, `?bands=0`) | `sandbox-rules.ts`, `duel.ts`, `ai.ts` | experiment | Combat | TODO (Dom decides) |
-| Bind and disarm (trident / estoc); Plague Doctor poison clock; flank and shield wall; Witch ward; commit vs bait (maul / warhammer); armour vs blow type | `duel.ts` + rows | experiment | Combat | TODO (Dom decides) |
-| Dodge counter, cast pushback / interrupt lockout, execution via posture break, boss-phase enrage (foe only), wounds at or under a health percent, many-on-one rows | `duel.ts`, `boss-phase-defs`, `swarm-defs` | experiment | Combat | TODO (Dom decides) |
-| plainPosture, ready-stance styles `?ready=1|2|3`, hurt-reaction styles `?hurt=1|2|3`, one-button strike and touch layout A, impact sparks, crowd | `characters.ts`, `hud.ts`, `input.ts`, rows | experiment | Combat/Web | TODO (Dom decides) |
+| **R01** `origins/zone-rows/zone90.row.json` (the zone, camp, mob looks, spread, loadouts, start) | row | World | zone package import (#3174/#3176); trunk still holds my OLD 5.5 KB row (1feaaca5a), not the current 13.8 KB one | IN-PR #3213 (World: the dome's row + goblin-fortress biome as an unlisted package; trunk still holds my OLD 5.5 KB row until it lands) |
+| **R02** `origins/world/loadouts.json` + manifest (goblin rank loadouts t4-t7 with `look`, troll kit `troll.pit.*` = the pitborn kit, Dom's choice 2026-10-18 because the executioner's hood covers the face, pieces; the troll rows carry shin wraps and boots only until Characters' bake) | row | Characters | no (new table) | IN-PR #3216 (Characters/World: loadouts as rows + shared pickLoadout; goblin t4-t7, troll pitborn) |
+| **R03** executioner piece rows and `loot:executioner.*` ground rows | row | Characters | no | DROPPED-BY-DOM (Dom chose pitborn; unused: leave out of the import) |
+| **R04** `origins/preview/ground-looks.json` (`loot:*` rows: a dropped piece lies as itself) | row | Characters | extends the existing ground-looks table | TODO (Characters) |
+| **R05** `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no | IN-PR #3204 (Backend: kill_report silent in unlisted zones, the kill line a row) |
+| **R06** `src/fight/fx-rows.json` ids `regen.*`, `zoneloot.*`, `start.clear-m`, `drop.reach`, `fit.*`, `grip.claw-fraction`, `mob-view.wear-max-scale` | row | Combat (regen, reach, fit/grip with Characters) | none exist on trunk | regen.* IN-PR #3210 (Combat); fit.* PORTED #3196 (as piece-fit-rig rows); zoneloot.*, start.clear-m, drop.reach, grip.claw-fraction, mob-view.wear-max-scale TODO (Characters) |
+| **R07** `src/fight/fx-rows.json` ids `fp.*` | row | Web | none exist on trunk | TODO (Web) |
+| **R08** `src/fight/fx-rows.json` ids `warband.*` | row | Combat | no | TODO (Combat; optional, only if Dom keeps the war band) |
+| **R09** `src/fight/fx-rows.json` ids `gfx.*` | row | World | no | TODO (World; optional, `?gfx=1` flag) |
+| **R10** `src/fight/fx-rows.json` ids `reach.*`, `reach.dir-tau`, `mob-view.lateral-tau/radial-tau/turn-dps/snap-m/max-orbit-dps/max-lag-m`, `pose-blend.snap-m`, `zone1feel.*` | row | Combat | the stand-back is reused by Combat (#3185) | SUPERSEDED (Combat; stand-back and goblin 1.25: IN-PR #3185; troll 1.52: IN-PR #3215, height ladder IN-PR #3221) |
+| **R11** `src/fight/fx-rows.json` ids `breath.*` | row | Combat | partly (trunk's zone-fx) | TODO (Combat) |
+| **R12** `origins/world/building-skins.json`, `props-defs.json`, `goblin-field-defs.json` + manifests | row | World | partly (World's biomes.json, #3067) | TODO (World; the package #3213 brings the biome; reconcile with #3178) |
+| **R13** `origins/preview/preview-rules-defs.json` | row | Web | extends trunk's table | TODO (Web) |
+| **R14** `src/fight/creature-motion-defs.json` + manifest | row | Combat | **#3056 supersedes my copy** | SUPERSEDED (Combat #3056) |
+| **R15** `src/fight/camera-rules-defs.json` (combat camera `camera.combat.*`) | row | Combat | no | TODO (Combat) |
 
-Nothing here is promoted unless Dom names it.
+## Code (owner promotes as trunk PRs)
 
-## DROP (dead, proposed; each becomes DROPPED-BY-DOM only on Dom's word)
+| Path | What | Owner | Trunk already has | Status |
+|---|---|---|---|---|
+| **C01** `src/fight/hero-regen.ts` + `tests/hero-regen.test.ts`, the `regen` hook, `regenQuiet` and `debugHurt` in `src/fight/world-combat.ts` | out-of-combat regeneration (sim rule, once per fixed step; null = none; Dom picked 60 s) | Combat | no; Strategy accepted it as built, promotion = Combat via Lead, battery unchanged (out-of-combat only) | IN-PR #3210 (Combat: rows + hook, null by default, no bump) |
+| **C02** `src/fight/creature-motion-rows.ts`, `src/fight/open-fight.ts` motion, `src/fight/world-record.ts` WSV 48 | stand-and-face, turn cap | Combat | **#3056 supersedes: do not promote** | SUPERSEDED (Combat #3056) |
+| **C03** `origins/preview/mob-calm.ts` (+test), `world-combat-blend.test.ts` | creature pose smoothing, off unless `?mobsmooth=1` | Combat | World's tick blend landed | SUPERSEDED (World tick blend / #3056) |
+| **C04** `origins/preview/mobs-view.ts` stand-back (`backOff`, `reach.*`) | creature stand-off at the hero | Combat | Combat ported it as #3185 | SUPERSEDED (Combat #3185, IN-PR: goblins 1.25 with the stand-back; troll 1.52 IN-PR #3215) |
+| **C05** `origins/preview/mobs-view.ts` missing-clip fallback (two-handed weapon on a creature body builds on the default weapon's clips) | stops capsule creatures | Characters | no; the proper fix is two-handed clip packs on creature bodies (Characters/Combat, routed via Lead) | TODO (Characters) |
+| **C06** `origins/preview/mobs-view.ts` `gripToClaw`/`followClaw` + `piece-fit.ts` `unweightedBones` (+ rows `grip.claw-fraction`, `fit.skin-min-weight`) | the troll's skin has NO hand/finger bone driver (arms ride the upper-arm bones), so a weapon on the hand bone floats away from the drawn claw: the claw's skin vertices are tracked each frame and the weapon is held there; pieces bound to unskinned bones are re-skinned to the nearest skinned ancestor | Characters (rig fix: add hand/finger weights to cave-troll.glb is the real cure) | no; the troll's rig bug is in the creature asset, not trunk code | SUPERSEDED (#3224, the fixed troll GLB with hand/finger skin weights is the cure; claw tracking is NOT ported: Lead ruled out a per-frame workaround) |
+| **C07** `origins/preview/mobs-view.ts` rank look (`wearLook`), carriers by piece-id prefix, `reshapeWeapon` (per-rank weapon shape) | dress creatures with the Pit's own armour and weapon shapes | Characters | uses trunk's `loadRankLook`/`wearLook`/`shapeFor` | IN-PR #3216 for the loadout rows and pickLoadout only; the dressing code (wearRankLook, carriers, reshapeWeapon) TODO (Characters) |
+| **C08** `origins/world/loadouts-rules.ts` | loadout loader and checks | Characters | no | IN-PR #3216 (shared pure pickLoadout replaces my loader/pick) |
+| **C09** `origins/preview/piece-fit.ts` (+test), `fit.*` rows | per-bone refit of hero-rig loot pieces to a re-proportioned body (the troll); live for the troll's shin wraps and boots; helmet, torso, arms and gloves of the pitborn kit need Characters' bake (or the cave-troll.glb rig fix) | Characters (belongs next to `loadLoot`/`wear`; Lead: Characters is porting it) | the engine's own #606 retarget (piece inverse binds) is the base this adds to | piece-fit PORTED (trunk PR #3196, Characters); `unweightedBones` and the remap re-skin SUPERSEDED (#3224, the fixed troll GLB; not ported) |
+| **C10** `origins/preview/outfit.ts` (+test), `kill-drop.ts` (+test), `ground-item-view.ts` (loot-piece prefix, rank finish) | take-everything loot, the hero's outfit, drops lying as real items | Characters + Backend (any promotion to account loot is Backend's, never from the zone) | uses trunk's `loadLoot`/`wear`; the take-limit stays code in the Pit | TODO (Characters; Backend for any account-loot promotion) |
+| **C11** `origins/preview/kill-apply.ts` (`sandbox` toast) + `main.ts` (no `kill_report` from an unlisted zone) | sandbox kill line | Backend | no | IN-PR #3204 (Backend) |
+| **C12** `origins/preview/first-person-arm.ts` (+test), first-person branch in `src/fight/follow-camera.ts` | first-person view with the hero's own arm (IK) | Combat | no | TODO (Combat) |
+| **C13** `src/fight/follow-camera.ts` combat framing, `src/fight/camera.ts`, `camera-rules.ts` | combat camera (Wide auto-fit) | Combat | no | TODO (Combat) |
+| **C14** `origins/preview/war-band.ts` (+test), war-band hooks in `main.ts` | horn-blower, rally | Combat | no | TODO (Combat; optional) |
+| **C15** `src/fight/breath.ts`, `src/fight/zone-fx.ts` | salamander fire breath, contact effects | Combat | partly (trunk's zone-fx) | TODO (Combat) |
+| **C16** `origins/preview/gfx-lift.ts` | `?gfx=1` fog, bloom, grade | World | no | TODO (World; optional) |
+| **C17** `origins/preview/frontier-plan.ts`, `frontier-dress.ts`, `frontier-cinder.ts` (building-skin seam, `edgeDistance`/`rimScale`, `Thin`/`Dress.strips`) | goblin-field hooks in the frontier plan, dress and cinder | Web | ported by Web & UI as a types-only skin seam (`frontier-skin.ts`), skin drawing in `frontier-greybox.ts`, collision rows in `frontier-plan-defs.json`; take trunk's version of these three files, the dome's `frontierBuild` BLOCKS/`block()`/`stand()` shape no longer exists | IN-PR #3212 (Web: building-skin seam; take trunk's version of the three files) |
+| **C18** `origins/preview/prop-kit.ts`, `ambience.ts`, `goblin-ground.ts`, `goblin-smoke.ts`, `horizon-dome.ts`, `building-skin.ts` (the skin TABLE and renderer: World's slice B fills the seam), `frontier.ts` and the other `frontier*.ts`, `exchange*.ts`, `creature-card.ts`, `index.html` | goblin-field look, props, dome, ground | World | World's biomes work (#3067) overlaps; reconcile with them | horizon-dome.ts IN-PR #3202 (World); the rest TODO (World) |
+| **C19** `origins/zones/schema.ts`, `loader.ts`, `from-row.ts`, `biomes-data.ts` | zone row keys (`look.sky`, `look.props.*`, unlisted) | World | **World's zone package supersedes** | SUPERSEDED (World zone package #3176; look fields PORTED #3199) |
+| **C20** `origins/preview/mobs.ts` (`spawnAmong` `clearM`, spawn rules), `mob-looks.ts` | start clear of every creature, looks | World | no | TODO (World) |
+| **C21** `origins/preview/vite.config.mjs`, `scripts/zone-look-stills.mjs`, `scripts/origins-tsc.mjs`, `scripts/data-only-check.mjs`, `.claude/launch.json` | the sandbox's own dev/preview tooling | Web | keep sandbox-only | DROPPED-BY-DOM (not ported: stays with the archived sandbox) |
 
-| Path | Why | Port status |
+## Assets committed on the branch (not on trunk)
+
+| Path | Owner | Status |
 |---|---|---|
-| `artifacts/sandbox-special2/` (22 review stills), `docs/specs/combat/stills/` review images, `sandbox/mockups/` | review evidence, not product | TODO (Dom decides) |
-| `spellsOff` / heal rows | beta hides spells | TODO (Dom decides) |
-| old Cleave / Reaping Blow placeholder names | the picker labels are rows | SUPERSEDED (picker `label` rows) |
+| **A01** `public/world/kit/goblin-bare.glb`, `goblin-fort-kit.glb`, `dungeon-kit.glb` | World / Characters & Art | TODO (World / Characters & Art) |
+| **A02** `public/zones/goblin-fortress-landscape.webp`, `-portrait.webp`, `-panorama.jpg` (the painted dome; Dom's own generation route, licence per Dom) | World | TODO (World) |
+
+## Row id manifest (exact ids, generated 2026-10-18 at the freeze start; World imports and diffs by id)
+
+### fx-rows.json ids added since the fork (src/fight/fx-rows.json) (86)
+
+`reach.hero-edge`, `reach.gap`, `reach.full-scale`, `reach.default`, `reach.giant-salamander`, `breath.giant-salamander`, `breath.range`, `breath.radius`, `breath.life`, `breath.tongues`, `breath.smoke`, `breath.embers`, `breath.tongue-opacity`, `breath.smoke-opacity`, `breath.tip`, `breath.body`, `breath.core`, `drop.reach`, `start.clear-m`, `mob-view.wear-max-scale`, `grip.claw-fraction`, `fit.skin-min-weight`, `fit.min-len-m`, `fit.ratio-min`, `fit.ratio-max`, `regen.out-of-combat`, `regen.health-full`, `regen.stamina-full`, `regen.move-mult`, `regen.move-eps`, `zoneloot.take-limit`, `zoneloot.ring-m`, `warband.horn-run-speed`, `warband.horn-reach`, `warband.rally-count`, `warband.rally-seconds`, `warband.rally-aggro`, `warband.rally-run-speed`, `warband.rally-engage`, `warband.captain-drops`, `warband.horn-dx`, `warband.horn-dz`, `fp.eye`, `fp.forward`, `fp.tilt`, `fp.look-down`, `fp.bob-amp`, `fp.bob-step`, `fp.bob-speed-cap`, `fp.hand-right`, `fp.hand-up`, `fp.hand-forward`, `fp.pole-right`, `fp.pole-up`, `fp.pole-forward`, `fp.blade-right`, `fp.blade-up`, `fp.blade-forward`, `fp.arm-rate`, `fp.kick-rest`, `fp.kick-roll`, `fp.kick-yaw`, `fp.kick-lunge`, `fp.fov-landscape`, `fp.fov-portrait`, `reach.dir-tau`, `zone1feel.spread`, `zone1feel.keep.giant-salamander`, `mob-view.lateral-tau`, `mob-view.radial-tau`, `mob-view.turn-dps`, `mob-view.snap-m`, `mob-view.max-orbit-dps`, `mob-view.max-lag-m`, `gfx.bloom.strength`, `gfx.bloom.radius`, `gfx.bloom.threshold`, `gfx.grade.contrast`, `gfx.grade.saturation`, `gfx.grade.shadow-teal`, `gfx.grade.highlight-warm`, `gfx.grade.vignette`, `gfx.fog.ground-boost`, `gfx.fog.height-falloff`, `gfx.fog.sky-keep`, `pose-blend.snap-m`
+
+### loadout piece ids (origins/world/loadouts.json `pieces`) (18)
+
+`goblin.Helmet`, `goblin.Body`, `goblin.Arms`, `goblin.Gloves`, `goblin.Greaves`, `goblin.Boots`, `executioner.Helmet`, `executioner.Body`, `executioner.Arms`, `executioner.Gloves`, `executioner.Greaves`, `executioner.Boots`, `pitborn.Helmet`, `pitborn.Body`, `pitborn.Arms`, `pitborn.Gloves`, `pitborn.Greaves`, `pitborn.Boots`
+
+### loadout ids (origins/world/loadouts.json `loadouts`) (16)
+
+`goblin.scrapper`, `goblin.cutter`, `goblin.guard`, `goblin.captain`, `goblin.t4.gladius`, `goblin.t4.cleaver`, `goblin.t5.scythe`, `goblin.t5.trident`, `goblin.t6.warhammer`, `goblin.t6.maul`, `goblin.t7.longsword`, `goblin.t7.estoc`, `troll.pit.t4.cleaver`, `troll.pit.t6.warhammer`, `troll.pit.t5.maul`, `troll.pit.t7.cleaver`
+
+### ground-looks ids added (origins/preview/ground-looks.json, the `loot:*` rows) (27)
+
+`loot:goblin.Helmet`, `loot:goblin.Body`, `loot:goblin.Arms`, `loot:goblin.Greaves`, `loot:goblin.Boots`, `loot:executioner.Helmet`, `loot:executioner.Body`, `loot:executioner.Arms`, `loot:executioner.Greaves`, `loot:executioner.Boots`, `loot:pitborn.Helmet`, `loot:pitborn.Body`, `loot:pitborn.Arms`, `loot:pitborn.Greaves`, `loot:pitborn.Boots`, `loot:goblin.Gloves`, `loot:executioner.Gloves`, `loot:pitborn.Gloves`, `loot:weapon.Longsword`, `loot:weapon.Knife`, `loot:weapon.Cleaver`, `loot:weapon.Gladius`, `loot:weapon.Estoc`, `loot:weapon.Maul`, `loot:weapon.Warhammer`, `loot:weapon.Scythe`, `loot:weapon.Trident`
+
+### sandbox-lines ids (origins/preview/sandbox-lines.json) (1)
+
+`kill`
+
+### zone90.row.json top-level keys (origins/zone-rows/zone90.row.json) (14)
+
+`name`, `unlisted`, `defaultKind`, `biome`, `camera`, `names`, `world`, `level`, `mobLooks`, `spawns`, `kit`, `looks`, `place`, `notes`
+
+## Test-only hooks (browser checks, never promoted as features)
+
+`originsPreview.fell(id)`, `.hurt(n)`, `.regenQuiet()`, `.heroFist()`, `.warband()`, `.fpPose`, the `mobs().grips` / `handMesh` / `meshesOf` / `fit` debug fields, `?fit=0`, `?gripdebug`, `world-combat.debugHurt`. DROPPED-BY-DOM is not needed: they are never ported.
+
+## Publish recipe (sandbox only)
+
+VPS `/srv/dev-jobs/zone-sandbox-preview/repo`, build with `VITE_UNLISTED_ZONES=1` (the standard publish script strips that flag: a build without it shows "There is no zone 90"). Details in `docs/state/zone-sandbox.md`.

@@ -1,0 +1,182 @@
+[
+  {
+    "name": "troll",
+    "query": "?region=1",
+    "errors": [],
+    "stills": [
+      "troll-camp.png",
+      "troll-fight.png",
+      "troll-fight2.png",
+      "troll-fight3.png"
+    ],
+    "camp": null,
+    "target": {
+      "id": "cave-troll-1",
+      "name": "Cave troll",
+      "zone": "cinder-fields",
+      "body": "cave-troll",
+      "level": 3,
+      "x": -103.91,
+      "z": 27.78,
+      "mode": "idle",
+      "drawn": false,
+      "model": false,
+      "height": null
+    },
+    "trace": [
+      {
+        "s": 0,
+        "hero": "{\"health\":150,\"max\":150,\"stamina\":100,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.208,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":150,\"x\":-72.6,\"z\":62.9,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -72.6,
+          "z": 62.9
+        }
+      },
+      {
+        "s": 0.5,
+        "hero": "{\"health\":150,\"max\":150,\"stamina\":100,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":3.141592653589793,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":150,\"x\":-103.9,\"z\":32.8,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"ready\",\"hp\":262,\"x\":-103.9,\"z\":29.3,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-102.3,\"z\":37.7,\"hunting\":true,\"returning\":false,\"duel\":false},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 32.8
+        }
+      },
+      {
+        "s": 1,
+        "hero": "{\"health\":150,\"max\":150,\"stamina\":100,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":3.141592653589793,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":150,\"x\":-103.9,\"z\":32.8,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"ready\",\"hp\":262,\"x\":-103.9,\"z\":30.2,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-102.9,\"z\":36.1,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 32.8
+        }
+      },
+      {
+        "s": 1.5,
+        "hero": "{\"health\":150,\"max\":150,\"stamina\":100,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":0,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":150,\"x\":-103.9,\"z\":27.9,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"ready\",\"hp\":262,\"x\":-103.9,\"z\":29.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.3,\"z\":34.3,\"hunting\":true,\"returning\":false,\"duel\":false},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.9
+        }
+      },
+      {
+        "s": 2,
+        "hero": "{\"health\":150,\"max\":150,\"stamina\":100,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":0,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":150,\"x\":-103.9,\"z\":27.9,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"windup\",\"hp\":262,\"x\":-103.9,\"z\":29.2,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.5,\"z\":32.1,\"hunting\":true,\"returning\":false,\"duel\":false},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.9
+        }
+      },
+      {
+        "s": 2.5,
+        "hero": "{\"health\":124,\"max\":150,\"stamina\":92,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":0,\"posture\":40.199999999999974,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":124,\"x\":-103.9,\"z\":27.8,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-103.9,\"z\":28.8,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.8,\"z\":30.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.8
+        }
+      },
+      {
+        "s": 3,
+        "hero": "{\"health\":124,\"max\":150,\"stamina\":92,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":0,\"posture\":34.39999999999989,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":124,\"x\":-103.9,\"z\":27.8,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-103.9,\"z\":28.8,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104,\"z\":29.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.8
+        }
+      },
+      {
+        "s": 3.5,
+        "hero": "{\"health\":124,\"max\":150,\"stamina\":92,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.1546888616583535,\"posture\":26.99999999999988,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":124,\"x\":-103.9,\"z\":27.8,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"windup\",\"hp\":262,\"x\":-104,\"z\":28.6,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"windup\",\"hp\":84,\"x\":-104.1,\"z\":28.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.8
+        }
+      },
+      {
+        "s": 4,
+        "hero": "{\"health\":107,\"max\":150,\"stamina\":84,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":-0.134,\"posture\":44.99999999999983,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":107,\"x\":-103.9,\"z\":27.5,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-104,\"z\":28.6,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"recover\",\"hp\":84,\"x\":-104,\"z\":28.6,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.5
+        }
+      },
+      {
+        "s": 4.5,
+        "hero": "{\"health\":107,\"max\":150,\"stamina\":84,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.15559914965279478,\"posture\":38.999999999999744,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":107,\"x\":-103.9,\"z\":27.5,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"windup\",\"hp\":262,\"x\":-104,\"z\":28.4,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104.3,\"z\":28.5,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.9,
+          "z": 27.5
+        }
+      },
+      {
+        "s": 5,
+        "hero": "{\"health\":84,\"max\":150,\"stamina\":76,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":-0.346,\"posture\":92.19999999999968,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":84,\"x\":-103.8,\"z\":27.2,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-104,\"z\":28.3,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"recover\",\"hp\":84,\"x\":-104.1,\"z\":28,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 27.2
+        }
+      },
+      {
+        "s": 5.5,
+        "hero": "{\"health\":84,\"max\":150,\"stamina\":76,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.158113058533772,\"posture\":92.19999999999968,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.8,\"z\":27.2,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"ready\",\"hp\":262,\"x\":-104.1,\"z\":28.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104.2,\"z\":28.1,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 27.2
+        }
+      },
+      {
+        "s": 6,
+        "hero": "{\"health\":84,\"max\":150,\"stamina\":76,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.15811305853380067,\"posture\":85.99999999999959,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.8,\"z\":27.2,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"ready\",\"hp\":262,\"x\":-104,\"z\":28.6,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104.4,\"z\":28.8,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 27.2
+        }
+      },
+      {
+        "s": 6.5,
+        "hero": "{\"health\":84,\"max\":150,\"stamina\":76,\"maxStamina\":100,\"phase\":\"ready\",\"facing\":-0.1581130585338017,\"posture\":73.99999999999942,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"ready\",\"hp\":84,\"x\":-103.8,\"z\":27.2,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"windup\",\"hp\":262,\"x\":-104,\"z\":28.1,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"windup\",\"hp\":84,\"x\":-104.1,\"z\":28.4,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 27.2
+        }
+      },
+      {
+        "s": 7,
+        "hero": "{\"health\":58,\"max\":150,\"stamina\":68,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":-0.245,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":58,\"x\":-103.8,\"z\":26.9,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-104,\"z\":28,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"recover\",\"hp\":84,\"x\":-104,\"z\":28,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 26.9
+        }
+      },
+      {
+        "s": 7.5,
+        "hero": "{\"health\":58,\"max\":150,\"stamina\":68,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":-0.147,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":58,\"x\":-103.8,\"z\":26.9,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"windup\",\"hp\":262,\"x\":-103.9,\"z\":27.8,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104.1,\"z\":28.3,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.8,
+          "z": 26.9
+        }
+      },
+      {
+        "s": 8,
+        "hero": "{\"health\":12,\"max\":150,\"stamina\":60,\"maxStamina\":100,\"phase\":\"stagger\",\"facing\":-0.143,\"posture\":0,\"exhausted\":false,\"dead\":false}",
+        "fighters": "[{\"id\":\"me\",\"phase\":\"stagger\",\"hp\":12,\"x\":-103.7,\"z\":26.6,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"cave-troll-1\",\"phase\":\"recover\",\"hp\":262,\"x\":-103.9,\"z\":27.8,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-1\",\"phase\":\"ready\",\"hp\":84,\"x\":-104.2,\"z\":27.9,\"hunting\":true,\"returning\":false,\"duel\":true},{\"id\":\"scavengers-3\",\"phase\":\"ready\",\"hp\":84,\"x\":-99.8,\"z\":42.7,\"hunting\":false,\"returning\":false,\"duel\":false}]",
+        "at": {
+          "x": -103.7,
+          "z": 26.6
+        }
+      }
+    ]
+  }
+]

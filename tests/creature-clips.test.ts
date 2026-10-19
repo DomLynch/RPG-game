@@ -7,9 +7,10 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { Group } from 'three';
 import { OPPONENTS, catalogueRow, fighterClips, worldBodyUrl } from '../src/fight/index.ts';
 import type { WeaponId } from '../src/fight/index.ts';
+import { loadoutRow } from '../origins/world/loadouts-rules.ts';
 
 // The CI half of "fail loud" (Lead, 2026-10-18): every body a zone draws, with every weapon a zone gives it (its roster weapon, or the `gear` a mob look names), carries
-// each clip fighterClips asks for. Same function the zone view builds with, so the list cannot drift. A warhammer troll whose body lacks Warhammer_Idle fails here, not in a player's frame.
+// each clip fighterClips asks for, a loadout's weapon included (the look's own and every spread loadout, on the look's own bare body when it names one). Same function the zone view builds with, so the list cannot drift. A warhammer troll whose body lacks Warhammer_Idle fails here, not in a player's frame.
 const ROOT = new URL('..', import.meta.url);
 
 async function clipsOf(file: URL) {
@@ -27,15 +28,19 @@ function bodyFile(kind: string): URL | null {
   return path && existsSync(new URL(path, ROOT)) ? new URL(path, ROOT) : null;
 }
 
-type Pairing = { kind: string; weapon: WeaponId; why: string };
+type Pairing = { kind: string; weapon: WeaponId; why: string; body?: string };   // body: the look's own bare body file (`world/kit/<name>.glb`), else the kind's world / engine body
 function pairings(): Pairing[] {
   const out = new Map<string, Pairing>();
-  const add = (kind: string, weapon: WeaponId | undefined, why: string) => { if (weapon) out.set(`${kind}/${weapon}`, { kind, weapon, why }); };
+  const add = (kind: string, weapon: WeaponId | undefined, why: string, body?: string) => { if (weapon) out.set(`${kind}/${weapon}/${body ?? ''}`, { kind, weapon, why, ...(body ? { body } : {}) }); };
+  type Row = { mobLooks?: { looks?: Record<string, { opponent: string; gear?: WeaponId; loadout?: string; body?: string }>; spread?: Record<string, { loadouts?: string[] }> } };
   for (const f of readdirSync(new URL('origins/zone-rows/', ROOT)).filter((n) => n.endsWith('.row.json'))) {
-    const row = JSON.parse(readFileSync(new URL(`origins/zone-rows/${f}`, ROOT), 'utf8')) as { mobLooks?: { looks?: Record<string, { opponent: string; gear?: WeaponId }> } };
+    const row = JSON.parse(readFileSync(new URL(`origins/zone-rows/${f}`, ROOT), 'utf8')) as Row;
     for (const [id, look] of Object.entries(row.mobLooks?.looks ?? {})) {
-      add(look.opponent, (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[look.opponent]?.weapon, `${f} ${id}: the roster weapon`);
-      add(look.opponent, look.gear, `${f} ${id}: gear`);
+      add(look.opponent, (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[look.opponent]?.weapon, `${f} ${id}: the roster weapon`, look.body);
+      add(look.opponent, look.gear, `${f} ${id}: gear`, look.body);
+      // a loadout names its weapon (a row of origins/world/loadouts.json): the look's own, and every one its camp's spread dresses a variant in
+      add(look.opponent, loadoutRow(look.loadout)?.weapon, `${f} ${id}: loadout ${look.loadout}`, look.body);
+      for (const l of row.mobLooks?.spread?.[id]?.loadouts ?? []) add(look.opponent, loadoutRow(l)?.weapon, `${f} ${id}: spread loadout ${l}`, look.body);
     }
   }
   return [...out.values()];
@@ -45,8 +50,9 @@ test('every zone creature body carries the clips for every weapon a zone gives i
   const list = pairings();
   assert.ok(list.length > 0, 'the zone rows name no mob looks: the walk found nothing to check');
   const failures: string[] = [];
-  for (const { kind, weapon, why } of list) {
-    const file = bodyFile(kind);
+  for (const { kind, weapon, why, body } of list) {
+    if (body && !existsSync(new URL(`public/${body}`, ROOT))) { failures.push(`${kind} (${why}): the look's body public/${body} is not in this checkout`); continue; }   // a named bare body that is missing is a content bug, not a skip
+    const file = body ? new URL(`public/${body}`, ROOT) : bodyFile(kind);
     if (!file) continue;   // a kind with no body file in this checkout is not drawn by a zone
     try { fighterClips({ scene: new Group(), animations: await clipsOf(file) }, weapon, true); }
     catch (error) { failures.push(`${kind} cannot wield ${weapon} (${why}): ${(error as Error).message}`); }
