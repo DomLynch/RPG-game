@@ -43,7 +43,7 @@ test('look.props.kit = a kit id puts the kit in look.props.camp, else the first 
 });
 test('Zone 1 is the Test Zone look (Dom-approved 2026-10-18): the fortress sky, camp kit, ground, ambience and rim, no creature markers, and it stays listed', () => {
   const z = loadZone('1');
-  assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'east-road', rim: true }); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind');
+  assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'cinder-fields', rim: true }); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind');
   assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: true, lock: 'hard' }); assert.equal(zoneRim(z).margin, 8); assert.notEqual(z.unlisted, true);
 });
 test('flag off is unchanged: Zones 2-4 set no sky, no camp kit and are listed', () => {

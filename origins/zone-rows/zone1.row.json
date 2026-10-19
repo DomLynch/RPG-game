@@ -2,6 +2,11 @@
   "name": "The Cinder Fields",
   "defaultKind": "goblin",
   "biome": "goblin-fortress",
+  "look": {
+    "props": {
+      "camp": "cinder-fields"
+    }
+  },
   "names": {
     "east-road": "The East Road",
     "ferry-landing": "The Grey Ferry",
@@ -589,7 +594,7 @@
         "opponent": "cave-troll",
         "tint": 16777215,
         "scale": 1.52,
-        "loadout": "troll.pit.t4.cleaver",
+        "loadout": "troll.pit.t5.maul",
         "dressing": {
           "soot": 0.15,
           "burnt": 0
@@ -661,6 +666,7 @@
         "burnt": 0,
         "loadouts": [
           "troll.pit.t7.cleaver",
+          "troll.pit.t6.warhammer",
           "troll.pit.t4.cleaver"
         ]
       },
@@ -677,7 +683,11 @@
           "goblin.t4.gladius",
           "goblin.t4.cleaver",
           "goblin.t7.longsword",
-          "goblin.t7.estoc"
+          "goblin.t7.estoc",
+          "goblin.t5.scythe",
+          "goblin.t5.trident",
+          "goblin.t6.warhammer",
+          "goblin.t6.maul"
         ]
       }
     }
