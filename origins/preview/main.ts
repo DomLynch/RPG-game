@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, armWarriors, loadEquip, loadWarriors, DEFAULT_WEAPON, PLAYER_WEAPONS, type Practice, type WeaponId } from '../../src/fight/index.ts';
 import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, mountBuild, storedAccount, type OwnBuild, type Tier } from '../../src/core/index.ts';
-import { fxNum, phoneTier, pixelCap } from '../../src/fight/index.ts';
+import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
