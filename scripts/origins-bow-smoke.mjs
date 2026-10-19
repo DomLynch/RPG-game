@@ -16,7 +16,7 @@ import process from 'node:process';
 import console from 'node:console';
 import { encodeWorldRecord } from '../src/fight/server.ts';
 import { createWorldCombat } from '../src/fight/world-combat.ts';
-import { cumulative } from '../src/core/career-model.ts';
+import { cumulative } from '../src/core/server.ts';   // the server door (tests/core-boundary C1: no deep core import)
 import { verifyWorldRecord } from '../origins/server/world-verify.ts';
 import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { groundOps } from '../origins/server/ground-take.ts';
