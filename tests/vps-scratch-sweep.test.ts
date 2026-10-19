@@ -2,7 +2,7 @@
 // The live tool runs on the VPS (bash 5); the file is parsed by that bash, so this test needs a Linux bash.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -408,18 +408,17 @@ test('never-touch: the origins, the live and release trees, databases and the do
 test('sweep_cap_order: oldest idle first, with sizes; skips never-touch names, symlinks, files and anything changed within the age window', { skip: process.platform !== 'linux' }, () => {
   const root = mkdtempSync(join(tmpdir(), 'sweep-cap-'));
   try {
-    const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
-    const mk = (name: string, h: number, kib: number) => {
-      const d = join(root, name); mkdirSync(d); const f = join(d, 'blob'); writeFileSync(f, Buffer.alloc(kib * 1024)); utimesSync(f, hoursAgo(h), hoursAgo(h)); return d;
-    };
-    mk('mid', 20, 8); mk('oldest', 30, 16); mk('young', 2, 4); mk('bn-trunk', 40, 4);
+    // a change time cannot be backdated, so "older" is "made earlier"; the window is the second argument (a negative window is in the future, so nothing counts as recent)
+    const mk = (name: string, kib: number) => { const d = join(root, name); mkdirSync(d); writeFileSync(join(d, 'blob'), Buffer.alloc(kib * 1024)); };
+    mk('oldest', 16); spawnSync('sleep', ['1.2']); mk('mid', 8); mk('bn-trunk', 4);
     symlinkSync(join(root, 'mid'), join(root, 'a-link')); writeFileSync(join(root, 'a-file'), 'x');
-    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_cap_order "$1" 6', 'x', root], { encoding: 'utf8' });
-    assert.equal(r.status, 0, r.stderr);
-    const rows = r.stdout.trim().split('\n').map(l => l.split(' '));
-    assert.deepEqual(rows.map(c => c[2]), [join(root, 'oldest'), join(root, 'mid')], 'oldest first; young (2 h), bn-trunk, the symlink and the file are left out');
+    const order = (hours: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_cap_order "$1" "$2"', 'x', root, hours], { encoding: 'utf8' });
+    const all = order('-1'); assert.equal(all.status, 0, all.stderr);
+    const rows = all.stdout.trim().split('\n').map(l => l.split(' '));
+    assert.deepEqual(rows.map(c => c[2]), [join(root, 'oldest'), join(root, 'mid')], 'oldest first; bn-trunk, the symlink and the file are left out');
     assert.ok(Number(rows[0][1]) >= 16 && Number(rows[1][1]) >= 8, 'sizes in KiB');
     assert.ok(Number(rows[0][0]) < Number(rows[1][0]), 'sorted by the newest change, ascending');
+    assert.equal(order('6').stdout.trim(), '', 'everything here changed within 6 h, so nothing is a cap victim');
     assert.equal(sourced('echo "$WORK_CAP_GIB $CAP_MIN_AGE_H"').stdout.trim(), '40 6');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
