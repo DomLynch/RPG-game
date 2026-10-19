@@ -56,6 +56,7 @@ test('rangedPartOf: the row\'s node becomes the equip part (named WeaponDrawn, i
   assert.throws(() => rangedPartOf(new Group(), bow), /no node WeaponDrawn/);
 });
 
-test('dormant: no game weapon is bound to a missile kind that has a model row, so loadWarriors changes nothing today', () => {
-  for (const id of Object.keys(WEAPONS)) assert.equal(rangedModelOf(missileOf(id)?.kind ?? ''), undefined, `${id} would draw a ranged model`);
+test('bound (2026-10-19, Dom: the bow and the staff are real weapons): exactly the "bow" weapon is bound to a missile kind that has a model row; every other weapon, the staff included, keeps what the game draws', () => {
+  const bound = Object.keys(WEAPONS).filter((id) => rangedModelOf(missileOf(id)?.kind ?? '') !== undefined);
+  assert.deepEqual(bound, ['bow'], 'the missile rows bind the bow weapon to the painted bow and nothing else');
 });
