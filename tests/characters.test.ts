@@ -297,10 +297,11 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from [slow]', async () => {
   const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), gladius: await readWarrior('warrior.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') , warhammer: await readWarrior('weapons/warhammer/veteran-warhammer.glb'), bite: await readWarrior('wolf.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
+  const rigOf = (weapon: WeaponId) => rigs[(weapon === 'bow' ? 'knife' : weapon === 'staff' ? 'trident' : weapon) as keyof typeof rigs];   // the bow rides the knife's rig and clips, the staff the trident's (RV82 content: aliases until their own art)
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
-    const names = rigs[weapon as keyof typeof rigs].animations.map(a => a.name);
+    const names = rigOf(weapon).animations.map(a => a.name);
     for (const role of ROLES.filter(r => r !== 'ArmedRun')) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);   // ArmedRun: the veteran rig's own optional clip
-    assert.equal(names.includes('ArmedRun'), weapon === 'trident', `${weapon}: only the veteran rig (the trident's) carries ArmedRun`);   // the skip above must not hide a missing clip
+    assert.equal(names.includes('ArmedRun'), weapon === 'trident' || weapon === 'staff', `${weapon}: only the veteran rig (the trident's, and the staff's that rides it) carries ArmedRun`);   // the skip above must not hide a missing clip
     // What the renderer plays for a path is what scripts/bake-blades.mjs sampled for it (PathSpec.clip), so the trail and the sim agree.
     const paths = WEAPONS[weapon].paths, played: Record<string, Role> = { light_right: 'Attack', light_right_chain: 'Attack', light_left: 'Return', light_left_chain: 'Return', heavy_overhead: 'Heavy', heavy_overhead_chain: 'Heavy', heavy_riposte: 'Heavy', thrust: 'Thrust', riposte: 'Riposte', slash_riposte: 'Attack' };
     for (const [path, role] of Object.entries(played)) assert.equal(clipFor(weapon, role), paths[path as keyof typeof paths].clip, `${weapon} ${path}: renderer plays ${clipFor(weapon, role)}, bake sampled ${paths[path as keyof typeof paths].clip}`);

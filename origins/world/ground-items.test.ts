@@ -13,10 +13,10 @@ const id = 'ground:zone1.rusty-sword-1', row = GROUND_ITEMS[id]!;
 const raw = (patch: object = {}, starters: object = STARTER_ITEMS, limits: object = GROUND_LIMITS) => ({ starterItems: starters, groundLimits: { ground: limits }, groundItems: { [id]: { ...row, ...patch } } });
 
 test('the shipped rows: a rusty sword (cinder-fields), a knife, gladius, cleaver and estoc, and the goblin scrap cap (cinder-fields) and shin plates (cinder-hold), one each, per account, hidden while taken, at places that exist in their zone', () => {
-  assert.deepEqual(Object.keys(GROUND_ITEMS), [id, 'ground:zone1.knife-1', 'ground:zone1.gladius-1', 'ground:zone1.cleaver-1', 'ground:zone1.estoc-1', 'ground:zone1.goblin-scrap-cap-1', 'ground:zone1.goblin-shin-plates-1']);
+  assert.deepEqual(Object.keys(GROUND_ITEMS), [id, 'ground:zone1.knife-1', 'ground:zone1.bow-1', 'ground:zone1.staff-1', 'ground:zone1.gladius-1', 'ground:zone1.cleaver-1', 'ground:zone1.estoc-1', 'ground:zone1.goblin-scrap-cap-1', 'ground:zone1.goblin-shin-plates-1']);
   assert.deepEqual([row.item, row.qty, row.scope, row.respawnSec], ['item:starter.rusty-sword', 1, 'account', 3600]);
-  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.item.replace('item:starter.', '')), ['rusty-sword', 'knife', 'gladius', 'cleaver', 'estoc', 'goblin-scrap-cap', 'goblin-shin-plates']);
-  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.place), ['cinder-fields', 'ferry-landing', 'blood-ruin', 'cinder-hold', 'mere-end', 'cinder-fields', 'cinder-hold'], 'one weapon per place, in the same order, then the two armour finds on the goblin ground and the hold (placements per Strategy 2026-10-16)');
+  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.item.replace('item:starter.', '')), ['rusty-sword', 'knife', 'bow', 'staff', 'gladius', 'cleaver', 'estoc', 'goblin-scrap-cap', 'goblin-shin-plates']);
+  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.place), ['cinder-fields', 'ferry-landing', 'ferry-landing', 'ferry-landing', 'blood-ruin', 'cinder-hold', 'mere-end', 'cinder-fields', 'cinder-hold'], 'one weapon per place (the knife, the bow and the staff all lie at the Ferry Landing, the new player\'s first stop: RV81 content, Lead 2026-10-19; the Pit-yard and exchange are not item places), in the same order, then the two armour finds on the goblin ground and the hold (placements per Strategy 2026-10-16)');
   for (const g of Object.values(GROUND_ITEMS)) assert.ok(g.zone === 'zone1' && zonePlaces().flatMap((pl) => Object.keys(pl.zones)).includes(g.place) && g.qty === 1 && g.scope === 'account' && g.hiddenWhileTaken === true, g.item);
   assert.deepEqual(Object.keys(loadGroundItems({ starterItems: STARTER_ITEMS, groundLimits: { ground: GROUND_LIMITS }, groundItems: GROUND_ITEMS }).items), Object.keys(GROUND_ITEMS), 'the loader accepts the seven rows');
 });
@@ -38,7 +38,8 @@ test('each item sits inside its own place\'s bounds and in no other place (the H
   // A weapon or an armour piece by its item definition's slot (the loot slots), not by its name. Strategy 2026-10-16: a place may hold one weapon and one armour find, never two of a kind.
   const armour = (item: string) => (ARMOUR_SLOTS as readonly (string | null)[]).includes(ITEMS.find((d) => d.id === item)?.slot ?? null);
   for (const [kind, want] of [['weapons', false], ['armour finds', true]] as const) {
-    const here = Object.values(GROUND_ITEMS).filter((g) => armour(g.item) === want).map((g) => g.place);
+    // RV81 content (Lead 2026-10-19): the starter bow and staff lie with the knife at the Ferry Landing, the new player's first stop; the one-weapon-per-place rule holds for the rest.
+    const here = Object.values(GROUND_ITEMS).filter((g) => armour(g.item) === want && !['item:starter.bow', 'item:starter.staff'].includes(g.item)).map((g) => g.place);
     assert.ok(here.length > 0 && new Set(here).size === here.length, `no two ${kind} share a place (${here.join(', ')})`);
   }
   assert.ok(!places.includes('east-road') && !places.includes('black-mere'));

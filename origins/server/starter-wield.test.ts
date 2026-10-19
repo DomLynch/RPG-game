@@ -31,13 +31,13 @@ const ctx = (db: Db) => ({ db, account: UID });
 
 test('every starter gear item names a LootId of its own slot (the rusty sword stands as starter.Longsword, Combat\'s lootStarter row)', () => {
   const starters = ITEMS.filter((d) => String(d.id).startsWith('item:starter.') && d.category === 'gear');
-  assert.equal(starters.length, 7);
+  assert.equal(starters.length, 9);   // +bow and staff (RV81 content)
   for (const d of starters) {
     const id = STARTER_WIELD.get(String(d.id));
     assert.ok(id && isLootId(id), `${d.id} has a row naming a LootId`);
     assert.equal(slotOf(id), d.slot, `${d.id}: the stand-in LootId is the same slot`);
   }
-  assert.equal(STARTER_WIELD.size, 7);
+  assert.equal(STARTER_WIELD.size, 9);
 });
 
 test('the loader refuses a non-starter item, an unknown LootId and a duplicate id', () => {
