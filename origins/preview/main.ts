@@ -26,7 +26,6 @@ import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
-import { fxNum } from '../../src/fight/index.ts';
 import { createWarBandRun } from './war-band-run.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
