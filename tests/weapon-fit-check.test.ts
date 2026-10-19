@@ -19,7 +19,7 @@ for (const [weapon, file, root] of SHIPPED) test(`the shipped ${weapon} fits the
 });
 
 test('every weapon the brief names has an envelope row', () => {
-  assert.deepEqual(Object.keys(ENVELOPE).sort(), ['cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'reaper', 'scythe', 'trident', 'warhammer']);
+  assert.deepEqual(Object.keys(ENVELOPE).sort(), ['cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'reaper', 'scythe', 'staff', 'trident', 'warhammer']);
 });
 
 test('the new profile holds a delivered shape to the full contract; legacy only to the envelope', () => {
