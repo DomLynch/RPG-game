@@ -100,6 +100,8 @@ const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE =
 // file there into every player's download and TOTAL) but fetched on demand by URL when the creature is near or the duel starts (src/fight/beast-scale.ts beastBodyUrl; World's preload warms it). Their own storage line,
 // out of TOTAL and out of every per-fight sum: per file and for the folder.
 const BEASTS_FILE = 2_200_000, BEASTS_SET = 8_000_000;
+// Painted ranged-weapon models (src/fight/ranged-model-rows.ts, public/weapons/ranged/<id>.glb; the bow, CS23): fetched only when a game weapon is bound to a missile kind (none is today), so their own line, out of TOTAL and of any fight's eager download. bow-v1: 647,332 B raw (two WebP maps).
+const RANGED_FILE = 1_000_000;
 // World bodies (public/world/<kind>.glb; Lead 2026-10-07, Dom's phone test: the Origins preview went black on an iPhone 15 with full duel GLBs): one
 // cheap skinned body per kind (8k tris, one 1024 atlas, the duel rig and clip names; scripts/character/world_body.py), loaded by the world view only,
 // never by a fight, so out of the per-fight figure and out of TOTAL. Own storage line and file cap, gzip bytes, sized to the files + 13% (set cap raised from 5.5 MB when the warrior joined):
@@ -171,7 +173,8 @@ export async function measure(distDir = dist, srcDir = src) {
   const shields = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'shields' && f.name.endsWith('.glb'));   // SHIELDS: their own line, no fight's
   const beasts = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'beasts' && f.name.endsWith('.glb'));   // BEASTS: their own line, on demand, no fight's eager download
   const world = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'world' && f.name.endsWith('.glb'));   // WORLD: its own line, no fight's
-  const glbs = all.filter(f => f.name.endsWith('.glb') && !world.includes(f) && !beasts.includes(f) && !preview.includes(f) && !looks.includes(f) && !shapes.includes(f) && !shields.includes(f));
+  const ranged = all.filter(f => relative(distDir, f.path).split(/[\\/]/).slice(0, 2).join('/') === 'weapons/ranged' && f.name.endsWith('.glb'));   // RANGED: their own line, on demand, no fight's eager download
+  const glbs = all.filter(f => f.name.endsWith('.glb') && !world.includes(f) && !beasts.includes(f) && !preview.includes(f) && !looks.includes(f) && !shapes.includes(f) && !shields.includes(f) && !ranged.includes(f));
   const hero = glbs.filter(f => stem(f.name) === 'warrior'), props = glbs.filter(f => propNames.has(stem(f.name)));
   const loot = glbs.filter(f => stem(f.name) === 'loot'), guard = glbs.filter(f => stem(f.name) === 'guard'), opponents = glbs.filter(f => !['warrior', 'loot', 'guard'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
   const equip = glbs.filter(f => equipNames.has(stem(f.name))), carriers = glbs.filter(f => carrierNames.has(stem(f.name)));
@@ -208,6 +211,7 @@ export async function measure(distDir = dist, srcDir = src) {
   const lookTextures = textures(looks).filter(t => !baseTextures.includes(t));   // throws on a look image that is not in dist
   return {
     beastFiles: beasts.map(f => ({ name: f.name, gzip: f.gzip })),
+    rangedFiles: ranged.map(f => ({ name: f.name, gzip: f.gzip })),
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
     opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0, opponentFace: worst.face,
     portraits: sum(portraits, 'gzip'), portraitFiles: portraits.map(f => ({ name: f.name, gzip: f.gzip })),
@@ -244,6 +248,7 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   }
   for (const f of m.worldFiles) if (f.gzip >= WORLD_FILE) throw new Error(`world body ${f.name} exceeds ${WORLD_FILE / 1e6} MB gzip: ${f.gzip}`);
   for (const f of m.beastFiles) if (f.gzip >= BEASTS_FILE) throw new Error(`beast body ${f.name} exceeds ${BEASTS_FILE / 1e6} MB gzip: ${f.gzip}`);
+  for (const f of m.rangedFiles) if (f.gzip >= RANGED_FILE) throw new Error(`ranged weapon model ${f.name} exceeds ${RANGED_FILE / 1e6} MB gzip: ${f.gzip}`);
   const beastsGzip = m.beastFiles.reduce((n, f) => n + f.gzip, 0);
   if (beastsGzip >= BEASTS_SET) throw new Error(`the beast bodies exceed ${BEASTS_SET / 1e6} MB gzip: ${beastsGzip}`);
   const wz = worldZones(m.worldFiles);
@@ -259,5 +264,6 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   console.log(`Beast bodies (public/beasts/, on demand, out of TOTAL): ${m.beastFiles.map(f => `${f.name} ${f.gzip}`).join(', ') || 'none'} of ${BEASTS_SET} gzip (per file cap ${BEASTS_FILE})`);
   console.log(`World bodies: Zone 1 ${wz.zone1.length} files (${wz.zone1.map(f => f.name).join(', ')}), ${wz.zone1Gzip} of ${WORLD_ZONE1_SET} B gzip (per file cap ${WORLD_FILE}); not spawned by any zone yet: ${wz.unassigned.join(', ') || 'none'}`);
   console.log(`Shields: ${shieldSets.map(l => `${l.set} ${l.gzip} of ${SHIELDS[l.set]}`).join(', ') || 'none'} (per file cap ${SHIELD_FILE})`);
+  console.log(`Ranged weapon models (public/weapons/ranged/, on demand, out of TOTAL): ${m.rangedFiles.map(f => `${f.name} ${f.gzip}`).join(', ') || 'none'} (per file cap ${RANGED_FILE})`);
   console.log(`Weapon shapes: ${shapeSets.map(l => `${l.set} ${l.gzip} of ${SHAPES[l.set]}`).join(', ') || 'none'} (per file cap ${SHAPE_FILE})`);
 }
