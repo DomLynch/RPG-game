@@ -86,6 +86,7 @@ import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/fight/match.ts';
 import * as stancePanel from '../src/fight/stance-panel.ts';
 import * as manaBar from '../src/fight/mana-bar.ts';
+import * as specialCounter from '../src/fight/special-counter.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
 import * as gearLedger from '../src/core/gear-ledger.ts';
 import * as gearStrip from '../src/core/gear-strip.ts';
@@ -153,6 +154,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./fight/kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
   modules['./fight/mana-bar.ts'] = manaBar;   // the live HUD's MANA bar (main.ts mounts it while manaMax is on; the harness has no #stamina to anchor to, so it mounts nothing)
+  modules['./fight/special-counter.ts'] = specialCounter;   // the ?debug special counters (main.ts calls enableSpecialCounter; off without ?debug, so the real module is a null check)
   modules['./fight/fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./fight/victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./fight/armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
