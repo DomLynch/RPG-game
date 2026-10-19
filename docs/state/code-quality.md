@@ -1,5 +1,9 @@
 # Code quality lane (Auditor)
 
+## 2026-10-19 ~16:4x +04. LIVE = JW e92e43bf3. **JX #3311 candidate PASS @d399186b1** (comment 6267212270, candidate:pass on): the merge is clean (tree 9e24215d8), it's train-script only, CI is all green incl. 8/18/56/57, and the Mac receipt exits 0. **Damage-share 30-min read posted on #3303:** 0 kills and 0 origins_events of any kind since 16:13:29, all four checks 0, writer env ORIGINS_DAMAGE_SHARE=1, NRestarts 0, journal clean, verify-daily success 16:44. So: nothing bad, not proven live.
+**Now:** verify JX after publish (only the train script changes; the services stay put) and re-run the damage-share checks there. JY = #3251/#3173/#3301/#3308 is armed with Deploy (PASSes posted, says Lead): read it as Deploy cuts it.
+**Gotcha (zzzz):** `systemctl show -p Environment` doesn't show the writer's flag (it comes from an EnvironmentFile). Read `/proc/<MainPID>/environ` instead.
+
 ## 2026-10-19 ~16:2x +04: HANDOFF before /clear (Dom). READ FIRST. LIVE = JW e92e43bf3 (verified on #3309: writer/presence/verifiers on it, WSV 58 deployed, NRestarts 0). **ORIGINS_DAMAGE_SHARE=1 on the writer since 16:13:29 +04** (Lead's GO, Backend watching).
 **Now, in order.**
 1. **Damage-share 30-min read, due ~16:44 +04 (Lead's ask; post on #3303):** run the four-check SQL in memory `reference_damage_share_live_check.md` (since 16:13:29+04), plus the writer journal (kill_report, 5xx, replay-capped) and verify-daily. Prod had ~1 world kill/week, so expect "0 kills since the flip: nothing bad, not proven on live rows". Say exactly that. Then re-run the same checks at every post-release service verify until real kills exist.
