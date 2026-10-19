@@ -1,5 +1,26 @@
 # Character — project state
 
+## 2026-10-19 (evening, ~17:30 +04) — HANDOFF #3. READ THIS BLOCK FIRST (supersedes the two blocks below for #3285).
+
+**Now**: stand by for Combat/World rig or loadout checks on their PRs; nothing of mine is open. Low-priority owed item (Lead, not today): log the GitHub runner's actual remote-heroes-soft warm time (the JU run's artifact; row is red there at `kitWarmMsSoft` 300 s, green in 167 s on VPS/HF) into this file so the gap is known. Do NOT raise `kitWarmMsSoft` or warm fewer kits; the row stays `required:false`.
+
+**Done today (receipts)**
+- **#3285 remote heroes**: rebased on trunk 9a49a3731, head **00b4f6bf7**; `.github/workflows/quality.yml` and `scripts/cut-gates.json` are back to trunk (Strategy's rule: a feature PR carries no workflow change). CI at that head: 22 pass, 0 fail, 11 skipping. Browser refresh on HF CPU (job 6ad5fb08632cfaf218011ce8): remote-heroes, remote-heroes-soft (kitWarm ran, warmed 6), seamless, seamless-quiet, browser-check all exit 0. Lead: rides the next candidate on its existing PASS.
+- **#3300** (quality.yml only, the optional `remote-heroes-soft` matrix row): opened, Hooks Dev reviews and allow-lists. If quality.yml's blob changes again, the cut-gates entry must change with it.
+- **Slow-device verdict**: the skip (`warmRemoteKits` skips when `slowDevice()`; remotes keep the base figure, i.e. armour-less) was already live at 979f4513f (origins/preview/main.ts:630); #3285 only moves the probe window and keys the verdict to the release. Probe medians 167 ms (load 2.5, at [zone ready]) and 183 ms (load 1.5, after first playable), headless Chromium on the Mac. The `kitSlowFrameMs` 100 ms threshold gets set from Dom's `?probe=1` iPhone reading (Lead asked him), as a separate rows change.
+- **Sandbox migration diff** (Lead's order, against the sandbox-archive-2026-10-19/* tags): the character side is already on trunk; piece-fit = src/fight/piece-fit.ts (#3196); the loot:* ground rows = origins/preview/drop-looks.json (27 rows; ground-looks.json is a pinned starter-items table, never add loot rows there); R06 rows in fx-rows.json. Only `public/world/kit/goblin-fort-kit.glb` (5.7 MB) is not on trunk: it goes to World with the building-skins slice. No PR from me.
+- VPS clones: char-s3 and char-packs were MOVED to the 200 GB volume by Hooks Dev (bind mount, same paths; 7 folders moved in all). Leftovers pushed as **wip/char-packs-1018 @047003099** and **wip/char-s3-1019 @b4eee36cc** (safety copies, nothing live). Both VPS clones now sit on those wip branches. VPS has no GitHub credentials: fetch over ssh into the Mac checkout and push from there.
+
+**Open**: #3268 and #3281 (both PASS) ride the cut after JN; #3285 and #3300 as above.
+
+**Gotchas (new)**
+- The promotion list is stale: before any "port X" task, grep trunk for the ids and check `src/fight/` and `origins/preview/drop-looks.json` first (I wrongly reported piece-fit and R04 as missing for 20 minutes).
+- HF CPU browser rows: `node scripts/vps-shadow/launch.mjs job <sha40> --lane char --timeout 90m -- "echo <base64 of script> | base64 -d | bash"`; the script runs in /work/repo, needs `npx playwright install --with-deps chromium` first (PLAYWRIGHT_BROWSERS_PATH under /work), the launcher waited 382 s for a slot, rows ran 66-287 s each.
+- Rebase conflicts in preview-rules: a rule-count line carries a long comment history; use `git checkout --ours` (the trunk side in a rebase) and re-apply only your own name/count bumps, then check `preview-rules-defs.json` row count (141 at 00b4f6bf7) and the "extra" count (+1).
+- A cut-gate (gate 2) trips on any watched-path change (.github/workflows etc.) in a feature PR.
+- Hooks: no file edits or heredocs through Bash (use Write/Edit); `sleep` is blocked (use Monitor); `gh pr comment --body-file` works from a Write-created file.
+- Cross-session: "Frankendom - Lead Dev" has two rows; use the one on this machine (ListAgents ref).
+
 ## 2026-10-19 (afternoon, ~15:00 +04) — UPDATE to HANDOFF #2 (saved on Dom's /clear). READ THIS BLOCK FIRST.
 
 **#3285 remote heroes, current head 22872277edb0c92187456bd0fe738f167965c888** (branch char/remote-heroes, ready, auditor:ready set). Since the block below: (a) Strategy's ruling done: the slow-device probe window opens after first playable (load cover lifted + row `kitProbeSettleMs` 1000), threshold stays row `kitSlowFrameMs`, `?probe=1` prints the median on screen (head a0998c9bc); (b) a0998c9bc's soft leg failed on VPS AND Mac because my row script waited `kitWarmMs`+60 s (120 s) but `?kitwarm=soft` runs under `kitWarmMsSoft` (300 s): fixed in the script only at 22872277e (Lead: script-only delta is fine; Strategy re-PASSes 22872277e; page rows run at a0998c9bc stay valid).
