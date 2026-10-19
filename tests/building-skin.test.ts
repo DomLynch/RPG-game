@@ -28,8 +28,7 @@ test('the skin changes how a town looks, never where it stands: same solids, dif
   assert.ok(plain.solids.filter((s) => !skinned.solids.some((k) => k.x === s.x && k.z === s.z && k.r === s.r)).every((s) => s.r === 0.6), 'only bare landmark markers stop blocking; buildings keep their footprints');
   assert.notDeepEqual(skinned.pieces, plain.pieces); assert.ok(skinned.models.length > 0 && plain.models.length === 0, 'the skin stands model nodes; the bricks stand none');
   assert.deepEqual(frontierBuild(F, buildingSkin('')), plain, "'' is today's bricks"); assert.deepEqual(frontierBuild(F, buildingSkin('nope')), plain, 'an unknown skin is none');
-  for (const id of ['2', '3', '4']) assert.equal(zoneBuildings(loadZone(id)), '', `${id}: the real zones keep their bricks`);
-  assert.equal(zoneBuildings(loadZone('1')), 'goblin', 'Zone 1 = Test Zone look (Dom-approved 2026-10-18): the goblin building skin');
+  for (const id of ['1', '2', '3', '4']) assert.equal(zoneBuildings(loadZone(id)), '', `${id}: the real zones keep their bricks`);
   const asks = (v: unknown) => zoneBuildings({ fields: { 'look.buildings': v }, set: ['look.buildings'], world: [] });
   assert.equal(asks('goblin'), 'goblin'); assert.equal(asks('nope'), '', 'an unknown skin is the bricks'); assert.equal(zoneBuildings({ fields: { 'look.buildings': 'goblin' }, set: [], world: [] }), '', 'a field the zone did not SET is not read');
 });

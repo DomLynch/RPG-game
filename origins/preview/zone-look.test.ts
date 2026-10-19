@@ -11,13 +11,8 @@ import { lookOf, withZoneLook, zoneDayNight, zoneHour, type ZoneFields } from '.
 
 const of = (spec: Record<string, unknown>): ZoneFields => { const r = resolveZone('999', { name: 'T', level: 999, ...spec }); assert.deepEqual(r.problems, []); return { fields: r.values, set: r.explicit }; };
 
-test('Zone 1 = Test Zone look (Dom-approved 2026-10-18): it sets the kit, density and rim and no fog, sun, time or day/night field', () => {
-  const z = loadZone('1');
-  assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(), ['look.props.density', 'look.props.kit', 'look.props.rim']);
-  for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `1/${preset}`);
-});
-test('Zone 2 sets no look, time or day/night field: every preset look comes back untouched', () => {
-  for (const id of ['2']) {
+test('Zone 1 and Zone 2 set no look, time or day/night field: every preset look comes back untouched', () => {
+  for (const id of ['1', '2']) {
     const z = loadZone(id);
     assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)), [], `zone ${id}`);
     for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `${id}/${preset}`);
@@ -51,6 +46,6 @@ test('time of day: follow:false pins the hour; dayNight.on:false turns the cycle
 
 test('look.props.density scales how many props the kit places (1 = as the kit says, the default)', () => {
   const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), n = (density?: number) => frontierKit(F, B, D, density).placements.length;
-  assert.equal(n(loadZone().fields?.['look.props.density'] as number), n(), 'the default is Zone 1\'s own row'); assert.ok(n(2) > n(1) * 1.5, `${n(2)} vs ${n(1)}`); assert.ok(n(0.5) < n(1) * 0.7); assert.equal(n(0), 0);
-  assert.ok((loadZone().fields?.['look.props.density'] as number) < 1, 'Zone 1 = Test Zone look (Dom-approved 2026-10-18): the fortress biome thins the clutter');
+  assert.equal(n(1), n(), 'the default is 1'); assert.ok(n(2) > n(1) * 1.5, `${n(2)} vs ${n(1)}`); assert.ok(n(0.5) < n(1) * 0.7); assert.equal(n(0), 0);
+  assert.equal(loadZone().fields?.['look.props.density'], 1, 'Zone 1 keeps the default');
 });

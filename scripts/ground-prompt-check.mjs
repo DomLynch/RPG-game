@@ -15,7 +15,7 @@ import { serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
 const PICKUP = RULES.groundPickup[0].fields;
-const CEILING_MS = 13 * 60_000;   // the whole check, under the row's own 900 s ceiling (scripts/lib/row-ceilings.json): a hang is a FAIL with a line, never a cancelled job. Zone 1 = the Test Zone look (#3266: fortress dome, camp kit, bigger bodies) made each of the four page loads cost more on software GL: row 57 took 200 s on trunk and 347 s at that head on the VPS (frame time on a real GPU is unchanged: p50 17 ms both), and ran past the old 8-minute ceiling on CI (JJ)
+const CEILING_MS = 8 * 60_000;   // the whole check, under the 10-minute row cap: a hang is a FAIL with a line, never a cancelled job
 const OUT = path.resolve(arg('out', 'artifacts/ground-prompt')), WIDTHS = [375, 320];
 const DIST = arg('dist') ? path.resolve(arg('dist')) : path.join(OUT, 'build');
 await fs.mkdir(OUT, { recursive: true });
