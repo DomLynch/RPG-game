@@ -16,7 +16,7 @@ test('the picker has one row per stance pick, in the record\'s PICKS order, each
 });
 
 test('the layout dials are rows and the button is a real touch target', () => {
-  for (const id of ['leftPx', 'topPx', 'buttonPx', 'iconPx', 'gapPx', 'revealPx']) assert.ok(stancePickerDial(id) > 0, id);
+  for (const id of ['leftPx', 'topPx', 'buttonPx', 'iconPx', 'gapPx', 'revealPx', 'namePx']) assert.ok(stancePickerDial(id) > 0, id);
   assert.ok(stancePickerDial('buttonPx') >= 36, 'a finger-sized button');
   assert.throws(() => stancePickerDial('nope'), /no stancePickerDial/);
 });
