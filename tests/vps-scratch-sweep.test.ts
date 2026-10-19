@@ -423,16 +423,67 @@ test('sweep_cap_order: oldest idle first, with sizes; skips never-touch names, s
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('the cap pass runs after the age pass, stops at the cap, and applies the same keep-set; a dry run counts a would-be removal', () => {
+// Lead 2026-10-19 (Dom's 10-13 rule: no hand or by-age deletes on the VPS): the cap is its own mode, `--cap`. It is never part of the scheduled sweep, touches only work/, removes only through
+// archive_then_delete (so never an unarchived copy), and is a dry run unless --apply is given by hand. These run the real script against a tmp root (SWEEP_TEST_ROOT) with a stub gh.
+function capWorld() {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-capmode-'));
+  const work = join(root, 'shadow', 'work'); mkdirSync(work, { recursive: true }); mkdirSync(join(root, 'bin')); mkdirSync(join(root, 'arch'));
+  writeFileSync(join(root, 'bin', 'gh'), '#!/usr/bin/env bash\nprintf "some-other-branch\\nsomesha\\n"\n'); chmodSync(join(root, 'bin', 'gh'), 0o755);   // a non-empty open-PR list that matches nothing here
+  const mk = (name: string) => { mkdirSync(join(work, name)); writeFileSync(join(work, name, 'blob'), Buffer.alloc(20 * 1024)); };
+  mk('oldest'); spawnSync('sleep', ['1.2']); mk('middle'); spawnSync('sleep', ['1.2']); mk('newest');
+  const cap = (args: string[]) => spawnSync('bash', ['ops/vps-scratch-sweep', '--cap', ...args], { encoding: 'utf8', timeout: 60_000,
+    env: { ...process.env, SWEEP_TEST_ROOT: root, PATH: `${join(root, 'bin')}:${process.env.PATH}`, HOME: root, WORK_CAP_KIB: '30', CAP_MIN_AGE_H: '-1', BOX_RESERVE_GIB: '0' } });
+  const left = () => readdirSync(work).sort();
+  const manifest = () => readdirSync(join(root, 'log')).filter(f => f.endsWith('.removed.txt')).map(f => readFileSync(join(root, 'log', f), 'utf8')).join('');
+  return { root, work, cap, left, manifest, done: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+test('--cap without --apply is a dry run: it names what it would archive and removes and archives nothing', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  try {
+    const r = w.cap([]); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /over the 40G cap|cap: oldest idle copies first/); assert.match(r.stdout, /would archive\+delete .*\/oldest/);
+    assert.deepEqual(w.left(), ['middle', 'newest', 'oldest']); assert.deepEqual(readdirSync(join(w.root, 'arch')), [], 'nothing archived');
+  } finally { w.done(); }
+});
+
+test('--cap --apply never deletes a copy it could not archive: an unwritable archive aborts before any removal', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  try {
+    rmSync(join(w.root, 'arch'), { recursive: true }); writeFileSync(join(w.root, 'arch'), 'a file, so the archive root cannot be made');
+    const r = w.cap(['--apply']); assert.equal(r.status, 3, r.stdout + r.stderr); assert.match(r.stdout, /ABORT: storage box not writable/);
+    assert.deepEqual(w.left(), ['middle', 'newest', 'oldest'], 'every copy is still there');
+  } finally { w.done(); }
+});
+
+test('--cap --apply archives the oldest idle copies first (verified, in the manifest), stops at the cap, and leaves the newest', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  try {
+    const r = w.cap(['--apply']); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.deepEqual(w.left(), ['newest'], 'oldest and middle are gone, newest is under the cap');
+    const run = readdirSync(join(w.root, 'arch', 'work'))[0];
+    for (const n of ['oldest', 'middle']) assert.equal(readFileSync(join(w.root, 'arch', 'work', run, n, 'blob')).length, 20 * 1024, `${n} was archived whole before it was removed`);
+    assert.equal((w.manifest().match(/^ARCHIVED /gm) ?? []).length, 2); assert.doesNotMatch(w.manifest(), /DELETED /, 'no delete-only line: every removal went through the archive');
+  } finally { w.done(); }
+});
+
+test('--cap keeps a copy a process is working in, and says so', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  const child = spawn('sleep', ['30'], { cwd: join(w.work, 'oldest') });
+  try {
+    const r = w.cap(['--apply']); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.ok(w.left().includes('oldest'), 'the in-use copy is not removed'); assert.match(r.stdout, /cap keep\(in-use\) oldest/);
+  } finally { child.kill(); w.done(); }
+});
+
+test('--cap and --path are separate modes, and --cap is nowhere in the scheduled form or the cap code path', () => {
+  const r = run(['--cap', '--path=/tmp/x']); assert.equal(r.status, 2); assert.match(r.stderr, /separate modes/);
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
-  const cap = src.slice(src.indexOf('# work/ cap:'), src.indexOf('# dev-jobs: finished jobs'));
-  assert.ok(src.indexOf('# work/ cap:') > src.indexOf('# work/: lane scratch'), 'after the work/ age pass');
-  for (const keep of ['cap keep(in-use)', 'cap keep(symlink target)', 'cap keep(open-PR)']) assert.ok(cap.includes(keep), keep);
-  assert.match(cap, /\[ "\$total_kib" -gt "\$cap_kib" \] \|\| break/);
-  assert.match(cap, /sweep_cap_order "\$WORK" "\$CAP_MIN_AGE_H"/);
-  assert.match(cap, /archive_then_delete "\$d" work/, 'archive first, like every other work/ removal');
-  assert.match(cap, /\[ "\$APPLY" = 0 \] \|\| \[ ! -d "\$d" \]/);
-  assert.doesNotMatch(cap, /rm -rf/, 'the cap never removes anything itself, only through archive_then_delete');
+  const capBlock = src.slice(src.indexOf('# --cap mode'), src.indexOf('# work/: lane scratch'));
+  assert.equal(src.split('sweep_cap_order').length - 1, 2, 'defined once and called once, inside the --cap block');
+  assert.ok(capBlock.includes('sweep_cap_order "$WORK" "$CAP_MIN_AGE_H"') && capBlock.startsWith('# --cap mode') && /if \[ "\$CAPMODE" = 1 \]; then/.test(capBlock));
+  assert.doesNotMatch(capBlock.replace(/#[^\n]*/g, ''), /\brm\b|delete_only/, 'the cap removes nothing itself: only archive_then_delete');
+  assert.doesNotMatch(readFileSync('ops/vps-scratch-sweep.service', 'utf8'), /--cap/, 'the timer never runs it');
 });
 
 test('a bundle that fails git bundle verify falls back to archiving the whole .git, and a failed .git copy keeps the source (Lead 2026-10-19)', () => {
