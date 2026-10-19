@@ -14,6 +14,7 @@ import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { joinBot } from '../origins/presence/test-client.ts';
 import { serveOriginsPreview, AUTH_KEY } from './lib/origins-preview-harness.mjs';
 
+const SOFT = process.env.KITWARM_SOFT === '1';   // the forced leg (?kitwarm=soft): software GL links every kit, so the warm must run and warm all of warm-kits.json
 const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview');
 if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
 const acct = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -32,6 +33,7 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(170000);
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
+  const warnings = []; page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text().slice(0, 200)); });
   const port = presence.port();
   await page.addInitScript(([key, exp, p]) => {
     localStorage.setItem(key, JSON.stringify({ access_token: 'stub.token.value', expires_at: exp }));
@@ -44,7 +46,7 @@ try {
     const ok = (result) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
     return op === 'open' ? ok({ characters: [{ id: 'pc:still', name: 'Alice' }] }) : route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'stub' }) });
   });
-  await page.goto(`${origin}/preview/origins/?region=1&zone=1`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=1${SOFT ? '&kitwarm=soft' : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 170000 });
   assert.ok(await page.waitForFunction(() => window.originsPreview.remote() !== null, null, { timeout: 120000 }).then(() => true).catch(() => false), 'the remote view never came up (the hero rig did not load)');
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
@@ -55,6 +57,12 @@ try {
   // the other-players' gear warm-up links its programs after [zone ready] (#2938): the "before" read waits for it, or its programs would count as added by the bots
   assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 60000 }).then(() => true).catch(() => false), 'the remote kits warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');   // bounded by the kitWarmMs row (it stops starting kits then) plus the one in flight
   receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
+  // The warm either ran or was SKIPPED on purpose (a slow device); never a silent third thing. Skipped: the page logged why, none warmed, not failed. Ran: not failed, and every kit in warm-kits.json warmed.
+  const kitsTotal = JSON.parse(fs.readFileSync('origins/preview/warm-kits.json', 'utf8')).warmKits.length, k = receipt.remoteKitsWarm;
+  receipt.kitWarm = k.skipped ? 'skipped' : 'ran'; receipt.kitsTotal = kitsTotal;
+  if (k.skipped) assert.ok(k.failed === false && k.warmed === 0 && warnings.some((w) => /remote-kit warm-up skipped/.test(w)), `a skipped kit warm must be failed:false, warmed:0 and say why in the console: ${JSON.stringify({ k, warnings })}`);
+  else assert.ok(k.failed === false && k.warmed > 0 && k.warmed === kitsTotal, `the kit warm ran and did not warm every kit: ${JSON.stringify(k)} of ${kitsTotal}`);
+  if (SOFT) assert.ok(!k.skipped && k.warmed === kitsTotal, `?kitwarm=soft must force the warm: ${JSON.stringify(k)}`);
   receipt.gearWarm = await page.evaluate(() => (window.originsPreview.gearWarm ? window.originsPreview.gearWarm() : null));   // the gear sheet's mannequin warm (skipped on this runner's slow-device probe, or bounded: it must never be what holds the flag above)
   receipt.maxGapMsDuringWarm = Math.round(await page.evaluate(() => window.__gap.max));
   const before = await snap(); receipt.programsBeforeBots = before.names.length;
@@ -124,7 +132,7 @@ try {
 } catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 1800); console.error('FAIL', receipt.failure); }
 finally {
   for (const b of bots) try { b.close(); } catch { /* already closed */ }
-  fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync('artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
+  fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync(SOFT ? 'artifacts/origins-remote-heroes-soft.json' : 'artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
   console.log(JSON.stringify(receipt));
   await browser.close(); await close(); await presence.close();
   process.exit(receipt.pass ? 0 : 1);
