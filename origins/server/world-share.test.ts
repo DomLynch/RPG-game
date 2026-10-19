@@ -84,7 +84,8 @@ test('the per-account queued-replay cap: a third concurrent report is not replay
   let replays = 0; const release: (() => void)[] = [];
   const ops = mk(() => { replays++; return new Promise<Verdict>((res) => release.push(() => res(verdict(wolf.hp)))); });
   const a = ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' }), b = ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'r' });
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(replays, 2, 'both first reports are in the replay queue');
   const s3 = stub(), c = await ops.kill_report!(ctx(s3.db), { token: TOKEN, hits: 50, record: 'r' }) as { share: number };
   assert.equal(replays, 2, 'two replays queued, the third skipped');
   assert.equal(c.share, 1); assert.equal(payload(s3.kills[0]!.b).record, 'replay-capped');
