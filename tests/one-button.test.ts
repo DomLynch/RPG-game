@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { HEAVY_HOLD_MS, ONE_BUTTON, STAB_HALF_ANGLE, STAB_SLIDE_PX, stabSector } from '../src/fight/input.ts';
 import { touchLayoutCss } from '../src/fight/touch-layout.ts';
 
-test('the one-button strike is still off by default (it removes the Thrust and Heavy buttons: Lead decides when it ships), and its rows hold the sandbox values (heavyHold 220)', () => {
+test('the one-button strike is still off by default (a heavy riposte is unreachable under it: see the RV79 PR), and its rows hold the sandbox values (heavyHold 220)', () => {
   assert.equal(ONE_BUTTON, false, 'off = today\'s Light, Thrust and Heavy buttons; ?onebutton=1 turns touch layout A on');
   assert.deepEqual([HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE], [220, 18, 50]);
 });

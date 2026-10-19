@@ -34,6 +34,16 @@ try {
   });
   const cdp=await page.context().newCDPSession(page);
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
+  // RV79 (oneButton ON, touch layout A, Dom 2026-10-13): STRIKE is the only swing button. A tap is the light, a slide straight up (past input.stab-slide-px) is the thrust, a hold past input.heavy-hold-ms is the heavy; the Thrust and
+  // Heavy buttons are hidden by the layout (sandbox/entry.ts layoutA hides them the same way). The riposte moves are the same actions as before, so this gate drives the gesture that makes each one, on the harness clock.
+  const strike=async button=>{
+   if(button==='attack-button'||await page.locator('#'+button).isVisible()){await page.locator('#'+button).tap();return;}   // the button is on screen (oneButton off, or STRIKE itself): tap it as always
+   const strikeBox=await page.locator('#attack-button').boundingBox(),at={x:strikeBox.x+strikeBox.width/2,y:strikeBox.y+strikeBox.height/2};
+   await touch('touchStart',at);
+   if(button==='thrust-button')await touch('touchMove',{x:at.x,y:at.y-40});
+   else await run(240);   // run() takes harness milliseconds: 240 ms is just past the 220 ms hold, so the heavy starts inside the 333 ms (20-tick) counter window, then the thumb lifts
+   await touch('touchEnd');
+  };
   // Diagnosis for a runner where the fight never starts under harness time: what the page looks like right after the press and on failure.
   const diagnose=()=>page.evaluate(()=>({visibility:document.visibilityState,welcomeHidden:document.querySelector('#welcome')?.hidden,message:document.querySelector('#message')?.textContent,messageHidden:document.querySelector('#message')?.hidden,attack:document.querySelector('#attack-button')?.textContent,attackDisabled:document.querySelector('#attack-button')?.getAttribute('aria-disabled'),guard:document.querySelector('#guard-button')?.getAttribute('aria-disabled'),status:document.querySelector('#combat-status')?.textContent,debug:{...document.querySelector('#debug')?.dataset},performance:document.querySelector('#performance')?.textContent,combatEvents:window.__combat.length,lastTick:window.__combat.at(-1)?.tick??null,now:Math.round(performance.now())}));
   await page.getByRole('button',{name:'Fight',exact:true}).tap();
@@ -52,7 +62,7 @@ try {
   await touch('touchStart',centre);
   if(slide){await touch('touchMove',{x:centre.x+slide.x,y:centre.y+slide.y});}
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
-  await touch('touchEnd');await page.locator('#'+button).tap();
+  await touch('touchEnd');await strike(button);receipt.afterStrike=await page.evaluate(()=>window.__combat.flatMap(s=>s.events).slice(-12).map(e=>`${e.tick??''}:${e.type}:${e.actor??''}:${e.move??''}`));   // diagnosis: the last events after the gesture
   await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);
   const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value,max:document.querySelector('#target-health').max}));
   assert.ok(state.events.some(e=>e.type==='AttackStarted'&&e.actor===0&&e.move===move));
