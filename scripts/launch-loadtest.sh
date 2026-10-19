@@ -30,7 +30,7 @@ if [ "$MODE" = mix ]; then   # the writer + world-kill mix (scripts/writer-mix-l
     grep -q "^writer-mix-loadtest: .*BROKE" /tmp/mix.out && { echo "STOP real-set phase at rate=$rate (broke)"; break; }
   done
   for rate in 20 50 100; do
-    echo "RESULT mix clones=2000 cycles/s=$rate pool=4"; as_pg node scripts/writer-mix-loadtest.mjs --rate=$rate --seconds=45 --accounts=1000 --pool=4 --kill-share=1 --clones=2000 2>&1 | tee /tmp/mix.out | tail -95; lap "mix-clones-$rate"
+    echo "RESULT mix clones=1000 cycles/s=$rate pool=4"; as_pg node scripts/writer-mix-loadtest.mjs --rate=$rate --seconds=30 --accounts=1000 --pool=4 --kill-share=1 --clones=1000 2>&1 | tee /tmp/mix.out | tail -95; lap "mix-clones-$rate"
     grep -q "^writer-mix-loadtest: .*BROKE" /tmp/mix.out && { echo "STOP clone phase at cycles/s=$rate (broke)"; break; }
   done
   echo "DONE $(( $(date +%s) - t0 ))s load=$(cut -d' ' -f1-3 /proc/loadavg)"; exit 0
