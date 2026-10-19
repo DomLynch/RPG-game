@@ -21,7 +21,6 @@
     "mere-end"
   ],
   "camera": {
-    "preset": "b",
     "passage": {
       "zMax": -9,
       "zMin": -26.5,
