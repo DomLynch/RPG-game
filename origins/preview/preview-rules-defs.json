@@ -28,6 +28,7 @@
     { "id": "dawnHour", "value": 5, "unit": "h" },
     { "id": "duskSpan", "value": 1.5, "unit": "h" },
     { "id": "gateGap", "value": 0.62, "unit": "rad" },
+    { "id": "gateGapFade", "value": 0.08, "unit": "ratio" },
     { "id": "heroWait", "value": 45000, "unit": "ms" },
     { "id": "kindsWait", "value": 20000, "unit": "ms" },
     { "id": "kitWarmMs", "value": 60000, "unit": "ms" },
