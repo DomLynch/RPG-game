@@ -50,7 +50,7 @@ async function honestRecord(sp = baseWolf) {   // a record is bound to ITS spawn
   const wc = live({ mobs: () => mobs, onKill: s => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.4, facing: 0 };
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find(q => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
-  if (!rec) throw new Error('the scripted hero did not kill the wolf');
+  if (!rec) { if (sp === baseWolf) throw new Error('the scripted hero did not kill the wolf'); return null; }   // some ids (their fight seed) beat the scripted hero: that spawn simply has no honest record
   return { text: await encodeWorldRecord(rec), seconds: rec.steps.length / 60 };
 }
 const { text: recordText, seconds: recordSeconds } = await honestRecord();   // the writer refuses a record longer than the engagement is old ('overlong'), so a kill cycle waits the fight's real length
@@ -58,7 +58,8 @@ const spawnSet = CLONES === 0 ? realSet : new Map(Array.from({ length: CLONES },
 const spawnIds = [...spawnSet.keys()];
 // One honest record per WOLF spawn in the set (every clone, or the real set's wolves), made before the run so the work is not in the measurement; every other spawn (a bear, a goblin) has no scripted-hero
 // record and sends the base wolf's, which the replay refuses ('no kill'): those are the unverified share, said so in the report.
-const recordOf = new Map(); for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') recordOf.set(id, id === baseWolf.spec.id ? recordText : (await honestRecord(sp)).text);
+const recordOf = new Map(); for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') { const h = id === baseWolf.spec.id ? { text: recordText } : await honestRecord(sp); if (h) recordOf.set(id, h.text); }
+console.log(JSON.stringify({ honestRecords: recordOf.size, spawnsInSet: spawnSet.size }));
 
 let started = false, server, pool;
 try {
