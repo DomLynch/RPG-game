@@ -1,0 +1,314 @@
+[
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 1,
+    "loadBefore": 5.89,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 468
+        }
+      ]
+    },
+    "fight": {
+      "n": 426,
+      "mean": 18.81,
+      "p50": 17,
+      "p95": 46,
+      "max": 61,
+      "fps": 53.2
+    },
+    "render": {
+      "triangles": 484359,
+      "calls": 92
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3274-f10ddeb61",
+    "run": 1,
+    "loadBefore": 4.96,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 112
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 112
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 486
+        }
+      ]
+    },
+    "fight": {
+      "n": 463,
+      "mean": 17.28,
+      "p50": 17,
+      "p95": 32,
+      "max": 39,
+      "fps": 57.9
+    },
+    "render": {
+      "triangles": 820376,
+      "calls": 104
+    },
+    "errors": []
+  },
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 2,
+    "loadBefore": 4.95,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 468
+        }
+      ]
+    },
+    "fight": {
+      "n": 442,
+      "mean": 18.12,
+      "p50": 17,
+      "p95": 41,
+      "max": 50,
+      "fps": 55.2
+    },
+    "render": {
+      "triangles": 484361,
+      "calls": 93
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3274-f10ddeb61",
+    "run": 2,
+    "loadBefore": 4.52,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 468
+        }
+      ]
+    },
+    "fight": {
+      "n": 469,
+      "mean": 17.06,
+      "p50": 17,
+      "p95": 30,
+      "max": 40,
+      "fps": 58.6
+    },
+    "render": {
+      "triangles": 824226,
+      "calls": 104
+    },
+    "errors": []
+  },
+  {
+    "label": "live-JI-20a3d87fd",
+    "run": 3,
+    "loadBefore": 5.43,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 49
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 49
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "fight": {
+      "n": 406,
+      "mean": 19.74,
+      "p50": 17,
+      "p95": 56,
+      "max": 88,
+      "fps": 50.7
+    },
+    "render": {
+      "triangles": 484163,
+      "calls": 90
+    },
+    "errors": []
+  },
+  {
+    "label": "pr3274-f10ddeb61",
+    "run": 3,
+    "loadBefore": 5.48,
+    "how": "tapMob",
+    "engaged": true,
+    "before": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 150
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 150
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 558
+        }
+      ]
+    },
+    "after": {
+      "target": "cave-troll-1",
+      "hero": {
+        "hp": 112
+      },
+      "foes": [
+        {
+          "id": "me",
+          "hp": 112
+        },
+        {
+          "id": "cave-troll-1",
+          "hp": 504
+        }
+      ]
+    },
+    "fight": {
+      "n": 416,
+      "mean": 19.23,
+      "p50": 17,
+      "p95": 50,
+      "max": 91,
+      "fps": 52
+    },
+    "render": {
+      "triangles": 872544,
+      "calls": 93
+    },
+    "errors": []
+  }
+]
