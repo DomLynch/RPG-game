@@ -2,6 +2,7 @@
 // set worth 50 more (25 shape, 25 quality). The duel reads attack, armour, health, poise and recovery from the dial ROWS. These tests pin the bar: the naked fight is the fight it was (byte for byte), a
 // dial never moves a duration, ONE validator holds the build (no number past 100, no point past the level), a record cannot smuggle a sheet past the verifiers, a new dial / skill / set / school / piece
 // is a row, and a recorded sheet fight replays with its first differing tick named.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, withSheet, type Action, type Duel, type Intent } from '../src/fight/duel.ts';

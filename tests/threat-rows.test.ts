@@ -1,6 +1,7 @@
 // Threat as data (Row 9 of the top-30 table, EQEmu hate list / AzerothCore ThreatManager: a hate source carries a modifier). The existing fights must pick the SAME foe tick for tick: a scripted
 // two-player, three-creature world is stepped 1800 ticks and the sequence of who-fights-whom (pairs) plus every creature's threat table is hashed. The expected hashes were taken on trunk
 // BEFORE the rows existed; they must not move when the rows are read instead of the literals. Structure only (ids and rounded threat), never raw float state, so Node 22 and 25 agree.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';

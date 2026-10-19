@@ -1,5 +1,6 @@
 // Plug and play (Dom 2026-10-09; the row IS the zone, 2026-10-11): a zone is one row file, nothing else. The registry is generated from origins/zone-rows/zone<N>.row.json; a fixture zone 99 row in a scratch
 // folder loads with ZERO edits to any file outside it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

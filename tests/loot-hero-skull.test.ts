@@ -1,6 +1,7 @@
 // The loot pieces shelled from a skull must be shelled from the PLAYER's (parts.py --loot): the Executioner's mask + hood and the
 // Nightborn's crown were first cut on their own fighters' heads and sat wrong on the hero — the crown floated 3 cm above his skull,
 // his nose came through the mask. Measured in the rig's rest space (raw positions, both files), against the hero's scanned head.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

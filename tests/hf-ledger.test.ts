@@ -1,5 +1,6 @@
 // The HF cost ledger (Dom 2026-10-12): one line per HF job (id, flavor, minutes, USD, reason), an alarm at $6/day, no new T4 job at $10/day (raised from $3/$5, Dom 2026-10-16), counted
 // from the ledger's own lines only, thresholds in one constant (HF_COST). Every file lives in a tmp dir (HF_COST_LEDGER), never ~/.claude/state.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';

@@ -1,5 +1,6 @@
 // The Witch fights differently from the Centurion at Easy (Dom, 2026-09-24). They carry the same trident, so the difference is her
 // profile alone: 24 seeded AI-vs-AI fights each, the hero's brain against each warden's Easy, counting the warden's own actions.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';

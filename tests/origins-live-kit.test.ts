@@ -2,6 +2,7 @@
 // from the game's index.html at build time, never pasted. These pin that the cut finds every piece, that every element the game's input
 // and HUD bind to (and the duel's own glue) is on the preview page, that no id is shared with the walk, and that the preview's own
 // hand-made pad and bars are gone.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

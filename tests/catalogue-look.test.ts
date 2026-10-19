@@ -1,4 +1,5 @@
 // K11 slice 1: the catalogue resolves a character's look for one meeting, and says what the old tables say (origins/preview/mob-looks.ts scale, src/fight/rank-look.ts look files).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { test } from 'node:test';

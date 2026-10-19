@@ -1,4 +1,5 @@
 // Labelling is idempotent: a label the PR already has is never POSTed again (FM #2732 and FN #2733 each got ci:release-checks + auditor:ready twice, 1 s apart, which cancelled the first CI run).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

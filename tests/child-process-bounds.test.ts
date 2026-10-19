@@ -1,6 +1,7 @@
 // Ratchet: no NEW unbounded synchronous child processes in scripts/. Deploy #71 (2026-09-21) sat an hour in a jpegtran with no timeout
 // anywhere in its chain. Every execFileSync / execSync / spawnSync added from now on must pass `timeout:`; the sites below predate the
 // rule and are debt to burn down (a file's count may only fall). Async spawn/exec are covered by the release-check and deploy ceilings.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

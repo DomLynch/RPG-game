@@ -1,4 +1,5 @@
 // CI entry for Zone 1's own combat loop: Combat's pure step (src/fight/world.ts) and World's mount (origins/preview/world-combat.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import '../origins/combat/zone1.test.ts';
 import '../origins/preview/world-combat.test.ts';
 import '../origins/preview/loadout-gate.test.ts';   // the sheet-in-world loadout gate (#2900)

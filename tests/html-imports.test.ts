@@ -1,6 +1,7 @@
 // A page outside the typecheck can import a module that moved and nothing notices until a browser row loads it: character-preview.html kept
 // `from '/src/camera.ts'` after #2126 moved the file to src/fight/camera.ts, so rows 18 and 29 timed out for a day (release AY, 2026-10-11).
 // Every root .html page: each absolute /src/... import must exist on disk.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

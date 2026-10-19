@@ -1,4 +1,5 @@
 // The lane Stop gate caps its test workers (Lead, 2026-10-09: node --test on every core drove the shared Mac's load to 80).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

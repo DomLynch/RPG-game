@@ -1,4 +1,5 @@
 // Mob styles: each resolves to a real roster opponent with real AI profile rows, and only the beast flees, below its threshold.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { OPPONENTS, opponentAt } from '../src/fight/moves.ts';

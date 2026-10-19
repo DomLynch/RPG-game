@@ -1,5 +1,6 @@
 // The raw duplicate-key scan (scripts/lib/json-dup-keys.mjs): JSON.parse keeps the LAST of two equal keys silently, so a data row that repeats an id passed every check on the parsed value (Auditor HOLD on #2275).
 // The scan reads the text. One implementation for the gate (every data-path JSON), zoneProblems (a zone row's text) and Backend's registry loader.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

@@ -1,6 +1,7 @@
 // Guard (Lead 2026-10-07): CI's test:all runs tests/*.test.ts only, so an origins/**/*.test.ts file reaches the gate solely through a
 // tests/origins-*.test.ts stub that imports it. Four PRs in one morning added origins tests with no stub (#1633, #1641, #1644, #1646): green CI,
 // test never run. This fails naming every orphan; the fix is a one-line stub beside the others.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

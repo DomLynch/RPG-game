@@ -2,6 +2,7 @@
 // macOS TCC keeps a launchd job out of ~/Desktop (and ~/Documents, ~/Downloads), and the train's checkout was a worktree whose gitdir lives there.
 // Ruling: no Full Disk Access; everything the job touches is a standalone clone (or a worktree of it) outside those folders. These tests pin the
 // refusal (scripts/lib/train-layout.sh), the setup (scripts/release-train-setup.sh) and the publisher's dry run.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';

@@ -1,5 +1,6 @@
 // Mob signature moves and behaviour presets (top-10 #5): the layer swaps WHICH existing attack the warden throws, deterministically, and never anything else. The data (src/core/world/kits.ts)
 // resolves for every style; the battery shows what the kits do to the hero strategies the ladder is held to.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';

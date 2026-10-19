@@ -1,6 +1,7 @@
 // P0-b (world kills paid unverified): every kill the live loop reports carries a record that replays to that kill. 16 scripted scenarios of a three-wolf pack with 0 to 2 passive wolves inside the join ring
 // (hunting: false, they have not noticed the hero), half of them with the next wolf arriving the moment the last one falls (the hero is still recovering, so no window may be skipped for that). Bar: recorded
 // and verified kills == kills, on every scenario. `node --import ... tests/world-record-window.test.ts` prints the table.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';

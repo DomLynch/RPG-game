@@ -1,6 +1,7 @@
 // Runner behaviour for scripts/release-checks.mjs against a throwaway repo with synthetic checks: independent checks run
 // concurrently, fixed-port (`strictPort`) scripts run alone, one retry absorbs a flake, a hard failure exits non-zero, and
 // the receipt is written only on success. No browser, no GPU.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';

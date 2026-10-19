@@ -1,5 +1,6 @@
 // SHARE's thumb-row rule (C1, Dom 2026-09-25; Lead: one negative case so a SHARE moved onto Next fails). The rects are the 375x812
 // layout: Next (175, 637, 176x56), the joystick (16, 670, 108x108), SHARE's 60x60 target at (20, 590).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shareFaults } from '../scripts/lib/thumb-row.mjs';

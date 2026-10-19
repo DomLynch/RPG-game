@@ -1,5 +1,6 @@
 // store.ts gated(): a migration's function seen PRESENT is not probed again (one round trip fewer per call); one seen ABSENT is probed on every call, so a migration applied without a restart is
 // picked up; a function that goes missing after being cached (a down-script, 42883) falls back to the probe once. Stand-in Db: no database.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DbError, type Db } from '../origins/server/db.ts';

@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RANGES, RARE_CHANCE, RARITY_WEIGHT, RESPAWN_RANGE } from '../src/core/world/row.ts';

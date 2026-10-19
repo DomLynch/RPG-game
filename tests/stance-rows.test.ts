@@ -1,5 +1,6 @@
 // Stances as rows, and timing is sacred (Strategy's ruling on the external audit, 2026-10-13; RV52): the stance rows (stance-defs.json) move NUMBERS only. No row may carry a window (or any tick count or speed);
 // the Defensive stance's old longer parry window and guard-counter window are gone from v52 and kept only for a record BELOW v52, whose replay must be byte for byte what it was.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, guardOf, stepDuel, withStances, type Duel } from '../src/fight/duel.ts';

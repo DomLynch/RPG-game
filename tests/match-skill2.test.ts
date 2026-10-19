@@ -1,5 +1,6 @@
 // SPECIAL 2 through the Match (the specials PR, RV75): a career fight takes the pick from its `skill2` port at every begin(), the fighter carries it, the record names it (stamped at the skill2 era), a replay of that record
 // rebuilds the same slot b, an unknown id is no pick, and no port is the fight it was.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';

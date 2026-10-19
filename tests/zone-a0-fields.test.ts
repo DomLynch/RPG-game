@@ -1,4 +1,5 @@
 // A0 (2026-10-18): the schema fields and the `level` key the Test Zone's zone row needs, declared on trunk. Each field is accepted with a valid value and refused out of range; `level` is for an unlisted zone only.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

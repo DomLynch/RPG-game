@@ -1,5 +1,6 @@
 // The Frontier plan's collision and view numbers are rows (origins/preview/frontier-plan-defs.json; Web, Lead's split 2026-10-18): every default equals the literal it replaced,
 // the loader refuses a broken table, and the plan's solids come out exactly as before.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FRONTIER_PLAN, frontierBlock, frontierRule, loadFrontierPlanRules } from '../origins/preview/frontier-plan-rules.ts';

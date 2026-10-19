@@ -1,4 +1,5 @@
 // The client spell wire (Combat, programme 2b): main.ts hands the grimoire pick to the Match's spell port through the rows (spell-pick.ts); a fight that records carries the spell, and a pick that is not owned casts nothing.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

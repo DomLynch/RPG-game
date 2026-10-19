@@ -1,6 +1,7 @@
 // A record's sheet is the client's claim, so only the page may take it on trust (src/fight/replay.ts VerifyOptions): src/main.ts checks the fight it just
 // played before it shares it, and nothing is granted on the strength of that. A sweep, a server verifier or a script that passed 'trust' would grant loot,
 // ranks or kills on a sheet nobody checked. This guard fails if any tracked code file outside tests/ other than src/main.ts passes it (Auditor on #2416).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

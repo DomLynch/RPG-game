@@ -1,4 +1,5 @@
 // The two thumb sticks (origins/preview/sticks.ts): walk, run past the rim, strafe, turn, tilt, and the resting-thumb dead zone.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEAD, LOOK_GAIN, RUN_PUSH, STICK_R, intent, type Pad } from '../origins/preview/sticks.ts';

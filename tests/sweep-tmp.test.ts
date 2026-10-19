@@ -1,4 +1,5 @@
 // ops/sweep-tmp.sh against a throwaway root: only old, unopened top-level dirs go; claude-*, dot-dirs, systemd-private-*, files, symlinks, fresh and open dirs stay; /opt, /mnt and friends are refused.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';

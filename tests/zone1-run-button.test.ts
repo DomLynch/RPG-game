@@ -1,4 +1,5 @@
 // Running in Zone 1 is the stick pushed to the edge (and Shift); no RUN button in the world (Dom 2026-10-08, via Strategy). The Pit's own RUN button is untouched.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

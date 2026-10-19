@@ -1,5 +1,6 @@
 // O1 ids: the scheme, every rejection path, and the legacy mappings proved against today's tables (every LootId, every legend key,
 // every roster opponent round-trips).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LOOT_IDS, RETIRED_LOOT } from '../src/core/loot.ts';

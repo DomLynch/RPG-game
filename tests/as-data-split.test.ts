@@ -1,5 +1,6 @@
 // The as-data allow list is a folder (scripts/as-data/allow/<root>.json, World, Dom's data-layer day 2026-10-14): one file per root directory, so a lane's rows PRs touch only its own root file.
 // This pins the shape: each tunables entry sits in the file named for its root, no (file, name) is listed twice, and the loader merges any folder the same way whatever the split.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -2,6 +2,7 @@
 // writes no log. A Mac caller asks it over ssh and considers its own slot only on would=spill. Real bash 4+, flock; the slot dir, the release
 // lock dir and the log are tmp dirs (AGENTS.md: tests never read live box state). 2026-10-12 (Lead): the probe and a real run gate on load1 < VPS_MAX_LOAD1
 // (read from scripts/lib/waterfall.mjs); root is no longer exempt (it takes a slot and the load gate); over the gate a real run spills to hf-cpu at once.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';

@@ -1,5 +1,6 @@
 // scripts/deploy.sh carry_previews: the outgoing release's /preview/ is hard-linked into the new release before the switch, and a
 // carry that does not leave the new release with previews fails loudly (non-zero) instead of switching without them (09a81037, 2026-10-07).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

@@ -3,6 +3,7 @@
 // and a separate 82-vertex scrap of linen rode the small of his back: pale on green skin, it read as a loose skin flap (Character Main's
 // live audit, char/opponent-audit-0925). The check: the sash mesh is one connected piece, with vertices welded by position (a UV seam splits
 // vertices without splitting the cloth).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,5 +1,6 @@
 // The release train (scripts/release-train.mjs cutter + scripts/release-train-publish.sh publisher, Lead 2026-10-12): the plan's order and stacking,
 // a conflict skipped without blocking the rest, the push retry, the publisher's pick, its no-double-publish lock and its stop on failure.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

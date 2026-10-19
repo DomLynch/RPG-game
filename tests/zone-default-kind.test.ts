@@ -1,4 +1,5 @@
 // A zone row's `defaultKind` column replaces the 'goblin' literal in origins/preview/mobs.ts: it is required, and a name that is not a roster body is a zone problem.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadZone, zoneIds, zoneProblems } from '../origins/zones/loader.ts';

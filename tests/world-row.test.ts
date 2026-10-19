@@ -1,5 +1,6 @@
 // Mob rows (row.ts), the Frontier's rows (zone-rows/zone1.row.json via zones/loader.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
 // its code; the shipped rows are valid and agree with the content they sit beside; populateZone is deterministic and stays inside the zone's band.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generateZone, type Template } from '../origins/world/generate.ts';

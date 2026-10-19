@@ -1,5 +1,6 @@
 // O2 backpack + bank: fixed grids, atomic moves, one of each across pack + bank + worn, provenance kept, the bank only at the Exchange,
 // wearing needs rank, and hostile ids.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../src/core/server.ts';

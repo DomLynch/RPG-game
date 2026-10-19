@@ -1,5 +1,6 @@
 // SPECIAL 2 in the Pit record (the specials PR, RV75): a fight with a slot-b class skill is stamped no lower than FIRST_SKILL2_VERSION, the pick rides the second flag byte (bit 1) and one skill-code byte, the 'skill2' press
 // is a recordable action, and nothing older changes: a record with no pick is byte for byte what it was, an older version cannot carry one, an unknown code is refused.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FIRST_SKILL2_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';

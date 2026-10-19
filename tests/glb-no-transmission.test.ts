@@ -1,6 +1,7 @@
 // No shipped GLB may use KHR_materials_transmission (Executioner L8/L9 ruby, 2026-10-01). three.js draws the whole opaque scene a second time
 // into a render target as soon as one transmissive material is on screen (+45 draws, +135k tris, +4 framebuffer binds every frame on L9), and
 // the first such frame compiles ~19 programs the warm-up never saw: a 100-135 ms swap frame on the Mac (rank-look-check row 4, L8/L9 FAIL, L10 PASS).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';

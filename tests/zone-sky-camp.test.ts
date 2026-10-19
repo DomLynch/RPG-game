@@ -1,5 +1,6 @@
 // A zone row asks for its dome and camp as data (zone sandbox, Strategy 2026-10-15): look.sky names a dome palette (EQEmu zone.sky), look.props.kit names the camp kit and look.props.camp
 // the world zone it stands in; `unlisted` keeps a test or work-in-progress zone off every list but its own page. A row that sets none of them is unchanged.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FIELDS } from '../origins/zones/schema.ts';

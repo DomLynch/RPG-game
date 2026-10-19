@@ -1,5 +1,6 @@
 // Arena rotation (Lead + Dom 2026-10-06, "all live"): the first fight is Arena 1, then a shuffle-bag over the eleven painted arenas, no arena twice in a row.
 // Record version 26 names the arena a fight was fought in; every older link decodes and replays in the ladder band it always had (replay, never refuse).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENA_ROTATION, arenaFor, isRotationArena, type ArenaKey } from '../src/arena-themes.ts';

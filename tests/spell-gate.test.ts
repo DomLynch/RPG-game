@@ -1,4 +1,5 @@
 // The one spell gate (origins/server/spell-gate.ts): every settle path that replays a record calls it before it pays. A new replay entry that forgets it would pay a forged skill-100 spell record.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

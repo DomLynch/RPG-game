@@ -1,6 +1,7 @@
 // The Pit path is unchanged without a world mount (?worldfight, origins/preview/pit-duel.ts). createScene's `world` argument is optional and last, and every place that reads it
 // is one of the guarded forms below: the page's renderer in place of a new one, the world's background and fog, no arena and no arena lights, the holder mounted, no resize of the
 // page's renderer. A new use of `world` in scene.ts is a new difference between the Pit and a mounted fight: review it, then add it here.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

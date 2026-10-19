@@ -1,4 +1,5 @@
 // scripts/pr-base-check.mjs: base = trunk passes; base still in flight passes with a note; base already landed on trunk fails.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';

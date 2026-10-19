@@ -1,5 +1,6 @@
 // The relay socket's retry schedule (src/net/transport.ts), driven with a fake WebSocket and mock timers: the Auditor's B1 (a link back
 // before the page forfeits must be heard before it does) and B2 (a failed connect fires error then close: one backoff step, not two).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import { SILENCE } from '../src/net/pvp.ts';

@@ -1,5 +1,6 @@
 // The bare goblin world body (public/world/kit/goblin-bare.glb): the body a rank-look goblin is drawn on (the look file is the armour SET, not a body; Test Zone port C07). It sits under public/world/kit/ because the
 // mob view fetches it by a creature look's `body` path, so it is not a roster body of its own: tests/world-bodies.test.ts reads public/world/*.glb only. It must hold the same phone line as the bodies it stands in for.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

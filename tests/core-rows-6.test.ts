@@ -1,4 +1,5 @@
 // The server and contract cadences as rows (Dom's data-layer rule, audit #3055): every value keeps the number it had in code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { COOLDOWN_STEPS_S, FIRST_TRADE_DELAY_S, cooldownSecondsFor } from '../src/core/contracts/economy.ts';

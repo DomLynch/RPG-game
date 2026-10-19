@@ -2,6 +2,7 @@
 //   - no file in src/ outside src/fight/ has the same name: the OLD PATH IS ABSENT (a re-export shim does not count; every importer imports src/fight/ directly);
 //   - no other source file shares a block of its code (10 or more identical, non-trivial lines), and none is byte-identical to it.
 // Fails the PR that leaves the old copy behind (or pastes the code into a client).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

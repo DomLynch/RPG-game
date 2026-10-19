@@ -1,6 +1,7 @@
 // The verifier install (deploy.sh "verifier" step) is the computed import closure of the two verifiers, JSON included, and a dry import on the
 // box gates the flip. Regression: CI2 (96a71d70, 2026-10-12) shipped src/**/*.ts only, so src/fight/pool-defs.json (imported `with { type: 'json' }`)
 // was missing and verify-daily / verify-loot died ERR_MODULE_NOT_FOUND from 14:05:24. Everything here runs in tmp dirs with this machine's node.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

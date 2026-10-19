@@ -1,5 +1,6 @@
 // Specials as data: the Pitborn's, the Dwarf's / Shieldmaiden's and the Executioner's rank 8-10 specials are rows of src/fight/special-defs.json over the module's template verbs. The drawn effect is
 // byte-identical to the code it replaced, a special is one row, and the loader refuses a broken row at load.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

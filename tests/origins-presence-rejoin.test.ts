@@ -1,5 +1,6 @@
 // X2 Stage 2, character switch: POST /internal/rejoin {account} drops the connected account's old presence and places it again where `locate` says (default placement if that
 // fails), on the same socket with a fresh hello. Same key + loopback guard as /internal/where.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence } from '../origins/presence/server.ts';

@@ -1,4 +1,5 @@
 // AFK_CAP steers the stepped duel (it sets how many sim seconds a hidden tab's missed fight is caught up), so its row sits beside the first-loss rows (src/first-loss-rules.json), not in ui-rows.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
