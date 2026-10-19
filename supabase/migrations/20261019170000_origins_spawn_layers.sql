@@ -82,7 +82,8 @@ begin
   select * into e from public.origins_spawn_engages where token = p_token and account = p_account and used_at is null and expires_at > now() for update;
   if not found then raise exception 'engage token unknown, used or expired' using errcode = 'O0009'; end if;
   select * into s from public.origins_spawns where layer = e.layer and instance = e.instance for update;
-  if not (s.alive and s.generation = e.generation) then
+  -- `not found`: the foreign key is gone, so the spawn row can be missing (the janitor deleted a closed layer's rows); without this the NULL comparison below would skip the refusal and pay a kill of nothing (Auditor, #3315)
+  if not found or not (s.alive and s.generation = e.generation) then
     update public.origins_spawn_engages set used_at = now(), result = 'dead' where token = p_token;
     return jsonb_build_object('refused', 'dead', 'respawnAt', s.respawn_at);
   end if;

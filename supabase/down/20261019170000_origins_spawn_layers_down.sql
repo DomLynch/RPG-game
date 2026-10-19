@@ -1,9 +1,22 @@
 -- ROLLBACK of 20261019170000_origins_spawn_layers.sql: deletes the spawn rows and damage rows of layers above 1 (they are only "dead until T" clocks and a damage ledger of incarnations that no longer exist),
 -- drops the layer column, restores the single-column key and the pre-layer function bodies. Engage rows and the beta ledger are never deleted, so every receipt stays readable; the foreign key from
--- engages to spawns comes back NOT VALID (engages of layers above 1 name an instance whose row they do not own), which skips the existing rows and checks every new one.
+-- engages to spawns comes back and is VALIDATED when every engage names an existing spawn; otherwise it stays NOT VALID (engages of layers above 1 name an instance whose row they do not own), which skips the existing rows and checks every new one.
 -- Run this BEFORE supabase/down/20261019113226_origins_damage_share_down.sql if both are rolled back (this file restores the bodies that migration created).
+-- Before anything is deleted (Auditor, #3315): the audit rows of layers above 1 are ARCHIVED into public.origins_spawn_layers_rollback_archive (one jsonb row each: the spawn rows, the damage rows and the engage token + layer
+-- + instance + result of every engage of a layer above 1; the table stays, no client role can read it), and every OPEN engage of a layer above 1, or whose layer-1 spawn row is gone, is closed 'dead' so that a pre-layer
+-- origins_spawn_kill (which has no `not found` guard: it relied on the foreign key) can never pay a kill of a spawn row that is not there.
+-- The foreign key is validated when no engage orphans remain; otherwise it stays NOT VALID and the one-line validate command is in the PR (#3315).
 begin;
 
+create table if not exists public.origins_spawn_layers_rollback_archive (archived_at timestamptz not null default now(), kind text not null, data jsonb not null);
+alter table public.origins_spawn_layers_rollback_archive enable row level security;
+revoke all on public.origins_spawn_layers_rollback_archive from public, anon, authenticated;
+insert into public.origins_spawn_layers_rollback_archive (kind, data) select 'spawn', to_jsonb(s) from public.origins_spawns s where s.layer > 1;
+insert into public.origins_spawn_layers_rollback_archive (kind, data) select 'damage', to_jsonb(d) from public.origins_spawn_damage d where d.layer > 1;
+insert into public.origins_spawn_layers_rollback_archive (kind, data) select 'engage', jsonb_build_object('token', e.token, 'layer', e.layer, 'instance', e.instance, 'account', e.account, 'generation', e.generation, 'issued_at', e.issued_at, 'used_at', e.used_at, 'result', e.result) from public.origins_spawn_engages e where e.layer > 1;
+
+update public.origins_spawn_engages e set used_at = now(), result = 'dead'
+  where e.used_at is null and (e.layer > 1 or not exists (select 1 from public.origins_spawns s where s.layer = 1 and s.instance = e.instance));
 delete from public.origins_spawns where layer > 1;
 delete from public.origins_spawn_damage where layer > 1;
 
@@ -22,6 +35,11 @@ $$;
 alter table public.origins_spawns drop constraint origins_spawns_pkey;
 alter table public.origins_spawns add primary key (instance);
 alter table public.origins_spawn_engages add constraint origins_spawn_engages_instance_fkey foreign key (instance) references public.origins_spawns (instance) not valid;
+do $$ begin
+  if not exists (select 1 from public.origins_spawn_engages e where not exists (select 1 from public.origins_spawns s where s.instance = e.instance)) then
+    alter table public.origins_spawn_engages validate constraint origins_spawn_engages_instance_fkey;
+  end if;
+end $$;
 drop index public.origins_spawn_damage_incarnation;
 create index origins_spawn_damage_incarnation on public.origins_spawn_damage (instance, generation);
 alter table public.origins_spawn_damage drop column layer;
