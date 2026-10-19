@@ -35,6 +35,11 @@ test('a prop is its parts turned and scaled: a ring part repeats round the axis,
   const tot = propRow('totem'), t0 = propPieces(tot, 0, 0, 0, 1), t90 = propPieces(tot, 0, 0, Math.PI / 2, 1), horn0 = t0.find((q) => q.shape[0] === 'cone')!, horn90 = t90.find((q) => q.shape[0] === 'cone')!;
   assert.ok(Math.abs(horn0.z - 0.3) < 1e-9 && Math.abs(horn0.x) < 1e-9, 'unturned: the horn sits on local z'); assert.ok(Math.abs(horn90.x - 0.3) < 1e-9 && Math.abs(horn90.z) < 1e-9, 'a quarter turn: local z points along world x');
 });
+test('a spot recipe stands one piece at its row place: ringRadius m from the camp centre at its angle, and nowhere else', () => {
+  const row = recipesOf(KIT).find((r) => r.id === 'spawn-post')!, only = propKit(F, B, BASE, goblinZone(), KIT, [row]), c = only.centre!, o = only.dress.pieces[0]!;
+  assert.equal(row.kind, 'spot'); assert.ok(only.dress.pieces.length >= 1, 'the post stands (the spot is free)');
+  assert.ok(Math.abs(Math.hypot(o.x - c.x, o.z - c.z) - row.ringRadius!) < 1, 'the shaft stands on its ring'); assert.ok(Math.abs(Math.atan2(o.x - c.x, o.z - c.z) - row.angle!) < 0.05, 'at its angle');
+});
 test('each recipe has its OWN random stream: removing one recipe leaves the dead trees of a later one exactly where they were', () => {
   const trunks = (res: ReturnType<typeof propKit>) => res.dress.pieces.filter((q) => q.shape[0] === 'cylinder' && q.shape[3] > 3 && q.tint.join() === '0.16,0.14,0.13').map((q) => `${q.x.toFixed(3)},${q.z.toFixed(3)}`).sort();
   const without = propKit(F, B, BASE, goblinZone(), KIT, recipesOf(KIT).filter((r) => r.id !== 'ribs'));
