@@ -1,5 +1,6 @@
 // The sandbox's melee-special rules (windup 32, reach 220 / slack 40, react) are scoped to the player's PICKED special (a skill, no `specialName`): a NAMED class special (witch, plague doctor, a boss) keeps trunk's windup, reach and react
 // (Combat RV78, Lead). So the class-special battery (the opponent casts its own class special, nothing picked) fights the same with the era ON as with the era OFF.
+import './lib/era-on.ts';   // RV78: this file switches the era itself (setSandbox); era-on.ts lifts the force tests/lib/era-off.ts sets (import it FIRST)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setSandbox, underSandbox } from '../src/fight/sandbox-era.ts';

@@ -46,10 +46,10 @@ for (const special of SPECIALS) {
   console.log(`${special} on the ${WEAPON}: ${files.length} stills; clip at each: ${clips.join(' | ')}`);
   if (files.length === 3) {
     const row = `${OUT}/row-${special}-${WEAPON}${TAG}.jpg`;
-    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', `[0]${CROP}[a];[1]${CROP}[b];[2]${CROP}[c];[a][b][c]hstack=inputs=3`, '-frames:v', '1', '-update', '1', row]);
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', `[0]${CROP}[a];[1]${CROP}[b];[2]${CROP}[c];[a][b][c]hstack=inputs=3`, '-frames:v', '1', '-update', '1', row], { timeout: 600_000 });   // bounded (tests/child-process-bounds.test.ts)
     rows.push(row);
   }
   await context.close();
 }
 await browser.close();
-if (rows.length) { execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `vstack=inputs=${rows.length}`, '-frames:v', '1', '-update', '1', `${OUT}/sheet-${WEAPON}${TAG}.jpg`]); console.log(`sheet: ${OUT}/sheet-${WEAPON}${TAG}.jpg (rows: ${SPECIALS.join(', ')}; columns: windup middle, strike, 12 ticks after)`); }
+if (rows.length) { execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `vstack=inputs=${rows.length}`, '-frames:v', '1', '-update', '1', `${OUT}/sheet-${WEAPON}${TAG}.jpg`], { timeout: 600_000 }); console.log(`sheet: ${OUT}/sheet-${WEAPON}${TAG}.jpg (rows: ${SPECIALS.join(', ')}; columns: windup middle, strike, 12 ticks after)`); }
