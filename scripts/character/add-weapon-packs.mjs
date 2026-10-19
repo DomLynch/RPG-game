@@ -184,7 +184,7 @@ export async function addPacks(file, { weapons, retarget = 'identity', donors = 
   if (!clips.length) return;
   const before = fs.readFileSync(file);
   fs.writeFileSync(out, appendClips(body, clips));
-  execFileSync(process.execPath, [path.join(HERE, '..', 'pack-world-body.mjs'), out], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(HERE, '..', 'pack-world-body.mjs'), out], { stdio: 'inherit', timeout: 600_000 });
   console.log(`${file}: ${before.length} B, ${gzipSync(before).length} gzip -> ${out}: ${fs.statSync(out).size} B, ${gzipSync(fs.readFileSync(out)).length} gzip`);
 }
 
