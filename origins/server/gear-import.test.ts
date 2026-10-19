@@ -121,7 +121,7 @@ const creditForTier = (t: number): number => { for (let lvl = 0; lvl <= 60; lvl+
 test('a forged full-catalog POST at the top rung on a level-1 account mints nothing above Recruit: every roster piece is skipped "above your rank", and no mint key is spent for them (the starter longsword has no rung: it imports at its row tier)', async () => {
   const w = world([], 64, 1000, [], 0), tiers = Object.fromEntries(ALL.map((id) => [id, 10])), roster = ALL.filter((id) => id !== 'starter.Longsword');
   const r = await run(w.db, { owned: ALL, equipped: WORN, tiers });
-  assert.deepEqual(r.imported, ['starter.Longsword', 'starter.Bow', 'starter.Staff']);   // the lootStarter pieces (RV81 content: the bow and staff beside the longsword) have no rung and import at their row tier
+  assert.deepEqual(r.imported, ['starter.Bow', 'starter.Longsword', 'starter.Staff']);   // the lootStarter pieces (RV81 content: the bow and staff beside the longsword) have no rung and import at their row tier
   assert.ok(!Object.values(WORN).includes(STARTER), 'the worn set here is all roster pieces (so nothing is worn: they are all skipped)');
   assert.deepEqual([r.worn.length, r.skipped.length], [0, roster.length]);
   assert.ok(r.skipped.every((s) => s.reason === 'above your rank'));
