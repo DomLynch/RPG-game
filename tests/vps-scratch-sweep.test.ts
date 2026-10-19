@@ -382,6 +382,35 @@ test('sweep_unpushed_bundle: nothing unpushed writes no bundle; an unpushed comm
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('sweep_box_has_room: fits only when the copy (without node_modules and .git) plus the reserve is free; unreadable paths say no', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-room-'));
+  try {
+    const src = join(root, 'job'); mkdirSync(join(src, '.git'), { recursive: true }); mkdirSync(join(src, 'node_modules'));
+    writeFileSync(join(src, 'a.bin'), Buffer.alloc(1024 * 1024)); writeFileSync(join(src, '.git', 'big'), Buffer.alloc(8 * 1024 * 1024)); writeFileSync(join(src, 'node_modules', 'n'), Buffer.alloc(8 * 1024 * 1024));
+    const room = (reserveKib: number, dir = root) => sourced('sweep_box_has_room "$1" "$2" "$3"; echo $?', src, dir, String(reserveKib)).stdout.trim();
+    assert.equal(room(0), '0', 'a tmpfs-sized copy fits with no reserve');
+    assert.equal(room(1e12), '1', 'a reserve larger than the disk is never met: the copy is kept');
+    assert.equal(room(0, join(root, 'missing')), '1', 'an archive path df cannot read says no');
+    assert.equal(sourced('sweep_box_has_room "$1" "$2" 0; echo $?', join(root, 'nope'), root).stdout.trim(), '1', 'a source du cannot read says no');
+    assert.equal(sourced('echo "$BOX_RESERVE_GIB"').stdout.trim(), '30');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// Strategy 2026-10-19 guardrail 2: the never-touch set is pinned, not implied. None of these is under a root the sweep may remove, and bn-trunk is on the EXCLUDE list that named-path and scheduled modes both read.
+test('never-touch: the origins, the live and release trees, databases and the donor mounts are refused by sweep_kind; bn-trunk is excluded', () => {
+  for (const p of ['/opt/frankendom-origins', '/opt/frankendom-origins/x', '/var/www/frankendom', '/var/www/frankendom/releases/20261018-1200', '/var/lib/postgresql', '/var/lib/postgresql/16/main',
+    '/mnt/frankendom-donors', '/mnt/frankendom-donors/vps-archive', '/mnt/armagedom-backups', '/opt/frankendom-reference.git', '/opt/frankendom.git', '/opt/deploy-backups'])
+    assert.equal(kind(p), '', `${p} is refused`);
+  assert.match(sourced('echo " $EXCLUDE "').stdout, / bn-trunk /);
+});
+
+test('archive_then_delete checks the box has room before it copies, and keeps the copy when it does not', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
+  assert.ok(fn.indexOf('sweep_box_has_room') > 0 && fn.indexOf('sweep_box_has_room') < fn.indexOf('rsync -rtlJ'), 'the room check comes before the first rsync');
+  assert.match(fn, /sweep_box_has_room "\$s" "\$ARCH" \$\(\(BOX_RESERVE_GIB \* 1048576\)\) \|\| \{ say "skip\(storage box full, kept\) \$s"; return; \}/);
+});
+
 test('archive_then_delete copies with SWEEP_EXCLUDES and bundles before it deletes; a failed bundle keeps the source', () => {
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   assert.doesNotMatch(src, /rsync [^\n]*--exclude=node_modules/, 'the two rsync calls use SWEEP_EXCLUDES, not a private exclude list');

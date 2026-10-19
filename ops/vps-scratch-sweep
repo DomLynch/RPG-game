@@ -102,6 +102,16 @@ sweep_unpushed_bundle() { # src outfile
   case "$msg" in *"empty bundle"*) return 10;; esac
   return 1
 }
+# Does the archive target have room for this copy (its size without node_modules and the top-level .git, which are not archived) and still BOX_RESERVE_GIB free afterwards? The storage box was 95% full on
+# 2026-10-19 (Strategy): a copy that does not fit is KEPT and named in the log, never half-copied and never deleted. A nested node_modules is counted, which only over-estimates.
+BOX_RESERVE_GIB=${BOX_RESERVE_GIB:-30}
+sweep_box_has_room() { # src archdir reserve_kib
+  local tot g n free
+  tot=$(du -sk "$1" 2>/dev/null | cut -f1); g=$(du -sk "$1/.git" 2>/dev/null | cut -f1); n=$(du -sk "$1/node_modules" 2>/dev/null | cut -f1)
+  free=$(df -Pk "$2" 2>/dev/null | awk 'NR==2{print $4}')
+  [ -n "$tot" ] && [ -n "$free" ] || return 1
+  [ "$free" -ge $(( tot - ${g:-0} - ${n:-0} + $3 )) ]
+}
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -140,6 +150,7 @@ archive_then_delete(){ # src sub
   local s=$1 d=$ARCH/$2/$RUN/   # per-run folder so same-named dirs never merge into an old archive
   if [ -n "$(find "$s" ! -type f ! -type d ! -type l -print -quit)" ]; then say "skip(nonregular) $s"; return; fi
   if [ $APPLY = 0 ]; then say "would archive+delete $s"; return; fi
+  sweep_box_has_room "$s" "$ARCH" $((BOX_RESERVE_GIB * 1048576)) || { say "skip(storage box full, kept) $s"; return; }
   mkdir -p "$d"
   rsync -rtlJ "${SWEEP_EXCLUDES[@]}" --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
   local ch; ch=$(rsync -rcnlJ "${SWEEP_EXCLUDES[@]}" --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
