@@ -1,0 +1,28 @@
+// CS38 stills, SCRATCH binding (not live): the sandbox page with ?bow=knife (missile row weapon -> knife) and its own bow hook off, so the bow in hand is the game's loadRangedPart. Ready idle at the fight camera, 375 wide, front and orbited.
+import { chromium } from 'playwright';
+import fs from 'node:fs/promises';
+import { harnessClock, skipDraws } from './scripts/lib/harness-clock.mjs';
+const BASE = process.argv[2], OUT = process.argv[3];
+await fs.mkdir(OUT, { recursive: true });
+const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
+const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+await context.addInitScript(() => { try { localStorage.removeItem('frankendom.sandbox.loadout'); } catch { /* none */ } });
+const page = await context.newPage();
+page.on('pageerror', (e) => console.log('PAGEERROR', String(e).slice(0, 300)));
+await page.goto(`${BASE}?spar=1&weapon=knife&bow=knife&difficulty=dummy&skill=lunge&opponent=Centurion&special2=pommel&debug=1`, { waitUntil: 'load' });
+await page.getByRole('button', { name: 'Fight', exact: true }).first().click({ timeout: 300000 });
+await page.waitForFunction(() => globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]?.phase === 'ready', null, { timeout: 120000, polling: 500 });
+await page.addStyleTag({ content: '#debug{display:none!important}' });
+const { run } = await harnessClock(page);
+await skipDraws(page, true);
+for (let n = 0; n < 120; n++) await run(n % 3 === 2 ? 16 : 17);
+await skipDraws(page, false); await run(17); await page.waitForTimeout(2500); await run(17); await page.waitForTimeout(500);
+await page.evaluate((gap) => { const f = globalThis.__sandboxMatch?.practice?.duel?.fighters; if (f) f[0].body = { ...f[0].body, z: f[1].body.z + gap, heading: Math.PI }; }, 3.5);
+await run(17);
+await page.screenshot({ path: `${OUT}/bow-ready-front.jpg`, type: 'jpeg', quality: 90 });
+console.log('weapon-node', JSON.stringify(await page.evaluate(() => ({ err: globalThis.__SANDBOX_ERR__ ?? null, hook: typeof globalThis.__SANDBOX_RANGED__ }))));
+await page.evaluate((dx) => globalThis.__view?.orbit?.(dx, 0), -314);
+for (let n = 0; n < 60; n++) await run(n % 3 === 2 ? 16 : 17);
+await page.screenshot({ path: `${OUT}/bow-ready-side.jpg`, type: 'jpeg', quality: 90 });
+await browser.close();
+console.log('STILLS DONE');
