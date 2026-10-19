@@ -54,11 +54,16 @@ async function honestRecord(sp = baseWolf) {   // a record is bound to ITS spawn
   return { text: await encodeWorldRecord(rec), seconds: rec.steps.length / 60 };
 }
 const { text: recordText, seconds: recordSeconds } = await honestRecord();   // the writer refuses a record longer than the engagement is old ('overlong'), so a kill cycle waits the fight's real length
-const spawnSet = CLONES === 0 ? realSet : new Map(Array.from({ length: CLONES }, (_, n) => { const id = `wolves-${n + 100}`; return [id, { ...baseWolf, spec: { ...baseWolf.spec, id } }]; }));
+// One honest record per spawn, made before the run so the work is not in the measurement. The real set: the wolves get one (every other spawn, a bear or a goblin, has none and sends the base wolf's,
+// which the replay refuses with 'no kill': that is the unverified share). The clones: only wolf ids the scripted hero can beat are kept (about half of them), so EVERY clone kill carries a record that verifies.
+const recordOf = new Map(); let spawnSet;
+if (CLONES === 0) { spawnSet = realSet; for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') { const h = id === baseWolf.spec.id ? { text: recordText } : await honestRecord(sp); if (h) recordOf.set(id, h.text); } }
+else {
+  spawnSet = new Map();
+  for (let n = 0; spawnSet.size < CLONES && n < CLONES * 4; n++) { const id = `wolves-${n + 100}`, sp = { ...baseWolf, spec: { ...baseWolf.spec, id } }, h = await honestRecord(sp); if (h) { spawnSet.set(id, sp); recordOf.set(id, h.text); } }
+  if (spawnSet.size < CLONES) throw new Error(`only ${spawnSet.size} of ${CLONES} clone spawns have an honest record`);
+}
 const spawnIds = [...spawnSet.keys()];
-// One honest record per WOLF spawn in the set (every clone, or the real set's wolves), made before the run so the work is not in the measurement; every other spawn (a bear, a goblin) has no scripted-hero
-// record and sends the base wolf's, which the replay refuses ('no kill'): those are the unverified share, said so in the report.
-const recordOf = new Map(); for (const [id, sp] of spawnSet) if (sp.spec.character === 'character:ash-wolf') { const h = id === baseWolf.spec.id ? { text: recordText } : await honestRecord(sp); if (h) recordOf.set(id, h.text); }
 console.log(JSON.stringify({ honestRecords: recordOf.size, spawnsInSet: spawnSet.size }));
 
 let started = false, server, pool;
