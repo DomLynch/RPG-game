@@ -43,3 +43,16 @@ test('a hero melee skill that the engine plays as an ordinary attack (Zone 1) so
   assert.deepEqual(names([started(), landed()]).length, 3, 'the Pit special path (SpecialStarted + SpecialLanded) still plays its rows once');
   rows.length = 0;
 });
+
+// #3324 follow-up (Auditor's nit): the skill's land rows replace the generic Hit cue, which also carried the guarded scrape and the glance attenuation. A skill blow must keep both.
+test('a guarded or glancing skill blow keeps its guarded scrape and glance attenuation', async () => {
+  const { GLANCE_GAIN, GLANCE_RATE } = await import('../src/fight/sandbox-rules.ts');
+  rows.push({ id: 'reaping-3', skill: 'reaping', cue: 'hit_heavy', gain: 750, room: 300, delay: 0 });
+  const hit = (extra: object = {}) => ({ tick: 2, type: 'Hit', actor: 0, target: 1, move: 'skill_reaping', damage: 10, ...extra }) as never;
+  assert.deepEqual(names([hit({ guarded: true })]), ['hit_heavy', 'block'], 'a guarded skill blow lands with the glancing scrape under it');
+  assert.deepEqual(names([hit({ guarded: false })]), ['hit_heavy'], 'an unguarded one has no scrape');
+  const clean = cuesFor([hit()])[0]!, glanced = cuesFor([hit({ glance: true })])[0]!;
+  assert.equal(glanced.gain, GLANCE_GAIN ? clean.gain * GLANCE_GAIN / 1000 : clean.gain, 'a glancing skill blow is as quiet as a glancing plain hit');
+  assert.equal(glanced.rate, GLANCE_GAIN ? GLANCE_RATE / 1000 : clean.rate);
+  rows.length = 0;
+});
