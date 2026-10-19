@@ -131,8 +131,9 @@ test('respawn window from the database: a paid kill of the same fight inside the
 
 test('respawn window: a row with respawnSeconds binds that (the bear: 75 s), a row without keeps 300 s; the migration absent pays nothing (fail closed)', async () => {
   const [a, b] = creatures as [string, string];
-  assert.equal(respawnMsOf(a, content, new Map([[a, 75_000]])), 75_000);
-  assert.equal(respawnMsOf(b, content, new Map([[a, 75_000]])), RESPAWN_MS);
+  assert.equal(respawnMsOf(a, content, new Map([[`1:${a}`, 75_000]])), 75_000);
+  assert.equal(respawnMsOf(a, content, new Map([[`1:${a}`, 75_000]]), '1'), 75_000);
+  assert.equal(respawnMsOf(b, content, new Map([[`1:${a}`, 75_000]])), RESPAWN_MS);
   assert.equal(respawnMsOf('character:nobody', content), RESPAWN_MS);
   const logs: string[] = [], hook = mobRewards(content, () => new Date(AT), (l) => logs.push(l));
   assert.deepEqual(await hook(kill(a, droppingSeed(a)), fakeOpen('absent')), []);

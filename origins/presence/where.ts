@@ -30,11 +30,12 @@ export function presenceWhere(baseUrl: string, key: string, timeoutMs = presence
 }
 
 // The ids of the layers presence holds right now (GET /internal/layers), for the writer's spawn janitor. Anything but a well-formed 200 is an error: the janitor deletes nothing then.
+const HTTP_OK = 200;
 export type LayersFn = () => Promise<number[]>;
 export function presenceLayers(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): LayersFn {
   return async () => {
     const res = await fetchImpl(`${baseUrl}/internal/layers`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
-    if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);
+    if (res.status !== HTTP_OK) throw new Error(`presence: HTTP ${res.status}`);
     const o = await res.json() as { layers?: unknown };
     if (!Array.isArray(o?.layers) || !o.layers.every((n) => Number.isInteger(n) && n >= 1)) throw new Error('presence: malformed answer');
     return o.layers as number[];

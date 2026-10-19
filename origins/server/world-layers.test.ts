@@ -40,7 +40,7 @@ function stub(opts: { tokenLayer?: number; layersAbsent?: boolean; refused?: str
 const standing = (layer: number): (() => Promise<Where>) => async () => ({ online: true, layer, placed: false });
 const ops = (extra: object = {}) => worldSpawnOps({ content, spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {}, ...extra });
 const ctx = (db: Db, where?: () => Promise<Where>) => ({ db, account: UID, ...(where ? { where } : {}) });
-const last = (s: { calls: Call[] }, fn: string): Call | undefined => s.calls.findLast((c) => c.fn === fn);
+const last = (s: { calls: Call[] }, fn: string): Call | undefined => [...s.calls].reverse().find((c) => c.fn === fn);
 
 test('spawnLayers off: spawn_state and engage ask the layer-less functions, whatever presence says', async () => {
   const s = stub(), o = ops();

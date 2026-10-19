@@ -128,7 +128,7 @@ export function respawnMsOf(fight: string, content: EncounterContent, rows: Read
   const setup = fightSetup(fight, content);
   if (!setup.ok) return RESPAWN_MS;
   const id = setup.value.opponent.character;
-  const own = zone === undefined ? [...rows].findLast(([k]) => k.endsWith(`:${id}`))?.[1] : rows.get(respawnKey(zone, id)) ?? rows.get(respawnKey(WILD, id));
+  const own = zone === undefined ? [...rows].reverse().find(([k]) => k.endsWith(`:${id}`))?.[1] : rows.get(respawnKey(zone, id)) ?? rows.get(respawnKey(WILD, id));
   return own ?? RESPAWN_MS;
 }
 
