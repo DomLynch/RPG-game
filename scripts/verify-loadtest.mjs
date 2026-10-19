@@ -18,16 +18,16 @@ import { verifyWorldRecord } from '../origins/server/world-verify.ts';
 import { createVerifyPool } from '../origins/server/world-verify-pool.ts';
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? hit.split('=')[1] : fallback; };
-const SECONDS = Number(arg('seconds', 30)), GRID = process.argv.includes('--grid');
+const SECONDS = Number(arg('seconds', 30)), LEVEL = Number(arg('level', 1)), GRID = process.argv.includes('--grid');   // --level: the wolf's level (1 = a short fight; higher = a longer fight to replay)
 const pct = (sorted, p) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)] : null;
 const r1 = n => n === null ? null : Math.round(n * 10) / 10;
 
 const loaded = loadEncounterContent(); if (!loaded.ok) throw new Error('encounter content does not load');
 const wolf = [...defaultZoneSpawns(loaded.value).values()].find(s => s.spec.character === 'character:ash-wolf');
-const spawn = { ...wolf, spec: { ...wolf.spec, level: 1 } };   // a level-1 wolf: the scripted hero kills it (the same honest kill as origins/server/world-verify.test.ts)
+const spawn = { ...wolf, spec: { ...wolf.spec, level: LEVEL } };   // the scripted hero kills it (the same honest kill as origins/server/world-verify.test.ts)
 async function honest() {
   const fell = []; let rec = null; const at = { x: spawn.spec.home.x, z: spawn.spec.home.z };
-  const spec = { id: spawn.spec.id, body: 'wolf', level: 1, name: 'wolf' };
+  const spec = { id: spawn.spec.id, body: 'wolf', level: LEVEL, name: 'wolf' };
   const mobs = { within: (x, z, r) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: s => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.4, facing: 0 };
