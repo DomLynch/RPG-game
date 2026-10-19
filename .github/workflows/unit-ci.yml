@@ -145,6 +145,36 @@ jobs:
       - run: node scripts/origins-encounter-check.mjs
       # The writer service end to end on the same disposable cluster (grants as the role the writer connects as; 0030/0031 shipped with wrong grants because only the VPS ran this).
       - run: node scripts/origins-writer-check.mjs
+  origins-unit:
+    # origins/server/*.test.ts ran nowhere in CI (the shards only take tests/*.test.ts): found 2026-10-19 (Lead's order, Hooks Dev probe on trunk 7c9c5b3ea), 41 files, 12 seconds,
+    # no database or secrets (pure sim). 24 tests in the five files below ALREADY FAIL on trunk (sim drift nobody saw): they sit on a named known-red allowlist so the gate can land
+    # now and stop further drift. Owner: Backend (Duels & Backend) ticket to fix them; REMOVE each file from KNOWN_RED as it goes green (the job lists what it skipped, never silently).
+    # Runs beside the shards, not part of the unit receipt.
+    needs: [delta, static]
+    if: ${{ !cancelled() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && needs.delta.outputs.unchanged != 'true' && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KNOWN_RED: origins/server/world-verify.test.ts origins/server/encounter-verify.test.ts origins/server/world-seed.test.ts origins/server/world-gear.test.ts origins/server/encounter.test.ts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.UNIT_SHA }}
+      - id: pin
+        run: echo "node=$(node -e "import('./scripts/lib/vps-unit.mjs').then((m) => console.log(m.NODE_PIN.version.slice(1)))")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.pin.outputs.node }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: origins/server tests (minus the known-red allowlist)
+        run: |
+          files=$(ls origins/server/*.test.ts | grep -vxF -f <(printf '%s\n' $KNOWN_RED))
+          echo "known-red, NOT run (fix and remove from KNOWN_RED):"; printf '  %s\n' $KNOWN_RED
+          echo "running $(echo "$files" | wc -l) files"
+          for f in $KNOWN_RED; do [ -f "$f" ] || { echo "KNOWN_RED lists a file that does not exist: $f"; exit 1; }; done
+          node --test $files 2>&1 | tee origins-unit.log
+          exit "${PIPESTATUS[0]}"
   receipt:
     needs: [delta, static, shard]
     permissions:
