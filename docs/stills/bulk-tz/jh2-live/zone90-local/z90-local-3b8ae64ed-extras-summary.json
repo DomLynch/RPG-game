@@ -1,0 +1,263 @@
+{
+  "url": "http://127.0.0.1:5191/preview/origins/?zone=90&region=1&presence=0",
+  "tag": "z90-local-3b8ae64ed",
+  "at": "2026-10-19T04:13:33.626Z",
+  "frames": [
+    {
+      "name": "hut-1",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z90/z90-local-3b8ae64ed-hut-1-375.jpg",
+      "note": "hero 9 m west of test-hut-1-house at -37.999999999999986,-392",
+      "hero": {
+        "x": -46.96,
+        "z": -392.55,
+        "zone": "The Test Field"
+      }
+    },
+    {
+      "name": "hut-2",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z90/z90-local-3b8ae64ed-hut-2-375.jpg",
+      "note": "hero 9 m west of test-hut-2-house at -81.99999999999999,-379",
+      "hero": {
+        "x": -91,
+        "z": -379,
+        "zone": "The Test Field"
+      }
+    },
+    {
+      "name": "giant-salamander-fight2",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/z90/z90-local-3b8ae64ed-giant-salamander-fight2-375.jpg",
+      "note": "hero 5 m from z90:test-t-01-salamander-1 (Giant salamander Lv 1), two heavy presses, frame 1.3 s after the first",
+      "hero": {
+        "x": -16.3,
+        "z": -411.56,
+        "zone": "The Test Field"
+      }
+    }
+  ],
+  "landmarks": [
+    {
+      "zone": "pit-yard",
+      "id": "centre",
+      "x": 3.061616997868383e-15,
+      "z": 0,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "pit-yard",
+      "id": "pit-gate",
+      "x": 4.947573068555308e-15,
+      "z": -15.400000000000006,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "exchange",
+      "id": "outer-gate",
+      "x": 6.123233995736767e-15,
+      "z": -25.000000000000007,
+      "facing": -2.4492935982947064e-16
+    },
+    {
+      "zone": "exchange",
+      "id": "covenant-stone",
+      "x": 8.572527594031473e-15,
+      "z": -45.00000000000001,
+      "facing": 3.141592653589793
+    },
+    {
+      "zone": "exchange",
+      "id": "contract-board",
+      "x": -12.199999999999992,
+      "z": -36.00000000000001,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "exchange",
+      "id": "forge",
+      "x": -10.499999999999991,
+      "z": -60.50000000000001,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "exchange",
+      "id": "bank",
+      "x": 1.126675055215565e-14,
+      "z": -67,
+      "facing": -2.4492935982947064e-16
+    },
+    {
+      "zone": "exchange",
+      "id": "west-gate",
+      "x": -19.99999999999999,
+      "z": -50.000000000000014,
+      "facing": -1.5707963267948968
+    },
+    {
+      "zone": "exchange",
+      "id": "square-arch",
+      "x": 20.00000000000001,
+      "z": -50,
+      "facing": 1.5707963267948966
+    },
+    {
+      "zone": "test-field",
+      "id": "test-camp",
+      "x": -51.999999999999986,
+      "z": -412,
+      "facing": -1.5707963267948966
+    },
+    {
+      "zone": "test-field",
+      "id": "test-entry-gate",
+      "x": -51.999999999999986,
+      "z": -364,
+      "facing": 0
+    },
+    {
+      "zone": "test-field",
+      "id": "test-hut-1-house",
+      "x": -37.999999999999986,
+      "z": -392,
+      "facing": 0
+    },
+    {
+      "zone": "test-field",
+      "id": "test-hut-2-house",
+      "x": -81.99999999999999,
+      "z": -379,
+      "facing": 0
+    },
+    {
+      "zone": "test-field",
+      "id": "test-tower-watchtower",
+      "x": -67.99999999999999,
+      "z": -388,
+      "facing": 0
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-01",
+      "x": -14.999999999999986,
+      "z": -418,
+      "facing": 2.3561944901923453
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-02",
+      "x": -65.99999999999999,
+      "z": -396.7,
+      "facing": 0.7330382858376185
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-03",
+      "x": -29.399999999999988,
+      "z": -414,
+      "facing": -1.658062789394613
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-04",
+      "x": -71.29999999999998,
+      "z": -426.8,
+      "facing": 2.2165681500327987
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-05",
+      "x": -47.499999999999986,
+      "z": -386.7,
+      "facing": -0.17453292519943298
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-06",
+      "x": -37.59999999999999,
+      "z": -434.7,
+      "facing": -2.5830872929516078
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-07",
+      "x": -79.1,
+      "z": -404.7,
+      "facing": 1.308996938995747
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-08",
+      "x": -26.199999999999985,
+      "z": -398.6,
+      "facing": -1.0995574287564276
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-09",
+      "x": -62.29999999999998,
+      "z": -440.2,
+      "facing": 2.7925268031909276
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-10",
+      "x": -63.79999999999998,
+      "z": -383.4,
+      "facing": 0.3839724354387526
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-11",
+      "x": -23.199999999999985,
+      "z": -425.5,
+      "facing": -2.007128639793479
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-12",
+      "x": -83.19999999999999,
+      "z": -421.8,
+      "facing": 1.867502299633932
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-13",
+      "x": -35.19999999999999,
+      "z": -383.1,
+      "facing": -0.5235987755982989
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-14",
+      "x": -44.69999999999998,
+      "z": -445.4,
+      "facing": -2.9321531433504733
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-15",
+      "x": -80.6,
+      "z": -391.9,
+      "facing": 0.9599310885968815
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-16",
+      "x": -16.599999999999984,
+      "z": -407.4,
+      "facing": -1.4486232791552935
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-17",
+      "x": -81.99999999999999,
+      "z": -436,
+      "facing": 2.3561944901923453
+    },
+    {
+      "zone": "test-field",
+      "id": "test-t-18",
+      "x": -23.999999999999986,
+      "z": -440,
+      "facing": -2.356194490192345
+    }
+  ]
+}
