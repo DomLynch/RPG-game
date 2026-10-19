@@ -83,7 +83,9 @@ try {
   const applied=events.filter(e=>e.tick<=outcome.tick && e.type==='Hit');
   assert.equal(result.enemy,before.enemy-applied.filter(e=>e.actor===0 && e.target===1).reduce((n,e)=>n+e.damage,0),'enemy HP follows outgoing hits only');
   assert.equal(result.health,before.health-applied.filter(e=>e.actor===1 && e.target===0).reduce((n,e)=>n+e.damage,0),'player HP follows incoming hits only');
-  if(outcome.type==='Hit') {assert.equal(outcome.target,1);assert.ok([4,5].includes(outcome.damage),'clean kick 4 or counter kick 5');}
+  // RV79 reach bands (Dom's cm edges): a kick thrown from outside its band GLANCES (Hit.glance, a dulled hit that lands for less, rows offBandMultCm). The foe's opening now lands later (RV80's level-1 opener row), so the first kick can meet it at another gap: a glance is the intended band rule, and it lands for 1..3, under the clean 4.
+  if(outcome.type==='Hit'&&outcome.glance&&attempt<2){receipt.kickGlances=(receipt.kickGlances||0)+1;continue;}   // an off-band kick glanced: the walk-in before the next attempt lands it at another gap (the last attempt takes the glance below)
+  if(outcome.type==='Hit') {assert.equal(outcome.target,1);receipt.kickGlance=!!outcome.glance;assert.ok(outcome.glance?(outcome.damage>=1&&outcome.damage<4):[4,5].includes(outcome.damage),'clean kick 4 or counter kick 5, or on the last attempt a glance (1..3)');}
   receipt.kick=await snapshot();receipt.kickOutcome=outcome;receipt.kickEscaped=['AttackMissed','Dodged','Blocked'].includes(outcome.type);
   break;
  }
