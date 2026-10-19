@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
+import { ROARS } from '../src/audio/crowd-rows.ts';
+const OUTLIVING_ROARS = ROARS.filter(r => r.outlive).length;   // the kill roars that ring over a defeat (crowd-defs.json `outlive`): the only arena-bank sound allowed after the bank is cleared
 import { SPRITE_SECONDS } from '../src/audio/manifest.ts';
 // Which decoded buffer is which: the combat sprite is recognised by its own length (the manifest's), the arena bank is the other
 // long buffer. The old rule 'longer than 39 s is the bank' broke the moment the sprite passed 39 s (#286, deploy #44 check 22).
@@ -72,7 +74,7 @@ try {
  const combatScript = Array.from({ length: 39 }, (_, i) => ({ tick: (i + 2) * 60, events: [{ ...hit, move: i % 9 === 0 ? 'heavy_overhead' : 'light', tick: (i + 2) * 60 }] }));
  const fight = await render(combatScript), fightData = samples(fight);
  assert.ok(fight.starts.some(s => s.name === 'chant')); assert.ok(fight.starts.some(s => s.name === 'grunt')); assert.ok(fight.starts.some(s => s.name === 'reaction'));
- const reaction = fight.starts.filter(s => s.name === 'reaction'); for (let i = 1; i < reaction.length; i++) assert.ok(reaction[i].at - reaction[i - 1].at >= 4);
+ const reaction = fight.starts.filter(s => s.name === 'reaction'); for (let i = 1; i < reaction.length; i++) assert.ok(reaction[i].at - reaction[i - 1].at >= 4);   // unchanged: a roar row REPLACES the organic reaction on its moment (arena.ts), so a heavy hit is one reaction cue, never two stacked
  const busy = await render(Array.from({ length: 600 }, (_, tick) => ({ tick, events: [hit, { type: 'Parried', actor: 0, tick }] })), 12);
  for (let t = 0; t < 12; t += .01) assert.ok(busy.starts.filter(s => s.name !== 'combat' && s.at <= t && s.end > t).length <= 6, 'bounded voices');
  const grunts = busy.starts.filter(s => s.name === 'grunt'); for (let i = 1; i < grunts.length; i++) assert.ok(grunts[i].at - grunts[i - 1].at >= .89);
@@ -85,7 +87,8 @@ try {
  const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
  const death = await render([{ tick: 180, events: fatal.events, presentation: fatal.presentation, ended: true }], 8);
  assert.ok(death.starts.some(s => s.name === 'combat' && s.at > 3.3));
- assert.ok(death.starts.filter(s => s.name !== 'combat').every(s => s.end <= 3), 'death clears arena bank');
+ const afterBank = death.starts.filter(s => s.name !== 'combat' && s.end > 3);   // the bank is cleared at 3 s; the only start allowed past it is a kill roar row marked `outlive` (crowd-defs.json), which plays after the clear on purpose
+ assert.ok(afterBank.length <= OUTLIVING_ROARS && afterBank.every(s => s.name === 'reaction'), 'death clears arena bank');
  assert.equal(rms(samples(death), 7, 8), 0);
  const deathAAC = await render([{ tick: 180, events: fatal.events, presentation: fatal.presentation, ended: true }], 8, 'aac');
  const missing = await render([{ tick: 60, events: [hit] }], 3, true); assert.ok(rms(samples(missing), 1, 2) > .001); assert.ok(missing.starts.every(s => s.name === 'combat' || s.name === 'bell'));
@@ -178,7 +181,10 @@ try {
    assert.ok(Date.now() - movedAt < 60000, `the fight stalled at tick ${seen}`);
    await ui.waitForTimeout(1000);
  }
- assert.ok((await ui.evaluate(() => window.__arena)).every(e => e.stopped || e.ended), 'actual defeat stops ambience');
+ const reactionOffsets = ARENA_MANIFEST.reaction.map(([offset]) => offset), running = (await ui.evaluate(() => window.__arena)).filter(e => !(e.stopped || e.ended));
+ assert.ok(running.length <= OUTLIVING_ROARS && running.every(e => reactionOffsets.includes(e.offset)), 'actual defeat stops ambience');   // right at the defeat only an outliving kill roar may still be sounding; no bed, chant or jeer
+ await ui.waitForTimeout(Math.ceil(Math.max(...ARENA_MANIFEST.reaction.map(([, seconds]) => seconds)) * 1000) + 500);   // and it ends within one reaction cue
+ assert.ok((await ui.evaluate(() => window.__arena)).every(e => e.stopped || e.ended), 'the kill roar ends and the ambience stays stopped');
  stage('rematch');
  await ui.locator('#reset-button').tap(); await ui.waitForTimeout(2200);
  assert.equal((await ui.evaluate(() => window.__arena)).filter(e => e.offset === ARENA_MANIFEST.bell[0][0]).length, 1, 'rematch waits for Draw');
