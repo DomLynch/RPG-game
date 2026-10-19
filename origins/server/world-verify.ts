@@ -14,7 +14,7 @@ export const MAX_RECORD_CHARS = 60_000;   // under the writer's 64 KB body limit
 export const ticksFor = (ageS: number): number => Math.floor(TICKS_PER_SECOND * (Number.isFinite(ageS) ? Math.max(0, ageS) : 0)) + SERVER_RULES.worldKill[0]!.windowSlackTicks;   // windowSlackTicks: a row of the worldKill table
 export type HeroLimit = { level?: number; sheet?: Sheet; weapon?: string; spells?: SpellHeld; refuse?: string; cut?: SpecialsCut };   // cut: the beta cut on specials (src/awards.ts specialsRefusal); absent = the betaCut row, a test may pass a lifted one   // `sheet` present (even undefined) = the record's sheet must EQUAL it (heroLimitOf, the Pit's rule); `refuse` = the books could not give one; attack/res: the older Loadout bound   // what the server's own books allow him: a claim above it is refused (a limit with no level binds the gear only: the worn Loadout the ledger holds)
 const sameSheet = (a: Sheet | undefined, b: Sheet | undefined): boolean => { const x = Object.entries(a ?? {}), y = b ?? {}; return x.length === Object.keys(y).length && x.every(([k, v]) => y[k] === v); };
-export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string };
+export type Verdict = { ok: true; ticks: number; damage?: number } | { ok: false; reason: string };
 
 /** What a replay needs, all plain data (it crosses to the worker thread). */
 // Soak counters: kills by outcome ('verified', 'no record', or the refusal reason), so the verified rate is one read once the records are live.
@@ -74,7 +74,7 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   if (rec.hero.spell2 && limit && !(limit.spells && checkSpell(rec.hero.spell2, limit.spells).ok)) return { ok: false, reason: 'spell' };   // slot b is held to the same grimoire and skill ceiling; the structural rules (a slot-a spell beside it, no duplicate) are the replay's
   if (limit && limit.level !== undefined && rec.hero.level > limit.level) return { ok: false, reason: 'hero beyond ledger' };
   let r;
-  try { r = replayWorldRecord(rec); } catch { return { ok: false, reason: 'replay threw' }; }
+  try { r = replayWorldRecord(rec, { tagExpiryTicks: SERVER_RULES.worldShare[0]!.tagExpiryS * TICKS_PER_SECOND }); } catch { return { ok: false, reason: 'replay threw' }; }
   if (!r.ok) return { ok: false, reason: r.reason };
   if (!r.kills.includes(spawn.spec.id)) return { ok: false, reason: 'no kill' };
   const j = r.joins.find((e) => e.id === spawn.spec.id);
@@ -82,5 +82,5 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   // The bout's roll seed (bout-seed.ts): the kill's own creature may carry one only if it is hash32(the kill's engage token, its join step). Nothing the client sent is trusted; no seed = no roll (today's fight).
   if (j.seed !== undefined && (token === undefined || j.seed !== hash32(token, j.s))) return { ok: false, reason: 'seed' };
   if (!withinReach(spawn.spec, { x: j.x / CM_PER_M, z: j.z / CM_PER_M })) return { ok: false, reason: 'creature out of its roam' };
-  return { ok: true, ticks: r.ticks };
+  return { ok: true, ticks: r.ticks, damage: r.dealt[spawn.spec.id]?.damage ?? 0 };   // the hero's damage to THIS creature (kill credit by damage: damage-share.ts)
 }

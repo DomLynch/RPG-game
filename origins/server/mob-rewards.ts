@@ -20,6 +20,7 @@ import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import * as store from './store.ts';
+import { portion, thin } from './damage-share.ts';
 import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
 export type Kill = { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null };
@@ -32,7 +33,8 @@ const CAP_REACHED = SERVER_RULES.mobPayout[0]!.capReached;   // the mobPayout ro
 // fight must match its form's level exactly (the encounter-settle guard: never pay a fight the run does not describe).
 // `fought.loot` (world spawns only): the spawn row's own loot table. It picks WHICH table is rolled and nothing else (who is paid, the verify path and the CP are the character's, untouched), and only where the
 // character's own table already rolls (payout.lootTable set): a kill that pays no loot never gains one. A zone whose row names the character's table gets exactly the table it always had.
-export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string, fought?: { level: number; loot?: string }): Paid {
+export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string, fought?: { level: number; loot?: string; share?: number }): Paid {
+  const share = Math.min(1, Math.max(0, fought?.share ?? 1));   // this contributor's share of the kill credit (damage-share.ts); absent = the whole kill
   const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], bronze: 0, lootRefused: null, unpaid: [] } });
   if (!kill.fight) return none('no-fight-id');   // a token issued before the fight id was carried: the event only, as before
   const setup = fightSetup(kill.fight, content, fought ? { level: fought.level } : {});
@@ -50,8 +52,8 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   if (state.career && career && payout.killRow) {
     const won = award(career, { kind: 'kill', id: eventId, at: secs, type: payout.killRow, target, targetLevel: kill.level });
     cpReason = won.reason;
-    if (won.reason === 'ok' && won.cp > 0) {
-      cp = won.cp;
+    if (won.reason === 'ok' && portion(won.cp, share) > 0) {
+      cp = portion(won.cp, share);   // the kill credit's share of the CP (damage-share.ts; 1 = the whole kill, as before)
       batch.push({
         op: 'career_set', account: kill.account, expected_version: state.career.version, world_credit: Number(state.career.world_credit) + cp, rested: won.state.rested,
         rested_at: won.state.restedAt, heat: won.state.heat, story: won.state.story, beaten: won.state.beaten,
@@ -68,7 +70,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
     if (!rolled.ok) lootRefused = rolled.issues[0]!.message;
     else {
       const encounter = setup.value.scope === 'open-world' ? null : (kill.fight as EncounterId);
-      const got = intoBackpack(state.inventory, rolled.value, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at, level: setup.value.opponent.level }, content);
+      const got = intoBackpack(state.inventory, share >= 1 ? rolled.value : { ...rolled.value, items: thin(rolled.value.items, share, kill.seed), metal: portion(rolled.value.metal, share) }, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at, level: setup.value.opponent.level }, content);
       if (!got.ok) lootRefused = got.issues[0]!.message;   // the pack could not take it (full, or one-of-each): nothing minted, as the page says
       else {
         const lookup = lookupOf(content);

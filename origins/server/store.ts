@@ -216,6 +216,26 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
+// Kill credit by damage (migration 20261019150000, origins/server/damage-share.ts). `null` = the migration is not applied: the writer then pays the old way (first valid report wins).
+const HAS_SHARE = `select to_regprocedure('public.origins_spawn_kill_v2(uuid,text,integer,integer,jsonb,jsonb,numeric,integer)') is not null as share \\gset\n`;
+const shareCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'share', HAS_SHARE, 'share', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+/** Read-only: would a kill report on this token be refused (dead, too-fast, cap), and is it the 'first' kill of the creature or a 'join' to one made while the token was open. Nothing is written. */
+export const spawnCheck = async (db: Db, account: string, token: string, minMs: number, joinS: number): Promise<({ ok?: true; mode?: 'first' | 'join'; instance?: string; generation?: number } & SpawnRefusal) | null> => {
+  const out = await shareCall(db, `public.origins_spawn_check(:'a'::uuid, :'t', :'m'::int, :'j'::int)`, { a: acct(account), t: token, m: String(minMs), j: String(joinS) });
+  return out === null ? null : JSON.parse(out);
+};
+/** The damage ledger of one incarnation of a creature, oldest first. */
+export const spawnDamage = async (db: Db, instance: string, generation: number): Promise<{ token: string; damage: number; joined: boolean }[] | null> => {
+  const out = await shareCall(db, `public.origins_spawn_damage_read(:'i', :'g'::int)`, { i: instance, g: String(generation) });
+  return out === null ? null : (JSON.parse(out) as { token: string; damage: string | number; joined: boolean }[]).map((d) => ({ ...d, damage: Number(d.damage) }));
+};
+export const spawnKillShared = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger, damage: number, joinS: number): Promise<({ result?: string; instance?: string; respawnAt?: string; joined?: boolean } & SpawnRefusal) | null> => {
+  const out = await shareCall(db, `public.origins_spawn_kill_v2(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb, :'d'::numeric, :'j'::int)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger), d: String(damage), j: String(joinS) });
+  return out === null ? null : JSON.parse(out);
+};
 // Ground loot (migration 20261015120000): a ground item is taken once per account per respawn window; the claim, the mint and the event commit in one transaction. `null` = the migration is not applied.
 const HAS_GROUND = `select to_regprocedure('public.origins_ground_take(uuid,text,integer,integer,jsonb)') is not null as ground \\gset\n`;
 const groundCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
