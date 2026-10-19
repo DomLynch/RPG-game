@@ -3,8 +3,9 @@
 // written against. Live play and records at v78 or later are not touched by this file (it runs in tests only).
 // The era is FORCED off, not just set off: a fight the legacy suite records now is stamped with the current RECORD_VERSION, and its replay must run under the same rules
 // it was fought with, not flip the era on because its version says so.
-import { forceSandbox, setRows79, setSandbox } from '../../src/fight/sandbox-era.ts';
+import { forceSandbox, setRows79, setRows80, setSandbox } from '../../src/fight/sandbox-era.ts';
 
 forceSandbox(false);
 setSandbox(false);
 setRows79(false);
+setRows80(false);   // RV80 (leathers' shape, the special timers) too

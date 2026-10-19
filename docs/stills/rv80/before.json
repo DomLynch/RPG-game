@@ -1,0 +1,16 @@
+{
+ "tag": "before",
+ "origin": "https://frankendom.com/",
+ "ready": {
+  "skill2Hidden": true,
+  "skill2Label": "Spell 2",
+  "layoutA": false,
+  "stance": true
+ },
+ "mid": {
+  "skill2Hidden": true,
+  "skill2Label": "Spell 2",
+  "layoutA": false,
+  "stance": true
+ }
+}
