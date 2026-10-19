@@ -1,0 +1,119 @@
+{
+  "url": "http://127.0.0.1:5192/preview/origins/?region=1&presence=0",
+  "tag": "after-0470fa7d4",
+  "at": "2026-10-19T06:20:41.315Z",
+  "frames": [
+    {
+      "name": "start",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-after/after-0470fa7d4-start-375.jpg",
+      "note": "hero at the start, 9 s after the page opened",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -72.64,
+        "z": 62.91,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-after/after-0470fa7d4-goblin-ready-375.jpg",
+      "note": "hero 9 m from opener-cinder-fields-1 (Cinder scavenger Lv 1), not engaged; creature centre on screen at {\"x\":163.07150613185829,\"y\":298.39157919792916}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08,
+        "z": 70.6,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-after/after-0470fa7d4-goblin-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08,
+        "z": 68.97,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "cave-troll-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-after/after-0470fa7d4-cave-troll-ready-375.jpg",
+      "note": "hero 9 m from cave-troll-1 (Cave troll Lv 3, loadout troll.pit.t4.cleaver), not engaged; creature centre on screen at {\"x\":240.5454686710391,\"y\":319.9033157303986}",
+      "cam": {
+        "shiftY": 0.11990102700632799,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0.9991752250527333
+      },
+      "hero": {
+        "x": -139.11,
+        "z": 12.9,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "cave-troll-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-after/after-0470fa7d4-cave-troll-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0.11999999999696304,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0.999999999974692
+      },
+      "hero": {
+        "x": -139.11,
+        "z": 11.28,
+        "zone": "The Cinder Fields"
+      }
+    }
+  ],
+  "console": [
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "zone": {
+    "region": {
+      "region": "region:ash-frontier",
+      "zone": "cinder-fields",
+      "name": "The Cinder Fields",
+      "preset": "frontier-haze"
+    },
+    "bodies": [
+      "knight",
+      "pitborn",
+      "witch",
+      "goblin",
+      "wolf",
+      "giant-salamander",
+      "bear",
+      "boar",
+      "cave-troll"
+    ],
+    "count": 26,
+    "start": {
+      "x": -72.64,
+      "z": 62.91
+    }
+  }
+}

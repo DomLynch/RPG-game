@@ -1,0 +1,116 @@
+{
+  "url": "https://frankendom.com/zone1/?region=1&presence=0",
+  "tag": "before-live-20a3d87fd",
+  "at": "2026-10-19T06:19:48.386Z",
+  "frames": [
+    {
+      "name": "start",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-before/before-live-20a3d87fd-start-375.jpg",
+      "note": "hero at the start, 9 s after the page opened",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -72.64,
+        "z": 62.91,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-before/before-live-20a3d87fd-goblin-ready-375.jpg",
+      "note": "hero 9 m from opener-cinder-fields-1 (Cinder scavenger Lv 1), not engaged; creature centre on screen at {\"x\":154.61238581750771,\"y\":296.1242801234799}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08,
+        "z": 70.6,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "goblin-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-before/before-live-20a3d87fd-goblin-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -46.08001120202597,
+        "z": 69.10250000228154,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "cave-troll-ready",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-before/before-live-20a3d87fd-cave-troll-ready-375.jpg",
+      "note": "hero 9 m from cave-troll-1 (Cave troll Lv 3), not engaged; creature centre on screen at {\"x\":237.44260274541512,\"y\":318.9118679337862}",
+      "cam": {
+        "shiftY": 0,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0
+      },
+      "hero": {
+        "x": -139.11,
+        "z": 12.9,
+        "zone": "The Cinder Fields"
+      }
+    },
+    {
+      "name": "cave-troll-fight",
+      "file": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-zone-sandbox/5f72e83b-a4c4-4f59-a58b-c8e52227e5f4/scratchpad/stills/split-before/before-live-20a3d87fd-cave-troll-fight-375.jpg",
+      "note": "engaged via tapMob (true), 4 heavy presses, frame mid-exchange",
+      "cam": {
+        "shiftY": 0.09452514867725671,
+        "fov": 51,
+        "zoom": 1,
+        "fight": 0.7877095723104727
+      },
+      "hero": {
+        "x": -139.13,
+        "z": 12.08,
+        "zone": "The Cinder Fields"
+      }
+    }
+  ],
+  "console": [
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "zone": {
+    "region": {
+      "region": "region:ash-frontier",
+      "zone": "cinder-fields",
+      "name": "The Cinder Fields",
+      "preset": "frontier-haze"
+    },
+    "bodies": [
+      "knight",
+      "pitborn",
+      "witch",
+      "goblin",
+      "wolf",
+      "giant-salamander",
+      "bear",
+      "boar",
+      "cave-troll"
+    ],
+    "count": 26,
+    "start": {
+      "x": -72.64,
+      "z": 62.91
+    }
+  }
+}
