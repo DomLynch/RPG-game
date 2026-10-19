@@ -1,0 +1,16 @@
+{
+ "tag": "after",
+ "origin": "http://127.0.0.1:40609/",
+ "ready": {
+  "skill2Hidden": true,
+  "skill2Label": "Spell 2",
+  "layoutA": true,
+  "stance": true
+ },
+ "mid": {
+  "skill2Hidden": true,
+  "skill2Label": "Spell 2",
+  "layoutA": true,
+  "stance": true
+ }
+}
