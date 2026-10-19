@@ -47,7 +47,7 @@ await page.waitForFunction(() => document.querySelector('#art-status').textConte
 await page.waitForFunction(() => typeof globalThis.__view?.setFinisherOverride === 'function');
 await page.evaluate(selected => globalThis.__view.setFinisherOverride(selected), finisher);
 const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after presentation setup before the first press
-// The foe's Special tell, read off the game's own ?debug=1 combat stream (the same frankendom:combat events browser-check.mjs reads).
+// The foe's Special tell (actor 1), read off the game's own ?debug=1 combat stream (the same frankendom:combat events browser-check.mjs reads).
 // Since RV80 (one-button pad, specials ready 2 s in and every 6 s, a foe special share) the Goblin's Dirty Jab decides the duel: a special
 // is unblockable and undodgeable on release (duel.ts step 4), so a player who waits it out takes -30 every few seconds and dies before
 // the kill. A real player answers the wind-up (RULES.special.windup) the one way the rules allow: walk in and STRIKE the caster, who
@@ -130,7 +130,7 @@ async function fight(name) {
     }
     await step(40);
   }
-  console.log(`duel ${attempt}: foe specials`, JSON.stringify(await page.evaluate(() => window.__casts)));
+  console.log(`duel ${attempt}: foe specials`, JSON.stringify(await page.evaluate(() => { const c = window.__casts; window.__casts = { started: 0, landed: 0, interrupted: 0, fizzled: 0 }; window.__foeCast = null; return c; })));   // per duel: the tally restarts with the rematch
   if (await page.locator('#target-health').evaluate(e => +e.value) === 0) { killed = true; break; }
   if (attempt === 3) break;
   console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());
