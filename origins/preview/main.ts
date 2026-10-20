@@ -432,6 +432,7 @@ function step(dt: number) {
     gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, previewRule('dtFloor')) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
     const duel = wc.heroDuel(), posed = forcedPose ?? (duel ? actorPose({ duel } as unknown as Practice, 0) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 });
     const dx = state.x - px, dz = state.z - pz, moved = Math.hypot(dx, dz);
+    warriors.player.specialMove(duel ? specialRoleOf(duel.fighters[0]) : null);   // the special's own clip (Skull Crack, Whirlwind, Ground Slam, Lunge), as the Pit's scene.ts does every frame; without it every SPECIAL played the weapon's plain Heavy (Dom 2026-10-20)
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
