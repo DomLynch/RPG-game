@@ -170,6 +170,7 @@ fi
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
 # One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
+deploy_lock_yield_early "$DEPLOY_ROWS_LOCK"   # a pre-staged candidate's early rows must not hold the Mac against this deploy (K6i, 460 s); they restart after it
 deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
 trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
