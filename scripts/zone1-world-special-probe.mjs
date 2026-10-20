@@ -58,6 +58,7 @@ try {
     for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (k === 6 || k === 20 || k === 40) await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}-${String(k).padStart(2, '0')}.png`) }).catch(() => {}); }
     const keep = seen.filter((s, i) => i === 0 || s.phase !== seen[i - 1].phase || s.foeHp !== seen[i - 1].foeHp);
     { const drop = seen.find((s) => s.foeHp !== null && before.foeHp !== null && s.foeHp < before.foeHp); console.log(label, 'SPECIAL press: foe hp', before.foeHp, '->', drop ? `${drop.foeHp} (drop ${before.foeHp - drop.foeHp}, ${drop.t - seen[0].t} ms after the first sample)` : 'no drop in 3.5 s', '| target max', await page.evaluate(() => window.originsPreview.combat().target?.max ?? null)); }
+    console.log(label, 'owners of programs linked after the press:', JSON.stringify(await page.evaluate((n) => { const o = window.originsPreview.renderInfo().programOwners ?? {}, ids = new Set(window.__linked.filter((l) => l.n > n).map((l) => l.n)); return ids.size ? o : {}; }, links0)));
     console.log(label, 'program names linked after the press (this and later):', JSON.stringify((await page.evaluate((n) => window.__linked.filter((l) => l.n > n), links0)).slice(0, 8)));
     console.log(label, 'WebGL programs linked during this press (3.5 s):', (await page.evaluate(() => window.__links ?? -1)) - links0, '(total', await page.evaluate(() => window.__links ?? -1), ')');
     console.log(label, 'trace (phase / foe hp changes)', JSON.stringify(keep.slice(0, 16)));
