@@ -491,13 +491,15 @@ test('--cap and --path are separate modes, and --cap is nowhere in the scheduled
 });
 
 // Lead + Strategy 2026-10-20: an age or cap victim with uncommitted changes or commits no remote has, whose HEAD is not merged, is live work: kept. Merged, clean-and-pushed and plain (no .git) copies stay victims.
-test('work_live_checkout: dirty or unpushed and not merged is live; merged, clean-and-pushed and no-.git are not; an unreadable HEAD fails closed', { skip: process.platform !== 'linux' }, () => {
+test('work_live_checkout: dirty is always live; unpushed and not merged is live; clean merged, clean-and-pushed and no-.git are not; an unreadable HEAD fails closed', { skip: process.platform !== 'linux' }, () => {
   const root = mkdtempSync(join(tmpdir(), 'sweep-live-'));
   try {
     const mk = (name: string) => { const d = join(root, name); mkdirSync(d); git(d, 'init', '-q', '-b', 'main'); writeFileSync(join(d, 'a'), '1'); git(d, 'add', 'a'); git(d, 'commit', '-qm', 'one'); return d; };
     const live = (d: string) => sourced('work_live_checkout "$1"; echo $?', d).stdout.trim() === '0';
     const merged = mk('merged'); git(merged, 'update-ref', 'refs/remotes/origin/main', 'HEAD'); writeFileSync(join(merged, 'dirty'), 'x');
-    assert.equal(live(merged), false, 'dirty but HEAD already merged: archive-first keeps the files, so it is a fair victim');
+    assert.equal(live(merged), true, 'dirty is ALWAYS live, even when HEAD is already merged (Lead 2026-10-20)');
+    const mergedClean = mk('mergedclean'); git(mergedClean, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    assert.equal(live(mergedClean), false, 'clean and HEAD merged: a fair victim');
     const pushed = mk('pushed'); git(pushed, 'update-ref', 'refs/remotes/origin/feat', 'HEAD');
     assert.equal(live(pushed), false, 'clean and pushed (a remote ref has the commit), not merged: a fair victim');
     const dirty = mk('dirty'); git(dirty, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(dirty, 'wip'), 'x');

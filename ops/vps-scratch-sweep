@@ -126,14 +126,14 @@ sweep_cap_order() { # workdir min_age_h
     printf '%s %s %s\n' "$(find "$d" -path '*/node_modules' -prune -o -printf '%T@\n%C@\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)" "$(du -sk "$d" 2>/dev/null | cut -f1)" "$d"
   done | sort -n
 }
-# Live work (Lead + Strategy 2026-10-20): a checkout with uncommitted changes or commits no remote has, whose HEAD is not merged, is someone's work in progress, so an age or cap victim like that is
-# KEPT (archive-first would save it, but it would vanish from the lane). 0 = live, keep; 1 = fine to archive (no .git: a plain copy; clean and pushed; or HEAD already in a MERGE_REFS ref). Fails closed:
+# Live work (Lead + Strategy 2026-10-20): a checkout with uncommitted changes (always, even on a merged HEAD) or commits no remote has (unless its HEAD is merged) is someone's work in progress, so an age or cap
+# victim like that is KEPT (archive-first would save it, but it would vanish from the lane). 0 = live, keep; 1 = fine to archive (no .git: a plain copy; clean and pushed; or clean with HEAD already in a MERGE_REFS ref). Fails closed:
 # a repo whose HEAD cannot be read counts as live. Defined before the source-only return so the tests can call it.
 MERGE_REFS=${MERGE_REFS:-"origin/codex/01a09a76/task-1 origin/main"}
 work_live_checkout(){ [ -e "$1/.git" ] || return 1; local m dirty unpushed
   git -C "$1" rev-parse -q --verify HEAD >/dev/null 2>&1 || return 0
+  dirty=$(git -C "$1" status --porcelain 2>/dev/null) || return 0; [ -n "$dirty" ] && return 0   # a status that errors is not "clean"; a dirty checkout is ALWAYS kept, merged HEAD or not (Lead 2026-10-20)
   for m in $MERGE_REFS; do git -C "$1" merge-base --is-ancestor HEAD "$m" 2>/dev/null && return 1; done
-  dirty=$(git -C "$1" status --porcelain 2>/dev/null) || return 0; [ -n "$dirty" ] && return 0   # a status that errors is not "clean"
   unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null) || return 0
   [ "$unpushed" != 0 ]; }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
