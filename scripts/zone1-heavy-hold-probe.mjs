@@ -31,7 +31,7 @@ try {
   await page.waitForTimeout(5000);
   await page.evaluate(() => { window.__ev = []; for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) document.getElementById('attack-button').addEventListener(t, (e) => window.__ev.push([t, Math.round(performance.now()), Math.round(e.clientX), Math.round(e.clientY)])); });
   const [x, y] = await page.evaluate(() => { const b = document.getElementById('attack-button').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
-  const near = (d) => page.evaluate((dd) => { const m = window.originsPreview.mobs().mobs.find((q) => /scaveng/.test(q.id) && q.drawn); window.originsPreview.place(m.x, m.z - dd, 0); }, d);
+  const near = (d) => page.evaluate((dd) => { const m = window.originsPreview.mobs().mobs.find((q) => /scaveng/.test(q.id) && q.drawn); if (m) window.originsPreview.place(m.x, m.z - dd, 0); }, d);
   const engage = async () => { for (let t = 0; t < 8 && !(await page.evaluate(() => document.body.classList.contains('infight'))); t++) { await near(1.1); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(1300); } };
   const ready = () => page.waitForFunction(() => { const h = window.originsPreview.combat().hero; return h.phase === 'ready' && h.stamina >= 60; }, null, { timeout: 90000 }).catch(() => {});
   const touch = (type, px, py) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: px, y: py }] });
@@ -39,13 +39,13 @@ try {
   const results = [];
   for (const [label, ms, slide] of plan) {
     await engage(); await ready(); await near(1.0); await page.waitForTimeout(400);
-    const before = await sample(); await page.evaluate(() => { window.__ev.length = 0; });
+    const before = await sample(); await page.evaluate(() => { window.__ev.length = 0; }); const pageT0 = await page.evaluate(() => performance.now());
     const t0 = Date.now(); await touch('touchStart', x, y); await page.waitForTimeout(ms); if (slide) { await touch('touchMove', x - slide, y); await page.waitForTimeout(60); } await touch('touchEnd');
     const held = Date.now() - t0, seen = [];
     for (let k = 0; k < 50; k++) { await page.waitForTimeout(40); seen.push(await sample()); }
     const phases = seen.filter((s, i) => i === 0 || s.ph !== seen[i - 1].ph).map((s, i, a) => `${s.ph}@${s.t - seen[0].t}`).join(' ');
     const drop = before.foe !== null ? before.foe - Math.min(...seen.map((s) => s.foe ?? 1e9)) : null;
-    const line = { label, wantMs: ms, heldMs: held, events: await page.evaluate(() => window.__ev), phases, foeBefore: before.foe, drop, stamina: [before.st, seen[seen.length - 1].st] };
+    const line = { label, wantMs: ms, heldMs: held, events: await page.evaluate(() => window.__ev), phases, foeBefore: before.foe, drop, stamina: [before.st, seen[seen.length - 1].st], acts: (await page.evaluate(() => window.originsPreview.combat().acts)).filter((a) => a[0] >= pageT0).map((a) => `${a[1]}@${Math.round(a[0] - pageT0)}`).join(' ') };
     results.push(line); console.log(JSON.stringify(line));
     await page.screenshot({ path: path.join(out, `${label}-${results.length}.png`) }).catch(() => {});
     await page.waitForTimeout(2500);
