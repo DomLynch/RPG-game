@@ -17,6 +17,8 @@ import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
 import { groundLook, dropLook } from './ground-looks.ts';
+import { RANGED_MODELS, rangedModelOf, rangedModelUrl } from '../../src/fight/ranged-model-rows.ts';
+import { rangedGroundPartOf } from '../../src/fight/ranged-model.ts';
 import { createOutfit, dressedSet, dropSet, groundItemOf } from './outfit.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
@@ -176,8 +178,10 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
   if (!p) gltfScenes.set(url, (p = (async () => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); const loaded = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; if (phoneTier()) budgetTextures(loaded, FIGHTER_TEXTURE_CAP); return loaded; })().catch((error: unknown) => { gltfScenes.delete(url); throw error; })));
   return p;
 };
-const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: sceneOf });
+// A row whose asset is a ranged-model id (`bow`, ranged-model-defs.json) lies as the painted model the hand holds (the player/bow.glb equip file is a knife copy), with its matte and no hold.
+const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item), ranged = rangedModelOf(asset); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : ranged ? rangedModelUrl(ranged) : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
+const groundModelOf = (url: string): Promise<THREE.Object3D> => { const ranged = RANGED_MODELS.find((m) => rangedModelUrl(m) === url); return ranged ? sceneOf(url).then((loaded) => rangedGroundPartOf(loaded, ranged)) : sceneOf(url); };
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: groundModelOf });
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
 const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
