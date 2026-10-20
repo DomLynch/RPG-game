@@ -69,7 +69,7 @@ elif [ -n "$early" ]; then
   ( cd "$repo" && PRELAUNCH_DIR="$early_dir" nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- bash -c '
       state=$1; sha=$2; shift 2; "$@" "$sha"; rc=$?
       echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) mac-rows-early ${sha:0:9}: exit $rc" >> "$state/mac-rows-early.log"
-      if [ "$rc" -eq 0 ]; then rm -f "$state/mac-rows-early.failed-${sha:0:9}"; else echo "$sha exit $rc at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state/mac-rows-early.failed-${sha:0:9}"; fi' \
+      case "$rc" in 0|130|137|143) rm -f "$state/mac-rows-early.failed-${sha:0:9}";; *) echo "$sha exit $rc at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state/mac-rows-early.failed-${sha:0:9}";; esac' \
       _ "$state" "$early" ${RELEASE_TRAIN_MAC_ROWS:-bash scripts/mac-rows-early.sh} >> "$state/mac-rows-early.log" 2>&1 & )
   log "mac rows (early) for ${early:0:9}: started or already running (log $state/mac-rows-early.log)"
 fi
