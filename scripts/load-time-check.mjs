@@ -43,7 +43,8 @@ export const PAGES = {
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
   // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
-    bytes: { quietMs: 3000, capS: 120, mbDelta: 1.0, filesDelta: 10 },
+    // quietMs 5000: at 3000 one of ten samples stopped mid-load in a parse gap (12.25 MB / 149 files against 19.1 MB / 204; HF 6ad7ad6b5275124786e1a0aa).
+    bytes: { quietMs: 5000, capS: 120, mbDelta: 1.0, filesDelta: 10 },
     ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
