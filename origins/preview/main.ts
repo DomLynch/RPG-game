@@ -986,6 +986,9 @@ function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+// The special slots follow the account (Dom 2026-10-20, Backend #3422): a signed-in page reads its character's slots once (the server's pair replaces the device cache, an empty server takes the device's picks up) and sends every pick it makes; a guest, an unanswered writer or a 503 leaves the device pick as it is.
+pushSpecialSlotsOnPick(() => storedToken(storage, Date.now()), characterNow, { base: writerBase(location.search) });
+void (async () => { const token = storedToken(storage, Date.now()), character = token ? await characterNow() : null; if (token && character) await pullSpecialSlots(token, character, { base: writerBase(location.search) }); })();
 // The smith screen (origins/preview/repair-*.ts): gear_wear lists the worn pieces with the writer's own quote; a repair is one gear_repair under a fresh op id. The page prices and wears nothing.
 const repairName = itemNamer(), repairBase = { base: writerBase(location.search) };
 const repairScreen = mountRepair(document.getElementById('repair-dialog') as HTMLDialogElement, {
