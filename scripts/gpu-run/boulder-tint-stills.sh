@@ -18,12 +18,13 @@ for n in ("boulder_a", "boulder_b", "boulder_c"): d["kit"].setdefault("tint", {}
 json.dump(d, open(p, "w"), indent=2)
 PY
 }
-shoot row
-setcolor 0.8 0.78 1.1 1; shoot grey
-setcolor 1.1 1.0 1.9 1; shoot cool
+want() { [[ $# -eq 0 || " ${ONLY:-} " == *" $1 "* || -z "${ONLY:-}" ]]; }   # ONLY="none row" limits the variants
+if want row; then shoot row; fi
+if want grey; then setcolor 0.8 0.78 1.1 1; shoot grey; fi
+if want cool; then setcolor 1.1 1.0 1.9 1; shoot cool; fi
 python3 - "$ROW" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1])); d["kit"].pop("tint", None); json.dump(d, open(sys.argv[1], "w"), indent=2)
 PY
-shoot none
+if want none; then shoot none; fi
 cp /tmp/zone1.row.orig "$ROW"

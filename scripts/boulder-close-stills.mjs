@@ -16,7 +16,9 @@ try {
   const page = await (await browser.newContext({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true })).newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 }); await page.waitForTimeout(4000);
-  await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [X, Z - DIST]); await page.waitForTimeout(WAIT);
-  await page.screenshot({ path: path.join(out, 'boulders.png') });
-  console.log(JSON.stringify({ X, Z, DIST, size: [vw, vh] }));
+  for (const [i, h] of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].entries()) {   // four headings: which way the pair lies from here is not known until a still shows it
+    await page.evaluate(([x, z, hh]) => window.originsPreview.place(x, z, hh), [X, Z - DIST, h]); await page.waitForTimeout(i ? 1500 : WAIT);
+    await page.screenshot({ path: path.join(out, `boulders-h${i}.png`) });
+    console.log(JSON.stringify({ X, Z, DIST, size: [vw, vh], heading: h, pos: await page.evaluate(() => { const p = window.originsPreview.pos; return [p.x, p.z]; }) }));
+  }
 } finally { await browser.close(); server.close(); }
