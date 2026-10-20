@@ -533,6 +533,7 @@ function planUpload() {
   for (const g of geometries) queue.push(() => { drawProxy(renderer, camera, g); uploaded.add(g); });
   // The copy is shown: compile skips hidden objects, and the fx marks (wound spots, splats) are created hidden.
   for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(), copy = m.clone(); copy.visible = true; holder.add(copy); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
+  if (materials.size) console.info('[plan]', Math.round(performance.now()), 'ready', zoneReadyAt, [...materials].map(([mat, m]) => `${mat.type}${mat.name ? ':' + mat.name : ''}${(m as THREE.Mesh).isInstancedMesh ? ' inst' : ''}${m.visible ? '' : ' hid'}`).filter((s, i, a) => a.indexOf(s) === i).join(', ').slice(0, 600));   // PROBE ONLY
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
