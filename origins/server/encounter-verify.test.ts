@@ -92,6 +92,20 @@ test('the record\'s weapon is the character\'s held one (the ledger\'s main hand
   assert.equal(reason(record, params(spec)), 'ok', 'no held weapon given (an older caller): the check is skipped, as before');
 });
 
+test('a picked duel that pressed SPECIAL 2 verifies through the encounter verifier (the real prod wins), and not without its pick', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { decodeRecord } = await import('../../src/fight/server.ts');
+  const fixture = JSON.parse(readFileSync(new URL('../../tests/fixtures/skill2-picked-duel-records.json', import.meta.url), 'utf8')) as { records: { id: number; record: string }[] };
+  for (const f of fixture.records) {   // the records are RV85: judged under the live era
+    const rec = await decodeRecord(f.record);
+    const params: EncounterParams = { seed: rec.seed, enemy: rec.opponent, level: rec.level, bar: null, flags: [], layer: null };
+    const v = withEra(true, () => verifyEncounter(rec, params));
+    assert.equal(v.ok, true, `claim ${f.id}: ${v.ok ? '' : v.reason}`);
+    const { skill2, ...rest } = rec; void skill2;
+    assert.equal(withEra(true, () => verifyEncounter(rest as FightRecord, params)).ok, false, `claim ${f.id} without its SPECIAL 2 pick`);
+  }
+});
+
 test('the one-health-bar pool is the server\'s: a record played on the pool verifies with it and not without', () => {
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731, bar: 20, flags: [{ kind: 'one-health-bar' }] }, { record } = finished(spec);   // a tiny pool: the foe falls on the first hit, so the pool decides the result
   assert.equal(verifyEncounter(record, params(spec)).ok, true);
