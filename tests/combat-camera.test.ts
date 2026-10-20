@@ -85,10 +85,11 @@ test('the shoulder is mirrored by the setting, never by the camera', () => {
 test('Zone 1 ships the sandbox\'s wide auto-fit camera (option 2 @48da550) as rows, in both orientations', async () => {
   const { wideCombatCam } = await import('../origins/preview/combat-cam.ts'), cam = wideCombatCam();
   assert.deepEqual(cam.ease, { in: 3, out: 1.8 }); assert.ok(cam.ease.out < cam.ease.in, 'the exit is slower than the entry');
-  assert.deepEqual(cam.portrait, { back: 6.5, up: 2, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.4, perSize: 0.5, sizeFrom: 1.8, fitRate: 1.5, minBack: 5.5, maxBack: 12, shiftY: 0.12 });
-  assert.deepEqual(cam.landscape, { back: 5.5, up: 1.8, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.35, perSize: 0.45, sizeFrom: 1.8, fitRate: 1.5, minBack: 4.5, maxBack: 10, shiftY: 0.05, zoom: 0.85 });
+  // 2026-10-20 (World, Web's live audit: the camera put the hero's body over a foe at melee range): portrait up 2 -> 2.8 and a shoulder offset (portrait 1.8 m, landscape 0.9 m) so the foe reads beside the hero; still the same wide auto-fit otherwise.
+  assert.deepEqual(cam.portrait, { back: 6.5, up: 2.8, side: 1.8, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.4, perSize: 0.5, sizeFrom: 1.8, fitRate: 1.5, minBack: 5.5, maxBack: 12, shiftY: 0.12 });
+  assert.deepEqual(cam.landscape, { back: 5.5, up: 1.8, side: 0.9, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.35, perSize: 0.45, sizeFrom: 1.8, fitRate: 1.5, minBack: 4.5, maxBack: 10, shiftY: 0.05, zoom: 0.85 });
   for (const shape of [cam.portrait, cam.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && shape.shiftY! > 0 && shape.shiftY! < 0.4, 'a speed limit, a floor, a cap and a lift off the thumbs');
-  assert.ok(!('side' in cam.portrait) && !('side' in cam.landscape), 'no shoulder: the hero stays centred');
+  assert.ok(cam.portrait.side! > 0 && cam.landscape.side! > 0, 'a shoulder offset: the camera stands off the hero\'s line so a close foe is not behind his body');
 });
 
 test('the wide camera frames a man and a 6 m foe whole: further back for the bigger one, within the floor and the cap', async () => {
