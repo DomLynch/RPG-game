@@ -28,7 +28,6 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
     "  if (world) scene.add(world.holder);",
     "    if (!world) renderer.setSize(width, height, false);",
     "        if (!world) renderer.setPixelRatio(ratio);",
-    "        castTells[side].update(practice.duel.fighters[side], l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, practice.duel.tick, bossRing && side === 1, !!world);",
   ];
   assert.deepEqual(reads.map((l) => l.trimEnd()), expected);
 });
