@@ -2714,8 +2714,3 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal [data-weight]::after { content: attr(data-weight); display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 8px; font: 600 10px/16px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .75; vertical-align: middle; }
 #journal #fitting-name[data-weight], #journal .pack li strong[data-weight] { white-space: normal; overflow: visible; text-overflow: clip; }   /* a badged name wraps instead of truncating: Safari's ellipsis swallowed the pill (the WebKit row, 2026-10-13) */
 #journal #fitting-name[data-weight]::after, #journal .pack li strong[data-weight]::after { white-space: nowrap; }
-/* Phone-layout audit, Pit side (Web, 2026-10-20, live at 375). The backing plate is the zone page's (#3423): the same tokens, so both HUDs match. */
-:root { --c-plate: rgba(18, 12, 8, 0.62); --plate-r: 6px; --plate-pad: 2px 8px; --tab-gap: 6px; }
-@media (max-width: 700px) { .combat-hud > span:first-child, #fight-rank { background: var(--c-plate); border-radius: var(--plate-r); padding: var(--plate-pad); } }   /* the foe's name and the rank row read on the busy sky, statue and torches */
-#journal .tab-strip { gap: var(--tab-gap); }   /* CAREER and SETTINGS no longer touch at 375 */
-#journal .tab-strip .tab-career { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3h10v5a5 5 0 0 1-10 0zM4 4h3v2a2 2 0 0 0 1 1.7A3 3 0 0 1 4 5zM20 4h-3v2a2 2 0 0 1-1 1.7A3 3 0 0 0 20 5zM11 13h2v4h3v2H8v-2h3z'/%3E%3C/svg%3E"); }   /* a trophy: Career is no longer the Stats bars */
