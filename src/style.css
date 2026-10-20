@@ -2113,7 +2113,7 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
 }
 dialog .rank-seg { --rank-fill: var(--js); }
-.rank-next { opacity: 0.65; }
+.rank-next { opacity: 0.85; }
 .share-status {
   display: block;
   color: #efe6d3;
@@ -2512,7 +2512,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 @media (prefers-reduced-motion: reduce) { #actions button.refused { animation: none; opacity: .45; } }
 
 /* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
-#fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
+#rank, #fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
 
 /* ?look=defence (defence-grade.ts): the GUARD button rings once in the colour of the grade the player's own defence earned, and wears its name for half a second. Ring and caption only, drawn
    on the button itself: nothing over the fighters. plain = a thin white ring; heavy = a thick amber ring with a push; perfect = a gold double ring; parry = a cold white-blue flash. */
