@@ -19,10 +19,10 @@ const swing = (kind: 'light' | 'heavy'): { moves: string[]; damage: number } => 
   const hero = { x: 0, z: 0, facing: 0 }; const dt = 1 / 30;
   for (let t = 0; t < 1.5; t += dt) wc.update(dt, hero);   // joined, and let the first exchanges settle
   while (wc.hero().phase !== 'ready') wc.update(dt, hero);
-  const hp0 = wc.target()?.hp ?? 0; wc.takeContacts(); wc.press(kind);
+  const hp0 = wc.target()?.health ?? 0; wc.takeContacts(); wc.press(kind);
   const moves: string[] = [];
   for (let t = 0; t < 2.5; t += dt) { wc.update(dt, hero); for (const c of wc.takeContacts()) for (const e of c.events) if (e.type === 'AttackStarted' && e.actor === 0) moves.push(String(e.move)); }
-  return { moves, damage: hp0 - (wc.target()?.hp ?? 0) };
+  return { moves, damage: hp0 - (wc.target()?.health ?? 0) };
 };
 
 test('a world press of kind heavy starts the heavy swing, not the light (the world sim half of hold-for-heavy)', () => {
