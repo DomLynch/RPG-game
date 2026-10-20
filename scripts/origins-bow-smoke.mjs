@@ -119,10 +119,10 @@ try {
   eq(verdictOf(ea.token), 'verified', 'A: the bow record is VERIFIED against the ledger (main hand = bow) and the kill is paid on it');
   eq(verdictOf(eb.token) === 'verified', false, `B: the same bow record without a bow in the ledger is NOT verified (${verdictOf(eb.token)})`);
   eq(psql(`select count(*) from public.origins_beta_ledger where event_id = 'enc:${ea.token}' and bronze > 0`), '1', 'A: the ledger paid the kill');
-  // The Power Shot case: EXPECTED-FAIL until RV83 (Lead: the specialShare fix, branch combat/world-bow-specials, WSV 62). When the engine can fire it, this flips to a pass and the line below says so.
-  if (!recA.power && process.env.BOW_EXPECT_POWER === '1') fail('POWER SHOT did not land (BOW_EXPECT_POWER=1: the engine must fire it, RV83 or later)');   // flip to the default once RV83 (#3375) is on trunk
-  console.log(recA.power ? 'ok  POWER SHOT (cleave via the bow) landed an arrow in the open world, and the record verified against the ledger' : 'EXPECTED-FAIL (until RV83): POWER SHOT cannot fire in an open-world fight (heroSheeted sets specialShare only for a spell carrier); not counted as a failure');
-  console.log(`\norigins-bow-smoke (NOT PROD, disposable cluster): ${checks} checks passed; power shot: ${recA.power ? 'PASS' : 'EXPECTED-FAIL until RV83'}`);
+  // The Power Shot case is a hard check since RV83 (#3375, the specialShare fix) is on trunk: the engine must fire it in an open-world fight.
+  if (!recA.power) fail('POWER SHOT did not land (the engine must fire it: RV83 or later)');
+  console.log('ok  POWER SHOT (cleave via the bow) landed an arrow in the open world, and the record verified against the ledger');
+  console.log(`\norigins-bow-smoke (NOT PROD, disposable cluster): ${checks} checks passed; power shot: PASS`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
   rmSync(root, { recursive: true, force: true });
