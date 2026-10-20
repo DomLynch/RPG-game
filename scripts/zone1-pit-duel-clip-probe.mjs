@@ -32,8 +32,7 @@ try {
   await page.locator('#attack-button').tap();
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-label') === 'Light attack', null, { timeout: 60000 });
   for (const [sel, name, key, lab] of [['#skill-button', 'SPECIAL 1', 'one', 'l1'], ['#skill2-button', 'SPECIAL 2', 'two', 'l2']]) {
-    await page.waitForFunction((s) => document.querySelector(s)?.getAttribute('aria-disabled') === 'false', sel, { timeout: 30000 }).catch(() => {});
-    const before = await sample(); await page.locator(sel).tap({ timeout: 20000 }).catch((e) => console.log(name, 'tap failed', String(e).slice(0, 100)));
+    const before = await sample(); console.log(name, 'buttons before the press', JSON.stringify(before));   // no wait for a cooldown: the legend foe kills an idle hero in seconds await page.locator(sel).tap({ timeout: 20000 }).catch((e) => console.log(name, 'tap failed', String(e).slice(0, 100)));
     const seen = [], shots = [];
     for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (k === 3 || k === 10 || k === 18) { const f = path.join(out, `${name.replace(' ', '').toLowerCase()}-${String(k).padStart(2, '0')}.png`); await page.screenshot({ path: f }).catch(() => {}); shots.push(f); } }
     const row = { page: 'zone1 Fight in the Pit', slot: name, label: before[lab], accepted: seen.some((s) => s[key] === 'true'), clips: [...new Set(seen.map((s) => s.clip))], fx: [before.fx, seen.at(-1).fx], cues: [before.cues, seen.at(-1).cues], shots };
