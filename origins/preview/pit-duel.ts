@@ -16,7 +16,7 @@ import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { memoryMatch } from '../../src/fight/match.ts';
 import { worldStancePick, type PickedStance } from '../../src/fight/index.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
+import { DEFAULT_WEAPON, OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from '../../src/fight/index.ts';
 import { mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
 import { authClient } from './save.ts';
@@ -41,7 +41,7 @@ import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 import { previewRule } from './preview-rules.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean; stance?: PickedStance };   // stance (RV81): the player's standing stance for this fight (the open world applies it as the Pit does); absent = no stances   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean; stance?: PickedStance; weapon?: WeaponId };   // stance (RV81): the player's standing stance for this fight (the open world applies it as the Pit does); absent = no stances   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
@@ -56,7 +56,7 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<SceneModule['createScene']>;
-type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
+type Stage = { opponent: OpponentId; level: number; weapon: WeaponId; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
 const CAMERA_EASE_S = previewRule('cameraEase');   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
@@ -161,8 +161,8 @@ function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
 
-function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel) {
-  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount) {   // the same scene again: its art is in, so the page's "Loading…" goes now
+function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel, weapon: WeaponId = DEFAULT_WEAPON) {
+  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount && stage.weapon === weapon) {   // the weapon is in the key: the scene's rig is built wielding it, so another weapon is another scene   // the same scene again: its art is in, so the page's "Loading…" goes now
     if (stage.ready) element('art-status').textContent = '';
     return stage;
   }
@@ -175,11 +175,11 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?
     host.prepend(canvas);
   }
   const status = document.getElementById('art-status');
-  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
+  const made: Stage = { opponent, level, weapon, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
-  }, opponent, undefined, 'longsword', () => {}, level, undefined, mount);
+  }, opponent, undefined, weapon, () => {}, level, undefined, mount);
   made.view.setTier(tierAt(level - 1)); made.view.setPlayerTier(tierAt(level - 1));   // the sparring look: his kit at the fight's rung (main.ts shownTier)
   return (stage = made);
 }
@@ -219,12 +219,13 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
   fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
   mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
-  stageFor(host, opponent, asked.level, mount);
+  const weapon = asked.weapon ?? DEFAULT_WEAPON;   // the weapon the player fights with (the page's rig weapon, never a claim the rig cannot draw): the scene, the sim and the record all use this one
+  stageFor(host, opponent, asked.level, mount, weapon);
   match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
   match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? worldStancePick(location.search, pageStorage()) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the stance menu's stored pick for this device's character, ?stances= over it (off = none); Balanced when nothing is stored
-  match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
-  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
+  match.startSparring({ weapon, skill: null, difficulty: asked.level });
+  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed, weapon);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
