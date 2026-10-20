@@ -24,6 +24,10 @@ const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['-
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage(), cdp = await ctx.newCDPSession(page), errors = [];
 page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
+// A CDP screencast kept only while a press and its aftermath are on (about 10 fps): the chamber pose of a held heavy, which a per-step screenshot is too slow to catch.
+let keepUntil = 0, shot = 0, shotLabel = 'x'; fs.mkdirSync(path.join(out, 'frames'), { recursive: true });
+cdp.on('Page.screencastFrame', ({ data, sessionId }) => { if (Date.now() < keepUntil) fs.writeFileSync(path.join(out, 'frames', `${shotLabel}-${String(shot++).padStart(3, '0')}.jpg`), Buffer.from(data, 'base64')); cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {}); });
+await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 55, everyNthFrame: 3 });
 const sample = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { t: Math.round(performance.now()), ph: c.hero.phase, foe: c.fighters?.find((q) => q.id !== 'me')?.hp ?? null, hp: c.hero.health, st: Math.round(c.hero.stamina) }; });
 try {
   await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1&presence=0`, { waitUntil: 'load' });
@@ -40,6 +44,7 @@ try {
   for (const [label, ms, slide] of plan) {
     await engage(); await ready(); await near(1.0); await page.waitForTimeout(400);
     const before = await sample(); await page.evaluate(() => { window.__ev.length = 0; }); const pageT0 = await page.evaluate(() => performance.now());
+    shotLabel = `${label}${results.length + 1}`; keepUntil = Date.now() + ms + 1200;
     const t0 = Date.now(); await touch('touchStart', x, y); await page.waitForTimeout(ms); if (slide) { await touch('touchMove', x - slide, y); await page.waitForTimeout(60); } await touch('touchEnd');
     const held = Date.now() - t0, seen = [];
     for (let k = 0; k < 50; k++) { await page.waitForTimeout(40); seen.push(await sample()); }
