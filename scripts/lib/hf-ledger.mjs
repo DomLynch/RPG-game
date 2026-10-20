@@ -22,7 +22,8 @@ import LANE_PREFIXES from './lane-prefixes.json' with { type: 'json' };
 
 export const HF_COST = Object.freeze({ alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });   // Dom 2026-10-16 (topped up the account): "unlock it, within reason, don't waste"
 // One-day raises of the T4 stop, keyed by UTC day; every other day uses HF_COST.t4StopUsdPerDay. Dom 2026-10-16 ~21:05 +04, in the Lead chat: "ok yes" to $15 for that day only.
-export const T4_STOP_BY_DAY = Object.freeze({ '2026-10-16': 15 });
+// Dom 2026-10-20 ~20:21 +04, in the Lead chat: "ok yes" to raising the $10 stop (zone-ready A/Bs and Pit gfx proofs refused at $10.11): $15 for that day only, as on 10-16.
+export const T4_STOP_BY_DAY = Object.freeze({ '2026-10-16': 15, '2026-10-20': 15 });
 export const t4StopOn = (ms) => T4_STOP_BY_DAY[day(ms)] ?? HF_COST.t4StopUsdPerDay;
 // Under `node --test` (NODE_TEST_CONTEXT, inherited by every child a test spawns) without an explicit HF_COST_LEDGER the ledger is a throwaway file:
 // a test that launches through a stub hf must never write the real ledger (AGENTS.md: tests never read or write live box state).
