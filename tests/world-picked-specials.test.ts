@@ -28,7 +28,7 @@ const names = (evs: PitEvent[]): string => evs.map((e) => e.type).filter(Boolean
 type Pick = { picked?: true; specialShare?: number };
 
 test('the live world hero with a picked skill carries the special share and is `picked`; a record below 84 keeps the old hero; no skill, neither', () => {
-  assert.equal(RECORD_VERSION, 84);
+  assert.ok(RECORD_VERSION >= 84, 'RV84 or later');
   const hero = player(ME, 0, 0, 0, 1, 'cleave', { weapon: 'longsword' });
   assert.equal((heroSheeted(hero) as Pick).picked, true, 'live: picked');
   assert.ok(((heroSheeted(hero) as Pick).specialShare ?? 0) > 0, 'live: the special share');

@@ -911,6 +911,118 @@
         ],
         "gate": null
       }
+    },
+    {
+      "name": "plain",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3YOwqAMBRE0adC_O3EhdhYuwDBTyMKUXSxbkathYCCicI9TYqBN0ybvCiDRlfh0szHM8T9OHTTOupaTmrzRTIl4gkAAEbta1wvAwAAAOCA-TfqYZq-dvmbKXvt9LpK2Wun11XK3puXAQA4RDYkV_TSSy-99P6ldwd9lHeXJCUAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1578,
+        "outcome": "died",
+        "hits": [
+          4,
+          9
+        ],
+        "gate": null
+      }
+    },
+    {
+      "name": "patron",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3YTQpAUBiF4YPyuxMLMTG2AOVnIgqxWJthrhTlXup9Jndw6jud6c3ywqvHMljq-Xj6qBv6dlqHsZLkyd9cKfUlRwAAXGpeY3sZAAAAAAuuf6Mepslrl7-ZstdMr62UvWZ6baXsvXkZAIBDaEJ8Ri-99NJL7196d1XBweAkJQAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1578,
+        "outcome": "died",
+        "hits": [
+          4,
+          9
+        ],
+        "gate": null
+      }
+    },
+    {
+      "name": "stances",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3YMQqDQBSE4VFBjXqSHMQmtQcQojaygooeNpfRXliI4K7C_zVbDLxh2i0_VdSMdbI08_6YVz-YblqH8atCUvwLpXcsBQIAwKq9jO9lAAAAADyw_0adTPPLLt8zZa-bXl8pe930-krZ--dlAAB2qQvZEb300ksvvU_p3QCgY3dVJCUAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1578,
+        "outcome": "died",
+        "hits": [
+          4,
+          9
+        ],
+        "gate": null
+      }
+    },
+    {
+      "name": "spell",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3XywpAQBjF8c_99gDeyMbaA0y5pEQhHtbLYClloQbl_9tMzak5neUkaWYVvfKmYtyONmi6thrmrs_FEDEc1Uz14LiLKRLbst8BwEGpzdvLAACAFtefiptppO3lb6bsfab3rfRvewFAxH9CeEYvvfR-tncFpJnjz7kYAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1047,
+        "outcome": "died",
+        "hits": [
+          2,
+          6
+        ],
+        "gate": "the record casts a spell and names no stored build to check its skill against"
+      }
+    },
+    {
+      "name": "skill2",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3YOwqAMBRE0aeC3524EBtrFyD4aSSBKLpYN2N6QVAwUbinSTHwhmlT1U3UmzZZ-8U-Kpu0GudNm06sMI33UKSMRQIBAODS8BrfywAAAAB4cP0b9TAtXrv8zZS9bnp9pex10-srZe_NywAAWKkL-Rm99NJLL71_6T0AJSO18yUlAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1578,
+        "outcome": "died",
+        "hits": [
+          4,
+          9
+        ],
+        "gate": null
+      }
+    },
+    {
+      "name": "meleeSpecial",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3YTQpAQBjG8Rfl81421g6gfGxEIY7kUC6DtdKEYdT_t5kmzfPM1LsSJ6lTdJk3FsO2NEHdNlU_tV3uWCLiLrbI7IrsGwAATFVq8_XLAAAAAOBF5z8Bw2tnI23JCl8_SFZ4r3F3vpMcaUsWI5OZ56eSFc4yz9qTfzvPAAAYwX9DeEQvvfTSSy-9Cr0rnx7AURIoAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 1703,
+        "outcome": "died",
+        "hits": [
+          7,
+          4
+        ],
+        "gate": null
+      }
+    },
+    {
+      "name": "cave-troll",
+      "added": "2026-10-20",
+      "encoded": "H4sIAAAAAAAAE-3aPQ4BURSG4cs0fgqdXdiGRm0BwtBMTDKExdqMqCUikjmHeJ72S-6b09_lal3V3Way3Vzqxblrm2bctMfD6dp2u_JQ3YalzGelDAoAAAD8rX1vsi8DAAAAAAAA4E2vf1R_uE57e_k7V_fGdLNW98Z0s1b3xnSzVvfGdLNW98Z0s1b3xnSzVvfGdLPWn70XAAAA_sAowuSZrq6urq6urq6urq6urm5-9w5V_Ldbr1oAAA",
+      "server": null,
+      "expect": {
+        "v": 85,
+        "ticks": 3862,
+        "outcome": "died",
+        "hits": [
+          20,
+          8
+        ],
+        "gate": null
+      }
     }
   ]
 }
