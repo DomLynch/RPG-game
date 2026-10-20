@@ -659,6 +659,8 @@ dialog>p {
   text-transform: uppercase;
   text-shadow: 0 1px 6px #000c;
 }
+/* A short landscape phone (844x390): 28% of the height lands on the legend's tier line ("THE CENTURION · RECRUIT"), so the loading line drops to the middle (Lead 2026-10-19, audit pass 2). */
+@media (orientation: landscape) and (max-height: 430px) { .versus-loading { top: 50%; } }
 /* Owner 2026-09-22: the loading line is the caption's twin (same size, spacing, brightness), and its three dots breathe one after
    another — a slow 1.6 s cycle, never fully off, so it reads as a pulse and not a blink. */
 .versus-dots i {
