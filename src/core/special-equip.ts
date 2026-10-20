@@ -15,8 +15,13 @@ export const onSpecialsChanged = (fn: () => void): void => { listeners.push(fn);
 export const specialChoices = (): readonly { readonly id: string; readonly role: string }[] => choiceSource?.() ?? BETA_SPECIAL_PICK.map((id) => ({ id, role: BETA_SPECIAL_ROLES[id] ?? '' }));
 type Choices = readonly { readonly id: string; readonly role: string }[];
 let choiceSource: (() => Choices) | undefined;
-/** A look-test (?picker=sandbox, src/fight/special-picker-look.ts) swaps the list the picker offers; undefined puts the betaCut row back. Presentation only: equipping still checks the betaCut row. */
+/** The page hands the picker its rows (src/fight/special-pick-rows.ts: the four beta specials, in the sandbox's order and roles); undefined puts the betaCut row's list back. Presentation only: equipping still checks the betaCut row. */
 export const useSpecialChoices = (fn: (() => Choices) | undefined): void => { choiceSource = fn; };
+type Defaults = { readonly slot1?: string; readonly slot2?: string; readonly slot2Alt?: string };
+let defaultSource: (() => Defaults) | undefined;
+/** The page hands over the rows' default slots (SPECIAL 1's default, SPECIAL 2's default and its alternative); undefined puts the betaCut row's slot2Default / slot2Alt back and leaves SPECIAL 1 empty until picked. */
+export const useSpecialDefaults = (fn: (() => Defaults) | undefined): void => { defaultSource = fn; };
+const defaults = (): Defaults => defaultSource?.() ?? { slot2: BETA_SLOT2_DEFAULT, slot2Alt: BETA_SLOT2_ALT };
 const stored = (): (string | undefined)[] => {
   const empty = Array.from({ length: SPECIAL_SLOT_COUNT }, () => undefined as string | undefined);
   let raw: string | null | undefined;
@@ -27,12 +32,20 @@ const stored = (): (string | undefined)[] => {
 };
 /** SPECIAL 2 until the player picks one (RV80, Dom 2026-10-19: the sandbox pre-filled it): the betaCut row's slot2Default, or its slot2Alt when SPECIAL 1 already is that skill (never the same move in both buttons). A skill outside the pick reads as none. */
 export const slot2Default = (one: string | undefined): string | undefined => {
-  const pick = one === BETA_SLOT2_DEFAULT ? BETA_SLOT2_ALT : BETA_SLOT2_DEFAULT;
+  const d = defaults();
+  const pick = one === d.slot2 ? d.slot2Alt : d.slot2;
+  return pick && inBetaSpecials(pick) ? pick : undefined;
+};
+/** SPECIAL 1 until the player picks one: the row's slot1Default; when the player has moved that skill into SPECIAL 2, SPECIAL 2's old default takes the slot back (a swap, never an empty button). No slot1Default row = empty, as before. */
+const slot1Default = (two: string | undefined): string | undefined => {
+  const d = defaults();
+  const pick = !d.slot1 ? undefined : d.slot1 !== two ? d.slot1 : d.slot2 !== two ? d.slot2 : undefined;
   return pick && inBetaSpecials(pick) ? pick : undefined;
 };
 /** The equipped skill id per slot, in slot order; a slot is undefined when empty or when its pick is not in the row (the cut changed). SPECIAL 2 (index 1) reads its default while the player has picked none. */
 export const equippedSpecials = (): (string | undefined)[] => {
   const picked = stored().map((id) => (id && inBetaSpecials(id) ? id : undefined));
+  picked[0] ??= slot1Default(picked[1]);
   if (SPECIAL_SLOT_COUNT > 1) picked[1] ??= slot2Default(picked[0]);
   return picked;
 };
