@@ -84,6 +84,7 @@ import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
+import { createLateStream } from './late-stream.ts';
 import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, enableSpecialCounter, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
@@ -510,13 +511,13 @@ const clock = new THREE.Clock();
 let compileChain: Promise<unknown> = Promise.resolve(), programsInFlight = 0, uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
 let cleanPlan = false;   // the last look at the scene (planUpload), taken once every kind and the hero were warmed, found nothing left to compile or upload: a zone is ready only after such a look, never between two looks (the 3 s re-plan), or a material that streamed in after the last plan links at the engage (seamless #87, 71 vs 73 programs on the same tree)
 const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
+const lateStream = createLateStream(location.search, scene, uploaded);   // test-only hooks of the late-stream browser row (late-stream.ts)
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
 const UPLOAD_BUDGET_MS = previewRule('uploadBudget');
 const KINDS_WAIT_MS = previewRule('kindsWait'), MATERIAL_BOUND_MS = previewRule('materialBound');   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
 const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
-function planUpload() {
-  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+function scanScene() {   // what the scene holds that no plan has put on the GPU yet (the plan below queues it; zoneReadyCheck looks again before it says ready)
   const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh | THREE.Points>();
   scene.traverse((o) => {
     const sp = o as THREE.Sprite; if (sp.isSprite) { const t = sp.material.map; if (t && !uploaded.has(t)) textures.add(t); return; }   // a creature's name label and its '!' are canvas-texture sprites: first drawn at first sight, so they upload here (Metal trace: +1 texture at engage, #1921)
@@ -527,12 +528,17 @@ function planUpload() {
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
   });
+  return { textures, geometries, materials };
+}
+function planUpload() {
+  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+  const { textures, geometries, materials } = scanScene();
   linkProxy(renderer, camera);   // the shared proxy's program is linked now, before [zone ready], and stays (warm-proxy.ts)
   const queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
   for (const g of geometries) queue.push(() => { drawProxy(renderer, camera, g); uploaded.add(g); });
   // The copy is shown: compile skips hidden objects, and the fx marks (wound spots, splats) are created hidden.
-  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(), copy = m.clone(); copy.visible = true; holder.add(copy); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
+  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(lateStream.hold).then(() => { const holder = new THREE.Group(), copy = m.clone(); copy.visible = true; holder.add(copy); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
@@ -683,12 +689,15 @@ function allWarmed() {   // every body kind and the hero are warmed (or failed):
   const w = mobs?.warmState();
   return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
 }
+let lateLookAt = -1;   // when zoneReadyCheck first found something streamed in after the last plan (the bound's start)
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !modelsDrawn) return;
+  // One last look before it says ready: a body or prop that streamed in after the plan's last look would link its programs at the engage (seamless-quiet, K5r and trunk under load: a creature weapon's Leather and WeatheredStone, "mesh_2/mesh_3<WeaponDrawn<hand_r"). Plan again now, not in 3 s; bounded by the kinds' own wait so a material that never uploads cannot hold the zone.
+  { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
@@ -1096,6 +1105,9 @@ function programOwners(): Record<string, string[]> {
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
+  injectLate: () => { lateStream.inject(); uploadNext = Infinity; return true; },   // browser row only: one model streams into the scene after the plan's last look and before the next one (the 3 s re-plan is frozen, so only zoneReadyCheck can still see it)
+  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && domeDrawn }),
+  releaseCompiles: lateStream.release,
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
   promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
