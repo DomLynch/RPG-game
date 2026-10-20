@@ -154,7 +154,10 @@ const gfxWanted = gfxOn(location.search, fxNum('gfx.default') > 0);
 const gfxLoad: Promise<unknown> = gfxWanted ? import('../../src/fight/gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
-sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
+// The sun's shadow map is a row: a phone draws the Pit's size (zone.shadow.phone-map) and re-renders it only every zone.shadow.phone-every-th draw (autoUpdate off, needsUpdate on the others' turn: the sun is fixed, a creature's shadow trails one frame, ~6% of the main thread in the T4 profile 2026-10-20). Desktop: the full map, every frame.
+const shadowSize = fxNum(PHONE ? 'zone.shadow.phone-map' : 'zone.shadow.map'), shadowEvery = PHONE ? Math.max(1, fxNum('zone.shadow.phone-every')) : 1;
+if (shadowEvery > 1) { renderer.shadowMap.autoUpdate = false; const draw = renderer.render.bind(renderer); let draws = 0; renderer.render = (s, c) => { if (draws++ % shadowEvery === 0) renderer.shadowMap.needsUpdate = true; draw(s, c); }; }
+sun.castShadow = true; sun.shadow.mapSize.set(shadowSize, shadowSize); sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 90 });
 scene.add(sun, sun.target);
 
