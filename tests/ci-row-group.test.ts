@@ -47,6 +47,32 @@ test('runGroup: a flaky row retries ALONE (never the group) and stays visible; a
   } finally { rmSync(h.dir, { recursive: true, force: true }); }
 });
 
+// Strategy 2026-10-20 (row 57, K5y): the first attempt failed for real after 699 s of a 900 s ceiling, then a full second attempt ran: up to 27 min. A SLOW failure (more than half the row's own
+// ceiling) is a real failure and is not retried in the job; a fast failure still retries once. The harness clock advances 1 s per attempt, so a ceiling of 1 s makes the 1 s failure "slow".
+test('runGroup: a slow first failure (over half the row ceiling) is NOT retried in the job and is marked slow_failure; a fast failure still retries once', () => {
+  const h = harness({ 'slow.mjs': [1, 0], 'fast.mjs': [1, 0] });
+  try {
+    const { failed, receipts } = runGroup({ id: 'g7', rows: [row(1, 'slow'), row(2, 'fast')], event: 'pull_request', ...h.args, ceilings: { default: 600, rows: { slow: 1 } } });
+    assert.deepEqual(h.calls, ['slow.mjs', 'fast.mjs', 'fast.mjs'], 'slow ran once, fast ran twice');
+    const by = Object.fromEntries(receipts.map(r => [r.index, r]));
+    assert.deepEqual([by[1].status, by[1].slow_failure, 'retried' in by[1], by[1].timed_out], [1, true, false, undefined], 'red, marked slow, never claims a retry');
+    assert.deepEqual([by[2].status, by[2].retried, by[2].first_status, 'slow_failure' in by[2]], [0, true, 1, false], 'the fast flake still retried and passed');
+    assert.deepEqual(failed.map(r => r.index), [1]);
+    assert.ok(h.lines.some(l => /check 1 \(slow\) failed after 1s, more than half of its 1s ceiling: a slow failure is a real failure, not retried/.test(l)));
+    assert.ok(!h.lines.some(l => /Retrying release check 1 alone/.test(l)) && h.lines.some(l => /Retrying release check 2 alone/.test(l)));
+  } finally { rmSync(h.dir, { recursive: true, force: true }); }
+});
+
+test('runGroup: a slow failure applies to the FIRST attempt only, and exactly half of the ceiling still retries (strictly over half is slow)', () => {
+  const h = harness({ 'edge.mjs': [1, 1] });
+  try {
+    // 1 s attempt, 2 s ceiling: exactly half, so retried; the second (failing) attempt is final either way
+    const { failed } = runGroup({ id: 'g8', rows: [row(3, 'edge')], event: 'pull_request', ...h.args, ceilings: { default: 600, rows: { edge: 2 } } });
+    assert.deepEqual(h.calls, ['edge.mjs', 'edge.mjs'], 'exactly half is not "more than half"');
+    assert.deepEqual(failed.map(r => [r.index, r.retried]), [[3, true]]);
+  } finally { rmSync(h.dir, { recursive: true, force: true }); }
+});
+
 // GS row 56 (2026-10-15): the row printed its first PASS and never exited, because its npx-spawned vite grandchild kept the pipes open. The old 30-minute row timeout equalled the job timeout, so the
 // job was cancelled at 30 min and the whole group failed. Now a row has its own ceiling (ROW_TIMEOUT_S, default 600 s) and a hang fails THAT row, by name, and is not retried.
 test('runGroup: a row that hangs fails BY NAME at its own ceiling, is not retried, its stray child is killed, and the next row still runs', { skip: spawnSync('sh', ['-c', 'command -v timeout']).status !== 0 }, () => {
