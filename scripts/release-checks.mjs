@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { loadavg } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CI_CONCURRENCY, LOCAL_CONCURRENCY, SERIAL_ROWS } from './lib/row-placement.mjs';
 
 const root = resolve(process.argv.slice(2).find(arg => !arg.startsWith('--')) || fileURLToPath(new URL('..', import.meta.url)));
 // `--extended` runs extended_commands instead: the Season 2 creature gates (Minotaur, Wraith, Werewolf, Skeleton are on hold for the
@@ -19,7 +20,7 @@ if (!Array.isArray(commands) || !commands.length || !commands.every(command =>
 // still overlap with the rest. Longest checks start first, using the durations the previous run recorded in the
 // receipt, so the slow ones cannot become the tail. A check that fails inside the pool is retried once alone before it
 // counts, so a flake under contention cannot fail a release. RELEASE_CHECK_CONCURRENCY=1 restores serial behaviour.
-const concurrency = Math.max(1, Number(process.env.RELEASE_CHECK_CONCURRENCY) || 4);
+const concurrency = Math.max(1, Number(process.env.RELEASE_CHECK_CONCURRENCY) || (process.env.GITHUB_ACTIONS ? CI_CONCURRENCY : LOCAL_CONCURRENCY));   // widths are data: row-placement.mjs
 const kind = extended ? 'Extended' : 'Release';
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 // RELEASE_CHECKS_RECEIPT / RELEASE_CHECKS_LOG_DIR: another receipt and log folder, so a run of a row subset (scripts/mac-rows-early.sh: the Mac-only
@@ -124,7 +125,15 @@ const fixed = all.filter(item => item.fixedPort).length;
 console.log(`${kind} checks: ${commands.length} total, ${trustedIndices.size} trusted from ${trustedSource}, ${all.length} to run, concurrency ${concurrency}, ${fixed} fixed-port (one at a time), ` +
   (knownSeconds.size ? `ordered by last run's durations (${knownSeconds.size} known)` : 'no previous durations, contract order'));
 const wall = Date.now();
-const results = await pool(ordered, concurrency);
+// SERIAL_ROWS (row-placement.mjs: WebKit rows, rows that fail off the Mac, timing gates) never run beside another row: the concurrent rows go first at `concurrency`,
+// then each serial row alone, so it gets the quietest part of the stage. At width 1 this is the old single queue.
+const serialRows = new Set(extended ? [] : SERIAL_ROWS);
+const isSerial = item => serialRows.has(item.index + 1);
+const alone = ordered.filter(isSerial);
+if (concurrency > 1 && alone.length) console.log(`${kind} checks: ${alone.length} serial row(s) run alone after the concurrent ones: ${alone.map(item => item.index + 1).sort((a, b) => a - b).join(',')}`);
+const results = concurrency > 1 && alone.length
+  ? [...await pool(ordered.filter(item => !isSerial(item)), concurrency), ...await pool(alone, 1)]
+  : await pool(ordered, concurrency);
 const failed = results.filter(result => result.status !== 0);
 const retried = new Set();
 for (const result of failed) {

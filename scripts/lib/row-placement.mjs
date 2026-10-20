@@ -46,6 +46,19 @@ export const T4_JOB_TIMEOUT = '15m';
 // plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");
 // rows 2 and 44 because they fail off the Mac (CK: row 2 failed after 15 min on CI, 63 s on the Mac).
 export const MAC_ROWS = MAC_ONLY.map(entry => entry.row);
+// HOW WIDE a release's rows run on one box (Dom 2026-10-20: "why does the Mac run rows one at a time?"; Strategy ruling, replacing deploy.sh's old fixed width 1).
+// The Mac is 10 cores (4P+6E, 24 GB). The width is DATA here: LOCAL_CONCURRENCY for the Mac stage of a release, CI_CONCURRENCY inside one GitHub job (its old default).
+// SERIAL_ROWS never run beside another row (release-checks.mjs runs them one at a time AFTER the concurrent rows, i.e. alone, in the box's quietest part of the stage):
+// every MAC_ROWS row (WebKit/Safari rows and the rows that fail off the Mac: Dom 2026-10-10, two WebKit rows at once put the load at 30), plus the timing gates
+// below. Fixed-port rows (strictPort) already take release-checks.mjs's own lock and stay one at a time inside the concurrent set. Add a row here with a reason.
+export const LOCAL_CONCURRENCY = 3;
+export const CI_CONCURRENCY = 4;
+export const TIMING_ROWS = [
+  { row: 46, why: 'desktop-intro-check samples the intro once; a loaded box moves the sample (the VERSUS-card timing race)' },
+  { row: 50, why: 'first-loss-browser-check: the scripted first minute is timed' },
+  { row: 55, why: 'end-overlap-check: its harness clock waits on a real requestAnimationFrame (Mac software GL misses its 20 s window under load)' },
+];
+export const SERIAL_ROWS = [...new Set([...MAC_ROWS, ...TIMING_ROWS.map(entry => entry.row)])].sort((a, b) => a - b);
 // POST-PUBLISH rows (Lead + Strategy 2026-10-13, Dom's "under 20 minutes"): slow rows that are not critical to the page opening run AFTER Published instead of
 // before it. CI never schedules them on a candidate (release-checks.yml plan) and deploy.sh defers them (RELEASE_CHECKS_DEFERRED) and runs them on the Mac right after
 // the Published line (scripts/lib/post-publish.sh); a failure is a RED line, exit 1 (the release train then STOPS and keeps deploy_hold), never a silent pass.
