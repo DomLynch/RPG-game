@@ -2111,7 +2111,7 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
 }
 dialog .rank-seg { --rank-fill: var(--js); }
-.rank-next { opacity: 0.65; }
+.rank-next { opacity: 0.85; }
 .share-status {
   display: block;
   color: #efe6d3;
