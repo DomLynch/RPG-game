@@ -10,7 +10,8 @@ import { missileOf } from '../src/fight/sandbox-rules.ts';
 import { WEAPONS } from '../src/fight/moves.ts';
 
 // The painted bow (CS23). The file ships byte for byte as the sandbox's (public/weapons/ranged/PROVENANCE.txt); a swapped file changes this pin and its provenance line.
-const SHA: Record<string, string> = { 'weapons/ranged/bow-v1.glb': '79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd' };
+// The orb staff (2026-10-20, Dom: "a cool staff with a white glowing tip"): the sandbox's procedural staff-v1 (build-ranged-weapons.mjs, Characters & Art 47c653222), baked to glb by that script.
+const SHA: Record<string, string> = { 'weapons/ranged/bow-v1.glb': '79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd', 'weapons/ranged/staff-v1.glb': 'aaadfdbb7159314af6547f85c6fe486aab058f9d493ee67a770132403ffd3ea0' };
 const glbJson = (file: string) => { const b = readFileSync(new URL(`../public/${file}`, import.meta.url)); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()) as { nodes: { name: string; extras?: { hand?: string; weapon?: string } }[] }; };
 
 test('the shipped ranged model files are the pinned ones, and the provenance names each', () => {
@@ -35,11 +36,20 @@ test('the ranged model rows: one per shipped file, the model is where the row sa
   }
 });
 
-test('the bow is the only ranged model: the crossbow was dropped by Dom (CS22) and a kind with no row keeps what the game draws', () => {
-  assert.deepEqual(RANGED_MODELS.map((m) => m.id), ['bow']);
+test('the bow and the staff are the ranged models: the crossbow was dropped by Dom (CS22) and a kind with no row keeps what the game draws', () => {
+  assert.deepEqual(RANGED_MODELS.map((m) => m.id), ['bow', 'staff']);
   assert.deepEqual(rangedModelOf('bow')?.holdDeg, [-1.9, 34.6, 114.3], 'the sandbox\'s own hold');
+  assert.deepEqual(rangedModelOf('staff')?.holdDeg, [90, 0, 0], 'the sandbox\'s staff hold (scripts/weapon-stage/holds.json)');
+  assert.deepEqual(rangedModelOf('staff')?.holdPos, [0, 0.08, 0.015], 'it points out from the fist like the maul and trident: SwordDrawn\'s offset');
   assert.equal(rangedModelOf('crossbow'), undefined);
-  assert.equal(rangedModelOf('staff'), undefined, 'the staff stays the sandbox\'s procedural model: not ported here');
+});
+
+test('the staff model: a tall staff whose orb is emissive and whose contact segment runs up the head (the bolt and the swing read it)', () => {
+  const file = readFileSync(new URL('../public/weapons/ranged/staff-v1.glb', import.meta.url)), json = JSON.parse(file.subarray(20, 20 + file.readUInt32LE(12)).toString()) as { nodes: { name: string; extras?: { contact?: { from: number; to: number }; muzzle?: number[] } }[]; materials: { name: string; emissiveFactor?: number[] }[] };
+  const node = json.nodes.find((n) => n.name === 'WeaponDrawn')!;
+  assert.deepEqual(node.extras?.contact, { from: 1, to: 1.45 });
+  assert.deepEqual(node.extras?.muzzle, [0, 1.36, 0], 'the orb in its cradle');
+  assert.ok(json.materials.some((m) => m.emissiveFactor?.some((v) => v > 0)), 'the orb glows (an emissive material)');
 });
 
 // The loader's pure half (rangedPartOf) on a synthetic scene, and the dormant guarantee: no game weapon reaches a model row.
@@ -55,11 +65,18 @@ test('rangedPartOf: the row\'s node becomes the equip part (named WeaponDrawn, i
   assert.deepEqual([m.metalness, m.roughness], [bow.metalness, bow.roughness]);
   assert.deepEqual([mat.metalness, mat.roughness], [1, 1], 'the loaded file\'s own material is untouched');
   assert.throws(() => rangedPartOf(new Group(), bow), /no node WeaponDrawn/);
+  // the hold's offset, and a procedural model's own materials left alone (only the TRELLIS 1 / 1 signature is matted)
+  const staff = rangedModelOf('staff')!, ssc = new Group(), snode = new Group(), brass = new MeshStandardMaterial({ metalness: 0.85, roughness: 0.45 });
+  snode.name = staff.node; snode.add(new Mesh(new BoxGeometry(), brass)); ssc.add(snode);
+  const spart = rangedPartOf(ssc, staff);
+  assert.deepEqual([spart.position.x, spart.position.y, spart.position.z], [0, 0.08, 0.015]);
+  const sm = (spart.children[0] as Mesh).material as MeshStandardMaterial;
+  assert.deepEqual([sm.metalness, sm.roughness], [0.85, 0.45], 'the brass keeps its own metalness and roughness');
 });
 
-test('bound (2026-10-19, Dom: the bow and the staff are real weapons): exactly the "bow" weapon is bound to a missile kind that has a model row; every other weapon, the staff included, keeps what the game draws', () => {
+test('bound (2026-10-19, Dom: the bow and the staff are real weapons; 2026-10-20 the orb staff): exactly the "bow" and "staff" weapons are bound to a missile kind that has a model row; every other weapon keeps what the game draws', () => {
   const bound = Object.keys(WEAPONS).filter((id) => rangedModelOf(missileOf(id)?.kind ?? '') !== undefined);
-  assert.deepEqual(bound, ['bow'], 'the missile rows bind the bow weapon to the painted bow and nothing else');
+  assert.deepEqual(bound, ['bow', 'staff'], 'the missile rows bind the bow to the painted bow and the staff to the orb staff, and nothing else');
 });
 
 // The bow lying on the ground (the Pit's ground-item view): the equip file player/bow.glb is a byte copy of knife.glb, so the starter bow drew as a knife until the ground row's asset named the ranged model.

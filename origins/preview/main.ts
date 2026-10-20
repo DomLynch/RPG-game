@@ -262,7 +262,7 @@ function syncRigWeapon() {
   if (want === rigWeapon || want === failedWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
   swappingWeapon = true;
   const base = warriors.baseAsset;
-  (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadRangedPart(want).then((ranged) => ranged ?? loadEquip(WEAPON_ART[want]!))).then((part) => {   // the bow is the painted bow model the Pit draws (loadRangedPart, as loadWarriors does), never its equip file (a byte copy of the knife's, kept only as the fallback shape)
+  (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadRangedPart(want, WEAPON_ART[want]).then((ranged) => ranged ?? loadEquip(WEAPON_ART[want]!))).then((part) => {   // the bow and the staff are the painted bow and the orb staff the Pit draws (loadRangedPart, as loadWarriors does), never their equip files (the bow's a byte copy of the knife's, kept only as the fallback shape; the staff's gives it its clips)
     const next = armWarriors(base, undefined, [want, want], part, (error) => console.warn('hero weapon equip failed', error));
     hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
   }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
