@@ -17,7 +17,7 @@ import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from 
 import { memoryMatch } from '../../src/fight/match.ts';
 import { worldStancePick, type PickedStance } from '../../src/fight/index.ts';
 import { DEFAULT_WEAPON, OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from '../../src/fight/index.ts';
-import { mountCareer, renameAccount } from '../../src/core/index.ts';
+import { equippedSpecial, mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
 import { authClient } from './save.ts';
 import { loadScene, type WorldMount } from '../../src/fight/index.ts';
@@ -221,10 +221,10 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
   const weapon = asked.weapon ?? DEFAULT_WEAPON;   // the weapon the player fights with (the page's rig weapon, never a claim the rig cannot draw): the scene, the sim and the record all use this one
   stageFor(host, opponent, asked.level, mount, weapon);
-  match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
+  match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level, { skill2: () => equippedSpecial(1) as SkillId | undefined });   // SPECIAL 2: the career/practice port, read from the player's picks (Dom 2026-10-20: the Pit duel had no specials)
   if (asked.mob) match.layer = mobLayer(asked.mob);
   match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? worldStancePick(location.search, pageStorage()) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the stance menu's stored pick for this device's character, ?stances= over it (off = none); Balanced when nothing is stored
-  match.startSparring({ weapon, skill: null, difficulty: asked.level });
+  match.startSparring({ weapon, skill: (equippedSpecial(0) as SkillId | undefined) ?? null, difficulty: asked.level }, null, undefined, true);   // SPECIAL 1 = the player's first pick, specials on (match.ts sparPicked)
   if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed, weapon);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
