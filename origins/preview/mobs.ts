@@ -93,15 +93,17 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     }
   }
   // The openers: a zone the data leaves without a creature inside the first-fight window gets one lone opener (zone-rules.ts openerSpot), appended last.
+  let openersPlaced = 0;   // an opener's seed is its own place in this list, not the placed count: adding a camp must not move an opener (Lead 2026-10-20; mobOpenerSalt 5021 = what the count was, so today's spots stand)
   for (const [zoneId, rowId] of Object.entries(FRONTIER_OPENERS)) {
     const zone = f.zones.find((z) => z.zone === zoneId), row = rows.find((r) => r.id === rowId), def = f.data.registry.characters.get(rowId as CharacterId);
     const form = def?.encounterForms.find((x) => x.id === 'mob');
     if (!zone || !row || !def || !form) continue;
     const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
     if (near) continue;
-    let rng = mixSeed(TUNING.seed, previewRule('mobOpenerSalt') + out.length);
+    let rng = mixSeed(TUNING.seed, previewRule('mobOpenerSalt') + openersPlaced);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
+    openersPlaced++;
     out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   out.push(...late);
