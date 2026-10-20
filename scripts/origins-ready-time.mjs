@@ -29,7 +29,7 @@ for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
   const DEVICE = process.env.DEVICE || 'iphone', device = DEVICE === 'iphone' ? { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE } : { viewport: { width: 1366, height: 1024 }, isMobile: true, hasTouch: true, userAgent: IPAD, deviceScaleFactor: 2 };   // phone tier needs a mobile UA AND a coarse pointer (src/fight/quality.ts)
   const ctx = await browser.newContext(device); if (DEVICE !== 'iphone') await ctx.addInitScript(() => { Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 }); });
   const page = await ctx.newPage();
-  let deferred = 0; page.on('console', (m) => { if (m.text().includes('[zone ready] deferred')) deferred++; });
+  let deferred = 0; page.on('console', (m) => { if (m.text().includes('[zone ready] deferred')) { deferred++; Promise.all(m.args().map((a) => a.jsonValue().catch(() => null))).then((v) => console.log('DEFERRED', side, JSON.stringify(v))); } });
   await page.goto(`${sides[side].origin}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => {});
   const r = await page.evaluate(() => ({ playableMs: window.originsPreview?.cover?.().atMs ?? null, readyMs: window.__zoneReady?.atMs ?? null, programs: window.__zoneReady?.programs ?? null, coarse: matchMedia('(pointer: coarse)').matches, ua: navigator.userAgent.slice(0, 20) }));
