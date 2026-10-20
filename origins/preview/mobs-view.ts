@@ -56,7 +56,7 @@ export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 /** A creature inside a radius, and whether it is HUNTING (P0-b): its sim mode is 'aggro' (it noticed the hero) or the combat loop already drives it. A passive wanderer inside the join ring is not hunting, so it never enters the loop or stops a record window opening. */
 export type MobNear = MobPick & { hunting: boolean };
 export type Mobs = {
-  update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
+  update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown; seen(): { id: string; x: number; z: number; mode: string }[];
   clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void;   // before the draw: a name tag under the HUD slides down the view to just below it
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   anchorOf(id: string): THREE.Object3D | null;   // a creature's drawn body (its rig's root), for the blood a wound draws on a part's bone; null while it is not drawn
@@ -310,6 +310,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },
     fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
+    // What the creature card reads every 0.2 s (id, where, mode): cheap. debug() below is the browser checks' diagnostic (a skinned box and vertex scans per creature, ~40% of the main thread when called per frame, T4 profile 2026-10-20): never call it on the page's own clock.
+    seen: () => specs.map((s, i) => ({ id: s.id, x: mobs[i]!.x, z: mobs[i]!.z, mode: mobs[i]!.mode })),
     debug: () => ({
       fit: { ms: +fitMs.toFixed(2), runs: fitRuns, tris: [...fitCache.values()].filter((p): p is THREE.SkinnedMesh[] => !!p).map((p) => p.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0)), draws: [...fitCache.values()].filter((p): p is THREE.SkinnedMesh[] => !!p).map((p) => p.length), refused: [...fitCache].filter(([, p]) => !p).map(([k]) => k), bodies: [...fitCache].filter(([, p]) => !!p).map(([k]) => k) },   // piece-fit.ts: the one-time load cost, and the pieces' triangles and draws per fitted body key (`bodies` names them in the same order, `refused` the keys that wear nothing)
       meshesOf: specs.map((s, i) => { const v = views.get(i); if (!v?.model) return null; const rows: string[] = []; v.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) rows.push(`${(m as unknown as THREE.SkinnedMesh).isSkinnedMesh ? 'skin' : 'mesh'} ${o.name || '-'}${o.visible ? '' : ' (hidden)'} v${m.geometry.getAttribute('position').count}`); }); return { id: s.id.slice(-14), parts: rows.length, rows: rows.slice(0, 24) }; }).filter(Boolean),   // browser checks: every mesh drawn under a creature
