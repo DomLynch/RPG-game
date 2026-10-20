@@ -9,8 +9,9 @@ case "$NAME" in
   *) echo "boxes for $NAME not drawn yet"; exit 2 ;;
 esac
 mkdir -p artifacts/dome
-if ! python3 -m venv /tmp/v >/dev/null 2>&1; then apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq python3-venv python3-pip >/dev/null 2>&1; python3 -m venv /tmp/v; fi
-/tmp/v/bin/pip install -q torch diffusers transformers accelerate pillow numpy safetensors 2>&1 | tail -2
+echo "== who: $(id -un) python: $(python3 --version 2>&1) pip: $(command -v pip3 || echo none) uv: $(command -v uv || echo none) nvidia: $(nvidia-smi -L 2>&1 | head -1)"
+if ! python3 -m venv /tmp/v 2>/tmp/venv.err; then cat /tmp/venv.err; apt-get update -qq 2>&1 | tail -2; apt-get install -y -qq python3-venv python3-pip 2>&1 | tail -3; python3 -m venv /tmp/v; fi
+/tmp/v/bin/pip install -q torch diffusers transformers accelerate pillow numpy safetensors 2>&1 | tail -4
 /tmp/v/bin/python scripts/dome-inpaint-sdxl.py "$SRC" "artifacts/dome/$NAME-clean.$EXT" "$BOXES"
 /tmp/v/bin/python - "$SRC" "artifacts/dome/$NAME-clean.$EXT" "$BOXES" <<'PY'
 import sys
