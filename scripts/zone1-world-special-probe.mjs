@@ -23,11 +23,18 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });   // REAL_GPU=1: the Mac's own GPU, so page time is real time
-const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, ...(process.env.VIDEO ? { recordVideo: { dir: path.join(out, 'video'), size: { width: 375, height: 812 } } } : {}) })).newPage();   // VIDEO=1: a screen recording of the whole run, so the windup frames are cut out afterwards (a screenshot per step is too slow to catch a sub-second windup)
+const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
 const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
 await page.addInitScript((s) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([s, s === 'cleave' ? 'stomp' : 'cleave'])); } catch { /* storage refused */ } }, SKILL);
 const sample = () => page.evaluate(() => { const c = window.originsPreview.combat(), h = c.hero, me = c.fighters?.find((q) => q.id === 'me'), f = c.fighters?.find((q) => q.id !== 'me'), tr = c.trace ?? []; return { t: Math.round(performance.now()), phase: h?.phase, stamina: Math.round(h?.stamina ?? 0), hp: h?.health, foeHp: f?.hp ?? null, foePhase: f?.phase ?? null, gap: f && me ? Math.hypot(f.x - me.x, f.z - me.z).toFixed(2) : null, duel: me?.duel ?? null, last: Array.isArray(tr) ? tr.slice(-2) : tr }; });
 const log = [];
+// FRAMES=1: a screencast (CDP) kept only for 1.5 s after each SPECIAL tap, about 10 fps, so the windup frames come back (a per-step screenshot is too slow, and the runner returns no video)
+let keepUntil = 0, shot = 0;
+if (process.env.FRAMES) {
+  const cdp = await page.context().newCDPSession(page); fs.mkdirSync(path.join(out, 'frames'), { recursive: true });
+  cdp.on('Page.screencastFrame', ({ data, sessionId }) => { if (Date.now() < keepUntil) fs.writeFileSync(path.join(out, 'frames', `c${String(shot++).padStart(3, '0')}-${Date.now() % 100000}.jpg`), Buffer.from(data, 'base64')); cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {}); });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 55, everyNthFrame: 3 });
+}
 try {
   await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
@@ -44,9 +51,10 @@ try {
     await page.waitForFunction(() => document.querySelector('#skill-button')?.getAttribute('aria-disabled') !== 'true', null, { timeout: 60000 }).catch(() => {});
     const before = await sample(); console.log(label, 'before', JSON.stringify(before));
     console.log(label, 'raw', JSON.stringify(await page.evaluate(() => { const c = window.originsPreview.combat(); return { keys: Object.keys(c), hero: c.hero, fighters: c.fighters?.slice?.(0, 2), target: c.target, trace: (c.trace ?? []).slice?.(-3) }; })).slice(0, 1400));
+    keepUntil = Date.now() + 1500;
     await page.locator('#skill-button').tap({ timeout: 20000 }).catch((e) => console.log(label, 'tap failed', String(e).slice(0, 100)));
     const seen = [];
-    for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (process.env.FRAMES ? k < 24 : (k === 6 || k === 20 || k === 40)) await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}-${String(k).padStart(2, '0')}.png`) }).catch(() => {}); }   // FRAMES=1: a still every step for the first 24 (the windup is under a second)
+    for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (k === 6 || k === 20 || k === 40) await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}-${String(k).padStart(2, '0')}.png`) }).catch(() => {}); }
     const keep = seen.filter((s, i) => i === 0 || s.phase !== seen[i - 1].phase || s.foeHp !== seen[i - 1].foeHp);
     { const drop = seen.find((s) => s.foeHp !== null && before.foeHp !== null && s.foeHp < before.foeHp); console.log(label, 'SPECIAL press: foe hp', before.foeHp, '->', drop ? `${drop.foeHp} (drop ${before.foeHp - drop.foeHp}, ${drop.t - seen[0].t} ms after the first sample)` : 'no drop in 3.5 s', '| target max', await page.evaluate(() => window.originsPreview.combat().target?.max ?? null)); }
     console.log(label, 'trace (phase / foe hp changes)', JSON.stringify(keep.slice(0, 16)));
@@ -55,7 +63,7 @@ try {
     await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}.png`) }).catch(() => {});
   };
   await press('in-range');
-  if (process.env.VIDEO) for (let again = 0; again < 3; again++) { await page.waitForTimeout(2500); await press('in-range'); }   // more casts on the recording: a stagger or a foe blow can eat one
+  if (process.env.FRAMES) for (let again = 0; again < 3; again++) { await page.waitForTimeout(2500); await press('in-range'); }   // more casts: a stagger or a foe blow can eat one
   await page.waitForTimeout(6000);
   // out of range: the hero steps away from the creature mid-fight, then presses
   await near(6);
