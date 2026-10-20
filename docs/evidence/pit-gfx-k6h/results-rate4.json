@@ -1,0 +1,82 @@
+{
+  "rate": 4,
+  "realGpu": true,
+  "rows": [
+    {
+      "run": 1,
+      "mode": "off",
+      "playableMs": 9305,
+      "medianFps": 29.9,
+      "p5Fps": 5.5,
+      "frames": 244,
+      "linksAfterPlayable": 0,
+      "errors": []
+    },
+    {
+      "run": 1,
+      "mode": "on",
+      "playableMs": 9691,
+      "medianFps": 29.9,
+      "p5Fps": 5.5,
+      "frames": 193,
+      "linksAfterPlayable": 0,
+      "errors": []
+    },
+    {
+      "run": 2,
+      "mode": "off",
+      "playableMs": 9071,
+      "medianFps": 29.9,
+      "p5Fps": 5.5,
+      "frames": 221,
+      "linksAfterPlayable": 0,
+      "errors": []
+    },
+    {
+      "run": 2,
+      "mode": "on",
+      "playableMs": 9235,
+      "medianFps": 30,
+      "p5Fps": 5.5,
+      "frames": 231,
+      "linksAfterPlayable": 0,
+      "errors": []
+    },
+    {
+      "run": 3,
+      "mode": "off",
+      "playableMs": 9043,
+      "medianFps": 30,
+      "p5Fps": 5.5,
+      "frames": 258,
+      "linksAfterPlayable": 0,
+      "errors": []
+    },
+    {
+      "run": 3,
+      "mode": "on",
+      "playableMs": 9167,
+      "medianFps": 30,
+      "p5Fps": 5.5,
+      "frames": 242,
+      "linksAfterPlayable": 0,
+      "errors": []
+    }
+  ],
+  "summary": {
+    "off": {
+      "playableMs": 9071,
+      "medianFps": 29.9,
+      "p5Fps": 5.5,
+      "linksAfterPlayable": "0,0,0",
+      "errors": 0
+    },
+    "on": {
+      "playableMs": 9235,
+      "medianFps": 30,
+      "p5Fps": 5.5,
+      "linksAfterPlayable": "0,0,0",
+      "errors": 0
+    }
+  }
+}
