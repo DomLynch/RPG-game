@@ -180,6 +180,7 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
   }, opponent, undefined, weapon, () => {}, level, undefined, mount);
+  if (/[?&]debug\b/.test(globalThis.location?.search ?? '')) (globalThis as { __view?: unknown }).__view = made.view;   // ?debug only, as the Pit page's exposeDebugView: the measurement harnesses read view.playing()
   made.view.setTier(tierAt(level - 1)); made.view.setPlayerTier(tierAt(level - 1));   // the sparring look: his kit at the fight's rung (main.ts shownTier)
   return (stage = made);
 }
