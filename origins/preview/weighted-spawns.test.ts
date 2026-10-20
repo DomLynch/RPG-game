@@ -15,8 +15,8 @@ const digest = (id: string): [number, string] => {
   return [specs.length, createHash('sha256').update(JSON.stringify(specs)).digest('hex').slice(0, 16)];
 };
 
-test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and now differs by exactly brood-4 (the black-mere salamander roll) plus the Cave Troll camp boss appended last, at its own troll-cave landmark (mobs.golden.json pins every entry)', () => {
-  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, '8773d9d521f85606'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785'], ['5', 11, 'b7828d639492a99e']]);   // zone 5, the Bone Hollow (2026-10-17): the beta dungeon's existing creature rows at its band
+test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and now differs by exactly brood-4 (the black-mere salamander roll) plus the Cave Troll camp boss appended last, at its own troll-cave landmark, plus the four single-salamander camps (shrine, mere-hollow, causeway-foot, ruin-gate: 28 creatures; the two openers stay where they were, seeded by their own place, not the placed count; mobs.golden.json pins every entry)', () => {
+  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 28, 'e19ecc14b5b80ec4'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785'], ['5', 11, 'b7828d639492a99e']]);   // zone 5, the Bone Hollow (2026-10-17): the beta dungeon's existing creature rows at its band
 });
 
 test('a bare id is weight 1 and a single bare id is a plain group; an object entry or two entries is weighted', () => {

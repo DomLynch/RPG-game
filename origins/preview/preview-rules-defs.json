@@ -88,7 +88,7 @@
     { "id": "walkStepMargin", "value": 0.6, "unit": "m" },
     { "id": "walkStoneMargin", "value": 0.4, "unit": "m" },
     { "id": "mobCampSalt", "value": 9000, "unit": "seed" },
-    { "id": "mobOpenerSalt", "value": 5000, "unit": "seed" },
+    { "id": "mobOpenerSalt", "value": 5021, "unit": "seed" },
     { "id": "mobHomeTries", "value": 60, "unit": "tries" },
     { "id": "mobFindRadius", "value": 44, "unit": "m" },
     { "id": "mobFindStep", "value": 2, "unit": "m" },
