@@ -89,8 +89,13 @@ async function serveLikeLive(root, spec) {
       res.writeHead(200, { 'content-type': type, 'content-encoding': 'gzip', vary: 'Accept-Encoding' }); res.end(cache.get(full));
     } else { res.writeHead(200, { 'content-type': type, 'content-length': bytes.length }); res.end(bytes); }
   });
+  // server.close() waits for every open session to end. A session the page left open (the zone page keeps fetching past the stamp) never ends
+  // once the browser is gone, and with nothing else on the loop the top-level await is left unsettled: node exits 13 before the verdict prints
+  // (HF cpu-upgrade job 6ad7a8345275124786e19cf7, --page zone1). So close destroys the sockets it still holds.
+  const sockets = new Set();
+  server.on('secureConnection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  return { url: `https://127.0.0.1:${server.address().port}${spec.prefix}${spec.query}`, close: async () => { await new Promise((resolve) => server.close(resolve)); await fs.rm(dir, { recursive: true, force: true }); } };
+  return { url: `https://127.0.0.1:${server.address().port}${spec.prefix}${spec.query}`, close: async () => { const closed = new Promise((resolve) => server.close(resolve)); for (const s of sockets) s.destroy(); await closed; await fs.rm(dir, { recursive: true, force: true }); } };
 }
 
 async function once(browser, url, spec) {
