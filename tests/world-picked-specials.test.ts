@@ -24,26 +24,31 @@ function fight(weapon: WeaponId, skill: SkillId, gap: number, ticks = 400): PitE
 }
 const tickOf = (evs: PitEvent[], type: string): number | undefined => evs.find((e) => e.type === type)?.tick;
 
-test('the live world hero with a picked skill is a `picked` fighter; a record below 84 keeps the old hero; no skill, no mark', () => {
+const names = (evs: PitEvent[]): string => evs.map((e) => e.type).filter(Boolean).join(',');
+type Pick = { picked?: true; specialShare?: number };
+
+test('the live world hero with a picked skill carries the special share and is `picked`; a record below 84 keeps the old hero; no skill, neither', () => {
   assert.equal(RECORD_VERSION, 84);
   const hero = player(ME, 0, 0, 0, 1, 'cleave', { weapon: 'longsword' });
-  assert.equal((heroSheeted(hero) as { picked?: true }).picked, true, 'live: picked');
-  assert.equal(underRecord({ v: FIRST_ROWS84_VERSION - 1 }, () => (heroSheeted(hero) as { picked?: true }).picked), undefined, 'v83: the old hero');
-  assert.equal((heroSheeted(player(ME, 0, 0, 0, 1, null, { weapon: 'longsword' })) as { picked?: true }).picked, undefined, 'no skill: not picked');
+  assert.equal((heroSheeted(hero) as Pick).picked, true, 'live: picked');
+  assert.ok(((heroSheeted(hero) as Pick).specialShare ?? 0) > 0, 'live: the special share');
+  const old = underRecord({ v: FIRST_ROWS84_VERSION - 1 }, () => heroSheeted(hero) as Pick);
+  assert.equal(old.picked, undefined, 'v83: not picked'); assert.equal(old.specialShare, undefined, 'v83: no share');
+  const bare = heroSheeted(player(ME, 0, 0, 0, 1, null, { weapon: 'longsword' })) as Pick;
+  assert.equal(bare.picked, undefined, 'no skill: not picked'); assert.equal(bare.specialShare, undefined, 'no skill: no share');
 });
 
-test('a world melee special now winds up on the sandbox clock (32 ticks) and lands; the same fight under v83 keeps the long cast', () => {
+test('a world melee special is now the Pit special cast: it starts, winds up and lands; under v83 the press is the skill swing, no special', () => {
   const live = fight('longsword', 'cleave', 1.2), old = underRecord({ v: FIRST_ROWS84_VERSION - 1 }, () => fight('longsword', 'cleave', 1.2));
-  const span = (evs: PitEvent[]) => { const a = tickOf(evs, 'SpecialStarted'), b = tickOf(evs, 'SpecialLanded'); return a === undefined || b === undefined ? undefined : b - a; };
-  assert.ok(span(live) !== undefined, `live: the special starts and lands (${live.map((e) => e.type).filter(Boolean).join(',')})`);
-  assert.ok(span(old) !== undefined, `v83: the special starts and lands (${old.map((e) => e.type).filter(Boolean).join(',')})`);
-  assert.ok(span(live)! < span(old)!, `live windup ${span(live)} ticks is shorter than the v83 cast ${span(old)}`);
+  assert.ok(tickOf(live, 'SpecialStarted') !== undefined && tickOf(live, 'SpecialLanded') !== undefined, `live: the special starts and lands (${names(live)})`);
+  assert.ok(tickOf(live, 'SpecialLanded')! - tickOf(live, 'SpecialStarted')! >= 20, 'live: a wind-up, not an instant swing');
+  assert.ok(tickOf(old, 'SpecialStarted') === undefined && tickOf(old, 'AttackStarted') !== undefined, `v83: the skill swing (${names(old)})`);
 });
 
-test('a world melee special pressed out of reach is refused live (the sandbox reach limit); v83 casts it anyway', () => {
+test('a world melee special pressed beyond the sandbox reach is refused live (no cast, nothing spent); v83 swings the skill move anyway', () => {
   const live = fight('longsword', 'cleave', 4), old = underRecord({ v: FIRST_ROWS84_VERSION - 1 }, () => fight('longsword', 'cleave', 4));
-  assert.ok(!live.some((e) => e.type === 'SpecialStarted'), 'live: out of reach, no cast starts');
-  assert.ok(old.some((e) => e.type === 'SpecialStarted'), 'v83: the cast starts at any distance');
+  assert.ok(tickOf(live, 'SpecialStarted') === undefined && tickOf(live, 'AttackStarted') === undefined, `live: out of reach, no cast (${names(live)})`);
+  assert.ok(tickOf(old, 'AttackStarted') !== undefined, `v83: the skill swing at any distance (${names(old)})`);
 });
 
 test('the added band rows: the reaper, bite, warhammer, bow and staff take the off-band penalty live and none below 84', () => {
