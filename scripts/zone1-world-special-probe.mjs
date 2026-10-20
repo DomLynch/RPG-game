@@ -39,6 +39,7 @@ if (process.env.FRAMES) {
 }
 try {
   await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1`, { waitUntil: 'load' });
+  if (process.env.WAIT_READY === '1') { await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }); console.log('zone ready before the first press:', await page.evaluate(() => window.__zoneReady.atMs), 'ms'); }   // a player fights after the zone is warm
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
   await page.waitForTimeout(6000);
   const target = await page.evaluate(() => { const all = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); console.log; return all.find((m) => /goblin|wolf|boar|scaveng/.test(m.id)) ?? all.filter((m) => !/troll|bear|werewolf|minotaur/.test(m.id)).sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? all[0]; });
