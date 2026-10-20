@@ -50,7 +50,7 @@ try {
     const entries = await page.locator('#special-dialog .grimoire-entry').evaluateAll((es) => es.map((e) => ({ id: e.dataset.skill, name: e.querySelector('.grimoire-name')?.textContent, role: e.querySelector('.grimoire-sub')?.textContent, buttons: e.querySelectorAll('.grimoire-equip').length })));
     check(entries.map((e) => e.id).join() === PICK.join(), `${name}: the list is the specialPick row in its order (${entries.map((e) => e.id)} vs ${PICK})`);
     check(entries.every((e) => e.role === ROLES[e.id] && e.name === NAMES[e.id] && e.buttons === 2), `${name}: each entry carries its row's role line, its skill row's name and two slot buttons (${JSON.stringify(entries)})`);
-    check(/SPECIAL 1: empty · SPECIAL 2: empty/.test(await page.locator('#special-dialog .grimoire-count').textContent()), `${name}: both slots start empty`);
+    check(new RegExp(`SPECIAL 1: ${NAMES[PICK[0]]} · SPECIAL 2: ${NAMES[PICK[1]]}`).test(await page.locator('#special-dialog .grimoire-count').textContent()), `${name}: both slots start on the row defaults (Skull Crack, Whirlwind), never empty`);
     await page.screenshot({ path: `${out}/pick-${name}-empty.png` });
     const [a, b] = PICK, one = (id) => page.locator(`#special-dialog .grimoire-entry[data-skill="${id}"] .grimoire-equip[data-slot="1"]`), two = (id) => page.locator(`#special-dialog .grimoire-entry[data-skill="${id}"] .grimoire-equip[data-slot="2"]`);
     await one(a).click({ force: true });
@@ -64,7 +64,7 @@ try {
     check(await stored(page) === JSON.stringify([null, a]), `${name}: the same skill in slot 2 MOVES it out of slot 1 (${await stored(page)})`);
     { const held = (JSON.parse(await stored(page)) ?? []).filter(Boolean); check(held.length === new Set(held).size, `${name}: no skill in both slots`); }
     await two(a).click({ force: true });
-    check(await two(a).getAttribute('aria-pressed') === 'false', `${name}: a second press clears the slot`);
+    check(await two(a).getAttribute('aria-pressed') === 'true', `${name}: a second press leaves the lit slot as it is (a slot is never empty)`);
     const m = await layout(page, name); for (const bad of m.bad) check(false, `control too small or off screen: ${bad}`); check(!m.clipped.length, `${name}: text clipped: ${m.clipped}`); check(!m.hscroll, `${name}: horizontal scroll`);
     // both picks, then the fight: the HUD's SPECIAL 1 and SPECIAL 2 buttons are lit (Combat's wiring of the store into the Match ports; the Match reads them at begin(), so the page is reloaded and a fight started)
     await one(a).click({ force: true }); await two(b).click({ force: true });

@@ -274,8 +274,11 @@ export const setWorldSpecials = (first: SkillId | null, second?: SkillId): void 
 };
 /** The page's slot-b pick (the open world's idle practice carries no spells, so the HUD is told): SPELL 2 shows while it is true. Set on a pick or a book read, never per frame. */
 export const setWorldSlotB = (shown: boolean, name?: string): void => { worldSlotB = shown; worldSlotBName = name; };
+let worldSlotAName: string | undefined;
+/** SPECIAL 1's button name outside a fight (the idle stand-in carries the default weapon, so the page says what the wielded weapon calls the pick: a bow's Power Shot, a sword's Skull Crack). Set on a pick or a weapon swap, never per frame. */
+export const setWorldSlotA = (name?: string): void => { worldSlotAName = name; };
 export function worldIntent(): ControlIntent {
-  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBName: worldSlotBName });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBName: worldSlotBName, ...(worldSlotAName ? { slotAName: worldSlotAName } : {}) });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 

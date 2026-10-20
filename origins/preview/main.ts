@@ -92,8 +92,8 @@ import { startFight as startEncounter, settleFight as settleEncounter } from './
 import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
-import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
-import { SKILL_ROWS, specialName, type SkillId } from '../../src/fight/index.ts';   // specialName: the name a special shows for the wielded weapon, a sword's Skull Crack or a bow's Power Shot (Dom's beta specials ruling 2026-10-20)   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
+import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, mountSpecials, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
+import { SKILL_ROWS, specialName, type SkillId } from '../../src/fight/index.ts';   // specialName: the name a special shows for the wielded weapon, a sword's Skull Crack or a bow's Power Shot (Dom's beta specials ruling 2026-10-20)
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -264,7 +264,7 @@ function syncRigWeapon() {
   const base = warriors.baseAsset;
   (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadRangedPart(want, WEAPON_ART[want]).then((ranged) => ranged ?? loadEquip(WEAPON_ART[want]!))).then((part) => {   // the bow and the staff are the painted bow and the orb staff the Pit draws (loadRangedPart, as loadWarriors does), never their equip files (the bow's a byte copy of the knife's, kept only as the fallback shape; the staff's gives it its clips)
     const next = armWarriors(base, undefined, [want, want], part, (error) => console.warn('hero weapon equip failed', error));
-    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
+    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); syncSpell2Button();   /* a bow wielded: SPECIAL 1 / 2 take the bow's names */ void warmHero(next.player.anchor);
   }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
 }
 loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); }).finally(() => { settled.hero = true; });
@@ -750,6 +750,11 @@ if (frontier) {
       const boardEntry = document.createElement('button'); boardEntry.id = 'menu-board'; boardEntry.textContent = chromeText('button');   // the daily board, beside the Journal (the corner button is hidden in the kit)
       boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
       chips.append(boardEntry);
+      // The beta's four specials (Dom 2026-10-20): the picker lists them (the bow's four while a bow is wielded: nameOf asks the wielded weapon), any of them goes into SPECIAL 1 or SPECIAL 2, the pick is kept on this device (the store above) and reaches the buttons through onSpecialsChanged
+      const specials = mountSpecials(document.getElementById('special-dialog') as HTMLDialogElement, (id) => specialName(rigWeapon, id, SKILL_ROWS[id]?.name ?? id));
+      const specialsEntry = document.createElement('button'); specialsEntry.id = 'menu-specials'; specialsEntry.textContent = 'Specials';
+      specialsEntry.addEventListener('click', () => { menu.close(); keys.clear(); releaseSticks(); specials.open(); });
+      chips.append(specialsEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
       // P0-b: worn gear changes the combat sheet (gearMount.sheet), so onWorn tells the loop: a record window open on the old sheet is dropped ('gear-change') and the next opens on the new one
       try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, signedIn: pageSignedIn, sessionWeapons: () => sessionWeapons(guestHeld.items(), (item) => STARTER_WIELD.get(item)), onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; try { wc.heroChanged(); } catch { /* the world loop is not up yet: nothing is open to drop */ } void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
@@ -791,7 +796,8 @@ const spellNames = new Map<string, string>();   // legend id -> the catalogue's 
 function syncSpell2Button() {
   const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
   duel?.setWorldSpecials((equippedSpecial(0) as SkillId | undefined) ?? null, equippedSpecial(1) as SkillId | undefined);   // the world input judges presses against an idle stand-in fighter: it carries the picks, so the press is accepted and the HUD lights the buttons
-  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? specialName(rigWeapon, melee2, SKILL_ROWS[melee2]?.name ?? melee2) : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows the wielded weapon's name for the pick (the sandbox name, a bow's own)
+  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? specialName(rigWeapon, melee2, SKILL_ROWS[melee2]?.name ?? melee2) : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows the wielded weapon's name for the pick (a bow's four, else the sandbox name)
+  const melee1 = equippedSpecial(0) as SkillId | undefined; duel?.setWorldSlotA(melee1 && !equippedCast() ? specialName(rigWeapon, melee1, SKILL_ROWS[melee1]?.name ?? melee1) : undefined);   // and SPECIAL 1 the same, idle as well as in a fight
   if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpell2Button();
