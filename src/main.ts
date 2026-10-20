@@ -1,5 +1,5 @@
 import { createInput, fxNum } from './fight/index.ts';
-import { gfxOn } from '../origins/preview/gfx-flag.ts';
+import { gfxOn } from './fight/gfx-flag.ts';
 import { ui } from './ui-rows.ts';
 import { AFK_CAP_S, FRAME_DT_MAX_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers, pieceNumbers } from './fight/gear-numbers.ts';
@@ -430,8 +430,8 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void lo
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
-// The better graphics (height fog, half-res bloom, grade: origins/preview/gfx-lift.ts, the one module the zone pages use; Dom 2026-10-20: on for everyone, the default is the gfx.default row, ?gfx=0 opts out). Off = the chunk is never fetched.
-const gfxPost = gfxOn(location.search, fxNum('gfx.default') > 0) ? import('../origins/preview/gfx-lift.ts') : undefined;
+// The better graphics (height fog, half-res bloom, grade: fight/gfx-lift.ts, the one module the zone pages use; Dom 2026-10-20: on for everyone, the default is the gfx.default row, ?gfx=0 opts out). Off = the chunk is never fetched.
+const gfxPost = gfxOn(location.search, fxNum('gfx.default') > 0) ? import('./fight/gfx-lift.ts') : undefined;
 try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 // The special slots follow the account (Dom 2026-10-20, Backend #3422; the Zone 1 page's wiring, #3430): a signed-in Pit reads its character's slots once at load (the server's pair replaces the device cache the picker reads, an empty server takes the device's picks up) and sends every pick it makes; a guest, an unanswered writer or a 503 leaves the device pick exactly as it was.
 let specialCharacterId: string | null = null;

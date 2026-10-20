@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { gfxOn } from '../origins/preview/gfx-flag.ts';
-import { patchHeightFog } from '../origins/preview/gfx-lift.ts';
+import { gfxOn } from '../src/fight/gfx-flag.ts';
+import { patchHeightFog } from '../src/fight/gfx-lift.ts';
 import { fxNum } from '../src/fight/fx-rows.ts';
 
 test('the flag: ?gfx=1 forces on; with no default row it is off', () => {
