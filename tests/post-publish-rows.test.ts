@@ -274,7 +274,7 @@ test('subtractRows: a without b, ascending, no duplicates', async () => {
 });
 
 const ciRows = (env: Record<string, string>) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; open=$(post_publish_ci_start abc123 "$ROWS"); echo "START:$open" >&2; post_publish_ci_collect abc123 "$ROWS" "$open"`], {
-  encoding: 'utf8', env: { ...process.env, ROWS: '9,46,3,15', POST_PUBLISH_CI_SETTLE_S: '0', ...env },
+  encoding: 'utf8', env: { ...process.env, ROWS: '9,46,3,15', POST_PUBLISH_CI_SETTLE_S: '0', POST_PUBLISH_RUNNING_CMD: 'echo 0', ...env },   // no run in progress unless a test says so (never ask GitHub from a test)
 });
 
 // The trust and dispatch commands are word-split (no quote parsing), so a test stands them in with small scripts.
@@ -288,6 +288,29 @@ test('post_publish_ci_rows: rows already green on CI for the tree never reach th
     assert.equal(r.stdout, '');
     assert.ok(!/DISPATCHED/.test(r.stderr));
     assert.match(r.stderr, /Mac none, the rest CI-trusted/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a release-checks run for the revision that is still in progress is waited for, never dispatched over (all runs share one cancel-in-progress group; Auditor on #3462)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    // deploy.sh's dispatch-first run (or the PR's) is queued/in progress; the first look has not proved 3 and 15 yet, the wait does
+    const trust = stub(root, 'trust.sh', `n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3,15; fi`);
+    const dispatch = stub(root, 'dispatch.sh', `echo dispatched >> ${calls}`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: stub(root, 'running.sh', 'echo 1') });   // called with the revision as $1, like _pp_running_count
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!existsSync(calls), 'no second dispatch: it would cancel the run in progress');
+    assert.match(r.stderr, /a release-checks run for it is still in progress \(1\); not dispatching a second one/);
+    assert.equal(r.stdout, '', 'the wait found the rows CI proved: nothing left for the Mac');
+    // and with nothing in progress the dispatch still happens (the guard is only for a live run); the trust stub counts its calls, so start it over
+    rmSync(`${calls}.n`, { force: true });
+    const idle = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: stub(root, 'idle.sh', 'echo 0') });
+    assert.equal(idle.status, 0, idle.stderr);
+    assert.equal(readFileSync(calls, 'utf8').trim(), 'dispatched');
+    // a lookup that fails or prints nothing does not block the dispatch either (fail open to the old behaviour)
+    rmSync(calls); rmSync(`${calls}.n`, { force: true });
+    ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: 'false' });
+    assert.equal(readFileSync(calls, 'utf8').trim(), 'dispatched');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
