@@ -834,6 +834,11 @@
             "v": 0.8,
             "facing": 0
           },
+          "shrine-field": {
+            "u": 0.35,
+            "v": 0.8,
+            "facing": 0
+          },
           "hold-road": {
             "u": 0,
             "v": 0.3,
@@ -1124,6 +1129,7 @@
       "road-gate",
       "ash-pits",
       "shrine",
+      "shrine-field",
       "hold-road",
       "troll-cave",
       "cave-mouth",
@@ -1264,7 +1270,7 @@
       },
       {
         "id": "salamander-shrine",
-        "at": "shrine",
+        "at": "shrine-field",
         "characters": [
           "character:giant-salamander"
         ]
