@@ -24,7 +24,7 @@ export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], r
   el.classList.toggle('slim', slim); el.replaceChildren(...(slim ? [l1] : [l1, l2, l3])); for (const n of [l1, l2, l3]) n.style.display = 'block';
   let shown = '';
   return {
-    // Called a few times a second, not every frame (debug() builds a list).
+    // Called a few times a second, not every frame (seen() builds a list).
     update(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null, engaged?: string | null): string | null {
       const m = slim ? (focus ? seen.find((s) => s.id === focus) ?? null : null) : nearestNoticing(seen, hero, focus, engaged), spec = m && byId.get(m.id);
       if (!spec) { if (shown) { el.hidden = true; shown = ''; } return null; }
