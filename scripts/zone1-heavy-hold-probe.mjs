@@ -39,7 +39,7 @@ try {
   const engage = async () => { for (let t = 0; t < 8 && !(await page.evaluate(() => document.body.classList.contains('infight'))); t++) { await near(1.1); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(1300); } };
   const ready = () => page.waitForFunction(() => { const h = window.originsPreview.combat().hero; return h.phase === 'ready' && h.stamina >= 60; }, null, { timeout: 90000 }).catch(() => {});
   const touch = (type, px, py) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: px, y: py }] });
-  const plan = [['tap', 40, 0], ['hold', HOLD, 0], ['tap', 40, 0], ['hold', HOLD, 0], ['slide', HOLD, 40], ['slide', HOLD, 40]];
+  const plan = process.env.HOLD_ONLY ? [['hold', HOLD, 0]] : [['tap', 40, 0], ['hold', HOLD, 0], ['tap', 40, 0], ['hold', HOLD, 0], ['slide', HOLD, 40], ['slide', HOLD, 40]];   // HOLD_ONLY=1: one hold from a fresh page, full health, still in Zone 1 (the chamber still)
   const results = [];
   for (const [label, ms, slide] of plan) {
     await engage(); await ready(); await near(1.0); await page.waitForTimeout(400);
