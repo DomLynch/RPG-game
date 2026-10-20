@@ -11,7 +11,7 @@ const lines = source.split('\n').map((l) => l.replace(/\s*\/\/.*$/, '')).filter(
 const reads = lines.filter((l) => /\bworld\b/.test(l) && !/const world = new THREE\.Vector3|take = \(world: THREE\.Vector3\)|v\.copy\(world\)|take\(o\.getWorldPosition\(world\)\)|take\(world\.set|, world\)/.test(l));
 
 test('createScene takes the world mount last and optional', () => {
-  assert.match(source, /peerKit\?: Promise<[^\n]*\n {2}world\?: WorldMount,\n\) \{/);
+  assert.match(source, /peerKit\?: Promise<[^\n]*\n {2}world\?: WorldMount,\n {2}post\?: Promise<GfxPost>,[^\n]*\n\) \{/);   // the lift's `post` (the Pit page only) comes after it and is ignored with a mount
 });
 
 test('every read of the world mount is a guarded form, so no mount means the Pit exactly', () => {
@@ -24,6 +24,7 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
     "      scene.environmentIntensity = world ? 0.15 : environment ? 0.45 : 1.0;",
     "  if (!world) scene.add(hemisphere);",
     "  if (!world) scene.add(sun);",
+    "  const gfxReady: Promise<unknown> = post && !world ? post.then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(width, height); }).catch(captureException) : Promise.resolve();",
     "  const arena = world ? worldArena() : buildArena(scene, theme),",
     "  if (world) scene.add(world.holder);",
     "    if (!world) renderer.setSize(width, height, false);",
