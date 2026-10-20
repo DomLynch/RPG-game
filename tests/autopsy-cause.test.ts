@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-// @ts-expect-error plain .mjs release-check helper
 import { AUTOPSY_CAUSE } from '../scripts/lib/autopsy-cause.mjs';
 
 test('autopsy cause line: plain moves, breaks and a special\'s name all name the cause', () => {
