@@ -1577,7 +1577,7 @@ test('hero-rig peer: a normal boot gives the scene no peer kit; a ?duel= boot gi
   assert.equal(normal.sceneRest.length, 4, 'the opponent level, the peer kit, no world mount, then the better graphics (the lift chunk, on by default: Dom 2026-10-20)');
   assert.equal(normal.sceneRest[1], undefined, 'no peer kit on a normal page');
   assert.equal(normal.sceneRest[2], undefined, 'no world mount on the Pit page');
-  assert.equal(typeof (normal.sceneRest[3] as Promise<unknown> | undefined)?.then, 'function', 'the lift is imported lazily and handed to the scene');
+  assert.equal(typeof normal.sceneRest[3], 'function', 'the lift is a loader handed to the scene, which calls it once it has a renderer');
   assert.equal(boot({ id: 'tester-0001' }, undefined, {}, '?gfx=0').sceneRest[3], undefined, '?gfx=0: the chunk is never asked for');
   assert.equal(normal.duelPage, undefined, 'and the lobby is never loaded');
   for (const search of ['?opponent=goblin', '?debug', '?arena=3b']) {
