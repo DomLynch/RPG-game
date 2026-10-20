@@ -17,6 +17,19 @@ _pp_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Fail closed: a subtract that fails (_pp_left) leaves EVERY row for the Mac; the dispatch failing or CI being down does the same.
 _pp_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 _pp_left() { node "$_pp_dir/row-placement.mjs" subtract "$1" "$2" 2>/dev/null || printf '%s' "$1"; }
+# _pp_dispatch <revision> <ref>: start the release-checks run, and try again when GitHub says no (Strategy 2026-10-20: K6d's dispatch got an HTTP 500, nothing retried, the tail then found no run and
+# raised RED, 10 min lost). POST_PUBLISH_DISPATCH_TRIES (default 3 = two more tries) and POST_PUBLISH_DISPATCH_RETRY_S (default 30) apart. Returns 1 only when every try failed.
+_pp_dispatch() {
+  local rev="$1" ref="$2" n=1 max="${POST_PUBLISH_DISPATCH_TRIES:-3}" gap="${POST_PUBLISH_DISPATCH_RETRY_S:-30}"
+  while :; do
+    if ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref $ref -f ref=$rev} >&2 2>&1; then return 0; fi
+    echo "post-publish: the release-checks dispatch failed (try $n of $max)" >&2
+    [ "$n" -lt "$max" ] || return 1
+    n=$((n + 1)); sleep "$gap"
+  done
+}
+# A dispatch that failed every try leaves this file for the CI tail (scripts/release-train-postcheck.sh), which dispatches once more and, if that fails too, holds with "dispatch failed" instead of "not green".
+_pp_dispatch_failed_file() { echo "${RELEASE_TRAIN_STATE:-$HOME/.claude/state}/post-publish-dispatch-failed-${1:0:8}"; }
 post_publish_ci_start() {
   local rev="$1" rows="$2" trusted left
   local trust="${POST_PUBLISH_TRUSTED_CMD:-node scripts/ci-trusted-checks.mjs}" ref="${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"
@@ -26,7 +39,10 @@ post_publish_ci_start() {
   left=$(_pp_left "$rows" "$trusted")
   if [[ -n "$left" ]]; then
     echo "post-publish rows $left for $rev: not yet green on CI for this tree, dispatching release-checks on $ref (ref=$rev)" >&2
-    if ! ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref $ref -f ref=$rev} >&2 2>&1; then echo "post-publish: the release-checks dispatch failed; the Mac runs rows $left" >&2; fi
+    if ! _pp_dispatch "$rev" "$ref"; then
+      echo "post-publish: the release-checks dispatch failed every try; the Mac runs rows $left" >&2
+      { mkdir -p "$(dirname "$(_pp_dispatch_failed_file "$rev")")" && printf 'rows %s revision %s ref %s at %s\n' "$left" "$rev" "$ref" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$(_pp_dispatch_failed_file "$rev")"; } 2>/dev/null || true
+    fi
   fi
   printf '%s' "$left"
 }

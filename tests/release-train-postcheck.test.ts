@@ -53,6 +53,51 @@ test('postcheck: nothing proved, or the trust lookup failing, fails CLOSED (hold
   assert.match(failed.hold ?? '', /the trust lookup failed/);
 });
 
+// Strategy 2026-10-20 (K6d): the publisher's release-checks dispatch got an HTTP 500 and nothing retried; the tail found no run and raised RED as "not green" (10 min lost). The publisher now
+// tries 3 times and leaves a dispatch-failed file when every try fails; the tail dispatches again (3 more tries) before it waits, and only a failure there holds, saying "dispatch failed".
+/** The tail with the publisher's dispatch-failed file present and a dispatch stub that fails its first `failFirst` calls (all of them when failFirst >= 99). */
+function tailAfterFailedDispatch(failFirst: number, trusted = '3,9,46', withFile = true) {
+  const state = mkdtempSync(join(tmpdir(), 'postcheck-dispatch-'));
+  const calls = join(state, 'dispatch-calls'), n = join(state, 'n');
+  if (withFile) writeFileSync(join(state, `post-publish-dispatch-failed-${REV.slice(0, 8)}`), `rows 3,9,46 revision ${REV} ref x at now\n`);
+  const trust = join(state, 'trust.sh'); writeFileSync(trust, `#!/bin/sh\necho "${trusted}"\n`, { mode: 0o755 });
+  const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, `#!/bin/sh\nc=$(cat "${n}" 2>/dev/null || echo 0); echo $((c+1)) > "${n}"; echo x >> "${calls}"; [ $c -ge ${failFirst} ]\n`, { mode: 0o755 });
+  const commenter = join(state, 'comment.sh'); writeFileSync(commenter, `#!/bin/sh\necho "$1" >> "${state}/comments.txt"\n`, { mode: 0o755 });
+  const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', REV, '9,46,3', '3175'], { encoding: 'utf8',
+    env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_DISPATCH_RETRY_S: '0', POSTCHECK_COMMENT: commenter, POST_PUBLISH_CI_SETTLE_S: '0', POST_PUBLISH_CI_WAIT_S: '1', RELEASE_TRAIN_NOTIFY: '' } });
+  const out = { status: r.status, stdout: r.stdout, stderr: r.stderr, calls: existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n').length : 0,
+    hold: existsSync(join(state, 'deploy_hold')) ? readFileSync(join(state, 'deploy_hold'), 'utf8') : null, comments: existsSync(join(state, 'comments.txt')) ? readFileSync(join(state, 'comments.txt'), 'utf8') : '',
+    fileLeft: existsSync(join(state, `post-publish-dispatch-failed-${REV.slice(0, 8)}`)) };
+  rmSync(state, { recursive: true, force: true });
+  return out;
+}
+
+test('postcheck: the publisher failed its dispatch; the tail dispatches again (a try that fails twice then works) and goes on green, nothing held, the file removed', () => {
+  const r = tailAfterFailedDispatch(2);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(r.calls, 3, 'two failures then the success');
+  assert.match(r.stdout, /dispatching again from the tail/);
+  assert.match(r.stdout, /went through on the tail's try/);
+  assert.equal(r.hold, null);
+  assert.equal(r.fileLeft, false);
+});
+
+test('postcheck: the dispatch fails in the publisher AND every tail try: RED says "dispatch failed", never "not green", rows never started on CI', () => {
+  const r = tailAfterFailedDispatch(99);
+  assert.equal(r.status, 1);
+  assert.equal(r.calls, 3, 'exactly three tail tries');
+  assert.match(r.stdout, /RED: dispatch failed: the release-checks dispatch for a{40} failed every try, in the publisher and again in this tail/);
+  assert.match(r.hold ?? '', /dispatch failed/);
+  assert.doesNotMatch(r.hold ?? '', /not green/);
+  assert.match(r.comments, /NOT proved on CI \(dispatch failed/);
+});
+
+test('postcheck: no dispatch-failed file means the tail never dispatches (it waits for the publisher\'s run as before)', () => {
+  const r = tailAfterFailedDispatch(0, '3,9,46', false);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(r.calls, 0, 'no dispatch from the tail');
+});
+
 // Strategy + Lead 2026-10-20: the K5k and K5m tails raised RED ~4 min into a 1500 s wait while their CI run was still going with 0 failed. An UNKNOWN answer (the lookup fails, finds no run, or
 // stops waiting with rows unfinished) is asked again until the wait budget ends; the lookup's stderr is in the log; a row that PASSED in this release's own deploy run is never raised.
 /** A scripted trust command: call N prints `calls[N]` = { out, err, rc }; the last entry repeats. `deployLog` becomes release-train-aaaaaaaa.log in the state dir. */
