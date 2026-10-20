@@ -15,7 +15,8 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned 2026-10-18 (fix-forward, +loottable:tz-cave-troll for zone 90's troll row): the sha before it 74dab0cc5aa7cb7b2bd46d815be45f1b55c8b2f075fee41adfdac2d7c25df583.
 // Re-pinned 2026-10-19 (Dom: everything from the sandbox moves over): loottable:cave-troll takes loottable:tz-cave-troll's pitborn Greaves/Boots roll; the sha before it 9c1541e3cb78a00ab48ec5ceacea37bfe3815f14bfb0d8e89d8948c6e2c89008.
 // Re-pinned 2026-10-19 (RV82 content, Lead's ruling: +item:starter.bow and item:starter.staff, the starter weapons beside the longsword, on top of the line above); the sha before it caf233dd8dd6b0b5df045258ed3a196ff3a98c48c7fae3129901bc7b3803f90b.
-const TRUNK_SHA = '39dd4e53b49148dba06ada12bd1dc1499c8724f2e20eb254a41c9f5fb0d52258';
+// Re-pinned 2026-10-20 (World, Lead's rulings 5 + 7: bear and salamander respawnSeconds 75/90 -> 60, plus four giant-salamander camps in Zone 1's spawns); the sha before it 39dd4e53b49148dba06ada12bd1dc1499c8724f2e20eb254a41c9f5fb0d52258.
+const TRUNK_SHA = '542fc27fa685a0a173af2cada11d446fc96402d804b6adda9bcede161d52d77a';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };
