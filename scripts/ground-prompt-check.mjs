@@ -37,14 +37,22 @@ const measure = (page) => page.evaluate(() => {
   const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
   return { shown: !p.hidden, text: p.textContent, box: [r.left, r.top, r.right, r.bottom].map(Math.round), inView: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, overlapping, topmost: top?.id || top?.tagName };
 });
+// A line holds the prompt's slot for lineSec (3.5 s) and prompt.hidden is recomputed only in the page's frame loop, so on a loaded software-GL box a slow frame can spend the whole line before any frame shows it (the K5y flake: "never took the prompt's slot within 15 s", then "the prompt is not shown"; the retry passed). Waiting longer for a line that has already expired cannot work: wait for a frame to have run, say the line, and give THAT line its lineSec to be drawn; if a stall ate it, say it again (bounded), and fail only when every attempt was eaten. STALL_ONCE_MS is a fault-injection knob for the red-to-green receipt: it blocks the page's main thread for that long right after the first say().
+const SAYS = 8, STALL_ONCE_MS = Number(process.env.GROUND_STALL_ONCE_MS || 0); let stalled = false;
+const sayAndSee = async (page, step, w, text) => {
+  for (let attempt = 1; attempt <= SAYS; attempt++) {
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));   // a frame has just run: the loop is alive, so the next one is likely to draw the line while it is still held
+    await page.evaluate((t) => window.originsPreview.ground.say(t), text);
+    if (STALL_ONCE_MS && !stalled) { stalled = true; await page.evaluate((ms) => { const t0 = performance.now(); while (performance.now() - t0 < ms); }, STALL_ONCE_MS); }
+    const seen = await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, text, { timeout: PICKUP.lineSec * 1000, polling: 50 }).then(() => true, () => false);
+    if (seen) { if (attempt > 1) receipt.steps.push({ step, width: w, saidAgain: attempt - 1 }); return; }
+  }
+  failures.push(`${step} @${w}: the line "${text}" never took the prompt's slot in ${SAYS} tries of ${PICKUP.lineSec} s`);
+};
 const expectClear = async (page, step, text, tapTarget) => {
   for (const w of WIDTHS) {
     await settled(page, w);
-    if (!tapTarget) {   // a line holds the slot for lineSec only and a loaded box can spend that on the resize: put the same line in the same slot again at this width, then measure
-      await page.evaluate((t) => window.originsPreview.ground.say(t), text);
-      await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, text, { timeout: 15000 })   // prompt.hidden is recomputed in the page's frame loop, not by say(): measure once a frame has shown it
-        .catch(() => failures.push(`${step} @${w}: the line "${text}" never took the prompt's slot within 15 s of being said`));
-    }
+    if (!tapTarget) await sayAndSee(page, step, w, text);
     const m = await measure(page); receipt.steps.push({ step, width: w, ...m });
     if (!m.shown) failures.push(`${step} @${w}: the prompt is not shown`);
     else {
