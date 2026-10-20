@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
 import { RANGED_MODELS, rangedModelOf, rangedModelUrl } from '../src/fight/ranged-model-rows.ts';
-import { rangedPartOf } from '../src/fight/ranged-model.ts';
+import { rangedGroundPartOf, rangedPartOf } from '../src/fight/ranged-model.ts';
+import { groundLook } from '../origins/preview/ground-looks.ts';
 import { missileOf } from '../src/fight/sandbox-rules.ts';
 import { WEAPONS } from '../src/fight/moves.ts';
 
@@ -59,4 +60,19 @@ test('rangedPartOf: the row\'s node becomes the equip part (named WeaponDrawn, i
 test('bound (2026-10-19, Dom: the bow and the staff are real weapons): exactly the "bow" weapon is bound to a missile kind that has a model row; every other weapon, the staff included, keeps what the game draws', () => {
   const bound = Object.keys(WEAPONS).filter((id) => rangedModelOf(missileOf(id)?.kind ?? '') !== undefined);
   assert.deepEqual(bound, ['bow'], 'the missile rows bind the bow weapon to the painted bow and nothing else');
+});
+
+// The bow lying on the ground (the Pit's ground-item view): the equip file player/bow.glb is a byte copy of knife.glb, so the starter bow drew as a knife until the ground row's asset named the ranged model.
+test('rangedGroundPartOf: the ground bow is the matte painted model with no hand hold, and the starter bow row names it with no iron finish over its paint', () => {
+  const bow = rangedModelOf('bow')!, scene = new Group(), node = new Group(), mat = new MeshStandardMaterial({ metalness: 1, roughness: 1 });
+  node.name = bow.node; node.add(new Mesh(new BoxGeometry(), mat)); scene.add(node);
+  const lying = rangedGroundPartOf(scene, bow), part = lying.getObjectByName('WeaponDrawn')!;
+  assert.ok(part, 'the ground view finds the WeaponDrawn node in it');
+  assert.deepEqual([part.rotation.x, part.rotation.y, part.rotation.z], [0, 0, 0], 'the hand hold is not carried to the ground');
+  const m = (part.children[0] as Mesh).material as MeshStandardMaterial;
+  assert.deepEqual([m.metalness, m.roughness], [bow.metalness, bow.roughness]);
+  assert.deepEqual([mat.metalness, mat.roughness], [1, 1], 'the loaded file\'s own material is untouched');
+  const row = groundLook('item:starter.bow');
+  assert.ok(rangedModelOf(row.asset), 'the starter bow row names a ranged model, not an equip file');
+  assert.equal(row.finish, undefined, 'no finish: an iron finish would grey the painted wood');
 });
