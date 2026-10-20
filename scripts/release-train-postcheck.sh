@@ -7,12 +7,16 @@
 #   - anything else (a red row, a row CI cannot prove, CI down, the wait ran out) -> deploy_hold is written (unless one exists) with the rows and the revision, the notify hook
 #     and a PR comment say so. The next publish does not start until a person looks; one already in flight is fix-forward by its owner (Lead's rule 3): this script never rolls back
 #     and never re-trusts a red row.
+# A release-checks dispatch that GitHub refuses (HTTP 500) is tried three times, 30 s apart (scripts/lib/post-publish.sh _pp_dispatch). If the publisher's every try failed it left
+# $STATE/post-publish-dispatch-failed-<rev8>: this tail then dispatches again before it waits, and only a failure there holds, with the text "dispatch failed" (not "not green").
 # Log: $STATE/release-train-postcheck-<rev8>.log. Publish-to-publish minutes are the train log's job (the published lines carry the times).
 # Env: RELEASE_TRAIN_STATE, POST_PUBLISH_TRUSTED_CMD (default: node scripts/ci-trusted-checks.mjs), POST_PUBLISH_CI_WAIT_S (default 1500), RELEASE_TRAIN_NOTIFY.
 set -uo pipefail
 rev="${1:?revision}"; rows="${2:?rows csv}"; pr="${3:-}"
 state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"; hold="$state/deploy_hold"
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+rev0="$rev"   # the revision the publisher dispatched for (a coalesced window moves $rev to its newest member)
+. "$dir/lib/post-publish.sh"   # _pp_dispatch (three tries, 30 s apart) and the dispatch-failed file the publisher leaves
 marker="$state/post-publish-pending-${rev:0:8}"   # the publisher wrote rev/rows/at before it released the hold; this tail adds its pid and removes the file when it finishes (any exit)
 if [ -e "$marker" ]; then { grep -v '^pid=' "$marker"; printf 'pid=%s\n' "$$"; } > "$marker.new" && mv "$marker.new" "$marker"; fi   # keeps rev/rows/at/window/member lines, adds the pid
 members="$rev"
@@ -65,7 +69,16 @@ if [ -n "$window" ] && [ "$window" -gt 0 ] 2>/dev/null; then
   rows=$( { echo "$rows"; sed -n 's/^member=[0-9a-f]* //p' "$marker"; } | tr ',' '\n' | grep -E '^[0-9]+$' | sort -un | paste -sd, - )
   rev=${members##* }   # the newest member
   say "window of ${window}s closed: members ${members// /, }; ONE CI run for the newest, $rev (rows $rows)"
-  if ! POST_PUBLISH_REV=$rev ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref ${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1} -f ref=$rev} >/dev/null 2>&1; then raise "the release-checks dispatch for the window's newest $rev failed (members ${members// /, })"; fi
+  if ! POST_PUBLISH_REV=$rev _pp_dispatch "$rev" "${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"; then raise "dispatch failed: the release-checks dispatch for the window's newest $rev failed every try (members ${members// /, }); nothing was started on CI"; fi
+  rm -f "$(_pp_dispatch_failed_file "$rev0")" "$(_pp_dispatch_failed_file "$rev")"   # this fresh dispatch replaces any the publisher failed
+fi
+# The publisher's own dispatch failed every try and left a file: dispatch again here (three more tries) before waiting for a run that does not exist; if that fails too the hold says "dispatch failed",
+# not "not green" (Strategy 2026-10-20, K6d: HTTP 500, 10 min lost).
+failed_file="$(_pp_dispatch_failed_file "$rev0")"; [ -e "$failed_file" ] || failed_file="$(_pp_dispatch_failed_file "$rev")"
+if [ -e "$failed_file" ]; then
+  say "the publisher's release-checks dispatch for $rev failed every try: dispatching again from the tail"
+  if POST_PUBLISH_REV=$rev _pp_dispatch "$rev" "${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"; then rm -f "$failed_file"; say "the release-checks dispatch went through on the tail's try"
+  else raise "dispatch failed: the release-checks dispatch for $rev failed every try, in the publisher and again in this tail; rows $rows were never started on CI"; fi
 fi
 sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the dispatched run must exist before ci-trusted-checks can wait on it
 # WAIT HONESTLY (Strategy + Lead 2026-10-20, K5k and K5m tails raised RED ~4 min into a 1500 s wait while their CI run was still going with 0 failed): a lookup that FAILED, or that found no run

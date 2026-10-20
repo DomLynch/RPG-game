@@ -305,10 +305,35 @@ test('post_publish_ci_rows: rows CI has not proved start one release-checks disp
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+// Strategy 2026-10-20 (K6d): the post-publish dispatch got an HTTP 500, nothing retried, the tail found no run and raised RED (10 min lost). The dispatch is tried three times, 30 s apart; only when
+// every try fails does it leave a dispatch-failed file for the tail.
+test('post_publish_ci_rows: a dispatch that fails twice and then works is retried (3 tries) and leaves no dispatch-failed file', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), n = join(root, 'n'), calls = join(root, 'calls');
+  try {
+    const dispatch = stub(root, 'dispatch.sh', `c=$(cat ${n} 2>/dev/null || echo 0); echo $((c+1)) > ${n}; echo x >> ${calls}; [ $c -ge 2 ]`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3'), POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 3, 'two failures then the success');
+    assert.match(r.stderr, /dispatch failed \(try 1 of 3\)/);
+    assert.match(r.stderr, /dispatch failed \(try 2 of 3\)/);
+    assert.ok(!existsSync(join(root, 'post-publish-dispatch-failed-abc123')), 'a late success leaves nothing for the tail');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a dispatch that fails every try is tried exactly 3 times and leaves the dispatch-failed file (rows, revision, ref) for the tail', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', `echo x >> ${calls}; exit 22`), POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 3);
+    assert.match(r.stderr, /dispatch failed every try; the Mac runs rows/);
+    assert.match(readFileSync(join(root, 'post-publish-dispatch-failed-abc123'), 'utf8'), /^rows 3,9,15,46 revision abc123 ref codex\/01a09a76\/task-1 at /);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('post_publish_ci_rows: a failed dispatch or POST_PUBLISH_CI=off leaves every row for the Mac, as before', () => {
   const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
   try {
-    const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: 'false' });
+    const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: 'false', POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
     assert.equal(down.stdout, '3,9,15,46');
     assert.match(down.stderr, /dispatch failed/);
     const off = ciRows({ POST_PUBLISH_CI: 'off', POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
