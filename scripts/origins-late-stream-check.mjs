@@ -31,7 +31,7 @@ try {
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
   await page.goto(`${origin}/preview/origins/?region=1&zone=${process.env.LATE_ZONE || '1'}&holdCompile=1`, { waitUntil: 'load' });
   // The window: the plan is drained, its last look was clean, the compiles are still held open.
-  await page.waitForFunction(() => { const s = window.originsPreview?.lateState?.(); return s && s.clean && s.inFlight > 0 && window.originsPreview.uploadLeft() === 0; }, null, { timeout: 180000, polling: 100 })
+  await page.waitForFunction(() => { const s = window.originsPreview?.lateState?.(); return s && s.settled && s.clean && s.inFlight > 0 && window.originsPreview.uploadLeft() === 0; }, null, { timeout: 180000, polling: 100 })
     .catch(() => { throw new Error('the plan never reached a clean look with compiles in flight'); });
   receipt.before = await page.evaluate(() => ({ ...window.originsPreview.lateState(), ready: !!window.__zoneReady }));
   assert.equal(receipt.before.ready, false, 'zone ready fired while the compiles were held');

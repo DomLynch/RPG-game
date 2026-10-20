@@ -1100,7 +1100,7 @@ function programOwners(): Record<string, string[]> {
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   injectLate: () => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshStandardMaterial({ color: 0x336699 })); lateMat = m.material as THREE.Material; scene.add(m); uploadNext = Infinity; return true; },   // browser row only: one model streams into the scene after the plan's last look and before the next one (the 3 s re-plan is frozen, so only zoneReadyCheck can still see it)
-  lateState: () => ({ injected: !!lateMat, uploaded: !!lateMat && uploaded.has(lateMat), inFlight: programsInFlight, clean: cleanPlan }),
+  lateState: () => ({ injected: !!lateMat, uploaded: !!lateMat && uploaded.has(lateMat), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && domeDrawn }),
   releaseCompiles: () => releaseCompile(),
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
