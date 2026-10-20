@@ -45,8 +45,8 @@ test('beta cut: spells are OFF (spellsOff), the 20-spell list stays in the row i
   const all = Object.keys(INDEX), shown = all.filter(inBetaSpells); assert.deepEqual(shown, all.filter((id) => BETA_UTILITY_SPELLS.has(id)), 'only the utility spells (heal, a later row) show'); assert.ok(all.length > 20, 'the server keeps every row');
 });
 
-test('beta cut: the two SPECIAL slots take the six signed-off class skills, and nothing else', () => {
-  assert.deepEqual([...BETA_SPECIAL_PICK], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp']);   // RV80: Whirlwind joins the pick (SPECIAL 2's alternative)
+test('beta cut: the two SPECIAL slots take the four signed-off class skills, and nothing else', () => {
+  assert.deepEqual([...BETA_SPECIAL_PICK], ['cleave', 'reaping', 'stomp', 'lunge']);   // 2026-10-20 (Dom's beta specials ruling): four specials, was seven (RV80: Whirlwind joined as SPECIAL 2's alternative); ironrush, pommel and shove retire from the picker, their clips stay
   assert.ok(BETA_SPECIAL_PICK.every((id) => inBetaSpecials(id) && BETA_SPECIAL_ROLES[id]), 'each pick is in the cut and has a role line');
   assert.ok(!inBetaSpecials('witchfire') && !inBetaSpecials('hewer'), 'hewer is the alternate, not on the list');
 });
