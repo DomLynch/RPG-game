@@ -6,12 +6,22 @@ import { gfxOn } from '../origins/preview/gfx-flag.ts';
 import { patchHeightFog } from '../origins/preview/gfx-lift.ts';
 import { fxNum } from '../src/fight/fx-rows.ts';
 
-test('the flag is ?gfx=1 only; off is the default', () => {
+test('the flag: ?gfx=1 forces on; with no default row it is off', () => {
   assert.equal(gfxOn(''), false);
   assert.equal(gfxOn('?gfx=0'), false);
   assert.equal(gfxOn('?gfx=10'), false);
   assert.equal(gfxOn('?gfx=1'), true);
   assert.equal(gfxOn('?zone=90&gfx=1'), true);
+});
+
+test('the gfx.default row turns it on for everyone and ?gfx=0 opts out', () => {
+  assert.equal(fxNum('gfx.default'), 1);
+  assert.equal(gfxOn('', true), true);
+  assert.equal(gfxOn('?zone=1', true), true);
+  assert.equal(gfxOn('?gfx=0', true), false);
+  assert.equal(gfxOn('?zone=1&gfx=0', true), false);
+  assert.equal(gfxOn('?gfx=10', true), true);
+  assert.equal(gfxOn('?gfx=1', true), true);
 });
 
 test('the gfx rows hold the sandbox values', () => {
