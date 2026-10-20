@@ -645,6 +645,7 @@ async function warmGearScreen() {
   } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
 }
 async function warmRemoteKitsAfterReady() {
+  if (/[?&]nokitwarm=1\b/.test(location.search)) return;   // PROBE ONLY
   gearMount?.hold();
   try { await warmRemoteKits(); } finally { await warmGearScreen(); if (kitsResult) remoteKitsWarm = kitsResult; }
 }
