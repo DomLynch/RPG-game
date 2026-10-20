@@ -12,8 +12,9 @@ if (!process.env.BASE_URL && !existsSync(new URL('../dist/index.html', import.me
 const out = process.env.OUT || 'artifacts/special-picker'; await fs.mkdir(out, { recursive: true });
 const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.indexOf('--engine') + 1] : 'chromium';
 const read = async (f) => JSON.parse(await fs.readFile(new URL(`../${f}`, import.meta.url), 'utf8'));
-const CUT = (await read('src/core/career-rules.json')).betaCut[0], NAMES = Object.fromEntries((await read('src/fight/skill-defs.json')).skills.map((s) => [s.id, s.name]));
-const PICK = CUT.specialPick, ROLES = CUT.specialRoles, KEY = 'frankendom.special.slots.v1';
+const ROWS = (await read('src/fight/sandbox-rules-defs.json')).specialPick, NAMES = Object.fromEntries(ROWS.map((r) => [r.id, r.label]));   // the picker lists the sandbox's specialPick rows (Dom 2026-10-20)
+const PICK = ROWS.map((r) => r.id), ROLES = Object.fromEntries(ROWS.map((r) => [r.id, r.role])), KEY = 'frankendom.special.slots.v1';
+const D1 = ROWS.find((r) => r.slot1Default)?.id, D2 = ROWS.find((r) => r.slot2Default)?.id, SUMMARY0 = `SPECIAL 1: ${D1 ? NAMES[D1] : 'empty'} · SPECIAL 2: ${D2 ? NAMES[D2] : 'empty'}`;
 const server = process.env.BASE_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });   // BASE_URL=https://frankendom.com checks the LIVE site (no local build)
 const origin = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/$/, '') : `http://127.0.0.1:${server.httpServer.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
@@ -50,25 +51,25 @@ try {
     const entries = await page.locator('#special-dialog .grimoire-entry').evaluateAll((es) => es.map((e) => ({ id: e.dataset.skill, name: e.querySelector('.grimoire-name')?.textContent, role: e.querySelector('.grimoire-sub')?.textContent, buttons: e.querySelectorAll('.grimoire-equip').length })));
     check(entries.map((e) => e.id).join() === PICK.join(), `${name}: the list is the specialPick row in its order (${entries.map((e) => e.id)} vs ${PICK})`);
     check(entries.every((e) => e.role === ROLES[e.id] && e.name === NAMES[e.id] && e.buttons === 2), `${name}: each entry carries its row's role line, its skill row's name and two slot buttons (${JSON.stringify(entries)})`);
-    check(/SPECIAL 1: empty · SPECIAL 2: empty/.test(await page.locator('#special-dialog .grimoire-count').textContent()), `${name}: both slots start empty`);
+    check((await page.locator('#special-dialog .grimoire-count').textContent()).includes(SUMMARY0), `${name}: the slots start at the rows' defaults (${SUMMARY0})`);
     await page.screenshot({ path: `${out}/pick-${name}-empty.png` });
     const [a, b] = PICK, one = (id) => page.locator(`#special-dialog .grimoire-entry[data-skill="${id}"] .grimoire-equip[data-slot="1"]`), two = (id) => page.locator(`#special-dialog .grimoire-entry[data-skill="${id}"] .grimoire-equip[data-slot="2"]`);
     await one(a).click({ force: true });
     check(await one(a).getAttribute('aria-pressed') === 'true' && /In SPECIAL 1/.test(await one(a).textContent()), `${name}: Equip SPECIAL 1 marks ${a}`);
     check(await stored(page) === JSON.stringify([a, null]), `${name}: the pick is kept in slot 1 (${await stored(page)})`);
     await two(b).click({ force: true });
-    check(await stored(page) === JSON.stringify([a, b]), `${name}: a second skill goes to slot 2 (${await stored(page)})`);
+    check(await two(b).getAttribute('aria-pressed') === 'true', `${name}: a second skill goes to slot 2 (kept as the row's own default when it is one: ${await stored(page)})`);
     check(new RegExp(`SPECIAL 1: ${NAMES[a]} · SPECIAL 2: ${NAMES[b]}`).test(await page.locator('#special-dialog .grimoire-count').textContent()), `${name}: the summary names both picks`);
     await page.screenshot({ path: `${out}/pick-${name}-both.png` });
     await two(a).click({ force: true });
     check(await stored(page) === JSON.stringify([null, a]), `${name}: the same skill in slot 2 MOVES it out of slot 1 (${await stored(page)})`);
     { const held = (JSON.parse(await stored(page)) ?? []).filter(Boolean); check(held.length === new Set(held).size, `${name}: no skill in both slots`); }
     await two(a).click({ force: true });
-    check(await two(a).getAttribute('aria-pressed') === 'false', `${name}: a second press clears the slot`);
+    check(await two(a).getAttribute('aria-pressed') === String(D2 === a), `${name}: a second press clears the pick and the slot falls back to the row's default (${D2})`);
     const m = await layout(page, name); for (const bad of m.bad) check(false, `control too small or off screen: ${bad}`); check(!m.clipped.length, `${name}: text clipped: ${m.clipped}`); check(!m.hscroll, `${name}: horizontal scroll`);
     // both picks, then the fight: the HUD's SPECIAL 1 and SPECIAL 2 buttons are lit (Combat's wiring of the store into the Match ports; the Match reads them at begin(), so the page is reloaded and a fight started)
     await one(a).click({ force: true }); await two(b).click({ force: true });
-    check(await stored(page) === JSON.stringify([a, b]), `${name}: both picks set before the fight (${await stored(page)})`);
+    check(new RegExp(`SPECIAL 1: ${NAMES[a]} · SPECIAL 2: ${NAMES[b]}`).test(await page.locator('#special-dialog .grimoire-count').textContent()), `${name}: both picks set before the fight`);
     await page.locator('#special-dialog .grimoire-close').click({ force: true }); check(!(await page.locator('#special-dialog').evaluate((d) => d.open)), `${name}: the close button closes it`);
     if (name === 'phone') {
       await page.evaluate(() => localStorage.setItem('frankendom.firstloss.v1', '1'));   // the lesson is done: a fresh profile's first arena is the scripted first-loss LESSON, which never takes the picks (Combat: Match takes SPECIAL 2 only in career or practice mode)
