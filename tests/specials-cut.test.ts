@@ -13,8 +13,8 @@ import type { Event } from '../src/fight/world.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { defaultZoneSpawns, type Spawn } from '../origins/server/world-spawns.ts';
 
-test('the default cut is the betaCut row: spells off, the six picks', () => {
-  assert.equal(BETA_SPECIALS_CUT.spellsOff, true); assert.deepEqual([...BETA_SPECIALS_CUT.pick], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'reaping', 'stomp']);   // RV80: the sandbox's Whirlwind (reaping) joins the pick as SPECIAL 2's alternative
+test('the default cut is the betaCut row: spells off, the four picks', () => {
+  assert.equal(BETA_SPECIALS_CUT.spellsOff, true); assert.deepEqual([...BETA_SPECIALS_CUT.pick], ['cleave', 'reaping', 'stomp', 'lunge']);   // 2026-10-20 (Dom's beta specials ruling): four, was seven; RV80 had added Whirlwind (reaping) as SPECIAL 2's alternative
   assert.equal(viaAwards, specialsRefusal, 'awards.ts re-exports the one judge');
 });
 
