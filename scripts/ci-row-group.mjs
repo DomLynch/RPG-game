@@ -1,7 +1,8 @@
 // Runs one release-checks GROUP of rows inside a single GitHub job (Deploy, release speed 2026-10-13; scripts/lib/row-groups.mjs packs the groups).
 // Per ROW it behaves exactly like the one-job-per-row workflow did: the same argv, a receipt with the same fields, a failed row is a red row.
 //   - rows run one after another in ascending index order, each in its own child process;
-//   - a row that fails is retried ALONE, once, right after it (never the whole group; deploy.sh does the same: "Retrying release check N alone");
+//   - a row that fails is retried ALONE, once, right after it (never the whole group; deploy.sh does the same: "Retrying release check N alone"), unless that first attempt was SLOW (more than half
+//     the row's own ceiling): a slow failure is a real failure, red at once with slow_failure:true in the receipt, and a lane re-runs --failed (Strategy 2026-10-20, row 57 on K5y);
 //     the receipt records the final attempt, with retried:true and first_status so a flaky row stays visible;
 //   - artifacts/release-check-N.json per row (what the summary and the full artifact carry) and artifacts/release-check-<group>.json, an array of those
 //     receipts (the tiny `release-check-<group>-receipt` artifact scripts/ci-trusted-checks.mjs downloads);
@@ -17,7 +18,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const TIMED_OUT = 124;   // GNU timeout's exit status for a command that hit its limit
-export const KILLED = 137;       // ... and 128+9 when it then had to KILL a child that ignored TERM (-k)
+export const SLOW_FAIL_FRACTION = 0.5;   // a first attempt that fails after more than this share of the row's own ceiling is not retried in the job
+export const KILLED = 137;      // ... and 128+9 when it then had to KILL a child that ignored TERM (-k)
 const positive = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
 /** scripts/lib/row-ceilings.json: { default, rows: { "<check name>": seconds } }. A slow row names its own ceiling there, BY NAME (release-rows-for.mjs rowName: the index moves whenever a
  *  row is inserted, GT 2026-10-16: a ceiling keyed by index would land on the wrong check and put row 55 back at 600 s); every other row gets the default. */
@@ -31,7 +33,7 @@ export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run 
   for (const row of [...rows].sort((a, b) => a.index - b.index)) {
     const argv = typeof row.argv === 'string' ? JSON.parse(row.argv) : row.argv;
     const ceiling = rowCeilingS(row.name, ceilings);   // this row's own ceiling (row-ceilings.json, by name) or the default
-    let status = 1, seconds = 0, firstStatus = null, attempts = 0, timedOut = false;
+    let status = 1, seconds = 0, firstStatus = null, attempts = 0, timedOut = false, slowFail = false;
     for (; attempts <= retries; attempts++) {
       if (attempts) log(`Retrying release check ${row.index} alone`);
       const t0 = now();
@@ -45,9 +47,15 @@ export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run 
       }
       log(`check ${row.index} ${status === 0 ? 'passed' : `FAILED (exit ${status})`} in ${seconds}s${attempts ? ' (retry)' : ''}`);
       if (status === 0) break;
+      // A slow failure is a real failure (Strategy 2026-10-20, row 57 on K5y: 699 s to fail, then a full second attempt, 27 min worst case). A first attempt that used more than half the row's
+      // own ceiling is not retried in-job: it turns red now and a lane re-runs --failed. A fast failure still retries once.
+      if (attempts === 0 && seconds > ceiling * SLOW_FAIL_FRACTION) {
+        log(`check ${row.index} (${row.name}) failed after ${seconds}s, more than half of its ${ceiling}s ceiling: a slow failure is a real failure, not retried in the job (re-run --failed)`);
+        slowFail = true; break;
+      }
     }
     // sha/tree are what the job checked out: deploy.sh trusts a receipt only for the tree it is deploying.
-    const receipt = { index: Number(row.index), name: row.name, command: argv.join(' '), seconds, status, runner: 'ubuntu-latest', sha: rev('HEAD'), tree: rev('HEAD^{tree}'), event, group: id, ...(firstStatus !== 0 && !timedOut ? { retried: true, first_status: firstStatus } : {}), ...(timedOut ? { timed_out: true } : {}) };
+    const receipt = { index: Number(row.index), name: row.name, command: argv.join(' '), seconds, status, runner: 'ubuntu-latest', sha: rev('HEAD'), tree: rev('HEAD^{tree}'), event, group: id, ...(firstStatus !== 0 && !timedOut && !slowFail ? { retried: true, first_status: firstStatus } : {}), ...(timedOut ? { timed_out: true } : {}), ...(slowFail ? { slow_failure: true } : {}) };
     writeFileSync(join(dir, `release-check-${row.index}.json`), JSON.stringify(receipt) + '\n');
     receipts.push(receipt);
   }
