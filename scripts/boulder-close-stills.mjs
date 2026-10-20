@@ -13,7 +13,7 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 try {
   const [vw, vh] = (process.env.VIEW || '375x812').split('x').map(Number);
-  const page = await (await browser.newContext({ viewport: { width: vw, height: vh }, isMobile: process.env.DESKTOP !== '1', hasTouch: process.env.DESKTOP !== '1' })   // DESKTOP=1: the page's phone thinning is off, so the kit placements are the ones frontierKit() gives with no thinning (the offline coordinates)).newPage();
+  const page = await (await browser.newContext({ viewport: { width: vw, height: vh }, isMobile: process.env.DESKTOP !== '1', hasTouch: process.env.DESKTOP !== '1' })).newPage();   // DESKTOP=1: the page's phone thinning is off, so the kit placements are the ones frontierKit() gives with no thinning (the offline coordinates)
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 }); await page.waitForTimeout(4000);
   const only = process.env.H === undefined ? null : process.env.H.split(',').map(Number);   // H=0 keeps only heading 0 (facing +z, the boulder 5 m ahead)
