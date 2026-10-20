@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Zone-ready A/B on the T4: node scripts/gpu-run.mjs <head sha> -- bash scripts/gpu-run/ready-time.sh <base sha> [runs]
-# The head is the job's own checkout (already built by the job setup is NOT assumed: built here); the base is a worktree at <base sha>.
+# Zone load-time A/B on the T4 at phone/iPad tier: node scripts/gpu-run.mjs <probe sha> -- env DEVICE=iphone|ipad bash scripts/gpu-run/ready-time.sh <base FULL sha> <head FULL sha> [runs]
+# Both sides are built from their own worktree, so the probe branch only supplies this script and the harness.
 set -euo pipefail
-BASE="${1:?base sha}"; RUNS="${2:-3}"
-npx vite build --config origins/preview/vite.config.mjs > /tmp/head-build.log 2>&1 || { tail -20 /tmp/head-build.log; exit 1; }
-git fetch -q origin "$BASE"
-git worktree add -q /tmp/base-wt "$BASE"
-ln -s "$PWD/node_modules" /tmp/base-wt/node_modules
-(cd /tmp/base-wt && npx vite build --config origins/preview/vite.config.mjs > /tmp/base-build.log 2>&1) || { tail -20 /tmp/base-build.log; exit 1; }
-REAL_GPU=1 node scripts/origins-ready-time.mjs /tmp/base-wt "$PWD" "$RUNS"
+BASE="${1:?base sha}"; HEAD_SHA="${2:?head sha}"; RUNS="${3:-3}"
+for pair in "base:$BASE" "head:$HEAD_SHA"; do
+  name="${pair%%:*}"; sha="${pair#*:}"
+  git fetch -q origin "$sha"
+  git worktree add -q "/tmp/$name-wt" "$sha"
+  ln -s "$PWD/node_modules" "/tmp/$name-wt/node_modules"
+  (cd "/tmp/$name-wt" && npx vite build --config origins/preview/vite.config.mjs > "/tmp/$name-build.log" 2>&1) || { tail -20 "/tmp/$name-build.log"; exit 1; }
+done
+REAL_GPU=1 node scripts/origins-ready-time.mjs /tmp/base-wt /tmp/head-wt "$RUNS"

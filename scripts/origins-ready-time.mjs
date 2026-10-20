@@ -25,11 +25,14 @@ const sides = { base: await serve(baseRoot), head: await serve(headRoot) };
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const rows = [];
 for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
-  const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', IPAD = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+  const DEVICE = process.env.DEVICE || 'iphone', device = DEVICE === 'iphone' ? { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE } : { viewport: { width: 1366, height: 1024 }, isMobile: true, hasTouch: true, userAgent: IPAD, deviceScaleFactor: 2 };   // phone tier needs a mobile UA AND a coarse pointer (src/fight/quality.ts)
+  const ctx = await browser.newContext(device); if (DEVICE !== 'iphone') await ctx.addInitScript(() => { Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 }); });
+  const page = await ctx.newPage();
   let deferred = 0; page.on('console', (m) => { if (m.text().includes('[zone ready] deferred')) deferred++; });
   await page.goto(`${sides[side].origin}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => {});
-  const r = await page.evaluate(() => ({ playableMs: window.originsPreview?.cover?.().atMs ?? null, readyMs: window.__zoneReady?.atMs ?? null, programs: window.__zoneReady?.programs ?? null }));
+  const r = await page.evaluate(() => ({ playableMs: window.originsPreview?.cover?.().atMs ?? null, readyMs: window.__zoneReady?.atMs ?? null, programs: window.__zoneReady?.programs ?? null, coarse: matchMedia('(pointer: coarse)').matches, ua: navigator.userAgent.slice(0, 20) }));
   rows.push({ run: i + 1, side, ...r, deferred }); console.log(JSON.stringify(rows.at(-1)));
   await page.context().close();
 }
