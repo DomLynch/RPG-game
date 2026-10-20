@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { gfxOn } from '../origins/preview/gfx-flag.ts';
-import { patchHeightFog } from '../origins/preview/gfx-lift.ts';
+import { gfxOn } from '../src/fight/gfx-flag.ts';
+import { patchHeightFog } from '../src/fight/gfx-lift.ts';
 import { fxNum } from '../src/fight/fx-rows.ts';
 
 test('the flag: ?gfx=1 forces on; with no default row it is off', () => {
@@ -26,9 +26,10 @@ test('the gfx.default row turns it on for everyone and ?gfx=0 opts out', () => {
 
 test('the gfx rows hold the sandbox values', () => {
   const want: Record<string, number> = {
-    'gfx.bloom.strength': 0.5, 'gfx.bloom.radius': 0.55, 'gfx.bloom.threshold': 0.82, 'gfx.grade.contrast': 1.1, 'gfx.grade.saturation': 1.14,
+    // bloom strength / threshold lowered from the sandbox's 0.5 / 0.82: the foot-dust discs read as smudges at 375 (Lead's verdict on #3436)
+    'gfx.bloom.strength': 0.4, 'gfx.bloom.radius': 0.55, 'gfx.bloom.threshold': 0.92, 'gfx.grade.contrast': 1.1, 'gfx.grade.saturation': 1.14,
     'gfx.grade.shadow-teal': 0.045, 'gfx.grade.highlight-warm': 0.05, 'gfx.grade.vignette': 0.42, 'gfx.fog.ground-boost': 1.9, 'gfx.fog.height-falloff': 0.11, 'gfx.fog.sky-keep': 0.45,
-    'gfx.fog.digits': 3, 'gfx.fog.digits-fine': 4, 'gfx.msaa-samples': 4,
+    'gfx.fog.digits': 3, 'gfx.fog.digits-fine': 4, 'gfx.fxaa': 1, 'gfx.msaa-samples': 0,   // 0 (the sandbox's 4): on the load-time gate (9 Mbps / 85 ms, software GL) 4 and 2 samples cost +2.2 s, 0 costs none (#3436); the T4 phone-tier read is in the PR body
   };
   for (const [id, v] of Object.entries(want)) assert.equal(fxNum(id), v, id);
 });
