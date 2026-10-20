@@ -5,6 +5,7 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { inflateSync } from 'node:zlib';
 const site=await serveDist(), url=site.url;
 // Machine-independent since 2026-09-20: the parry/kick steps used to be wall-clock touch timings that flaked under load and failed outright on
 // a GPU-less box; they now run on harness time. Boot and asset loads stay real-time (load waits, not behaviour waits).
@@ -12,7 +13,9 @@ const browser=await launch();
 const receipt={url,physicalPhone:false,errors:[]};
 // The frame after a WebGL context restore is a real picture (#3436 follow-up): the lift's composer targets and the plain renderer both live through a restore, and a restore that left the canvas blank or one flat colour would pass every state check above.
 // Element screenshot of the canvas (the compositor's pixels), sampled on a grid: distinct colours and the luminance spread. A black, white or flat frame has a handful of colours and a spread near 0; the arena has hundreds and a spread of tens.
-const frameStats=async(pg)=>{const png=await pg.locator('#world').screenshot();return pg.evaluate(async(b64)=>{const bmp=await createImageBitmap(await (await fetch('data:image/png;base64,'+b64)).blob());const ctx=new OffscreenCanvas(bmp.width,bmp.height).getContext('2d');ctx.drawImage(bmp,0,0);const d=ctx.getImageData(0,0,bmp.width,bmp.height).data,seen=new Set(),lum=[];for(let i=0;i<d.length;i+=4*97){seen.add(((d[i]>>3)<<10)|((d[i+1]>>3)<<5)|(d[i+2]>>3));lum.push(d[i]*.3+d[i+1]*.59+d[i+2]*.11);}const mean=lum.reduce((a,b)=>a+b,0)/lum.length;return{colours:seen.size,spread:+Math.sqrt(lum.reduce((a,b)=>a+(b-mean)**2,0)/lum.length).toFixed(1),samples:lum.length};},png.toString('base64'));};
+// Decoded in node (the page's CSP forbids fetching a data: URL): an 8-bit RGB/RGBA PNG, the five scanline filters.
+const decodePng=(buf)=>{let p=8,w=0,h=0,ct=0;const idat=[];while(p<buf.length){const len=buf.readUInt32BE(p),type=buf.toString('latin1',p+4,p+8);if(type==='IHDR'){w=buf.readUInt32BE(p+8);h=buf.readUInt32BE(p+12);ct=buf[p+17];}if(type==='IDAT')idat.push(buf.subarray(p+8,p+8+len));p+=12+len;}const bpp=ct===6?4:3,stride=w*bpp,raw=inflateSync(Buffer.concat(idat)),out=Buffer.alloc(h*stride);for(let y=0;y<h;y++){const f=raw[y*(stride+1)];for(let x=0;x<stride;x++){const a=x>=bpp?out[y*stride+x-bpp]:0,b=y?out[(y-1)*stride+x]:0,c=x>=bpp&&y?out[(y-1)*stride+x-bpp]:0;let v=raw[y*(stride+1)+1+x];if(f===1)v+=a;else if(f===2)v+=b;else if(f===3)v+=(a+b)>>1;else if(f===4){const pp=a+b-c,pa=Math.abs(pp-a),pb=Math.abs(pp-b),pc=Math.abs(pp-c);v+=pa<=pb&&pa<=pc?a:pb<=pc?b:c;}out[y*stride+x]=v&255;}}return{w,h,bpp,data:out};};
+const frameStats=async(pg)=>{const {data,bpp}=decodePng(await pg.locator('#world').screenshot()),seen=new Set(),lum=[];for(let i=0;i<data.length;i+=bpp*97){seen.add(((data[i]>>3)<<10)|((data[i+1]>>3)<<5)|(data[i+2]>>3));lum.push(data[i]*.3+data[i+1]*.59+data[i+2]*.11);}const mean=lum.reduce((a,b)=>a+b,0)/lum.length;return{colours:seen.size,spread:+Math.sqrt(lum.reduce((a,b)=>a+(b-mean)**2,0)/lum.length).toFixed(1),samples:lum.length};};
 const assertRealFrame=(label,s)=>{console.log('RESTORE-FRAME '+label+' '+JSON.stringify(s));assert.ok(s.colours>=40&&s.spread>=8,label+': the frame after a context restore is blank or flat '+JSON.stringify(s));};
 try {
  const {page}=await phonePage(browser,{deviceScaleFactor:2,errors:receipt.errors});   // page errors land in receipt.errors; Sentry is blocked (deliberate GPU failures must not file incidents)
