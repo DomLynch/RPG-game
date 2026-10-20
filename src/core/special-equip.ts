@@ -1,7 +1,7 @@
 // The two SPECIAL slots the player takes into a fight (Dom 2026-10-17, Strategy signed off; Combat): SPECIAL 1 / SPECIAL 2, each one of the beta's `specialPick` class skills (career-rules.json betaCut). The list, its order and its role
 // lines are rows (career-ladder.ts BETA_SPECIAL_PICK / BETA_SPECIAL_ROLES), so nothing here names a skill. Pure and synchronous, because the Match's `skill` and `skill2` ports are read at begin(). A skill is an existing skill-defs row, so
 // its move, clip and cost exist already. The server stays the authority (record and claim judging refuse a skill outside the pick, the way the cut refuses a level).
-import { BETA_SLOT2_ALT, BETA_SLOT2_DEFAULT, BETA_SPECIAL_PICK, BETA_SPECIAL_ROLES, BETA_SPECIAL_SLOTS, inBetaSpecials } from './career-ladder.ts';
+import { BETA_SLOT1_ALT, BETA_SLOT1_DEFAULT, BETA_SLOT2_ALT, BETA_SLOT2_DEFAULT, BETA_SPECIAL_PICK, BETA_SPECIAL_ROLES, BETA_SPECIAL_SLOTS, inBetaSpecials } from './career-ladder.ts';
 export type SpecialStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export const SPECIAL_SLOT_COUNT = BETA_SPECIAL_SLOTS;   // a row (betaCut.specialSlots): SPECIAL 1 (index 0, the 'skill' button) and SPECIAL 2 (index 1, the 'skill2' button); the same two buttons the spell slots used
 const KEY = 'frankendom.special.slots.v1';
@@ -26,9 +26,15 @@ export const slot2Default = (one: string | undefined): string | undefined => {
   const pick = one === BETA_SLOT2_DEFAULT ? BETA_SLOT2_ALT : BETA_SLOT2_DEFAULT;
   return pick && inBetaSpecials(pick) ? pick : undefined;
 };
-/** The equipped skill id per slot, in slot order; a slot is undefined when empty or when its pick is not in the row (the cut changed). SPECIAL 2 (index 1) reads its default while the player has picked none. */
+/** SPECIAL 1 until the player picks one (Dom 2026-10-20, the beta's four specials: every player starts with both buttons filled): the betaCut row's slot1Default, or its slot1Alt when SPECIAL 2 already is that skill. A skill outside the pick reads as no default. */
+export const slot1Default = (two: string | undefined): string | undefined => {
+  const pick = two === BETA_SLOT1_DEFAULT ? BETA_SLOT1_ALT : BETA_SLOT1_DEFAULT;
+  return pick && inBetaSpecials(pick) ? pick : undefined;
+};
+/** The equipped skill id per slot, in slot order; a slot is undefined only when the row has no default for it or its pick is not in the row (the cut changed). Both slots read their default while the player has picked none. */
 export const equippedSpecials = (): (string | undefined)[] => {
   const picked = stored().map((id) => (id && inBetaSpecials(id) ? id : undefined));
+  picked[0] ??= slot1Default(picked[1]);
   if (SPECIAL_SLOT_COUNT > 1) picked[1] ??= slot2Default(picked[0]);
   return picked;
 };

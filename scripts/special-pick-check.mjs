@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 
 const args = process.argv.slice(2), opt = (name, d) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : d; };
 const [dist, out] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
-const FIRST = opt('first', 'lunge'), SECOND = opt('second', 'stomp'), ZONE = opt('zone', '1');
+const FIRST = opt('first', 'lunge'), SECOND = opt('second', 'stomp'), ZONE = opt('zone', '1'), FRESH = process.env.SPECIAL_FRESH === '1';
 if (!dist || !out) { console.error('usage: node scripts/special-pick-check.mjs <built origins-preview dist> <out dir> [--first lunge] [--second stomp] [--zone 1]'); process.exit(2); }
 fs.mkdirSync(out, { recursive: true });
 const root = process.cwd();
@@ -32,7 +32,7 @@ const receipt = { dist, picks: [FIRST, SECOND], checks: [], errors: [], passed: 
 const ok = (name, detail) => { receipt.checks.push({ name, ...(detail === undefined ? {} : { detail }) }); console.log('ok:', name, detail === undefined ? '' : JSON.stringify(detail)); };
 try {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
-  await context.addInitScript(([a, b]) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([a, b])); } catch { /* storage refused */ } }, [FIRST, SECOND]);
+  if (!FRESH) await context.addInitScript(([a, b]) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([a, b])); } catch { /* storage refused */ } }, [FIRST, SECOND]);   // SPECIAL_FRESH=1: a brand-new guest, nothing stored: the row defaults must fill both slots
   const page = await context.newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 240)));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight&zone=${ZONE}`, { waitUntil: 'load' });
@@ -49,8 +49,8 @@ try {
   const one = await button('#skill-button'), two = await button('#skill2-button');
   assert.ok(one && !one.hidden, `SPECIAL 1 button shows: ${JSON.stringify(one)}`);
   assert.ok(two && !two.hidden, `SPECIAL 2 button shows: ${JSON.stringify(two)}`);
-  assert.match(String(two.label), /stomp/i, `SPECIAL 2 wears the skill row's own name: ${two.label}`);
-  assert.match(String(one.label), /lunge/i, `SPECIAL 1 wears the skill row's own name: ${one.label}`);
+  assert.match(String(two.label), FRESH ? /whirlwind|reaping/i : /stomp/i, `SPECIAL 2 wears the skill row's own name: ${two.label}`);
+  assert.match(String(one.label), FRESH ? /skull crack|cleave/i : /lunge/i, `SPECIAL 1 wears the skill row's own name: ${one.label}`);
   ok('both SPECIAL buttons show and SPECIAL 2 wears its skill name', { one: one.label, two: two.label });
   await page.screenshot({ path: path.join(out, 'hud-both-lit.png') });
   const state = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { stamina: c.hero.stamina, hp: c.fighters.filter((f) => f.id !== 'me').map((f) => f.health) }; });

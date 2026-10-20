@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 
-const out = process.argv[2] ?? 'artifacts/special-pit', FIRST = process.env.SPECIAL_FIRST ?? 'lunge', SECOND = process.env.SPECIAL_SECOND ?? 'stomp';
+const out = process.argv[2] ?? 'artifacts/special-pit', FIRST = process.env.SPECIAL_FIRST ?? 'lunge', SECOND = process.env.SPECIAL_SECOND ?? 'stomp', FRESH = process.env.SPECIAL_FRESH === '1';
 // QA_DIST=<built dist dir> serves that build (e.g. one made on the VPS) instead of this tree's ./dist
 const server = process.env.QA_DIST ? await (async () => { const { preview } = await import('vite'); const s = await preview({ build: { outDir: process.env.QA_DIST }, preview: { host: '127.0.0.1', port: 0, strictPort: true } }); return { url: `http://127.0.0.1:${s.httpServer.address().port}`, close: () => new Promise((resolve) => s.httpServer.close(resolve)) }; })() : await serveDist();
 const browser = await launch(process.env.PIT_GL === '1' ? { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {});
@@ -13,7 +13,7 @@ const receipt = { picks: [FIRST, SECOND], checks: [], errors: [], passed: false 
 const ok = (name, detail) => { receipt.checks.push({ name, ...(detail === undefined ? {} : { detail }) }); console.log('ok:', name, detail === undefined ? '' : JSON.stringify(detail)); };
 try {
   const { page, errors } = await phonePage(browser, { viewport: { width: 375, height: 812 }, timeout: 20000, errors: receipt.errors });
-  await page.addInitScript(([a, b]) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([a, b])); } catch { /* storage refused */ } }, [FIRST, SECOND]);
+  if (!FRESH) await page.addInitScript(([a, b]) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([a, b])); } catch { /* storage refused */ } }, [FIRST, SECOND]);   // SPECIAL_FRESH=1: a brand-new guest, nothing stored: the row defaults must fill both slots
   await page.goto(`${server.url}/?fight=1`, { waitUntil: 'commit' });
   await waitForGame(page);
   ok('the Pit page boots with both picks stored (?fight=1: no lesson)');
@@ -24,8 +24,8 @@ try {
   const one = await button('#skill-button'), two = await button('#skill2-button');
   assert.ok(one && !one.hidden, `SPECIAL 1 button shows: ${JSON.stringify(one)}`);
   assert.ok(two && !two.hidden, `SPECIAL 2 button shows: ${JSON.stringify(two)}`);
-  assert.match(String(two.label), /stomp/i, `SPECIAL 2 wears the skill row's name: ${two.label}`);
-  assert.match(String(one.label), /lunge/i, `SPECIAL 1 wears the skill row's name: ${one.label}`);
+  assert.match(String(two.label), FRESH ? /whirlwind|reaping/i : /stomp/i, `SPECIAL 2 wears the skill row's name: ${two.label}`);
+  assert.match(String(one.label), FRESH ? /skull crack|cleave/i : /lunge/i, `SPECIAL 1 wears the skill row's name: ${one.label}`);
   ok('both SPECIAL buttons show and SPECIAL 2 wears its skill name', { one: one.label, two: two.label });
   await page.screenshot({ path: `${out}/pit-both-lit.png` });
   // SPECIAL 1: pressing it starts a move and the button dims while it cools
