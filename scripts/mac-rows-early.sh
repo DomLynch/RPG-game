@@ -47,5 +47,8 @@ echo "mac-rows-early: ${sha:0:9} rows $rows in $dir, started $started"
 ( cd "$dir" && export RELEASE_CHECKS_ONLY="$rows" RELEASE_CHECKS_RECEIPT="$checks" RELEASE_CHECKS_LOG_DIR="$state/$sha.macrows-logs" RELEASE_CHECK_CONCURRENCY=1 \
   && bash -c "${MAC_ROWS_RUN:-npm run build >/dev/null && node scripts/release-checks.mjs}" )
 rc=$?
+# A run stopped by a signal (143 TERM, 130 INT, 137 KILL; deploy_lock_yield_early stops it when a deploy needs the Mac) vouches for nothing and leaves NO receipt:
+# the train's next tick starts the rows again, and the candidate does not carry an exit-143 receipt (Auditor on #3461).
+if (( rc >= 128 )); then echo "mac-rows-early: ${sha:0:9} rows stopped by a signal (exit $rc); no receipt, they restart on a later tick"; exit 0; fi
 (cd "$dir" && node scripts/lib/mac-rows-early.mjs record "$sha" "$tree" "$checks" "$started" "$rc")
 exit 0

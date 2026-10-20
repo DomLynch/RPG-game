@@ -163,6 +163,42 @@ test('mac-rows-early.sh never overlaps a deploy\'s Mac rows: while deploy_rows.l
   }
 });
 
+test('a running deploy stops the early rows (Strategy 2026-10-20): the yielded run leaves NO receipt and no marker, frees the lock, and starts again on the next call; with a live deploy it starts nothing', async () => {
+  const base = mkdtempSync(join(ROOT, 'mre-yield-')), state = join(base, 'state'), dir = join(base, 'wt'), locks = join(base, 'locks');
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  mkdirSync(state); mkdirSync(locks);
+  const rowsLock = join(locks, 'deploy_rows.lock'), runs = join(locks, 'deploy_runs');
+  // the row run is a long sleep (a child of the early script): a half-run that a deploy cuts short
+  const env = { ...process.env, PRELAUNCH_DIR: state, MAC_ROWS_DIR: dir, MAC_ROWS_INSTALL: 'true', MAC_ROWS_RUN: 'sleep 120', DEPLOY_LOCK: join(locks, 'in_flight.json'), DEPLOY_RUNS_DIR: runs, DEPLOY_ROWS_LOCK: rowsLock, DEPLOY_LOCK_POLL_S: '1' };
+  try {
+    const early = spawn('bash', ['scripts/mac-rows-early.sh', sha], { env, stdio: 'ignore' });
+    const exited = new Promise<number | null>(resolve => early.on('exit', code => resolve(code)));
+    for (let i = 0; i < 300 && !existsSync(join(state, `${sha}.macrows.running`)); i++) await new Promise(resolve => setTimeout(resolve, 200));
+    assert.ok(existsSync(join(state, `${sha}.macrows.running`)), 'the early rows are running under the lock');
+    const yielded = spawnSync('bash', ['-c', `source '${join(process.cwd(), 'scripts', 'lib', 'deploy-lock.sh')}'; deploy_lock_yield_early '${rowsLock}'`], { encoding: 'utf8', env });
+    assert.equal(yielded.status, 0, yielded.stderr);
+    assert.match(yielded.stdout, /held by early rows for [0-9a-f]+ \(pid \d+\); this deploy owns the Mac, stopping them/);
+    await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 30_000))]);
+    assert.ok(early.exitCode !== null || early.signalCode !== null, 'the early run is gone');
+    assert.ok(!existsSync(join(state, `${sha}.macrows.json`)), 'NO receipt: an exit-143 half-run must not stand for the candidate');
+    assert.ok(!existsSync(join(state, `${sha}.macrows.running`)) && !existsSync(rowsLock), 'marker and lock released');
+    // deterministic half of the same rule: a rows run that ends by a signal (exit 143, as release-checks does when its parent is stopped) is never recorded
+    const killed = spawnSync('bash', ['scripts/mac-rows-early.sh', sha], { encoding: 'utf8', env: { ...env, MAC_ROWS_RUN: 'kill -TERM $$' }, timeout: 120_000 });
+    assert.equal(killed.status, 0, killed.stderr + killed.stdout);
+    assert.match(killed.stdout, /rows stopped by a signal \(exit 143\); no receipt, they restart on a later tick/);
+    assert.ok(!existsSync(join(state, `${sha}.macrows.json`)), 'an exit-143 run leaves no receipt (the old unconditional record wrote one and the train never restarted it)');
+    // next call for the same sha is not "already has a receipt": the rows start again (here: stopped at once by a live deploy run file)
+    mkdirSync(runs); writeFileSync(join(runs, `${process.pid}.json`), `{"revision":"x","started":"x","pid":${process.pid},"cwd":"/x"}\n`);
+    const waits = spawnSync('bash', ['scripts/mac-rows-early.sh', sha], { encoding: 'utf8', env, timeout: 60_000 });
+    assert.doesNotMatch(waits.stdout, /already has a receipt/);
+    assert.match(waits.stdout, /deploy\.sh pid \d+ owns the Mac; [0-9a-f]{9} starts after it/, 'with a live deploy it starts nothing');
+    assert.ok(!existsSync(join(state, `${sha}.macrows.running`)) && !existsSync(rowsLock), 'it took neither the lock nor a marker');
+  } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', dir]);
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('deploy.sh trusts the early Mac rows by tree after taking the Mac-rows lock, and the Published summary shows their start and end', () => {
   const sh = readFileSync('scripts/deploy.sh', 'utf8');
   const at = (s: string) => { const i = sh.indexOf(s); assert.ok(i >= 0, s); return i; };

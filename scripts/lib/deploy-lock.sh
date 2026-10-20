@@ -46,10 +46,9 @@ deploy_runs_live() {
   done
   return 1
 }
-deploy_kill_tree() {   # $1 = pid; its children first (release-checks spawns detached groups, their parent pid still names them), then the pid, by pid never by name
+deploy_descendants() {   # $1 = pid; every descendant pid, one per line (release-checks spawns detached groups, their parent pid still names them)
   local child
-  for child in $(pgrep -P "$1" 2>/dev/null); do deploy_kill_tree "$child"; done
-  kill -TERM "$1" 2>/dev/null || true
+  for child in $(pgrep -P "$1" 2>/dev/null); do echo "$child"; deploy_descendants "$child"; done
 }
 # deploy_lock_yield_early: $1 = lock dir. If a mac-rows-early.sh run holds it, stop that run (tree kill; its EXIT trap frees the lock and its running marker,
 # no receipt is written, so the next train tick starts the rows again and the candidate's own CI rows stand meanwhile). Any other holder is left alone and waited for.
@@ -60,7 +59,11 @@ deploy_lock_yield_early() {
   cmd=$(ps -o command= -p "$holder" 2>/dev/null || true)
   case "$cmd" in *mac-rows-early.sh*) ;; *) return 0 ;; esac
   echo "Mac rows lock: held by early rows for $(cat "$dir/revision" 2>/dev/null || echo '?') (pid $holder); this deploy owns the Mac, stopping them (they restart after it)"
-  deploy_kill_tree "$holder"
+  # The holder's shell FIRST (its descendants listed before it dies), so it can never reach its `record` step with a half-run's exit code; then the descendants, by pid never by name.
+  local kids pid
+  kids=$(deploy_descendants "$holder")
+  kill -TERM "$holder" 2>/dev/null || true
+  for pid in $kids; do kill -TERM "$pid" 2>/dev/null || true; done
 }
 deploy_lock_drop() {   # $1 = lock dir; only ever removes a lock this run holds
   [[ "$(cat "$1/pid" 2>/dev/null)" == "$$" ]] && rm -rf "$1"
