@@ -4,7 +4,7 @@
 // application/octet-stream, which is every .glb; webp, audio and wasm go as they are: /etc/nginx/sites-available/frankendom.com,
 // read 2026-09-27). A fresh guest on a 393x852 mobile Chromium page, cache off, CDP network at 9 Mbps / 85 ms, seconds from
 // navigation start to #attack-button enabled (first playable; looks streamed in after it never count). RUNS each, interleaved
-// base, head, base, ...; medians compared. FAIL when head - base > DELTA_S, or when the head median is over LIMIT_S.
+// base, head, base, ...; medians compared. FAIL when head - base > DELTA_S, or when the head median is over the page's limitS.
 // Why a delta and not a bar (Lead's ruling (a)): the absolute time is CPU-bound on the runner's software GL and swung ~5 s
 // between two ubuntu runners on the same live site (16.9 s in CI 36304847884, 21.9 s in 36305661196); base and head on the
 // same runner cancel that. An intended rise needs Lead's ruling: the PR label `load-time-ruled` (LOAD_TIME_RULED=1, read live
@@ -33,7 +33,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-const DELTA_S = 1.0, LIMIT_S = 30, RUNS_ENV = Number(process.env.RUNS) || null, RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
+const DELTA_S = 1.0, RUNS_ENV = Number(process.env.RUNS) || null, RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
 const out = 'artifacts/load-time';
 
 // The pages this gate can time. prefix: where the dist is mounted (its vite base). query: appended to the page address. spa: a path under the
@@ -42,15 +42,18 @@ const out = 'artifacts/load-time';
 // start). receipt: its file under artifacts/load-time/. bytes: null, or the byte tripwire { row: the zone row (relative to the dist) whose
 // site-path strings are sized under publicFrom, mbDelta / filesDelta: how far head may grow past base }. runs: base/head pairs (the RUNS env
 // overrides it). alternate: each pair's order flips (pairOrder) so neither side always loads second on a warmed box. paired: the delta is the
-// median of the per-pair differences, not the difference of the two medians.
+// median of the per-pair differences, not the difference of the two medians. limitS: the absolute tripwire on the head median (a runaway, not a
+// regression: the delta is the gate).
 export const PAGES = {
-  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false, paired: false,
+  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false, paired: false, limitS: 30,
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
   // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
     bytes: { row: '../../origins/zone-rows/zone1.row.json', mbDelta: 1.0, filesDelta: 10 },
     // runs 11, paired (Lead 2026-10-20): at 7 pairs CI's samples spread 21.8-24.9 s on identical code (dispatch 39481901108).
     runs: 11, alternate: true, paired: true,
+    // limitS 45 (Lead 2026-10-21): identical code read 20.5 s on one CI runner and 34 s on another (dispatches 39484673851 / 39484695388); 30 s is the Pit's.
+    limitS: 45,
     ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
@@ -141,7 +144,7 @@ async function main() {
   const { page: pageName, dirs: [baseDir, headDir] } = parseArgs(process.argv.slice(2)), spec = PAGES[pageName];
   if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]');
   const sites = { base: await serveLikeLive(baseDir, spec), head: await serveLikeLive(headDir, spec) };
-  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs;
+  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs, LIMIT_S = spec.limitS;
   const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: LIMIT_S, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
   try {
     for (let i = 0; i < RUNS; i++) for (const side of pairOrder(i, spec.alternate)) {

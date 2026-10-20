@@ -44,6 +44,8 @@ test('load-time paired delta: the median of head_i - base_i, not the difference 
   assert.equal(pairedDelta(s([20, 20, 20]), s([21.5, 21, 22])), 1.5);
   assert.throws(() => pairedDelta(s([1, 2]), s([1])), /do not pair/);
   assert.deepEqual([PAGES.pit.paired, PAGES.zone1.paired], [false, true]);
+  // The absolute tripwire per page (Lead 2026-10-21): the Pit keeps 30 s; Zone 1's identical code read 34 s on a slow CI runner.
+  assert.deepEqual([PAGES.pit.limitS, PAGES.zone1.limitS], [30, 45]);
 });
 
 test('load-time site paths: every "/x/y.ext" string in a row, once, sorted; the zone1 row names its kit', () => {
