@@ -61,7 +61,10 @@ try {
   const misses = [];
   if (!(Array.isArray(st.owned) && st.owned.length === 0)) misses.push(`a spell was owned with the cut ON: ${JSON.stringify(st.owned)}`);
   if (!(Array.isArray(st.equipped) && st.equipped.every((x) => !x))) misses.push(`a spell was equipped with the cut ON: ${JSON.stringify(st.equipped)}`);
-  if (!(st.button && st.button.hidden === false && /stomp/i.test(st.button.label ?? ''))) misses.push(`SPECIAL 2 is not shown named: ${JSON.stringify(st.button)}`);
+  // SPECIAL 2 holds the stored 'stomp' pick: its label is the specialPick row's name (Dom's beta four, 2026-10-20: "Ground Slam"), or the skill id on a tree that still shows the old names
+  const stompLabel = JSON.parse(readFileSync('src/fight/sandbox-rules-defs.json', 'utf8')).specialPick.find((r) => r.id === 'stomp')?.label ?? 'stomp';
+  const named = (s) => s.toLowerCase().includes('stomp') || s.toLowerCase().includes(stompLabel.toLowerCase());
+  if (!(st.button && st.button.hidden === false && named(st.button.label ?? ''))) misses.push(`SPECIAL 2 is not shown named: ${JSON.stringify(st.button)}`);
   if (!(st.skillButton && st.skillButton.hidden === false)) misses.push(`SPECIAL 1 is not shown: ${JSON.stringify(st.skillButton)}`);
   if (JSON.stringify(st.choices) !== JSON.stringify(want)) misses.push(`the pick module offers ${JSON.stringify(st.choices)}, the row says ${JSON.stringify(want)}`);
   if (!(Array.isArray(st.specials) && st.specials[0] === 'lunge' && st.specials[1] === 'stomp')) misses.push(`the stored picks did not read back: ${JSON.stringify(st.specials)}`);

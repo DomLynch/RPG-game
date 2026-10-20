@@ -2,18 +2,21 @@
 # Prunes stale lane scratch on the VPS. Dry run unless called with --apply.
 # Runs only when free space is under TRIGGER_GIB (or with --force).
 # Rules (Auditor + COO, 2026-10-08): never touch bn-trunk, in-use dirs, dirs with files newer than
-# MIN_AGE_H, dirty/unpushed/stashed checkouts (archive instead), open-PR heads. Copies are
+# MIN_AGE_H, dirty/unpushed checkouts whose HEAD is not merged (kept: live work), open-PR heads. Copies are
 # rsync -c verified before any delete. Every removed path is written to the manifest.
 # NOTE: real node_modules dirs are NOT archived (regenerable from the lockfile); copy and verify both exclude them.
+# Lean archive (Dom + Hooks Dev 2026-10-19): the checkout's own .git is NOT archived either. Every job copy is a full clone (a 4 GB .git inside a 5.5 GB copy) of a repo whose history is on GitHub, and
+# 100 GB a day of those filled the 1 TB storage box (vps-archive/named: 592 GB by 2026-10-19). What a .git can hold that GitHub does not, the unpushed commits, branches, tags, HEAD and the stash, goes into
+# a small unpushed.bundle beside the working tree (sweep_unpushed_bundle); the working tree, dirty and untracked files included, is still copied whole and verified.
 set -u
 WORK=/opt/frankendom-shadow/work
 JOBS=/srv/dev-jobs
 ARCH=/mnt/frankendom-donors/vps-archive
 REPO=DomLynch/RPG-game
 TRIGGER_GIB=${TRIGGER_GIB:-60}
-MIN_AGE_H=${MIN_AGE_H:-48}
+MIN_AGE_H=${MIN_AGE_H:-36}   # was 48; Dom 2026-10-19
 EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
-APPLY=0; FORCE=0; BAD_ARG=""
+APPLY=0; FORCE=0; BAD_ARG=""; CAPMODE=0
 PATHS=()   # the --path values, one array element each: never split or glob-expanded (a glob in a path was once expanded by the shell into every child of /tmp)
 # What --path may remove (Lead 2026-10-13). Prints the kind of an allowed path, nothing for a refused one:
 #   lane   scratch under the lane roots: archive first, then delete (the original rule)
@@ -86,24 +89,76 @@ open_pr_list() {
   done
   return 1
 }
+# What the archive copy and its verify pass leave out: node_modules (regenerable) and the checkout's own top-level .git (the pattern is anchored one level down because the source is passed without a
+# trailing slash, so `/*/.git` is <dir>/.git and never a nested repo's .git, whose files stay in the copy).
+SWEEP_EXCLUDES=(--exclude=node_modules '--exclude=/*/.git')
+# What only this checkout's .git holds: commits not on any remote ref, plus the stash, in one bundle. 0 = bundle written to $2, 10 = nothing unpushed (no bundle), 1 = failed (the caller must NOT delete).
+# A checkout with no remote at all bundles everything, which is the safe direction.
+sweep_unpushed_bundle() { # src outfile
+  local s=$1 out=$2 msg; local -a refs=(HEAD --branches --tags)
+  [ -e "$s/.git" ] || return 10
+  git -C "$s" rev-parse --verify -q refs/stash >/dev/null 2>&1 && refs+=(refs/stash)
+  msg=$(git -C "$s" bundle create "$out" "${refs[@]}" --not --remotes 2>&1) && return 0
+  case "$msg" in *"empty bundle"*) return 10;; esac
+  return 1
+}
+# Does the archive target have room for this copy (its size without node_modules and the top-level .git, which are not archived) and still BOX_RESERVE_GIB free afterwards? The storage box was 95% full on
+# 2026-10-19 (Strategy): a copy that does not fit is KEPT and named in the log, never half-copied and never deleted. A nested node_modules is counted, which only over-estimates.
+BOX_RESERVE_GIB=${BOX_RESERVE_GIB:-30}
+sweep_box_has_room() { # src archdir reserve_kib
+  local tot g n free
+  tot=$(du -sk "$1" 2>/dev/null | cut -f1); g=$(du -sk "$1/.git" 2>/dev/null | cut -f1); n=$(du -sk "$1/node_modules" 2>/dev/null | cut -f1)
+  free=$(df -Pk "$2" 2>/dev/null | awk 'NR==2{print $4}')
+  [ -n "$tot" ] && [ -n "$free" ] || return 1
+  [ "$free" -ge $(( tot - ${g:-0} - ${n:-0} + $3 )) ]
+}
+# recent_h <dir> <hours>: any file changed (mtime OR ctime) inside the window, node_modules ignored.
+recent_h(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$2 hours ago" -o -newerct "$2 hours ago" \) -print -quit 2>/dev/null)" ]; }
+# The work/ cap (Dom + Strategy 2026-10-19): when work/ is over WORK_CAP_GIB the sweep also archives copies younger than MIN_AGE_H, oldest idle first, until it is back under. The same keep-set applies (never-touch
+# list, in use, symlink target, open-PR head) and a copy changed within CAP_MIN_AGE_H hours is never a cap victim. sweep_cap_order prints "<newest mtime/ctime epoch> <size KiB> <dir>", oldest first.
+WORK_CAP_GIB=${WORK_CAP_GIB:-40}; CAP_MIN_AGE_H=${CAP_MIN_AGE_H:-6}
+sweep_cap_order() { # workdir min_age_h
+  local d n
+  for d in "$1"/*/; do d=${d%/}; n=$(basename "$d")
+    [ -d "$d" ] && [ ! -L "$d" ] || continue
+    case " $EXCLUDE " in *" $n "*) continue;; esac
+    recent_h "$d" "$2" && continue
+    printf '%s %s %s\n' "$(find "$d" -path '*/node_modules' -prune -o -printf '%T@\n%C@\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)" "$(du -sk "$d" 2>/dev/null | cut -f1)" "$d"
+  done | sort -n
+}
+# Live work (Lead + Strategy 2026-10-20): a checkout with uncommitted changes (always, even on a merged HEAD) or commits no remote has (unless its HEAD is merged) is someone's work in progress, so an age or cap
+# victim like that is KEPT (archive-first would save it, but it would vanish from the lane). 0 = live, keep; 1 = fine to archive (no .git: a plain copy; clean and pushed; or clean with HEAD already in a MERGE_REFS ref). Fails closed:
+# a repo whose HEAD cannot be read counts as live. Defined before the source-only return so the tests can call it.
+MERGE_REFS=${MERGE_REFS:-"origin/codex/01a09a76/task-1 origin/main"}
+work_live_checkout(){ [ -e "$1/.git" ] || return 1; local m dirty unpushed
+  git -C "$1" rev-parse -q --verify HEAD >/dev/null 2>&1 || return 0
+  dirty=$(git -C "$1" status --porcelain 2>/dev/null) || return 0; [ -n "$dirty" ] && return 0   # a status that errors is not "clean"; a dirty checkout is ALWAYS kept, merged HEAD or not (Lead 2026-10-20)
+  for m in $MERGE_REFS; do git -C "$1" merge-base --is-ancestor HEAD "$m" 2>/dev/null && return 1; done
+  unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null) || return 0
+  [ "$unpushed" != 0 ]; }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
-for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
+for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --cap) CAPMODE=1; FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
 # Nobody should reach it by accident (Lead 2026-10-13): a mistyped `--help` ran the whole dry run and held the lock for 6+ minutes. Unknown arguments, and any bare run
 # that is not the scheduled `--apply`, print this and exit before the lock, the log or the disk are touched.
 usage() { cat >&2 <<'USAGE'
 vps-scratch-sweep --path=<exact dir> [--path=...] [--apply]    remove exactly those dirs (dry run unless --apply); the allowed roots are in sweep_kind()
+vps-scratch-sweep --cap [--apply]    the work/ size cap only (WORK_CAP_GIB, default 40): oldest idle copies, archive-first, dry run unless --apply; never part of the scheduled sweep
 (no --help: the bare form is the scheduled sweep and only vps-scratch-sweep.service runs it, with SWEEP_SCHEDULED=1 --apply)
 USAGE
 }
 [ -z "${BAD_ARG:-}" ] || { echo "vps-scratch-sweep: unknown argument '$BAD_ARG'" >&2; usage; exit 2; }
-if [ "${#PATHS[@]}" = 0 ] && { [ "$APPLY" != 1 ] || [ "${SWEEP_SCHEDULED:-}" != 1 ]; }; then echo "vps-scratch-sweep: the bare mode is the scheduled sweep only" >&2; usage; exit 2; fi
-LOGDIR=/var/log/vps-scratch-sweep; mkdir -p "$LOGDIR"
+[ "$CAPMODE" = 0 ] || [ "${#PATHS[@]}" = 0 ] || { echo "vps-scratch-sweep: --cap and --path are separate modes" >&2; usage; exit 2; }
+if [ "$CAPMODE" != 1 ] && [ "${#PATHS[@]}" = 0 ] && { [ "$APPLY" != 1 ] || [ "${SWEEP_SCHEDULED:-}" != 1 ]; }; then echo "vps-scratch-sweep: the bare mode is the scheduled sweep only" >&2; usage; exit 2; fi
+LOGDIR=/var/log/vps-scratch-sweep; LOCKFILE=/var/lock/vps-scratch-sweep.lock; SHADOW=/opt/frankendom-shadow
+# Tests only: SWEEP_TEST_ROOT moves every root, the log, the lock and the shadow dir under one tmp dir, so a test never reads or writes live box state.
+if [ -n "${SWEEP_TEST_ROOT:-}" ]; then SHADOW=$SWEEP_TEST_ROOT/shadow; WORK=$SHADOW/work; JOBS=$SWEEP_TEST_ROOT/jobs; ARCH=$SWEEP_TEST_ROOT/arch; LOGDIR=$SWEEP_TEST_ROOT/log; LOCKFILE=$SWEEP_TEST_ROOT/lock; fi
+mkdir -p "$LOGDIR"
 RUN=$(date +%Y%m%d-%H%M); MAN=$LOGDIR/$RUN.removed.txt; LOG=$LOGDIR/$RUN.log
 say(){ echo "$(date +%T) $*" | tee -a "$LOG"; }
 free_gib(){ df -BG --output=avail / | tail -1 | tr -dc 0-9; }
 
-exec 9>/var/lock/vps-scratch-sweep.lock; flock -n 9 || { say "another sweep running"; exit 0; }
+exec 9>"$LOCKFILE"; flock -n 9 || { say "another sweep running"; exit 0; }
 say "start free=$(free_gib)G apply=$APPLY force=$FORCE trigger=${TRIGGER_GIB}G min_age=${MIN_AGE_H}h"
 if [ "$FORCE" = 0 ] && [ "$(free_gib)" -ge "$TRIGGER_GIB" ]; then say "enough free space, nothing to do"; exit 0; fi
 
@@ -113,21 +168,34 @@ PRS=$(open_pr_list) && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list";
 INUSE=$( { lsof +D "$WORK" 2>/dev/null | awk 'NR>1{print $9}'; lsof +D "$JOBS" 2>/dev/null | awk 'NR>1{print $9}'
           for p in /proc/[0-9]*; do readlink "$p/cwd" 2>/dev/null; done; } | sed -n -E "s#^($WORK|$JOBS)/([^/]+).*#\1/\2#p" | sort -u )
 # a dir another dir symlinks into (the shared node_modules in bn-trunk, world-z2fix, char-nk...) is never swept, one hop at a time: 2026-10-13 a hand-run prune deleted bn-trunk and every VPS lane job failed
-LINKED=$(find /opt/frankendom-shadow -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do case "$tgt" in /*) realpath -m -s "$tgt";; *) realpath -m -s "$dir/$tgt";; esac; done | sed -n -E "s#^($WORK)/([^/]+).*#\1/\2#p" | sort -u)
-HELD=$(cat /opt/frankendom-shadow/capture.holder* /opt/frankendom-shadow/capture.queue 2>/dev/null)
+LINKED=$(find "$SHADOW" -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do case "$tgt" in /*) realpath -m -s "$tgt";; *) realpath -m -s "$dir/$tgt";; esac; done | sed -n -E "s#^($WORK)/([^/]+).*#\1/\2#p" | sort -u)
+HELD=$(cat "$SHADOW"/capture.holder* "$SHADOW"/capture.queue 2>/dev/null)
 
 # recent = any file changed (mtime OR ctime) inside the window; ctime catches `git archive | tar x` trees whose mtimes are the commit date
-recent(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$MIN_AGE_H hours ago" -o -newerct "$MIN_AGE_H hours ago" \) -print -quit 2>/dev/null)" ]; }
+recent(){ recent_h "$1" "$MIN_AGE_H"; }
+# an open PR's head branch or sha is checked out here: never swept (the cap included)
+work_open_pr(){ [ -e "$1/.git" ] || return 1; local br hd; br=$(git -C "$1" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$1" rev-parse HEAD 2>/dev/null); echo "$PRS" | grep -qxF -e "$br" -e "$hd"; }
 inuse(){ echo "$INUSE" | grep -qx "$1" || echo "$HELD" | grep -q "$(basename "$1")"; }
 
 archive_then_delete(){ # src sub
   local s=$1 d=$ARCH/$2/$RUN/   # per-run folder so same-named dirs never merge into an old archive
   if [ -n "$(find "$s" ! -type f ! -type d ! -type l -print -quit)" ]; then say "skip(nonregular) $s"; return; fi
   if [ $APPLY = 0 ]; then say "would archive+delete $s"; return; fi
+  sweep_box_has_room "$s" "$ARCH" $((BOX_RESERVE_GIB * 1048576)) || { say "skip(storage box full, kept) $s"; return; }
   mkdir -p "$d"
-  rsync -rtlJ --exclude=node_modules --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
-  local ch; ch=$(rsync -rcnlJ --exclude=node_modules --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
+  rsync -rtlJ "${SWEEP_EXCLUDES[@]}" --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
+  local ch; ch=$(rsync -rcnlJ "${SWEEP_EXCLUDES[@]}" --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
   [ -n "$ch" ] && { say "VERIFYFAIL $s: $ch"; return; }
+  local brc bundle="$d$(basename "$s")/unpushed.bundle"
+  sweep_unpushed_bundle "$s" "$bundle"; brc=$?
+  # Lead 2026-10-19: a bundle that does not pass `git bundle verify` is as good as none. Then the whole .git is archived instead; if even that copy fails the source is kept.
+  if [ "$brc" = 0 ] && ! git -C "$s" bundle verify -q "$bundle" >/dev/null 2>&1; then brc=1; fi
+  if [ "$brc" = 1 ]; then
+    rm -f -- "$bundle"; say "bundle failed or did not verify, archiving the whole .git of $s"
+    { rsync -rtlJ --chmod=Du+rwx,Fu+rw --partial "$s/.git" "$d$(basename "$s")/" >>"$LOG" 2>&1 \
+      && [ -z "$(rsync -rcnlJ --itemize-changes "$s/.git" "$d$(basename "$s")/" 2>&1 | grep -v '^$' | head -1)" ]; } || { say "GITCOPYFAIL $s (kept)"; return; }
+  fi
+  [ "$brc" = 0 ] && say "bundled unpushed commits of $s"
   echo "ARCHIVED $s" >> "$MAN"; rm -rf -- "$s"; say "archived+deleted $s"
 }
 delete_only(){
@@ -152,6 +220,26 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
   say "named-path mode done"; exit 0
 fi
 
+# --cap mode (Dom + Strategy 2026-10-19; Lead: not unattended): the work/ size cap, and nothing else. It is a separate mode, never part of the scheduled sweep (the unit still runs the bare --apply), it
+# touches only $WORK, it removes only through archive_then_delete (archive, rsync-verify, bundle, then remove; no rm of its own), and it is a dry run unless --apply is given by hand.
+# work/ over WORK_CAP_GIB: the oldest idle copies go first, never one changed within CAP_MIN_AGE_H hours, with the same keep-set as the other modes.
+if [ "$CAPMODE" = 1 ]; then
+  total_kib=$(du -sk "$WORK" 2>/dev/null | cut -f1); cap_kib=${WORK_CAP_KIB:-$((WORK_CAP_GIB * 1048576))}
+  if [ "${total_kib:-0}" -le "$cap_kib" ]; then say "work/ is $((${total_kib:-0} / 1048576))G, under the ${WORK_CAP_GIB}G cap: nothing to do"; exit 0; fi
+  say "work/ is $((total_kib / 1048576))G, over the ${WORK_CAP_GIB}G cap: oldest idle copies first, never one changed within ${CAP_MIN_AGE_H}h"
+  while read -r _mt kib d; do
+    [ "$total_kib" -gt "$cap_kib" ] || break
+    n=$(basename "$d"); [ -d "$d" ] || continue
+    inuse "$d" && { say "cap keep(in-use) $n"; continue; }
+    echo "$LINKED" | grep -qx "$d" && { say "cap keep(symlink target) $n"; continue; }
+    work_open_pr "$d" && { say "cap keep(open-PR) $n"; continue; }
+    work_live_checkout "$d" && { say "cap keep(live work: dirty or unpushed, HEAD not merged) $n"; continue; }
+    archive_then_delete "$d" work
+    if [ "$APPLY" = 0 ] || [ ! -d "$d" ]; then total_kib=$((total_kib - ${kib:-0})); fi
+  done < <(sweep_cap_order "$WORK" "$CAP_MIN_AGE_H")
+  say "cap mode done: work/ about $((total_kib / 1048576))G"; exit 0
+fi
+
 # work/: lane scratch
 for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
   [ -d "$d" ] && [ ! -L "$d" ] || continue
@@ -159,10 +247,8 @@ for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
   inuse "$d" && { say "keep(in-use) $n"; continue; }
   echo "$LINKED" | grep -qx "$d" && { say "keep(symlink target) $n"; continue; }
   recent "$d" && continue
-  if [ -e "$d/.git" ]; then
-    br=$(git -C "$d" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$d" rev-parse HEAD 2>/dev/null)
-    if echo "$PRS" | grep -qxF -e "$br" -e "$hd"; then say "keep(open-PR) $n"; continue; fi
-  fi
+  work_open_pr "$d" && { say "keep(open-PR) $n"; continue; }
+  work_live_checkout "$d" && { say "keep(live work: dirty or unpushed, HEAD not merged) $n"; continue; }
   # never plain-delete: git can fail open and status hides ignored output, so everything is archived first
   archive_then_delete "$d" work
 done
