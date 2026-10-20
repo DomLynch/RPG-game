@@ -37,7 +37,7 @@ if (process.env.FRAMES) {
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 55, everyNthFrame: 3 });
 }
 try {
-  await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1`, { waitUntil: 'load' });
+  await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
   await page.waitForTimeout(6000);
   const target = await page.evaluate(() => { const all = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); console.log; return all.find((m) => /goblin|wolf|boar|scaveng/.test(m.id)) ?? all.filter((m) => !/troll|bear|werewolf|minotaur/.test(m.id)).sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? all[0]; });
