@@ -32,6 +32,8 @@ async function run(label, query) {
   await page.evaluate((c) => window.originsPreview.place(c.x, c.z - 3, 0), camp); await page.waitForTimeout(6000);
   console.log(label, await tally('NEAR 3 m'));
   await page.screenshot({ path: path.join(out, `${label}-near.png`), timeout: 240000 });
+  const foe = await page.evaluate((c) => { const ms = window.originsPreview.mobs().mobs.filter((m) => /scaveng/i.test(m.id)).sort((a, b) => Math.hypot(a.x - c.x, a.z - (c.z - 3)) - Math.hypot(b.x - c.x, b.z - (c.z - 3))); return ms[0]?.id ?? null; }, camp);
+  if (foe) { await page.evaluate((id) => window.originsPreview.tapMob(id), foe); for (let i = 0; i < 40 && !(await page.evaluate(() => document.body.classList.contains('infight'))); i++) await page.waitForTimeout(250); await page.waitForTimeout(2500); await page.screenshot({ path: path.join(out, `${label}-fight.png`), timeout: 240000 }); }   // the fight camera: the creature's face and armour at close range
   if (errors.length) console.log(label, 'PAGEERRORS', errors.join(' | '));
   await page.context().close();
 }
