@@ -508,6 +508,8 @@ test('work_live_checkout: dirty or unpushed and not merged is live; merged, clea
     assert.equal(live(plain), false, 'a plain copy with no .git has no work-in-progress signal');
     const broken = join(root, 'broken'); mkdirSync(join(broken, '.git'), { recursive: true });
     assert.equal(live(broken), true, 'a .git whose HEAD cannot be read fails closed');
+    const badIndex = mk('badindex'); git(badIndex, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(badIndex, '.git', 'index'), 'not an index');
+    assert.equal(live(badIndex), true, 'a git status that errors (corrupt index) is not read as clean (Auditor nit, 2026-10-20)');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

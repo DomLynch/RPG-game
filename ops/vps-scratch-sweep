@@ -133,8 +133,9 @@ MERGE_REFS=${MERGE_REFS:-"origin/codex/01a09a76/task-1 origin/main"}
 work_live_checkout(){ [ -e "$1/.git" ] || return 1; local m dirty unpushed
   git -C "$1" rev-parse -q --verify HEAD >/dev/null 2>&1 || return 0
   for m in $MERGE_REFS; do git -C "$1" merge-base --is-ancestor HEAD "$m" 2>/dev/null && return 1; done
-  dirty=$(git -C "$1" status --porcelain 2>/dev/null | head -1); unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null)
-  [ -n "$dirty" ] || [ "${unpushed:-0}" != 0 ]; }
+  dirty=$(git -C "$1" status --porcelain 2>/dev/null) || return 0; [ -n "$dirty" ] && return 0   # a status that errors is not "clean"
+  unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null) || return 0
+  [ "$unpushed" != 0 ]; }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --cap) CAPMODE=1; FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
