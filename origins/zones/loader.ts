@@ -89,7 +89,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const n of landmarks) if (nodes.has(n)) bad.push(`${n} is both a node and a landmark`);
   for (const [n, t] of Object.entries(z.kit.tint ?? {})) {
     if (!nodes.has(n) && !landmarks.has(n)) bad.push(`kit tint names ${n}, which is not a kit node`);
-    if (!(t.color.length === 3 && t.color.every((c) => Number.isFinite(c) && c >= 0 && c <= 3))) bad.push(`kit tint ${n}: color is three numbers 0..3`);
+    const [cr, cg, cb, ...extra] = t.color;   // exactly three channels, each finite and not negative (a channel above 1 lifts it: the atlas is multiplied)
+    if (extra.length || ![cr, cg, cb].every((c) => Number.isFinite(c) && c! >= 0)) bad.push(`kit tint ${n}: color is three non-negative numbers`);
     if (t.roughness !== undefined && !(t.roughness >= 0 && t.roughness <= 1)) bad.push(`kit tint ${n}: roughness is 0..1`);
   }
   for (const [id, l] of Object.entries(z.looks)) {

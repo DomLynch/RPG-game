@@ -33,7 +33,8 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.kit.landmarks.push(c.kit.nodes[0]!); }), /both a node and a landmark/);
   assert.match(edit((c) => { c.kit.url = '/elsewhere.glb'; }), /kit url/);
   assert.match(edit((c) => { c.kit.tint = { no_such_node: { color: [1, 1, 1] } }; }), /kit tint names no_such_node/);
-  assert.match(edit((c) => { c.kit.tint = { [c.kit.nodes[0]!]: { color: [1, 1, 9] } }; }), /color is three numbers/);
+  assert.match(edit((c) => { c.kit.tint = { [c.kit.nodes[0]!]: { color: [1, 1, -1] } }; }), /color is three non-negative numbers/);
+  assert.match(edit((c) => { c.kit.tint = { [c.kit.nodes[0]!]: { color: [1, 1] as unknown as [number, number, number] } }; }), /color is three non-negative numbers/);
   assert.match(edit((c) => { c.kit.tint = { [c.kit.nodes[0]!]: { color: [1, 1, 1], roughness: 2 } }; }), /roughness is 0..1/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.fog = 'red'; }), /not #rrggbb/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
