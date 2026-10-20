@@ -82,6 +82,16 @@ test('a forged record is refused: a flipped outcome, a cut or padded intent list
   assert.ok(diverged > 0, 'a tampered intent changes the replay and is caught (at least once over the whole fight)');
 });
 
+test('the record\'s weapon is the character\'s held one (the ledger\'s main hand) or the default, never its own say-so', () => {
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec);   // played with the default longsword
+  const reason = (r: FightRecord, p: EncounterParams) => { const v = verifyEncounter(r, p); return v.ok ? 'ok' : v.reason; };
+  assert.equal(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'longsword' })), 'weapon', 'a bow the ledger does not hold');
+  assert.equal(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'staff' })), 'weapon', 'a bow where the main hand is another weapon');
+  assert.equal(reason(record, params(spec, { weapon: 'bow' })), 'ok', 'the default weapon is always allowed, whatever is held');
+  assert.notEqual(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'bow' })), 'weapon', 'the held weapon passes this check (the replay judges the rest)');
+  assert.equal(reason(record, params(spec)), 'ok', 'no held weapon given (an older caller): the check is skipped, as before');
+});
+
 test('the one-health-bar pool is the server\'s: a record played on the pool verifies with it and not without', () => {
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731, bar: 20, flags: [{ kind: 'one-health-bar' }] }, { record } = finished(spec);   // a tiny pool: the foe falls on the first hit, so the pool decides the result
   assert.equal(verifyEncounter(record, params(spec)).ok, true);

@@ -76,6 +76,12 @@ export async function loadoutOf(db: Db, account: string, character: string, vers
   return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })), version);
 }
 
+/** The weapon of a character's main hand as the ledger holds it (heroLimitOf's `weapon`, from the same rows, without the build and spell reads): the weapon an encounter record may claim. A ledger that is not one worn set throws, so the caller refuses. */
+export async function heldWeaponFor(db: Db, account: string, character: string, version?: number): Promise<string> {
+  const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+  return heldWeaponOf(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })), version);
+}
+
 /** The spell ledger the record's spell claim is held to (spell-check.ts heldSql: the account's grimoire and this character's banked xp, and the placed points of the stored build). Read apart from the build: a failed read leaves `spells` out, so a record that claims a spell is refused and one that claims none is untouched. */
 async function heldSpells(db: Db, account: string, character: string, placed: Readonly<Record<string, number>>): Promise<{ spells?: SpellHeld }> {
   try {

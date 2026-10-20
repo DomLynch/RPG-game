@@ -14,10 +14,11 @@ import { mobLayer } from '../../src/core/server.ts';
 import { kitOfBuild, kitTag } from '../../src/core/server.ts';
 import { MOB_STYLES, type MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
+import { DEFAULT_WEAPON } from '../../src/fight/server.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
-export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null; sheet?: Sheet };   // sheet: the one the server's stored build version gives (src/fight/build-check.ts); a record that carries a sheet must equal it
+export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null; sheet?: Sheet; weapon?: string };   // sheet: the one the server's stored build version gives (src/fight/build-check.ts); a record that carries a sheet must equal it
 // kitMismatch: the record was played on another mob kit than this build's (see src/core/world/kit-version.ts): not a loss, the fight cannot be judged here.
 // heroHits: per event type, how many of the sim's own events had the hero as their target over the replay, keyed by the sim's event type name ({ Hit: 4, Blocked: 2, GuardBroken: 1, ... }; a type that never targeted the hero is absent). No list of types lives here: Backend's wear rows choose which of them wear gear.
 export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number; heroHits: Readonly<Record<string, number>> } | { ok: false; reason: string; kitMismatch?: true };
@@ -46,6 +47,7 @@ export function verifyEncounter(record: FightRecord, p: EncounterParams): Verifi
     if (theirs !== mine) return { ok: false, kitMismatch: true, reason: `kit mismatch: the record was played on mob kit ${theirs ?? '(untagged)'}, this build's is ${mine}` };
   }
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
+  if (p.weapon !== undefined && record.weapon !== p.weapon && record.weapon !== DEFAULT_WEAPON) return refuse('weapon');   // the character's held weapon (the ledger's main hand, heroLimitOf) or the default, never the record's say-so (as world-verify's HeroLimit.weapon)
   const sheetBad = sheetRefusal(record, p.sheet);   // a claimed sheet is the client's: only the build the server holds for this character can vouch for it
   if (sheetBad) return refuse(sheetBad);
   if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
