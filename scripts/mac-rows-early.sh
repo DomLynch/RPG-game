@@ -21,6 +21,7 @@ running="$state/$sha.macrows.running"
 source "$here/scripts/lib/deploy-lock.sh"
 trap 'deploy_lock_release_held 2>/dev/null; rm -rf "$lock" "$running"' EXIT
 deploy_lock_release_held() { local d; for d in $DEPLOY_LOCKS_HELD; do deploy_lock_drop "$d"; done; }
+if live_deploy=$(deploy_runs_live); then echo "mac-rows-early: deploy.sh pid $live_deploy owns the Mac; ${sha:0:9} starts after it"; exit 0; fi   # the current deploy owns the Mac (Strategy 2026-10-20)
 dir="${MAC_ROWS_DIR:-$HOME/Developer/frankendom-macrows}"
 git -C "$here" cat-file -e "$sha^{commit}" 2>/dev/null || git -C "$here" fetch -q origin || true
 git -C "$here" cat-file -e "$sha^{commit}" 2>/dev/null || { echo "mac-rows-early: $sha not in this repo" >&2; exit 1; }

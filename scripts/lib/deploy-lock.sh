@@ -35,6 +35,33 @@ deploy_lock_wait() {   # $1 = lock dir, $2 = what it guards (for the log); waits
   DEPLOY_LOCKS_HELD="$DEPLOY_LOCKS_HELD $dir"
   (( waited == 0 )) || echo "$2 lock: taken after ${waited}s"
 }
+# The current deploy owns the Mac (Strategy 2026-10-20: K6i's deploy sat 460 s on "Mac rows lock: waiting on c70fc8495", the pre-staged next candidate's EARLY rows).
+# deploy_runs_live: prints the pid of a live deploy.sh run, returns 1 when none (early rows start nothing while one is running or queued).
+deploy_runs_live() {
+  local file pid
+  for file in "$DEPLOY_RUNS_DIR"/*.json; do
+    [[ -e "$file" ]] || continue
+    pid=$(deploy_pid_of "$file")
+    [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null && { echo "$pid"; return 0; }
+  done
+  return 1
+}
+deploy_kill_tree() {   # $1 = pid; its children first (release-checks spawns detached groups, their parent pid still names them), then the pid, by pid never by name
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do deploy_kill_tree "$child"; done
+  kill -TERM "$1" 2>/dev/null || true
+}
+# deploy_lock_yield_early: $1 = lock dir. If a mac-rows-early.sh run holds it, stop that run (tree kill; its EXIT trap frees the lock and its running marker,
+# no receipt is written, so the next train tick starts the rows again and the candidate's own CI rows stand meanwhile). Any other holder is left alone and waited for.
+deploy_lock_yield_early() {
+  local dir="$1" holder cmd
+  holder=$(cat "$dir/pid" 2>/dev/null || true)
+  [[ -n "$holder" ]] && kill -0 "$holder" 2>/dev/null || return 0
+  cmd=$(ps -o command= -p "$holder" 2>/dev/null || true)
+  case "$cmd" in *mac-rows-early.sh*) ;; *) return 0 ;; esac
+  echo "Mac rows lock: held by early rows for $(cat "$dir/revision" 2>/dev/null || echo '?') (pid $holder); this deploy owns the Mac, stopping them (they restart after it)"
+  deploy_kill_tree "$holder"
+}
 deploy_lock_drop() {   # $1 = lock dir; only ever removes a lock this run holds
   [[ "$(cat "$1/pid" 2>/dev/null)" == "$$" ]] && rm -rf "$1"
   DEPLOY_LOCKS_HELD="${DEPLOY_LOCKS_HELD// $1/}"
