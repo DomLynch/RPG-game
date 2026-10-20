@@ -1270,22 +1270,22 @@
         ]
       },
       {
-        "id": "salamander-fields-turn",
-        "at": "fields-turn",
+        "id": "salamander-mere-hollow",
+        "at": "mere-hollow",
         "characters": [
           "character:giant-salamander"
         ]
       },
       {
-        "id": "salamander-boathouse",
-        "at": "boathouse",
+        "id": "salamander-causeway-foot",
+        "at": "causeway-foot",
         "characters": [
           "character:giant-salamander"
         ]
       },
       {
-        "id": "salamander-mere-shore",
-        "at": "mere-shore",
+        "id": "salamander-ruin-gate",
+        "at": "ruin-gate",
         "characters": [
           "character:giant-salamander"
         ]
