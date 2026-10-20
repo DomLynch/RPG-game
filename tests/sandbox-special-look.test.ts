@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import SKILLS from '../src/fight/skill-defs.json' with { type: 'json' };
 import CLIPS from '../src/assets/special-clips.json' with { type: 'json' };
 
-const MELEE = ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', 'scythe', 'maul', 'warhammer'];
-const TWO_HANDED = ['trident', 'scythe', 'maul', 'warhammer'];   // one-handed clips on a two-handed haft need holdHaft
+const MELEE = ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', 'scythe', 'maul', 'warhammer', 'staff', 'reaper'];   // staff extends trident, reaper is the axe-family boss weapon (weapon-defs.json): both play the melee specials
+const TWO_HANDED = ['trident', 'scythe', 'maul', 'warhammer', 'staff', 'reaper'];   // one-handed clips on a two-handed haft need holdHaft
 const skills = (SKILLS as unknown as { skills: { id: string; specialClip?: string }[] }).skills;
 const rows = (CLIPS as unknown as { clips: { role: string; file: string; weapons: string[]; strike: number }[]; twoHanded?: Record<string, number> });
 
@@ -20,4 +20,10 @@ for (const skill of ['cleave', 'reaping', 'stomp', 'lunge']) for (const weapon o
   assert.ok(fs.existsSync(new URL(`../src/assets/${row.file}`, import.meta.url)), `${row.file} is baked`);
   assert.ok(row.strike > 0 && row.strike < 1, 'a strike fraction');
   if (TWO_HANDED.includes(weapon)) assert.ok((rows.twoHanded?.[weapon] ?? 0) > 0, `a haft grip gap for the ${weapon}`);
+});
+
+// A bow wielder's four specials: the Bow* clip rows must list the 'bow' weapon id (characters.ts requires the wielder's id in the row, else Power Shot plays the plain swing).
+for (const role of ['Special_BowPower', 'Special_BowFan', 'Special_BowPin', 'Special_BowQuick']) test(`${role} lists the bow`, () => {
+  const row = rows.clips.find((c) => c.role === role);
+  assert.ok(row?.weapons.includes('bow'), `${role} lists the bow (else the archer's special plays the plain swing)`);
 });
