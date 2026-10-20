@@ -25,6 +25,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });   // REAL_GPU=1: the Mac's own GPU, so page time is real time
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
 const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
+await page.addInitScript(() => { window.__links = 0; for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { const p = C?.prototype; if (!p) continue; const f = p.linkProgram; p.linkProgram = function (...a) { window.__links++; return f.apply(this, a); }; } });
 await page.addInitScript((s) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([s, s === 'cleave' ? 'stomp' : 'cleave'])); } catch { /* storage refused */ } }, SKILL);
 const sample = () => page.evaluate(() => { const c = window.originsPreview.combat(), h = c.hero, me = c.fighters?.find((q) => q.id === 'me'), f = c.fighters?.find((q) => q.id !== 'me'), tr = c.trace ?? []; return { t: Math.round(performance.now()), phase: h?.phase, stamina: Math.round(h?.stamina ?? 0), hp: h?.health, foeHp: f?.hp ?? null, foePhase: f?.phase ?? null, gap: f && me ? Math.hypot(f.x - me.x, f.z - me.z).toFixed(2) : null, duel: me?.duel ?? null, last: Array.isArray(tr) ? tr.slice(-2) : tr }; });
 const log = [];
@@ -51,12 +52,13 @@ try {
     await page.waitForFunction(() => document.querySelector('#skill-button')?.getAttribute('aria-disabled') !== 'true', null, { timeout: 60000 }).catch(() => {});
     const before = await sample(); console.log(label, 'before', JSON.stringify(before));
     console.log(label, 'raw', JSON.stringify(await page.evaluate(() => { const c = window.originsPreview.combat(); return { keys: Object.keys(c), hero: c.hero, fighters: c.fighters?.slice?.(0, 2), target: c.target, trace: (c.trace ?? []).slice?.(-3) }; })).slice(0, 1400));
-    keepUntil = Date.now() + 1500;
+    keepUntil = Date.now() + 1500; const links0 = await page.evaluate(() => window.__links ?? -1);   // WebGL programs linked so far (the init script below counts every linkProgram): a late compile at the first windup would show as a rise across the press
     await page.locator('#skill-button').tap({ timeout: 20000 }).catch((e) => console.log(label, 'tap failed', String(e).slice(0, 100)));
     const seen = [];
     for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (k === 6 || k === 20 || k === 40) await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}-${String(k).padStart(2, '0')}.png`) }).catch(() => {}); }
     const keep = seen.filter((s, i) => i === 0 || s.phase !== seen[i - 1].phase || s.foeHp !== seen[i - 1].foeHp);
     { const drop = seen.find((s) => s.foeHp !== null && before.foeHp !== null && s.foeHp < before.foeHp); console.log(label, 'SPECIAL press: foe hp', before.foeHp, '->', drop ? `${drop.foeHp} (drop ${before.foeHp - drop.foeHp}, ${drop.t - seen[0].t} ms after the first sample)` : 'no drop in 3.5 s', '| target max', await page.evaluate(() => window.originsPreview.combat().target?.max ?? null)); }
+    console.log(label, 'WebGL programs linked during this press (3.5 s):', (await page.evaluate(() => window.__links ?? -1)) - links0, '(total', await page.evaluate(() => window.__links ?? -1), ')');
     console.log(label, 'trace (phase / foe hp changes)', JSON.stringify(keep.slice(0, 16)));
     console.log(label, 'phase durations ms', JSON.stringify(keep.map((s, i) => [s.phase, i + 1 < keep.length ? keep[i + 1].t - s.t : null])));
     log.push({ label, before, trace: keep });
