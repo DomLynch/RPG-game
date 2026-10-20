@@ -29,7 +29,7 @@ const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length 
 const fps = (gap) => (gap ? Math.round(10 * 1000 / gap) / 10 : null);
 const rows = [];
 for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' }), page = await ctx.newPage(), errors = [];   // phone tier needs a mobile UA and a coarse pointer (quality.ts)
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
   await page.route('**/*sentry.io/**', (route) => route.abort());
   if (RATE !== 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE }); }

@@ -22,7 +22,8 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';   // the page's phone tier (src/fight/quality.ts detectPhoneTier) needs a mobile UA AND a coarse pointer; isMobile alone leaves a desktop UA
+const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE }), page = await ctx.newPage(), errors = [];
 page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
 await page.route('**/*sentry.io/**', (route) => route.abort());
 const cdp = await ctx.newCDPSession(page);
@@ -31,6 +32,7 @@ await page.addInitScript(() => { window.__long = []; try { new PerformanceObserv
 await page.goto(`${origin}${pageArg || '/preview/origins/?region=1&zone=1&presence=0'}`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__zoneReady, null, { timeout: 240000, polling: 100 }).catch(() => {});
 const readyMs = await page.evaluate(() => window.__zoneReady?.atMs ?? null);
+console.log('ENV', JSON.stringify(await page.evaluate(() => ({ coarse: matchMedia('(pointer: coarse)').matches, ua: navigator.userAgent.slice(0, 40), dpr: devicePixelRatio, shadowMap: window.__shadowMapSize ?? null }))));
 await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 }); await cdp.send('Profiler.start');
 const longBefore = await page.evaluate(() => window.__long.length);
 const walkEnd = Date.now() + WINDOW_MS * 0.6, keys = ['KeyW', 'KeyD', 'KeyS', 'KeyA'];
