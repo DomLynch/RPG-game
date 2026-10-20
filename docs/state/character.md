@@ -1,5 +1,27 @@
 # Character — project state
 
+## 2026-10-20 (midday, ~13:30 +04) — HANDOFF #7 (supersedes #6). READ THIS BLOCK FIRST.
+
+**Now (pick up in this order)**
+1. **#3408 orb staff** (`char/staff-orb` @78170c494, auditor:ready, https://github.com/DomLynch/RPG-game/pull/3408): staff-v1.glb baked by the sandbox builder (`scripts/build-ranged-weapons.mjs` @47c653222), a `staff` row in `src/fight/ranged-model-defs.json` (hand_r, hold 90/0/0 + 0/0.08/0.015, `clips: "equip"` because the Trident_* clips live in the equip file), bound via missile kind `staff`; `rangedPartOf` mattes only the 1/1 TRELLIS signature; ground-looks staff row retuned. Stills (Zone 1 idle/fight, Pit ready/fight, ground) are on side branch `char/evidence-staff-orb` @cfc67ed4f, linked by commit in the PR body. NOT run locally: test files and `typecheck:tests` (Mac hook). Read CI shards; Lead orders K5t or K5u. Dom's direct word (via Strategy) overrides Lead's earlier "staff = trident is fine".
+2. **Warm-up thread (seamless-quiet WeaponDrawn compile at engage): parked, no PR.** VPS 6x CPU throttle counts: old trunk 4b0de269c 9/11 clean (fails: Leather+WeatheredStone @ mesh_2/mesh_3<WeaponDrawn<hand_r<lowerarm_r once, torch-sconce-baked once); trunk c1c6561cc (with #3401) 8/8 clean; my guard branch `char/hero-warm` @8ace1c453 (zoneReadyCheck re-scans with scanScene() and re-plans) 8/8 clean. Not separable statistically. Lead ruled NO guard PR; waiting on Lead's go/no-go for a deterministic late-stream test PR (force one model in after the plan's last look, assert zone ready waits), own PR, not K5t. Counts not yet posted on #3401 (offered as data, not "closed").
+3. Mid-fight stance switch (recorded input): not started. Peer-bow/staff still: not shot (needs two kits). Live legend-duel bow still: waits on Dom's QA account.
+
+**Done today (receipts)**: #3368 (staff look, Zone 1 bow, bow names) merged; #3384 bow specials test merged; #3387 (Zone 1 ground bow + loadPeerWarriors via loadRangedPart) merged; #3390 (legend duel fights and records the gear's main hand; with Backend #3388 ledger check) merged; #3402 hero().weapon chain pin merged (its 4 stills, ~900 KB, are in trunk history, Lead said leave them). Guest bow live check on /zone1/ (K5p 4b0de269c) PASS 7/7, posted on #3374. Quiver ruled unlimited for beta (Dom via Lead). Live was K5p 4b0de269c, trunk c1c6561cc (K5s) at last look.
+
+**Open**: #3408 CI + PASS; warm-up go/no-go; stance switch. Hooks Dev may move/archive VPS `char-hw` (all my capture jobs stopped); `char-camp.tmp` archived by them; `char-livebow` holds my small VPS scripts (livebow-full.mjs, hw2.sh, hw-throttle.sh, kind-probe.mjs).
+
+**Gotchas (new)**
+- A zone page reaches the engine ONLY through `src/fight/index.ts` (shard boundary test); a `//` comment mid-line swallows the rest of the call (broke #3390 typecheck).
+- `capture` takes argv, not a shell string: write a script file (Write tool), scp it, `capture --prio 3 char bash /path/script.sh`; no `sed -i`/heredoc/printf-to-file through Bash (hook); zsh needs `${R}:path`, and `$var` is not word-split.
+- Mac hook blocks suites/builds, sometimes single-file tests, during a deploy or at load; `npm run typecheck:origins` ran fine. Check `pgrep -fl release-checks.mjs` and load before any Mac browser job.
+- Seamless repro recipe: built clone + CDP `Emulation.setCPUThrottlingRate` rate 6 around `scripts/origins-seamless-check.mjs` (copy with `ctxT.newCDPSession`), SEAMLESS_QUIET/STRIKE/PROGRAMS=1; programOwners chain is cut at 4 names. GitHub serves the LATEST attempt's log under a job id; read attempt 1 through `gh api repos/.../actions/jobs/<id>/logs`.
+- Dev-server stills: `npx vite` (game, port) and `npx vite --config origins/preview/vite.config.mjs` (zone page) per worktree, Playwright route-fulfil `/weapons|looks|...` from that worktree's public/; Pit page = `/?opponent=veteran&spar=1&weapon=staff&difficulty=1&skill=none`; Zone hooks: originsPreview.forceWeapon/rigWeapon/place/tapMob/press/ground.show.
+- Weapon equip failures are reported to Sentry, not the console, in armWarriors; the zone page's syncRigWeapon does console.warn them ("hero weapon equip failed MissingClip ...").
+- A ranged model needs clips: the bow rides the hero's knife family, the staff needs the equip file's Trident_* (row `clips`).
+- Stills over ~200 KB each: keep them off PR branches (side evidence branch, link by commit sha); a merged PR's branch may be reused by nobody, never push to it.
+- Worktrees dw/tr/ev/bf/bt/sm/ss/rv82 live in the session scratchpad and vanish with it: every branch above is pushed; nothing local is unpushed except scripts/.* scratch files.
+
 ## 2026-10-19 (night, ~23:10 +04) — HANDOFF #6 (supersedes #5). READ THIS BLOCK FIRST.
 
 **Now (pick up in this order)**
