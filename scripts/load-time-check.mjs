@@ -30,24 +30,29 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-const DELTA_S = 1.0, LIMIT_S = 30, RUNS = Number(process.env.RUNS || 5), RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
+const DELTA_S = 1.0, LIMIT_S = 30, RUNS_ENV = Number(process.env.RUNS) || null, RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
 const out = 'artifacts/load-time';
 
 // The pages this gate can time. prefix: where the dist is mounted (its vite base). query: appended to the page address. spa: a path under the
 // prefix answered with the dist's index.html (live's /s/ share links), or null. publicFrom: the folder (relative to the dist) served at the site
 // root beside the prefix, or null (nothing outside the prefix). ready: runs in the page and returns { now, ready } (now in ms from navigation
 // start). receipt: its file under artifacts/load-time/. bytes: null, or the whole-load tripwire { quietMs: the network is done after this long with
-// no response finishing, capS: the longest it waits for that, mbDelta / filesDelta: how far head may grow past base }.
+// no response finishing, capS: the longest it waits for that, mbDelta / filesDelta: how far head may grow past base }. runs: base/head pairs
+// (the RUNS env overrides it). alternate: each pair's order flips (pairOrder) so neither side always loads second on a warmed box.
 export const PAGES = {
-  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null,
+  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false,
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
   // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
     // quietMs 5000: at 3000 one of ten samples stopped mid-load in a parse gap (12.25 MB / 149 files against 19.1 MB / 204; HF 6ad7ad6b5275124786e1a0aa).
     bytes: { quietMs: 5000, capS: 120, mbDelta: 1.0, filesDelta: 10 },
+    // runs 7 (Lead 2026-10-20): at 5, the same dist as base and head moved the median 0.99 s against the +1 s gate (HF 6ad7ad6b5275124786e1a0aa).
+    runs: 7, alternate: true,
     ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
+/** Pair i's order: base first, except on a page that alternates (head first on its odd pairs). */
+export const pairOrder = (i, alternate) => (alternate && i % 2 ? ['head', 'base'] : ['base', 'head']);
 /** `--page <name>` or `--page=<name>` (DEFAULT_PAGE when absent) and the positional args. Throws on an unknown page. */
 export function parseArgs(argv) {
   const dirs = []; let page = DEFAULT_PAGE;
@@ -140,10 +145,10 @@ async function main() {
   const { page: pageName, dirs: [baseDir, headDir] } = parseArgs(process.argv.slice(2)), spec = PAGES[pageName];
   if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]');
   const sites = { base: await serveLikeLive(baseDir, spec), head: await serveLikeLive(headDir, spec) };
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs;
   const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: LIMIT_S, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
   try {
-    for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
+    for (let i = 0; i < RUNS; i++) for (const side of pairOrder(i, spec.alternate)) {
       const r = await once(browser, sites[side].url, spec); receipt[side].samples.push(r); console.log(`load-time ${side} ${i + 1}: ${JSON.stringify(r)}`);
     }
     for (const side of ['base', 'head']) {

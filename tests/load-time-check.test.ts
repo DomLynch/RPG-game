@@ -2,7 +2,7 @@
 // today's address, ready signal, routing and receipt; Zone 1 is the origins preview under its vite base, ready at the page's settled stamp, with a whole-load byte tripwire.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bytesVerdict, DEFAULT_PAGE, PAGES, parseArgs, routeOf } from '../scripts/load-time-check.mjs';
+import { bytesVerdict, DEFAULT_PAGE, PAGES, pairOrder, parseArgs, routeOf } from '../scripts/load-time-check.mjs';
 
 test('load-time pages: pit and zone1 only, pit the default, one receipt each (pit keeps receipt.json)', () => {
   assert.deepEqual(Object.keys(PAGES), ['pit', 'zone1']);
@@ -33,6 +33,13 @@ test('load-time bytes: the pit has no whole-load tripwire; zone1 fails a byte or
   assert.equal(bytesVerdict(limits, base, { totalMb: 28.3, totalFiles: 240 + limits.filesDelta + 1 }, false).bytesFail, true);
   assert.equal(bytesVerdict(limits, base, { totalMb: 40, totalFiles: 300 }, true).bytesFail, false, 'load-time-ruled makes it report-only');
   assert.deepEqual(bytesVerdict(limits, base, { totalMb: 27.8, totalFiles: 238 }, false), { mbGrowth: -0.5, filesGrowth: -2, bytesFail: false });
+});
+
+test('load-time runs: the pit keeps 5 base-first pairs; zone1 runs 7 pairs, alternating which side loads first', () => {
+  assert.deepEqual([PAGES.pit.runs, PAGES.pit.alternate], [5, false]);
+  assert.deepEqual([PAGES.zone1.runs, PAGES.zone1.alternate], [7, true]);
+  assert.deepEqual([0, 1, 2].map((i) => pairOrder(i, false)), [['base', 'head'], ['base', 'head'], ['base', 'head']]);
+  assert.deepEqual([0, 1, 2].map((i) => pairOrder(i, true)), [['base', 'head'], ['head', 'base'], ['base', 'head']]);
 });
 
 test('load-time args: no --page is the pit; --page and --page= name a page; an unknown page throws', () => {
