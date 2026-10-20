@@ -9,8 +9,6 @@ npx vite build --config origins/preview/vite.config.mjs --outDir /tmp/d-after > 
 cp "$DEFS" /tmp/defs.after
 sed -i 's/"id": "camLZoom", "value": [0-9.]*/"id": "camLZoom", "value": 0.85/' "$DEFS"
 npx vite build --config origins/preview/vite.config.mjs --outDir /tmp/d-before > /tmp/origins-build2.log 2>&1 || { tail -20 /tmp/origins-build2.log; exit 1; }
-sed -i 's/"id": "camLZoom", "value": [0-9.]*/"id": "camLZoom", "value": 1.25/' "$DEFS"
-npx vite build --config origins/preview/vite.config.mjs --outDir /tmp/d-mid > /tmp/origins-build3.log 2>&1 || { tail -20 /tmp/origins-build3.log; exit 1; }   # mid = camLZoom 1.25, to judge a close foe hidden behind the hero at 1.45
 cp /tmp/defs.after "$DEFS"
 mkdir -p artifacts/landscape-cam
 for p in "${PAIRS[@]}"; do
