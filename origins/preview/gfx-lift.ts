@@ -54,6 +54,11 @@ export function createGfxLift(renderer: THREE.WebGLRenderer, scene: THREE.Scene,
   const u = grade.uniforms as typeof gradeShader.uniforms;
   u.contrast.value = fxNum('gfx.grade.contrast'); u.saturation.value = fxNum('gfx.grade.saturation'); u.teal.value = fxNum('gfx.grade.shadow-teal'); u.warm.value = fxNum('gfx.grade.highlight-warm'); u.vignette.value = fxNum('gfx.grade.vignette');
   composer.addPass(grade);
+  // A program is keyed on the render target it was compiled for (output colour space and tone mapping differ for the composer's HalfFloat target), so every warm-up compile (the plan's per-material compiles, the creature kinds, the gear stage) must run against the composer's target or its programs link again at the first frame that draws through the lift (seamless-quiet: the creature weapon's Leather / WeatheredStone linked after [zone ready]). Only the synchronous part of the call needs the target; the driver's later link wait does not.
+  for (const name of ['compile', 'compileAsync'] as const) {
+    const original = renderer[name].bind(renderer) as (...args: unknown[]) => unknown;
+    (renderer as unknown as Record<string, unknown>)[name] = (...args: unknown[]): unknown => { const before = renderer.getRenderTarget(); renderer.setRenderTarget(composer.readBuffer); try { return original(...args); } finally { renderer.setRenderTarget(before); } };
+  }
   return {
     render: (): void => composer.render(),
     /** Compile the scene's programs for the composer's render target (the Pit's loading card: a program is keyed on its target, so a compile for the screen leaves these to link at the first frame). */
