@@ -136,7 +136,7 @@
           2
         ],
         "weight": 0.3,
-        "respawnSeconds": 75,
+        "respawnSeconds": 60,
         "behaviour": {
           "aggro": 8,
           "roam": 6,
@@ -194,7 +194,7 @@
           2
         ],
         "weight": 2,
-        "respawnSeconds": 90,
+        "respawnSeconds": 60,
         "behaviour": {
           "aggro": 6,
           "roam": 4,
@@ -1260,6 +1260,34 @@
         "at": "troll-cave",
         "characters": [
           "character:cave-troll"
+        ]
+      },
+      {
+        "id": "salamander-shrine",
+        "at": "shrine",
+        "characters": [
+          "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "salamander-fields-turn",
+        "at": "fields-turn",
+        "characters": [
+          "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "salamander-boathouse",
+        "at": "boathouse",
+        "characters": [
+          "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "salamander-mere-shore",
+        "at": "mere-shore",
+        "characters": [
+          "character:giant-salamander"
         ]
       }
     ]
