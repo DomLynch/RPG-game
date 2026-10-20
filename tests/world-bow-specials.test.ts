@@ -47,16 +47,18 @@ test('the same bow hero inside the missile gap gets the melee special (no arrow)
   assert.ok(!r.pit.includes('MissileLaunched'), 'no arrow inside the gap');
 });
 
-test('a longsword world hero is unchanged: no share, the special press is the skill swing', () => {
+test('a longsword world hero under RV83 (a record at 83) is unchanged: no share, the special press is the skill swing (RV84 widens the share: tests/world-picked-specials.test.ts)', () => {
   const hero = player(ME, 0, 0, 0, 1, 'cleave', { weapon: 'longsword' });
-  assert.equal(heroSheeted(hero).specialShare, undefined);
-  assert.deepEqual(heroSheeted(hero), underRecord({ v: FIRST_ROWS83_VERSION - 1 }, () => heroSheeted(hero)), 'the same hero before and after RV83');
-  const r = fight('longsword', 'cleave', 1.2);
-  assert.ok(!r.pit.includes('SpecialStarted') && r.pit.includes('AttackStarted'), 'the skill swing, as before');
+  underRecord({ v: FIRST_ROWS83_VERSION }, () => {
+    assert.equal(heroSheeted(hero).specialShare, undefined);
+    assert.deepEqual(heroSheeted(hero), underRecord({ v: FIRST_ROWS83_VERSION - 1 }, () => heroSheeted(hero)), 'the same hero before and after RV83');
+    const r = fight('longsword', 'cleave', 1.2);
+    assert.ok(!r.pit.includes('SpecialStarted') && r.pit.includes('AttackStarted'), 'the skill swing, as before');
+  });
 });
 
 test('a record stamped 82 keeps the old hero: no share, the bow special press is the melee skill swing and no arrow flies; a world record below 83 is refused, not replayed under RV83', () => {
-  assert.equal(RECORD_VERSION, 83);
+  assert.equal(RECORD_VERSION, 84);
   const old = underRecord({ v: 82 }, () => {
     assert.equal(heroSheeted(player(ME, 0, 0, 0, 1, 'cleave', { weapon: 'bow' })).specialShare, undefined, 'v82: the bow hero has no share');
     return fight('bow', 'cleave', 4);
