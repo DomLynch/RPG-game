@@ -92,7 +92,7 @@ import { startFight as startEncounter, settleFight as settleEncounter } from './
 import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
-import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, mountSpecials, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
+import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, mountSpecials, onSpecialsChanged, onSpellsChanged, ownedSpells, pullSpecialSlots, pushSpecialSlotsOnPick, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
 import { SKILL_ROWS, specialName, type SkillId } from '../../src/fight/index.ts';   // specialName: the name a special shows for the wielded weapon, a sword's Skull Crack or a bow's Power Shot (Dom's beta specials ruling 2026-10-20)
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
