@@ -22,7 +22,7 @@ async function serve(root) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return { server, origin: `http://127.0.0.1:${server.address().port}` };
 }
-const sides = { base: await serve(baseRoot), head: await serve(headRoot) };
+const sides = { base: await serve(baseRoot), head: process.env.HEAD_URL ? { server: { close() {} }, origin: '' } : await serve(headRoot) };   // HEAD_URL: the head side is a real URL (the live site, network included), not a local build
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const median = (a) => { const s = a.filter((x) => x !== null && x !== undefined).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
 const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * p))] : null; };
@@ -35,7 +35,7 @@ for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
   if (RATE !== 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE }); }
   await page.addInitScript(() => { window.__long = []; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push({ at: Math.round(e.startTime), ms: Math.round(e.duration) }); }).observe({ type: 'longtask', buffered: true }); } catch { /* no long-task entries */ } });
   const t0 = Date.now();
-  const url = mode === 'pit' ? `${sides[side].origin}/?opponent=veteran&spar=1&weapon=longsword&difficulty=1&skill=none` : `${sides[side].origin}/preview/origins/?region=1&zone=1&presence=0`;
+  const url = side === 'head' && process.env.HEAD_URL ? process.env.HEAD_URL : mode === 'pit' ? `${sides[side].origin}/?opponent=veteran&spar=1&weapon=longsword&difficulty=1&skill=none` : `${sides[side].origin}/preview/origins/?region=1&zone=1&presence=0`;
   await page.goto(url, { waitUntil: 'load' });
   let playableMs = null, readyMs = null;
   if (mode === 'pit') {
@@ -59,12 +59,13 @@ for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
     else await new Promise((r) => setTimeout(r, WINDOW_MS * 0.4));
   }
   const gaps = (await page.evaluate(() => window.__gaps.slice(1))), long = await page.evaluate((n) => window.__long.slice(n), longBefore);
-  rows.push({ run: i + 1, side, playableMs, readyMs, medianFps: fps(median(gaps)), p5Fps: fps(pct(gaps, 0.95)), frames: gaps.length, maxGapMs: Math.round(Math.max(0, ...gaps)), longTasks: long.length, longTotalMs: long.reduce((a, t) => a + t.ms, 0), longMaxMs: Math.max(0, ...long.map((t) => t.ms)), errors });
+  const transferKB = await page.evaluate(() => Math.round(performance.getEntriesByType('resource').reduce((a, r) => a + (r.transferSize || 0), 0) / 1024));
+  rows.push({ run: i + 1, side, transferKB, playableMs, readyMs, medianFps: fps(median(gaps)), p5Fps: fps(pct(gaps, 0.95)), frames: gaps.length, maxGapMs: Math.round(Math.max(0, ...gaps)), longTasks: long.length, longTotalMs: long.reduce((a, t) => a + t.ms, 0), longMaxMs: Math.max(0, ...long.map((t) => t.ms)), errors });
   console.log(JSON.stringify(rows.at(-1)));
   await ctx.close();
 }
 const summary = {};
-for (const side of ['base', 'head']) { const s = rows.filter((r) => r.side === side); summary[side] = Object.fromEntries(['playableMs', 'readyMs', 'medianFps', 'p5Fps', 'maxGapMs', 'longTasks', 'longTotalMs', 'longMaxMs'].map((k) => [k, median(s.map((r) => r[k]))])); summary[side].errors = s.flatMap((r) => r.errors).length; }
+for (const side of ['base', 'head']) { const s = rows.filter((r) => r.side === side); summary[side] = Object.fromEntries(['transferKB', 'playableMs', 'readyMs', 'medianFps', 'p5Fps', 'maxGapMs', 'longTasks', 'longTotalMs', 'longMaxMs'].map((k) => [k, median(s.map((r) => r[k]))])); summary[side].errors = s.flatMap((r) => r.errors).length; }
 console.log('SUMMARY', JSON.stringify({ mode, rate: RATE, summary }));
 if (outFile) fs.writeFileSync(outFile, JSON.stringify({ mode, rate: RATE, rows, summary }, null, 2));
 await browser.close(); for (const s of Object.values(sides)) s.server.close();

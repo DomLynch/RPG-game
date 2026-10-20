@@ -13,4 +13,4 @@ ln -s "$PWD/node_modules" /tmp/base-wt/node_modules
 (cd /tmp/base-wt && build)
 mkdir -p artifacts/live-regress
 cp /tmp/live-regress.src.mjs ./live-regress-run.mjs   # next to node_modules, so playwright resolves
-REAL_GPU=1 CPU_RATE=1 node ./live-regress-run.mjs "$MODE" /tmp/base-wt "$PWD" "$RUNS" "artifacts/live-regress/$MODE.json"
+REAL_GPU=1 CPU_RATE="${CPU_RATE:-1}" node ./live-regress-run.mjs "$MODE" /tmp/base-wt "$PWD" "$RUNS" "artifacts/live-regress/$MODE.json"
