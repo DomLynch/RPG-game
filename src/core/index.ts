@@ -12,6 +12,7 @@ export * from './grimoire-net.ts';
 export * from './spell-equip.ts';
 export * from './special-equip.ts';
 export * from './special-screen.ts';   // the SPECIAL 1 / 2 picker dialog, for the Pit page
+export { pullSpecialSlots, pushSpecialSlotsOnPick } from './special-sync.ts';   // the special slots follow the account (special_slots_get / _set, Backend #3422)
 export * from './spell-slot-view.ts';
 export * from './skills-net.ts';   // skills_get: the skill values a cast is claimed at (Match's spell port)
 export * from './skills-server.ts';   // the equipped spell and the owned ids, read by the Match's spell port
