@@ -198,7 +198,7 @@ test('a cone breath is one bite: only pulse 0 of a breath counts toward the hero
 // fight diverges (Backend, 3 real loot_claims refused, 2026-10-20): encounter-verify.ts, replay.ts, match.ts startClip and main.ts all hand record.skill2 to initialPractice as its 13th argument.
 function playPicked(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; pressed: number } {
   const { enemy, level, seed } = spec, opponent = OPPONENTS[enemy as 'veteran'], profile = profileAt(opponent, level), rand = lcg(intentSeed), specials = liveSpecials(level);
-  const rec = createRecorder({ build: kitBuild('test'), opponent: enemy as 'veteran', weapon: 'longsword', level, seed, skill: 'cleave', skill2: 'reaping', ...(specials ? { specials: true } : {}) });
+  const rec = liveRecorder({ build: kitBuild('test'), opponent: enemy as 'veteran', weapon: 'longsword', level, seed, skill: 'cleave', skill2: 'reaping', ...(specials ? { specials: true } : {}) });
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', 'cleave', recordSpecials({ specials, level, opponent: enemy }), undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'reaping'), pressed = 0, outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned';
   for (let i = 0; i < maxTicks; i++) {
     const r = rand(), action = r < 0.3 ? 'skill2' as const : r < 0.4 ? 'skill' as const : rand() < 0.5 ? ACTIONS[Math.floor(rand() * ACTIONS.length)]! : null;
