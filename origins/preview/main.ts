@@ -673,12 +673,13 @@ async function warmRemoteKits() {
     let prepMs = 0, actorMs = 0;
     if (!pieces || !remote) {
       const p0 = performance.now(); pieces = await sharedLoot(); prepMs = Math.round(performance.now() - p0);
-      const a0 = performance.now(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); actorMs = Math.round(performance.now() - a0);
+      const a0 = performance.now(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); remote.anchor.visible = false; scene.add(remote.anchor); actorMs = Math.round(performance.now() - a0);   // hidden between kits: drawn only for the two frames below (a whole second hero, ~60 k triangles and 17 draws every frame for the ~50 s the loop runs, census 2026-10-20)
     }
     const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
     const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
     await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
-    await nextFrame(); await nextFrame();
+    remote.anchor.visible = true;   // the two frames the shadow pass takes it in (a hidden object is skipped)
+    try { await nextFrame(); await nextFrame(); } finally { remote.anchor.visible = false; }
     phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
   };
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
