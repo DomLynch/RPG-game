@@ -143,8 +143,9 @@ scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 // ?gfx=1 (gfx-lift.ts, Test Zone C16): height fog, half-res bloom, grade. Off = none of it is fetched. The chunk loads while the zone loads, so the fog patch lands before the first material compiles; until it is in, the frame is drawn plainly.
-let gfx: { render(): void; setSize(w: number, h: number): void } | null = null;
-if (gfxOn(location.search)) void import('./gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); });
+let gfx: { render(): void; compile(): void; setSize(w: number, h: number): void } | null = null;
+const gfxWanted = gfxOn(location.search, fxNum('gfx.default') > 0);
+const gfxLoad: Promise<unknown> = gfxWanted ? import('./gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -553,7 +554,8 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 }
 // "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
-let zoneReadyAt = -1, domeDrawn = !ZONE_SKY;   // domeDrawn: the painted dome exists and has been drawn for a few frames, so its sector programs (the zero-scale twin, horizon-dome.ts) are built: [zone ready] waits for it, or the first draw of them would compile after it (seamless-quiet, K3b)
+let zoneReadyAt = -1, domeDrawn = !ZONE_SKY, gfxDrawn = !gfxWanted;   // gfxDrawn: the lift's chunk has landed (fog patched, composer built), its programs are compiled for the composer's target and it has drawn a few frames: [zone ready] waits for it, or the lift's programs would link at the first engage (seamless and seamless-quiet, 2026-10-20)
+void gfxLoad.then(() => { cleanPlan = false; uploadNext = 0; gfx?.compile(); return lookFrames(previewRule('deferredLookFrames')); }).then(() => { gfx?.compile(); }).catch(() => {}).finally(() => { gfxDrawn = true; });   // the fog patch changed what a material compiles to: plan again, compile for the composer's target (a program is keyed on its target), draw a few frames; a failed load must not hold the zone   // domeDrawn: the painted dome exists and has been drawn for a few frames, so its sector programs (the zero-scale twin, horizon-dome.ts) are built: [zone ready] waits for it, or the first draw of them would compile after it (seamless-quiet, K3b)
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
@@ -699,7 +701,7 @@ function zoneReadyCheck() {
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
-  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !modelsDrawn) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !gfxDrawn || !modelsDrawn) return;
   // One last look before it says ready: a body or prop that streamed in after the plan's last look would link its programs at the engage (seamless-quiet, K5r and trunk under load: a creature weapon's Leather and WeatheredStone, "mesh_2/mesh_3<WeaponDrawn<hand_r"). Plan again now, not in 3 s; bounded by the kinds' own wait so a material that never uploads cannot hold the zone.
   { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
@@ -1119,7 +1121,7 @@ function programOwners(): Record<string, string[]> {
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   injectLate: () => { lateStream.inject(); uploadNext = Infinity; return true; },   // browser row only: one model streams into the scene after the plan's last look and before the next one (the 3 s re-plan is frozen, so only zoneReadyCheck can still see it)
-  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && domeDrawn }),
+  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && domeDrawn && gfxDrawn }),
   releaseCompiles: lateStream.release,
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
