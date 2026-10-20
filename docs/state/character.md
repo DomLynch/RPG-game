@@ -1,5 +1,24 @@
 # Character — project state
 
+## 2026-10-20 (afternoon, ~14:50 +04) — HANDOFF #8 (supersedes #7). READ THIS BLOCK FIRST.
+
+**Now (pick up in this order)**
+1. **#3418 CI wiring** (https://github.com/DomLynch/RPG-game/pull/3418, branch `char/ci-late-stream`, head 7933aba4b, auditor:ready): adds `{ name: late-stream, script: scripts/origins-late-stream-check.mjs, required: false }` to the quality.yml browser matrix, workflow-only. Its first CI run (head 7d3e6f248) was red on shard (1) + receipt: tests/quality-plan.test.ts needs the script in GAME_RE; fixed at 7933aba4b (added `origins-late-stream-check` to GAME_RE, the test passes locally). Read CI at 7933aba4b; the first real GitHub-runner sample of the row is the late-stream matrix job (optional, so a red there does not block). Then send Lead the head.
+2. **#3409 is closed in my view, no PR:** the "3 programs link at the first SPECIAL press" was a probe artifact. The hero fights at ~20 s while `[zone ready]` fires later (29.5 s in the logging run); the links were the planUpload compile chain (stack: WebGLRenderer.compileAsync from the anonymous scene-material compile) still running before ready. With the probe waiting for `window.__zoneReady` (WAIT_READY=1) every press before the first kill links 0, on trunk+#3412 (156a7c760, ready 18.7 s) AND on my fix branch (ready 20.1 s). **Recommendation sent to Lead (no answer yet): drop `char/warm-variants`** (it builds each loadout through dress() in mobs-view warmKind; real cause of GladiusSteel pre-ready, but no gain after ready and ready 1.4 s later, one run each). Nothing was merged from it. Combat's probe should wait for __zoneReady.
+3. **Open, unverified:** ~13 programs link around the first KILL (94 -> 107 total) on both baseline and fix: WeaponLongsword/Shaft, Steel, Antique, Heraldry, Wrap, Skin, Photo (hero/peer gear rig; owner HorsehairCloth in AuxScene). I believe it is `warmRemoteKitsAfterReady` (background, after ready), NOT checked. Separate item if Lead wants it chased.
+4. Carried over: #3408 orb staff and #3412 late-stream guard are MERGED (check Lead's K5w/K5u state); mid-fight stance switch not started; peer bow/staff still not shot; live legend-duel bow still waits on Dom's QA account.
+
+**Done today (receipts)**: #3412 (browser row `scripts/origins-late-stream-check.mjs` + hooks in `origins/preview/late-stream.ts` + the zoneReadyCheck re-look guard, from 8ace1c453): red on trunk+hooks 4720173cb, green with guard 89e5ef401, Auditor PASS @156a7c760, merged. T4 load-time A/B (job 6ad739705275124786e153a1, 3 interleaved runs): first playable 2399 vs 2324 ms, zone ready 13752 vs 13088 ms, guard re-plans 0/0/0, programs 78-80; posted on #3412. #3408 merged.
+
+**Probe gotchas (new)**
+- Combat's #3404 probe (`scripts/gpu-run/world-windup-still.sh` + `scripts/zone1-world-special-probe.mjs`) lives only on `combat/world-windup-ring`; to run it on another sha make a throwaway branch with `git checkout origin/combat/world-windup-ring -- <those two files>` and `node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/world-windup-still.sh cleave <label>`. My throwaway branches (all pushed, delete when done): char/probe-3409b/f/base, char/probe-ready (zone-ready A/B: `scripts/origins-ready-time.mjs`, `scripts/gpu-run/ready-time.sh <FULL 40-char base sha> 3`), char/probe-3409, char/late-stream-red, char/late-stream-guard, char/warm-variants.
+- The probe now has: per-link stack + time, an owners dump, a per-plan `[plan]` console log, `WAIT_READY=1`. Raise `Error.stackTraceLimit` or the stack stops at compileAsync.
+- `git fetch origin <short sha>` fails ("couldn't find remote ref"): always pass the full 40-char sha into scripts.
+- `timeout` does not exist on this Mac; gpu-run has its own timeout. `${var}` in zsh `echo ==` breaks: use printf.
+- Test hooks must not add literals to main.ts: `check:as-data --gate` flags every inline number there (6 / 0x336699 cost a red static job on #3412). Put hooks in their own module.
+- A new script run by a quality.yml gated job must be added to GAME_RE (tests/quality-plan.test.ts), and a workflow edit belongs in its own PR (no workflow file in a feature PR).
+- A deploy in flight blocks Mac builds and browser checks and sometimes single-file tests; T4 was the fallback (reason in each receipt: deploy in flight). Total T4 spend this session about $0.30.
+
 ## 2026-10-20 (midday, ~13:30 +04) — HANDOFF #7 (supersedes #6). READ THIS BLOCK FIRST.
 
 **Now (pick up in this order)**
