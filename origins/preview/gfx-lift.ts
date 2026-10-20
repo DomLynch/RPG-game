@@ -56,6 +56,8 @@ export function createGfxLift(renderer: THREE.WebGLRenderer, scene: THREE.Scene,
   composer.addPass(grade);
   return {
     render: (): void => composer.render(),
+    /** Compile the scene's programs for the composer's render target (the Pit's loading card: a program is keyed on its target, so a compile for the screen leaves these to link at the first frame). */
+    compile(): void { const before = renderer.getRenderTarget(); renderer.setRenderTarget(composer.readBuffer); try { renderer.compile(scene, camera); } finally { renderer.setRenderTarget(before); } },
     setSize(w: number, h: number): void { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); },
   };
 }
