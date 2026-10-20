@@ -105,7 +105,7 @@ import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneD
 import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
-import { gfxOn } from '../../src/fight/gfx-flag.ts';
+import { gfxOn } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
