@@ -12,8 +12,13 @@
 // Two pages (Strategy via Lead 2026-10-20: Zone 1's gfx cost, on by default since K6g, went unmeasured): `--page pit` (the default, the game's
 // dist at the site root, ready at #attack-button enabled) and `--page zone1` (the origins preview build, artifacts/origins-preview, served under
 // its vite base /preview/origins/ with the tree's public/ at the site root, where live serves the game's folders the zone fetches; ready when the
-// load cover lifts, the page's own stamp originsPreview.cover().atMs, never [zone ready], which takes 75-120 s on CI software GL). Same profile,
-// same delta, same tripwire. The pages are the PAGES rows below; each writes its own receipt (pit keeps receipt.json).
+// hero and the zone kit have settled, the page's own stamp originsPreview.settledAt()). Same profile, same delta, same tripwire. The pages are the
+// PAGES rows below; each writes its own receipt (pit keeps receipt.json).
+// What zone1 does NOT catch (Lead 2026-10-20): per-frame render cost. settledAt is load-bound on purpose, because the cover's own lift on software
+// GL is always its max hold (HF cpu-upgrade 6ad7a8345275124786e19cf7 + 6ad7aa6b5275124786e19e8e: 12 of 12 samples), so it timed the hold's jitter.
+// A render cost like the K6g lift (+4.6 s on Zone 1) shows in the Pit row, which runs the same shared lift module. Instead zone1 adds a byte
+// tripwire: after the stamp it keeps counting until the network is quiet (the whole load, ~28 MB / ~240 files on 2026-10-20) and fails when
+// head grows past base by more than the row's mbDelta or filesDelta, even when the time delta sits inside jitter.
 // Usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]
 /* global window */
 import { chromium } from 'playwright';
@@ -31,15 +36,15 @@ const out = 'artifacts/load-time';
 // The pages this gate can time. prefix: where the dist is mounted (its vite base). query: appended to the page address. spa: a path under the
 // prefix answered with the dist's index.html (live's /s/ share links), or null. publicFrom: the folder (relative to the dist) served at the site
 // root beside the prefix, or null (nothing outside the prefix). ready: runs in the page and returns { now, ready } (now in ms from navigation
-// start; reason when the page says why). receipt: its file under artifacts/load-time/.
+// start). receipt: its file under artifacts/load-time/. bytes: null, or the whole-load tripwire { quietMs: the network is done after this long with
+// no response finishing, capS: the longest it waits for that, mbDelta / filesDelta: how far head may grow past base }.
 export const PAGES = {
-  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json',
+  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null,
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
-  // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0). The cover's own atMs is the
-  // lift's exact stamp (#cover is removed after its fade, so a poll of #cover.lifted could miss it). A lift at the max hold (reason max-hold,
-  // the loadCoverHoldMs row) is a capped sample: counted in the receipt and printed; its stamp still counts.
+  // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
-    ready: () => { const c = window.originsPreview?.cover?.(); return c?.reason ? { now: c.atMs, ready: true, reason: c.reason } : { now: performance.now(), ready: false }; } },
+    bytes: { quietMs: 3000, capS: 120, mbDelta: 1.0, filesDelta: 10 },
+    ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
 /** `--page <name>` or `--page=<name>` (DEFAULT_PAGE when absent) and the positional args. Throws on an unknown page. */
@@ -108,15 +113,22 @@ async function once(browser, url, spec) {
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
     const bytesPerSecond = (MBPS * 1e6) / 8;
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: LATENCY_MS, downloadThroughput: bytesPerSecond, uploadThroughput: bytesPerSecond });
-    let bytes = 0, files = 0;
-    cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength; files += 1; });
+    let bytes = 0, files = 0, lastAt = Date.now();
+    cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength; files += 1; lastAt = Date.now(); });
+    // The whole load (spec.bytes): after the stamp, wait until no response has finished for quietMs (capS at most), then the totals.
+    const whole = async (r) => {
+      if (!spec.bytes) return r;
+      const cap = Date.now() + spec.bytes.capS * 1000;
+      while (Date.now() - lastAt < spec.bytes.quietMs && Date.now() < cap) await new Promise((ok) => setTimeout(ok, 200));
+      return { ...r, totalMb: +(bytes / MB).toFixed(2), totalFiles: files, ...(Date.now() >= cap ? { quietCapped: true } : {}) };
+    };
     await page.goto(url, { waitUntil: 'commit', timeout: 120000 });
     // The page's own clock (performance.now() from navigation start, the figure ?perf=1 shows on a phone), polled from Node so a
     // busy renderer cannot hold the stamp back behind a rAF-driven wait.
     const deadline = Date.now() + 180000;
     for (;;) {
       const st = await page.evaluate(spec.ready).catch(() => null);
-      if (st?.ready) return { s: +(st.now / 1000).toFixed(2), mb: +(bytes / MB).toFixed(2), files, ...(st.reason ? { reason: st.reason } : {}) };
+      if (st?.ready) return await whole({ s: +(st.now / 1000).toFixed(2), mb: +(bytes / MB).toFixed(2), files });
       if (Date.now() > deadline) throw new Error(`not playable within 180 s (${(bytes / MB).toFixed(2)} MB in ${files} files)`);
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -136,13 +148,13 @@ async function main() {
     for (const side of ['base', 'head']) {
       const sorted = [...receipt[side].samples].sort((a, b) => a.s - b.s), mid = sorted[Math.floor(sorted.length / 2)];
       Object.assign(receipt[side], { medianS: mid.s, mb: mid.mb, files: mid.files });
-      const capped = receipt[side].samples.filter((x) => x.reason === 'max-hold').length;
-      if (capped) { receipt[side].maxHold = capped; console.warn(`load-time-check: ${side}: ${capped} of ${RUNS} ${spec.label} samples lifted at the cover's max hold, not a styled frame (the stamp is the hold)`); }
+      if (spec.bytes) Object.assign(receipt[side], { totalMb: median(receipt[side].samples.map((x) => x.totalMb)), totalFiles: median(receipt[side].samples.map((x) => x.totalFiles)) });
     }
     receipt.deltaS = +(receipt.head.medianS - receipt.base.medianS).toFixed(2);
     receipt.deltaFail = receipt.deltaS > DELTA_S && !RULED;
     receipt.limitFail = receipt.head.medianS > LIMIT_S;
-    receipt.passed = !receipt.deltaFail && !receipt.limitFail;
+    if (spec.bytes) Object.assign(receipt, bytesVerdict(spec.bytes, receipt.base, receipt.head, RULED));
+    receipt.passed = !receipt.deltaFail && !receipt.limitFail && !receipt.bytesFail;
   } finally {
     await fs.mkdir(out, { recursive: true });
     await fs.writeFile(`${out}/${spec.receipt}`, JSON.stringify(receipt, null, 2));
@@ -153,7 +165,16 @@ async function main() {
   if (RULED) console.log(`load-time-check: label load-time-ruled is on this PR (Lead's ruling): the delta is report-only; the ${LIMIT_S} s tripwire still applies`);
   if (receipt.deltaFail) console.error(`load-time-check: FAIL, head is ${receipt.deltaS} s slower than base (over +${DELTA_S} s). An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
   if (receipt.limitFail) console.error(`load-time-check: FAIL, the head median ${head.medianS} s is over the ${LIMIT_S} s tripwire`);
+  if (spec.bytes) console.log(`load-time-check: ${spec.label} whole load, median: base ${base.totalMb} MB / ${base.totalFiles} files, head ${head.totalMb} MB / ${head.totalFiles} files (limit +${spec.bytes.mbDelta} MB, +${spec.bytes.filesDelta} files)`);
+  if (receipt.bytesFail) console.error(`load-time-check: FAIL, head loads ${receipt.mbGrowth} MB / ${receipt.filesGrowth} files more than base. An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
   if (!receipt.passed) process.exit(1);
+}
+
+const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+/** The whole-load tripwire: head's totals against base's, failing past mbDelta or filesDelta unless ruled (the label makes it report-only, like the time delta). */
+export function bytesVerdict(limits, base, head, ruled) {
+  const mbGrowth = +(head.totalMb - base.totalMb).toFixed(2), filesGrowth = head.totalFiles - base.totalFiles;
+  return { mbGrowth, filesGrowth, bytesFail: (mbGrowth > limits.mbDelta || filesGrowth > limits.filesDelta) && !ruled };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

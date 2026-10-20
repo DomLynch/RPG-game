@@ -1,8 +1,8 @@
 // The load-time gate's page table (scripts/load-time-check.mjs, Strategy via Lead 2026-10-20): the Pit stays the default page with exactly
-// today's address, ready signal, routing and receipt; Zone 1 is the origins preview under its vite base, ready at the load cover's lift.
+// today's address, ready signal, routing and receipt; Zone 1 is the origins preview under its vite base, ready at the page's settled stamp, with a whole-load byte tripwire.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_PAGE, PAGES, parseArgs, routeOf } from '../scripts/load-time-check.mjs';
+import { bytesVerdict, DEFAULT_PAGE, PAGES, parseArgs, routeOf } from '../scripts/load-time-check.mjs';
 
 test('load-time pages: pit and zone1 only, pit the default, one receipt each (pit keeps receipt.json)', () => {
   assert.deepEqual(Object.keys(PAGES), ['pit', 'zone1']);
@@ -13,13 +13,26 @@ test('load-time pages: pit and zone1 only, pit the default, one receipt each (pi
   assert.equal(new Set(Object.values(PAGES).map((p) => p.receipt)).size, Object.keys(PAGES).length, 'two pages never share a receipt');
 });
 
-test('load-time pages: the ready signals (pit #attack-button enabled; zone1 the cover lift, never [zone ready])', () => {
+test('load-time pages: the ready signals (pit #attack-button enabled; zone1 the settled stamp, never the cover lift or [zone ready])', () => {
   assert.match(String(PAGES.pit.ready), /#attack-button.*aria-disabled.*'false'/);
-  assert.match(String(PAGES.zone1.ready), /originsPreview\?\.cover\?\.\(\)/);
-  assert.match(String(PAGES.zone1.ready), /c\.atMs/);
-  assert.doesNotMatch(String(PAGES.zone1.ready), /zone ready/);
+  // The cover's lift on software GL is always its max hold (HF cpu-upgrade, 12 of 12 samples): zone1 times the load-bound stamp instead.
+  assert.match(String(PAGES.zone1.ready), /originsPreview\?\.settledAt\?\.\(\)/);
+  assert.doesNotMatch(String(PAGES.zone1.ready), /cover|zone ready/);
   // The vite base the zone build uses is the prefix it is served under.
   assert.ok(Object.values(PAGES).every((p) => p.prefix.startsWith('/') && p.prefix.endsWith('/')));
+});
+
+test('load-time bytes: the pit has no whole-load tripwire; zone1 fails a byte or file jump past base unless ruled', () => {
+  assert.equal(PAGES.pit.bytes, null);
+  const limits = PAGES.zone1.bytes;
+  assert.ok(limits.quietMs > 0 && limits.capS > 0 && limits.mbDelta > 0 && limits.filesDelta > 0);
+  const base = { totalMb: 28.3, totalFiles: 240 };
+  assert.equal(bytesVerdict(limits, base, base, false).bytesFail, false);
+  assert.equal(bytesVerdict(limits, base, { totalMb: 28.3 + limits.mbDelta, totalFiles: 240 + limits.filesDelta }, false).bytesFail, false, 'at the limit passes');
+  assert.equal(bytesVerdict(limits, base, { totalMb: 28.3 + limits.mbDelta + 0.1, totalFiles: 240 }, false).bytesFail, true);
+  assert.equal(bytesVerdict(limits, base, { totalMb: 28.3, totalFiles: 240 + limits.filesDelta + 1 }, false).bytesFail, true);
+  assert.equal(bytesVerdict(limits, base, { totalMb: 40, totalFiles: 300 }, true).bytesFail, false, 'load-time-ruled makes it report-only');
+  assert.deepEqual(bytesVerdict(limits, base, { totalMb: 27.8, totalFiles: 238 }, false), { mbGrowth: -0.5, filesGrowth: -2, bytesFail: false });
 });
 
 test('load-time args: no --page is the pit; --page and --page= name a page; an unknown page throws', () => {
