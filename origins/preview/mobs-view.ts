@@ -21,6 +21,7 @@ const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
 import { pickDrawn } from './draw-pick.ts';
+import { farHide } from './far-detail.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
@@ -40,7 +41,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string; ranked?: boolean; farOff?: THREE.Object3D[]; skinOff?: boolean };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
 
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -200,7 +201,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     if (look) dressMob(actor.anchor, row?.look ? { ...look, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
-    if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
+    if (row?.look && look?.body) { v.ranked = true; actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
     else if (row) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); if ((look?.scale ?? 1) <= fxNum('mob-view.wear-max-scale')) { v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v, keyOf(s)); } reshapeWeapon(v, weapon, row.rung); }   // the loot pieces are hero-sized: on a body bigger than the row's scale (the troll) they clip and float, so only the weapon is shown until pieces are built for it   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
@@ -222,6 +223,15 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
+  const SKIN_OFF = typeof location !== 'undefined' && /[?&;]skinhide=1\b/.test(location.search);   // look test only: hide the bare Skin under a rank look (the face check)
+  const rankPieces = (v: View): THREE.Mesh[] => { const found: THREE.Mesh[] = []; v.model?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.userData.rankLook) found.push(o as THREE.Mesh); }); const size = (m: THREE.Mesh) => m.geometry.getAttribute('position').count; found.sort((a, b) => size(b) - size(a)); return found.slice(1); };   // a rank look's draws but its biggest (the body): the armour pieces a far creature need not draw
+  const farDetail = (v: View, d: number, matters: boolean) => {   // a phone draws a far creature's rank-look body only (its arms, gloves, greaves and helmet are a few pixels at that range); back at once when it fights, hunts or is engaged. Only the pieces that were shown are touched, so a bake that turned one off is not undone.
+    if (!v.ranked) return;
+    const far = farHide(d, matters, fxNum('mob-view.piece-range'));
+    if (far && !v.farOff) { const pieces = rankPieces(v); if (!pieces.length) return; v.farOff = pieces.filter((p) => p.visible); for (const p of v.farOff) p.visible = false; }
+    else if (!far && v.farOff) { for (const p of v.farOff) p.visible = true; v.farOff = undefined; }
+    if (SKIN_OFF && !v.skinOff && rankPieces(v).length) { v.model?.traverse((o) => { if (o.name === 'Skin') o.visible = false; }); v.skinOff = true; }
+  };
   const mustDraw = (): Set<number> => {   // drawn above the phone cap: the creatures fighting the hero (driven), his engaged foe, any hunting him, and any standing at another visible player (a party's or a bystander's fight)
     const must = new Set<number>(driven.keys()), reach = fxNum('mob-view.player-reach'), others = opts.players?.() ?? [];
     mobs.forEach((m, i) => { if (m.mode === 'aggro' || specs[i]!.id === engaged || others.some((p) => Math.hypot(m.x - p.x, m.z - p.z) <= reach)) must.add(i); });
@@ -257,6 +267,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
         const look = mobVariant(s.character, s.id), ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;
+        if (opts.phone) farDetail(v, dh, driven.has(i) || m.mode === 'aggro' || s.id === engaged);
         const off = look && look.scale > bodyScale(look.opponent) ? Math.max(0, mouthReach(look.opponent) * look.scale + HERO_EDGE + HERO_GAP * Math.min(1, (look.scale - bodyScale(look.opponent)) / fxNum('reach.full-scale')) - dh) : 0;   // the clear air grows with how much bigger the body is drawn than its rig (reach.full-scale = the excess that gets the whole reach.gap): a 6 m salamander keeps 2.2 m, a 1.25 goblin about 0.1 m, so it stands about where the engine has it, not 3 m out (the headless clip measured the drawn goblin 3.1 m from the hero vs Zone 1's 1.1, a 2.7x lever on every sweep)   // a body drawn bigger than its rig (a zone look's scale) stands back along the line to the hero until its MOUTH (the row's metres per unit of scale, from its centre) is HERO_GAP m short of his edge, not in his face or inside him; presentation only, the sim's contact distance is untouched
         // The stand-back vector eases (reach.dir-tau): it is up to ~4 m long for a salamander, and as a lever on the hero-to-creature line it turned a 1 m/s sweep of the engine's body into 3-4 m/s on screen (Dom: "moving left to right very quickly"); eased, the body sweeps at the engine's own speed.
         const want = { x: (ux / dh) * off, z: (uz / dh) * off }, cur = backOff.get(i) ?? want, k = 1 - Math.exp(-dt / fxNum('reach.dir-tau')); cur.x += (want.x - cur.x) * k; cur.z += (want.z - cur.z) * k; backOff.set(i, cur);
