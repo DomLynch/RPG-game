@@ -27,7 +27,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { betaMarks, equippedSpecial, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, onSpecialsChanged, rankFor, shownMarks, useSpecialStore, RANK_STEPS, type Rank } from './core/index.ts';
+import { betaMarks, equippedSpecial, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, onSpecialsChanged, rankFor, shownMarks, useSpecialChoices, useSpecialStore, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
@@ -40,6 +40,7 @@ import { Match, equipNotice } from './fight/match.ts';
 import { specialName } from './fight/special-names.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
 import { loadStancePref, mountStanceMenu, saveStancePref, stanceColour, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
+import { pickerLookFlag, sandboxPickerChoices, sandboxPickerName } from './fight/special-picker-look.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
@@ -790,7 +791,9 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
 { const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
   { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) { match.lastSkill = one; match.skill = one; } }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }
-  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => specialName(ladderWeapon(), id, SKILL_ROWS[id]?.name ?? id));   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
+  { const pickerLook = pickerLookFlag(typeof location !== 'undefined' ? location.search : '');   // ?picker=sandbox (special-picker-look.ts): the look-test lists the sandbox's four specials; no flag = the betaCut list
+    if (pickerLook) useSpecialChoices(sandboxPickerChoices);
+    const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => (pickerLook ? sandboxPickerName(id) : undefined) ?? specialName(ladderWeapon(), id, SKILL_ROWS[id]?.name ?? id));   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
     element('special-open').addEventListener('click', () => { journal.close(); specials.open(); }); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }

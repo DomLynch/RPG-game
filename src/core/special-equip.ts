@@ -12,7 +12,11 @@ export const useSpecialStore = (s: SpecialStore | undefined): void => { store = 
 /** Called after a pick changes (the HUD shows or hides a slot's button on it, never per frame). */
 export const onSpecialsChanged = (fn: () => void): void => { listeners.push(fn); };
 /** The picks on offer, in row order, each with its role line ("opener", "control", "heavy", "posture break"): what the picker lists. An empty list in the row lifts the cut and offers nothing here. */
-export const specialChoices = (): readonly { readonly id: string; readonly role: string }[] => BETA_SPECIAL_PICK.map((id) => ({ id, role: BETA_SPECIAL_ROLES[id] ?? '' }));
+export const specialChoices = (): readonly { readonly id: string; readonly role: string }[] => choiceSource?.() ?? BETA_SPECIAL_PICK.map((id) => ({ id, role: BETA_SPECIAL_ROLES[id] ?? '' }));
+type Choices = readonly { readonly id: string; readonly role: string }[];
+let choiceSource: (() => Choices) | undefined;
+/** A look-test (?picker=sandbox, src/fight/special-picker-look.ts) swaps the list the picker offers; undefined puts the betaCut row back. Presentation only: equipping still checks the betaCut row. */
+export const useSpecialChoices = (fn: (() => Choices) | undefined): void => { choiceSource = fn; };
 const stored = (): (string | undefined)[] => {
   const empty = Array.from({ length: SPECIAL_SLOT_COUNT }, () => undefined as string | undefined);
   let raw: string | null | undefined;
