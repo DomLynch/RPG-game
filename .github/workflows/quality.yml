@@ -286,6 +286,8 @@ jobs:
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
       - name: Head zone build
         run: npx vite build --config origins/preview/vite.config.mjs
       - name: Base zone build
