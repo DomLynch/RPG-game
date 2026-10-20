@@ -15,6 +15,8 @@ for NAME in "$@"; do
       BOXES="92,468,172,606;48,482,88,522;1022,386,1060,440;1200,364,1244,430;1246,368,1284,438;1392,526,1478,640;1598,470,1672,615" ;;
     portrait) SRC=public/zones/goblin-fortress-portrait.webp; EXT=webp
       BOXES="28,955,112,1095;742,1022,802,1092;902,958,941,1078;786,752,842,842;840,758,886,828;598,778,636,852" ;;
+    panorama) SRC=public/zones/goblin-fortress-panorama.jpg; EXT=jpg   # 2172x724; the big and the medium banners (hand-boxed on the numbered red-shape overlay); the tiny bridge pennants stay
+      BOXES="0,405,45,500;80,438,178,568;722,470,748,506;725,462,772,526;938,395,962,440;970,395,992,435;1070,388,1092,432;1172,298,1196,346;1190,458,1212,490;1278,452,1302,486;1290,312,1325,382;1365,402,1400,462;1498,310,1550,388;1558,290,1622,405;1685,436,1708,482;1795,335,1812,362;1848,340,1897,408;1875,495,1930,565;1933,495,1988,555;2080,440,2165,568;1998,305,2022,335;1772,482,1840,510" ;;
     *) echo "boxes for $NAME not drawn yet"; exit 2 ;;
   esac
   /tmp/v/bin/python scripts/dome-inpaint-sdxl.py "$SRC" "artifacts/dome/$NAME-clean.$EXT" "$BOXES"
