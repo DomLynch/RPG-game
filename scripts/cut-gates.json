@@ -11,6 +11,12 @@
       "blob": "6e8ea0fb9eef82df1a6f0442372ec8e94268d06e",
       "pr": 2929,
       "note": "Lead OK 2026-10-16: GAME_RE adds scripts/lib/json-dup-keys, scripts/lib/origins-preview-harness and scripts/origins-remote-heroes-check; one optional browser matrix row remote-heroes. No new actions, secrets, permissions or triggers."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "ed5dc83ea358592d0e7393617d3e37527689c96e",
+      "pr": 3418,
+      "note": "Hooks Dev reviewed 2026-10-20 (the whole diff is two hunks; Lead's written OK is on this PR before it merges): GAME_RE adds scripts/origins-late-stream-check; one optional browser matrix row late-stream (required: false, #3412's check, the script is on trunk). No new actions, secrets, permissions or triggers."
     }
   ],
   "noPrExempt": [
