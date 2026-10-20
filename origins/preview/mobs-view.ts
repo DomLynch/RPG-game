@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { actorPose, buildWarriors, createZoneFinisher, MissingClip, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
 import { catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
@@ -144,7 +143,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = false; });
       if (opts.phone) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);
       bodies.set(kind, { scene: gltf.scene, clips: gltf.animations });
-      if (gate) queueWarm(kind, { scene: gltf.scene });
+      if (gate) queueWarm(kind, { scene: gltf.scene, clips: gltf.animations });
     }).catch((error: unknown) => { bodies.set(kind, 'failed'); failedKinds.add(kind); console.warn(`${kind} body did not load; capsules stand in`, error); });
   };
 
@@ -154,17 +153,20 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map(keyOf))];
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
-  const pending = new Map<string, { scene: THREE.Object3D }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
-  async function warmKind(kind: string, body: { scene: THREE.Object3D }) {
+  const pending = new Map<string, { scene: THREE.Group; clips: THREE.AnimationClip[] }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
+  async function warmKind(kind: string, body: { scene: THREE.Group; clips: THREE.AnimationClip[] }) {
     const renderer = opts.renderer!, camera = opts.camera!;
-    // One probe per DISTINCT loadout the kind's creatures wear (variantLook picks a loadout, and its weapon, per creature id): a kind warmed through its first creature's variant only left the other loadouts' weapon materials (a gladius' steel, #3409) to link at the first contact with a creature that wears them.
-    const looks = new Map<string, ReturnType<typeof mobVariant>>();
-    for (const s of specs) if (keyOf(s) === kind) { const look = mobVariant(s.character, s.id); const sig = `${look?.loadout ?? ''}|${look?.gear ?? ''}`; if (!looks.has(sig)) looks.set(sig, look); }
+    // One probe per DISTINCT loadout the kind's creatures wear (variantLook picks a loadout, and its weapon, per creature id), built by dress() itself: the drawn weapon, the rank look and the armour are what a creature shows at first contact. A bare body clone left them (a gladius' steel, #3409) to link when the first creature wearing them entered a fight.
+    const reps = new Map<string, MobSpec>();
+    for (const s of specs) if (keyOf(s) === kind) { const look = mobVariant(s.character, s.id); const sig = `${look?.loadout ?? ''}|${look?.gear ?? ''}`; if (!reps.has(sig)) reps.set(sig, s); }
     const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
-    for (const look of looks.values()) {
-      const probe = clone(body.scene); if (look) dressMob(probe, look);
-      const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
-      await renderer.compileAsync(holder, camera, scene);
+    for (const s of reps.values()) {
+      const tmp = { group: new THREE.Group(), stand: new THREE.Mesh(), model: null, pending: 0 } as unknown as View;   // a view that is never in the scene: dress() only needs its group, stand and model
+      dress(tmp, s, body);
+      const probe = tmp.group;   // not in the scene: the scene is only the lights and fog the programs are keyed on
+      if (!tmp.model) continue;
+      probe.traverse((o) => { o.visible = true; });
+      await renderer.compileAsync(probe, camera, scene);
       probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
     }
     for (const t of textures) { renderer.initTexture(t); await frame(); }
@@ -185,7 +187,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       }
     } finally { pumping = false; }
   }
-  const queueWarm = (kind: string, body: { scene: THREE.Object3D }) => { if (ungated) { warmed.add(kind); return; } pending.set(kind, body); void pump(); };
+  const queueWarm = (kind: string, body: { scene: THREE.Group; clips: THREE.AnimationClip[] }) => { if (ungated) { warmed.add(kind); return; } pending.set(kind, body); void pump(); };
   const revealed = (kind: string) => !gate || warmed.has(kind);
 
   const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
