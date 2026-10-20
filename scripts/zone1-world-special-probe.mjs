@@ -23,7 +23,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });   // REAL_GPU=1: the Mac's own GPU, so page time is real time
-const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, ...(process.env.VIDEO ? { recordVideo: { dir: path.join(out, 'video'), size: { width: 375, height: 812 } } } : {}) })).newPage();   // VIDEO=1: a screen recording of the whole run, so the windup frames are cut out afterwards (a screenshot per step is too slow to catch a sub-second windup)
 const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
 await page.addInitScript((s) => { try { localStorage.setItem('frankendom.special.slots.v1', JSON.stringify([s, s === 'cleave' ? 'stomp' : 'cleave'])); } catch { /* storage refused */ } }, SKILL);
 const sample = () => page.evaluate(() => { const c = window.originsPreview.combat(), h = c.hero, me = c.fighters?.find((q) => q.id === 'me'), f = c.fighters?.find((q) => q.id !== 'me'), tr = c.trace ?? []; return { t: Math.round(performance.now()), phase: h?.phase, stamina: Math.round(h?.stamina ?? 0), hp: h?.health, foeHp: f?.hp ?? null, foePhase: f?.phase ?? null, gap: f && me ? Math.hypot(f.x - me.x, f.z - me.z).toFixed(2) : null, duel: me?.duel ?? null, last: Array.isArray(tr) ? tr.slice(-2) : tr }; });
@@ -55,6 +55,7 @@ try {
     await page.screenshot({ path: path.join(out, `zone1-${SKILL}-${label}.png`) }).catch(() => {});
   };
   await press('in-range');
+  if (process.env.VIDEO) for (let again = 0; again < 3; again++) { await page.waitForTimeout(2500); await press('in-range'); }   // more casts on the recording: a stagger or a foe blow can eat one
   await page.waitForTimeout(6000);
   // out of range: the hero steps away from the creature mid-fight, then presses
   await near(6);
