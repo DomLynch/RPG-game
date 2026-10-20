@@ -39,6 +39,7 @@ if (process.env.FRAMES) {
 }
 try {
   await page.goto(`${base}/preview/origins/?region=1&worldfight&debug=1`, { waitUntil: 'load' });
+  await page.evaluate(() => { window.__gaps2 = []; let last = performance.now(); const tick = (t) => { window.__gaps2.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });   // every rAF gap, read and cleared per press
   if (process.env.WAIT_READY === '1') { await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }); console.log('zone ready before the first press:', await page.evaluate(() => window.__zoneReady.atMs), 'ms'); }   // a player fights after the zone is warm
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
   await page.waitForTimeout(6000);
@@ -62,6 +63,7 @@ try {
     { const drop = seen.find((s) => s.foeHp !== null && before.foeHp !== null && s.foeHp < before.foeHp); console.log(label, 'SPECIAL press: foe hp', before.foeHp, '->', drop ? `${drop.foeHp} (drop ${before.foeHp - drop.foeHp}, ${drop.t - seen[0].t} ms after the first sample)` : 'no drop in 3.5 s', '| target max', await page.evaluate(() => window.originsPreview.combat().target?.max ?? null)); }
     console.log(label, 'owners of programs linked after the press:', JSON.stringify(await page.evaluate((n) => { const o = window.originsPreview.renderInfo().programOwners ?? {}, ids = new Set(window.__linked.filter((l) => l.n > n).map((l) => l.n)); return Object.fromEntries(Object.entries(o).filter(([k]) => { const id = Number(k.split('#').pop()); return ids.has(id) || ids.has(id + 1); })); }, links0)));
     console.log(label, 'program names linked after the press (this and later):', JSON.stringify((await page.evaluate((n) => window.__linked.filter((l) => l.n > n), links0)).slice(0, 8)));
+    console.log(label, 'frame gaps this press: max', await page.evaluate(() => { const g = window.__gaps2 ?? []; window.__gaps2 = []; return Math.round(Math.max(0, ...g)); }), 'ms; warm state', JSON.stringify(await page.evaluate(() => ({ gear: window.originsPreview.gearWarm?.() ?? null, kits: window.originsPreview.remoteKitsWarm?.() ?? null }))).slice(0, 400));
     console.log(label, 'WebGL programs linked during this press (3.5 s):', (await page.evaluate(() => window.__links ?? -1)) - links0, '(total', await page.evaluate(() => window.__links ?? -1), ')');
     console.log(label, 'trace (phase / foe hp changes)', JSON.stringify(keep.slice(0, 16)));
     console.log(label, 'phase durations ms', JSON.stringify(keep.map((s, i) => [s.phase, i + 1 < keep.length ? keep[i + 1].t - s.t : null])));
