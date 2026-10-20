@@ -53,6 +53,58 @@ test('postcheck: nothing proved, or the trust lookup failing, fails CLOSED (hold
   assert.match(failed.hold ?? '', /the trust lookup failed/);
 });
 
+// Strategy + Lead 2026-10-20: the K5k and K5m tails raised RED ~4 min into a 1500 s wait while their CI run was still going with 0 failed. An UNKNOWN answer (the lookup fails, finds no run, or
+// stops waiting with rows unfinished) is asked again until the wait budget ends; the lookup's stderr is in the log; a row that PASSED in this release's own deploy run is never raised.
+/** A scripted trust command: call N prints `calls[N]` = { out, err, rc }; the last entry repeats. `deployLog` becomes release-train-aaaaaaaa.log in the state dir. */
+function scripted(calls: Array<{ out: string; err?: string; rc?: number }>, rows: string, opts: { deployLog?: string; waitS?: number } = {}) {
+  const state = mkdtempSync(join(tmpdir(), 'postcheck-'));
+  const trust = join(state, 'trust.sh'), counter = join(state, 'n');
+  const cases = calls.map((c, i) => `${i}) echo "${c.out}"; echo "${c.err ?? ''}" >&2; exit ${c.rc ?? 0};;`).join('\n');
+  writeFileSync(trust, `#!/bin/sh\nn=$(cat "${counter}" 2>/dev/null || echo 0); echo $((n+1)) > "${counter}"\ncase $n in\n${cases}\n*) echo "${calls[calls.length - 1].out}"; echo "${calls[calls.length - 1].err ?? ''}" >&2; exit ${calls[calls.length - 1].rc ?? 0};;\nesac\n`, { mode: 0o755 });
+  if (opts.deployLog) writeFileSync(join(state, `release-train-${REV.slice(0, 8)}.log`), opts.deployLog);
+  const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', REV, rows, '3175'], {
+    encoding: 'utf8',
+    env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POSTCHECK_COMMENT: 'true', POST_PUBLISH_CI_SETTLE_S: '0', POST_PUBLISH_CI_WAIT_S: String(opts.waitS ?? 5), POSTCHECK_RETRY_S: '0', RELEASE_TRAIN_NOTIFY: '' },
+  });
+  const hold = join(state, 'deploy_hold');
+  const out = { status: r.status, stdout: r.stdout, hold: existsSync(hold) ? readFileSync(hold, 'utf8') : null, calls: Number(readFileSync(counter, 'utf8')) };
+  rmSync(state, { recursive: true, force: true });
+  return out;
+}
+
+test('postcheck: an unknown first answer (no run yet, still unfinished, or a failed lookup) is asked again, not raised', () => {
+  for (const first of [{ out: '', err: 'no release-checks run for aaaaaaa; all checks run locally' }, { out: '3', err: 'stopped waiting after 1500s with CI row(s) [9,46] unfinished: they run locally' }, { out: '', rc: 3 }]) {
+    const r = scripted([first, { out: '3,9,46' }], '9,46,3');
+    assert.equal(r.status, 0, JSON.stringify(first) + r.stdout);
+    assert.equal(r.hold, null, 'no hold');
+    assert.ok(r.calls >= 2, 'asked again');
+    assert.match(r.stdout, /lookup unknown/);
+  }
+});
+
+test('postcheck: the lookup\'s own stderr is in the log', () => {
+  const r = scripted([{ out: '3,9,46', err: 'run 39372847020: trusting 3 check(s)' }], '9,46,3');
+  assert.match(r.stdout, /lookup: run 39372847020: trusting 3 check\(s\)/);
+});
+
+test('postcheck: unknown for the WHOLE budget raises at the end, never earlier', () => {
+  const r = scripted([{ out: '', err: 'no release-checks run for aaaaaaa; all checks run locally' }], '9,46,3', { waitS: 2 });
+  assert.equal(r.status, 1);
+  assert.match(r.hold ?? '', /rows 3,9,46 not green/);
+  assert.ok(r.calls >= 2, 'asked more than once before giving up');
+});
+
+test('postcheck: a row CI did not prove that PASSED in this release\'s own deploy run is not raised; one without that receipt still is', () => {
+  const log = 'Release check 8/57 trusted from CI\nRelease check 9/57 passed in 9s, ended 08:24:35 (load 2.8) — node scripts/polearm-browser-check.mjs\n';
+  const ok = scripted([{ out: '3,46' }], '9,46,3', { deployLog: log });
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.equal(ok.hold, null);
+  assert.match(ok.stdout, /row 9: not proved on CI, but it passed in this release's own deploy run/);
+  const still = scripted([{ out: '3' }], '9,46,3', { deployLog: log });
+  assert.equal(still.status, 1);
+  assert.match(still.hold ?? '', /rows 46 not green/, 'row 46 has no receipt in the deploy log: it still holds');
+});
+
 test('postcheck: an existing deploy_hold is never overwritten', () => {
   const r = tail('9', '9,46', { existingHold: true });
   assert.equal(r.status, 1);

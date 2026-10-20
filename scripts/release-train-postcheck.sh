@@ -68,9 +68,35 @@ if [ -n "$window" ] && [ "$window" -gt 0 ] 2>/dev/null; then
   if ! POST_PUBLISH_REV=$rev ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref ${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1} -f ref=$rev} >/dev/null 2>&1; then raise "the release-checks dispatch for the window's newest $rev failed (members ${members// /, })"; fi
 fi
 sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the dispatched run must exist before ci-trusted-checks can wait on it
-trusted=$(cd "$dir/.." && CI_ROWS_WAIT_S="${POST_PUBLISH_CI_WAIT_S:-1500}" $trust "$rev" 2>/dev/null) || raise "the trust lookup failed"
-left=$(node "$dir/lib/row-placement.mjs" subtract "$rows" "$trusted" 2>/dev/null) || left="$rows"   # fail closed: a failed subtract leaves every row open
-[ -z "$left" ] || raise "rows $left not green on CI for the tree"
+# WAIT HONESTLY (Strategy + Lead 2026-10-20, K5k and K5m tails raised RED ~4 min into a 1500 s wait while their CI run was still going with 0 failed): a lookup that FAILED, or that found no run
+# or stopped waiting with rows unfinished (ci-trusted-checks says "all checks run locally" / "stopped waiting after"), is UNKNOWN, never red: ask again until the wait budget ends. The lookup's own
+# stderr goes to the log (it was thrown away, so nobody could see why a tail gave up). Only a finished answer that leaves a row unproved, or an unknown at the end of the budget, can raise.
+wait_s="${POST_PUBLISH_CI_WAIT_S:-1500}"; retry_s="${POSTCHECK_RETRY_S:-30}"; deadline=$(( $(date +%s) + wait_s )); errf=$(mktemp "${TMPDIR:-/tmp}/postcheck-lookup.XXXXXX"); why=""
+left="$rows"
+while :; do
+  rem=$(( deadline - $(date +%s) )); [ "$rem" -gt 0 ] || rem=0
+  trusted=$(cd "$dir/.." && CI_ROWS_WAIT_S="$rem" $trust "$rev" 2>"$errf"); rc=$?
+  while IFS= read -r l; do say "lookup: $l"; done < "$errf"
+  unknown=0
+  if [ "$rc" -ne 0 ]; then unknown=1; why="the trust lookup failed"
+  else
+    why=""; left=$(node "$dir/lib/row-placement.mjs" subtract "$rows" "$trusted" 2>/dev/null) || left="$rows"   # fail closed: a failed subtract leaves every row open
+    [ -z "$left" ] && break
+    grep -qE 'all checks run locally|stopped waiting after' "$errf" && unknown=1
+  fi
+  if [ "$unknown" -eq 1 ] && [ $(( $(date +%s) + retry_s )) -lt "$deadline" ]; then say "lookup unknown (rc=$rc), rows ${left}: asking again in ${retry_s}s"; sleep "$retry_s"; continue; fi
+  break
+done
+rm -f "$errf"
+# A row CI did not prove, but that PASSED in this release's own deploy run (the deploy log of this revision, tree-bound; row 9 runs on the Mac right after Published), is proved: logged, never raised.
+if [ -n "$left" ]; then
+  kept=""
+  for r in ${left//,/ }; do
+    if grep -qE "^Release check $r/[0-9]+ passed" "$state/release-train-${rev:0:8}.log" "$state/release-train-${rev:0:8}.resume.log" 2>/dev/null; then say "row $r: not proved on CI, but it passed in this release's own deploy run: not raised"; else kept="$kept,$r"; fi
+  done
+  left=${kept#,}
+fi
+[ -z "$left" ] || raise "${why:-rows $left not green on CI for the tree}"
 say "post-publish rows $rows for $rev: all CI-trusted (window members: $members)"
 close_marker
 [ -z "${late% }" ] || raise "release(s) $late joined the window after its members were read: never proved on CI"
