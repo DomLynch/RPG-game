@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { memoryMatch } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { recordWorldFight, worldRecord } from '../origins/preview/world-record.ts';
-import { decodeRecord } from '../src/fight/record.ts';
 
 const kit = (skill: 'cleave' | null) => ({ weapon: 'longsword', difficulty: 16, skill }) as const;
 const picks = { skill2: () => 'reaping' as const };
@@ -29,8 +28,7 @@ test('a recorded Pit duel names the picks (record.skill / record.skill2), the fi
   const m = memoryMatch(OPPONENTS.veteran, 'test', 731, 16, picks);
   m.startSparring(kit('cleave'), null, undefined, true);
   recordWorldFight(m, 'veteran', 16, 731, 'longsword');
-  const rec = worldRecord(m, null), decoded = rec ? decodeRecord(rec as never) : null;
+  const rec = worldRecord(m, null) as unknown as { skill?: string; skill2?: string } | null;
   assert.ok(rec, 'a record was kept');
-  const hero = (decoded as unknown as { skill?: string; skill2?: string } | null) ?? (rec as unknown as { skill?: string; skill2?: string });
-  assert.equal(hero.skill, 'cleave'); assert.equal(hero.skill2, 'reaping');
+  assert.equal(rec.skill, 'cleave'); assert.equal(rec.skill2, 'reaping');
 });
