@@ -1118,7 +1118,7 @@ function programOwners(): Record<string, string[]> {
   census: () => {   // PROBE ONLY: triangles and draw calls by owner (the first named ancestors under the scene), all and inside the camera's frustum
     const frustum = new THREE.Frustum(); camera.updateMatrixWorld(); frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const groups = new Map<string, { meshes: number; skinned: number; instanced: number; points: number; trisAll: number; trisIn: number; drawsAll: number; drawsIn: number; mats: Set<string> }>();
-    const ownerOf = (o: THREE.Object3D): string => { const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && n !== scene; n = n.parent) chain.unshift(n.name || n.type); return chain.slice(0, 2).join('/') || '(root)'; };
+    const ownerOf = (o: THREE.Object3D): string => { const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && n !== scene; n = n.parent) chain.unshift(n.name || n.type); const top = chain[0] ?? '(root)'; const deep = (top === 'Group' || top === 'frontier-mobs') ? chain.slice(0, 4).join('/') : chain.slice(0, 2).join('/'); return `${deep} [${(o.name || o.type).slice(0, 18)}${((o as THREE.SkinnedMesh).userData?.slot ? ':' + (o as THREE.SkinnedMesh).userData.slot : '')}]`; };
     scene.traverse((o) => {
       const m = o as THREE.Mesh & THREE.Points; if (!(m.isMesh || m.isPoints)) return;
       let vis = true; for (let n: THREE.Object3D | null = o; n; n = n.parent) if (!n.visible) { vis = false; break; }

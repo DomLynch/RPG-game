@@ -33,6 +33,6 @@ for (const s of snaps) {
   console.log(`CENSUS ${s.label}: renderer tris ${s.renderer.triangles} calls ${s.renderer.calls} geoms ${s.renderer.geometries} textures ${s.renderer.textures} programs ${s.renderer.programs}`);
   const tot = s.rows.reduce((a, r) => ({ trisIn: a.trisIn + r.trisIn, drawsIn: a.drawsIn + r.drawsIn, trisAll: a.trisAll + r.trisAll, drawsAll: a.drawsAll + r.drawsAll }), { trisIn: 0, drawsIn: 0, trisAll: 0, drawsAll: 0 });
   console.log(`  scene total: tris in-frustum ${tot.trisIn} (all ${tot.trisAll}), draws in-frustum ${tot.drawsIn} (all ${tot.drawsAll})`);
-  for (const r of s.rows.slice(0, 14)) console.log(`  ${String(r.trisIn).padStart(8)} tris in / ${String(r.trisAll).padStart(8)} all | ${String(r.drawsIn).padStart(4)} draws in / ${String(r.drawsAll).padStart(4)} all | meshes ${r.meshes} skinned ${r.skinned} inst ${r.instanced} mats ${r.materials} | ${r.owner}`);
+  for (const r of s.rows.slice(0, 30)) console.log(`  ${String(r.trisIn).padStart(8)} tris in / ${String(r.trisAll).padStart(8)} all | ${String(r.drawsIn).padStart(4)} draws in / ${String(r.drawsAll).padStart(4)} all | meshes ${r.meshes} skinned ${r.skinned} inst ${r.instanced} mats ${r.materials} | ${r.owner}`);
 }
 await browser.close(); server.close();
