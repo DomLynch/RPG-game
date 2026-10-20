@@ -193,3 +193,31 @@ test('a cone breath is one bite: only pulse 0 of a breath counts toward the hero
   ]);
   assert.deepEqual(into, { SpecialLanded: 2, Hit: 1 });
 });
+
+// The Pit duel opened from Zone 1 carries the player's pair (pit-duel.ts: SPECIAL 1 = skill, SPECIAL 2 = skill2) and its record names both. The replay must start the hero with the same pair or it refuses the SPECIAL 2 press and the
+// fight diverges (Backend, 3 real loot_claims refused, 2026-10-20): encounter-verify.ts, replay.ts, match.ts startClip and main.ts all hand record.skill2 to initialPractice as its 13th argument.
+function playPicked(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; pressed: number } {
+  const { enemy, level, seed } = spec, opponent = OPPONENTS[enemy as 'veteran'], profile = profileAt(opponent, level), rand = lcg(intentSeed), specials = liveSpecials(level);
+  const rec = createRecorder({ build: kitBuild('test'), opponent: enemy as 'veteran', weapon: 'longsword', level, seed, skill: 'cleave', skill2: 'reaping', ...(specials ? { specials: true } : {}) });
+  let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', 'cleave', recordSpecials({ specials, level, opponent: enemy }), undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'reaping'), pressed = 0, outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned';
+  for (let i = 0; i < maxTicks; i++) {
+    const r = rand(), action = r < 0.3 ? 'skill2' as const : r < 0.4 ? 'skill' as const : rand() < 0.5 ? ACTIONS[Math.floor(rand() * ACTIONS.length)]! : null;
+    const intent = rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action, guard: false, lock: true });
+    p = stepPractice(p, intent, profile);
+    if (p.duel.fighters[0].lastMove === 'skill_reaping' && p.duel.fighters[0].phase === 'attack') pressed++;
+    if (p.finish) { outcome = p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died'; break; }
+  }
+  return { record: rec.finish(outcome), pressed };
+}
+test('a duel with a SPECIAL 2 press verifies green, and the same record without its skill2 is refused (the replay needs the pair)', () => {
+  const spec: Spec = { enemy: 'veteran', level: 30, seed: 9 };
+  for (let k = 1; k < 40; k++) {
+    const { record, pressed } = playPicked(spec, k);
+    if (record.outcome === 'abandoned' || pressed === 0) continue;
+    const v = verifyEncounter(record, params(spec));
+    assert.equal(v.ok, true, v.ok ? '' : v.reason);
+    assert.equal(verifyEncounter({ ...record, skill2: undefined } as FightRecord, params(spec)).ok, false, 'without skill2 the SPECIAL 2 press is refused and the replay diverges');
+    return;
+  }
+  throw new Error('no finished fight with a SPECIAL 2 press found');
+});
