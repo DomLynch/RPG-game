@@ -2717,5 +2717,6 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 /* Phone-layout audit, Pit side (Web, 2026-10-20, live at 375). The backing plate is the zone page's (#3423): the same tokens, so both HUDs match. */
 :root { --c-plate: rgba(18, 12, 8, 0.62); --plate-r: 6px; --plate-pad: 2px 8px; --tab-gap: 6px; }
 @media (max-width: 700px) { .combat-hud > span:first-child, #fight-rank { background: var(--c-plate); border-radius: var(--plate-r); padding: var(--plate-pad); } }   /* the foe's name and the rank row read on the busy sky, statue and torches */
-#journal .tab-strip { gap: var(--tab-gap); }   /* CAREER and SETTINGS no longer touch at 375 */
+#journal .tab-strip .tab-career { margin-right: var(--tab-gap); }   /* CAREER and SETTINGS no longer touch at 375; the gap sits only there, and Stats gives back 4 px at phone width, so the strip stays <= the 166 px the name's room was sized for (a 6 px gap between all three put journal-name 7 px into Stats at 375: release row 54, pit-landscape-webkit) */
+@media (max-width: 440px) { #journal .tab-strip .tab-fighter { min-width: 48px; } }
 #journal .tab-strip .tab-career { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3h10v5a5 5 0 0 1-10 0zM4 4h3v2a2 2 0 0 0 1 1.7A3 3 0 0 1 4 5zM20 4h-3v2a2 2 0 0 1-1 1.7A3 3 0 0 0 20 5zM11 13h2v4h3v2H8v-2h3z'/%3E%3C/svg%3E"); }   /* a trophy: Career is no longer the Stats bars */
