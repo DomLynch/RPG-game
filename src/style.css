@@ -2601,7 +2601,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal #journal-name::after { content: none; }
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
 /* The stance setting (Dom 2026-10-19: a character setting in the menu, beside gear; src/fight/stance-panel.ts): four buttons in a row at the top of the Gear tab, above the paperdoll (#3379), the lit one ringed in its colour, the effect line and the lock hint under them. The fighter card names the stance in its colour. */
-#journal .stance-menu { margin: 0; padding: 10px 16px 12px; border-top: 1px solid var(--jl); background: var(--jb); }
+#journal .stance-menu { margin: 0; padding: 10px 16px 12px; border-bottom: 1px solid var(--jl); background: var(--jb); }   /* Lead 2026-10-19: the stance block is the first thing on the Gear tab, above the paperdoll, so it shows without scrolling */
 #journal .stance-menu[hidden] { display: none; }
 #journal .stance-menu h4 { margin: 0 0 8px; }
 #journal .stance-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }

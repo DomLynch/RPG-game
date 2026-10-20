@@ -4,21 +4,23 @@
 import type * as THREE from 'three';
 import { createGearSheet, fightWeapon, wornIdsOf, wornTiersOf, type Tier } from '../../src/core/index.ts';
 import { DEFAULT_WEAPON, type WeaponId } from '../../src/fight/index.ts';
-import { loadProfile, saveProfile } from '../../src/core/index.ts';
+import { loadProfile, saveProfile, type LootId } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
+import { guestProfile, guestWeapon } from './guest-weapons.ts';
 import { fightSheet, gearNumbers, pieceNumbers, sheetFor, weightClassOf } from '../../src/fight/index.ts';
 
 // `onWorn`: the worn set changed (the server's ledger answered, or a wear / stow in the sheet), and once at mount for the device's own: main.ts dresses the walking hero with it (the sheet's wear is the one place every change passes).
-type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string; onWorn?: (ids: readonly string[], tiers: Record<string, Tier>) => void };
+type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string; onWorn?: (ids: readonly string[], tiers: Record<string, Tier>) => void; signedIn?: () => boolean; sessionWeapons?: () => readonly LootId[] };   // sessionWeapons: the weapons a SIGNED-OUT player holds this session (guest-weapons.ts); absent = none, and a signed-in page never reads them
 export function mountGear(d: Deps) {
   const profile = loadProfile(d.storage, () => crypto.randomUUID()).profile, zone = createGearStage(d.renderer, d.bodyUrl);
   const wear = (ids: readonly string[], tiers: Record<string, Tier>) => { zone.wear(ids, tiers); d.onWorn?.(ids, tiers); };
   d.onWorn?.(wornIdsOf(profile.loot), wornTiersOf(profile.loot));
+  const guest = guestProfile(profile, () => (d.signedIn?.() ? [] : d.sessionWeapons?.() ?? []));   // the sheet's guest ledger: the device's with the session weapons laid over it (none of them is stored)
   const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
-    element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
+    element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(guest) ?? guest, persist: () => { saveProfile(d.storage, profile); },
     view: () => ({ wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, pieceNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
@@ -37,7 +39,7 @@ export function mountGear(d: Deps) {
     // A signed-in character: nothing until the SERVER's view has answered (an unanswered writer fights bare). A GUEST has no server view: he fights on his session build (build-guest.ts) and the device's own worn set, as the Pit does (sheetFor).
     sheet: (own: { level: number; placed: Record<string, number> } | undefined, guest = false): ReturnType<typeof fightSheet> => guest ? sheetFor(profile.loot, own) : fightSheet(profile, own ?? { level: 0, placed: {} }, server),
     // The weapon he wields in the world: the main hand of the server's view of the character (the ledger the server's HeroLimit.weapon reads), when the rig can draw it (`carried`), else the longsword; the default until that view has answered.
-    weapon: (carried: readonly WeaponId[]): WeaponId => (server?.ready() ? fightWeapon(server.profileFor(profile).loot, carried) : DEFAULT_WEAPON),
+    weapon: (carried: readonly WeaponId[]): WeaponId => (server?.ready() ? fightWeapon(server.profileFor(profile).loot, carried) : d.signedIn?.() === false ? guestWeapon(guest.loot, d.sessionWeapons?.() ?? [], carried) : DEFAULT_WEAPON),
     // The ☰'s Gear chip: the menu opens on the Profile pane with the mannequin up; the server's ledger replaces the device's the moment it answers.
     open() {
       d.layer.classList.add('gearing'); element<HTMLInputElement>('journal-tab-profile').checked = true;
