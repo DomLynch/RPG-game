@@ -20,7 +20,8 @@ hsv = np.array(img.convert('HSV')).astype(int)   # PIL HSV is 0..255 hue
 red = ((hsv[..., 0] <= 12) | (hsv[..., 0] >= 243)) & (hsv[..., 1] >= 90) & (hsv[..., 2] >= 40)
 DEV = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'   # the T4 job, or the Mac's M5 GPU (Dom 2026-10-20: "just do it on the macbook")
 pipe = AutoPipelineForInpainting.from_pretrained('diffusers/stable-diffusion-xl-1.0-inpainting-0.1', torch_dtype=torch.float16, variant='fp16').to(DEV)
-PROMPT = 'weathered wooden log gate frame and rocky cliff behind it, dark fantasy orc fortress, matching the surroundings, sharp detail, no flag, no banner, no cloth'
+PROMPT = os.environ.get('PROMPT') or 'weathered wooden log gate frame and rocky cliff behind it, dark fantasy orc fortress, matching the surroundings, sharp detail, no flag, no banner, no cloth'
+SEED = int(os.environ.get('SEED', '1000'))   # a redo of one box takes another seed
 NEG = 'banner, flag, red cloth, fabric, text, symbol, logo, blurry'
 out = img.copy()
 WIN = 768
@@ -38,7 +39,7 @@ for n, (x0, y0, x1, y1) in enumerate(boxes):
     ww, wh = min(WIN, W), min(WIN, H)
     crop = out.crop((wx0, wy0, wx0 + ww, wy0 + wh)); mcrop = Image.fromarray(mask[wy0:wy0 + wh, wx0:wx0 + ww])
     res = pipe(prompt=PROMPT, negative_prompt=NEG, image=crop.resize((1024, 1024), Image.LANCZOS), mask_image=mcrop.resize((1024, 1024), Image.NEAREST),
-               strength=0.99, num_inference_steps=30, guidance_scale=7.5, generator=torch.Generator('cpu').manual_seed(1000 + n)).images[0].resize((ww, wh), Image.LANCZOS)
+               strength=0.99, num_inference_steps=30, guidance_scale=7.5, generator=torch.Generator('cpu').manual_seed(SEED + n)).images[0].resize((ww, wh), Image.LANCZOS)
     piece = Image.composite(res, crop, mcrop.filter(ImageFilter.GaussianBlur(1.2)))   # a 1 px soft edge, still inside the dilated mask
     out.paste(piece, (wx0, wy0))
     print('box', n, 'done, masked px', int((mask > 0).sum()))
