@@ -1115,6 +1115,24 @@ function programOwners(): Record<string, string[]> {
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm, selfWorn: () => warriors?.player.worn().map((piece) => piece.name) ?? [],   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
+  census: () => {   // PROBE ONLY: triangles and draw calls by owner (the first named ancestors under the scene), all and inside the camera's frustum
+    const frustum = new THREE.Frustum(); camera.updateMatrixWorld(); frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const groups = new Map<string, { meshes: number; skinned: number; instanced: number; points: number; trisAll: number; trisIn: number; drawsAll: number; drawsIn: number; mats: Set<string> }>();
+    const ownerOf = (o: THREE.Object3D): string => { const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && n !== scene; n = n.parent) chain.unshift(n.name || n.type); return chain.slice(0, 2).join('/') || '(root)'; };
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh & THREE.Points; if (!(m.isMesh || m.isPoints)) return;
+      let vis = true; for (let n: THREE.Object3D | null = o; n; n = n.parent) if (!n.visible) { vis = false; break; }
+      if (!vis) return;
+      const g = (m.geometry as THREE.BufferGeometry), idx = g.index ? g.index.count : g.getAttribute('position')?.count ?? 0, inst = (m as unknown as THREE.InstancedMesh).isInstancedMesh ? (m as unknown as THREE.InstancedMesh).count : 1, tris = m.isPoints ? 0 : (idx / 3) * inst;
+      let inside = true; if (m.frustumCulled && !(m as unknown as THREE.SkinnedMesh).isSkinnedMesh) { if (!g.boundingSphere) g.computeBoundingSphere(); inside = frustum.intersectsSphere(g.boundingSphere!.clone().applyMatrix4(m.matrixWorld)); }   // a skinned body is counted as inside (its box moves with its bones)
+      const k = ownerOf(o), r = groups.get(k) ?? { meshes: 0, skinned: 0, instanced: 0, points: 0, trisAll: 0, trisIn: 0, drawsAll: 0, drawsIn: 0, mats: new Set<string>() }; groups.set(k, r);
+      const mats = Array.isArray(m.material) ? m.material : [m.material], draws = (g.groups?.length ? g.groups.length : 1) * 1;
+      r.meshes++; if ((m as unknown as THREE.SkinnedMesh).isSkinnedMesh) r.skinned++; if (inst > 1 || (m as unknown as THREE.InstancedMesh).isInstancedMesh) r.instanced++; if (m.isPoints) r.points++;
+      r.trisAll += tris; r.drawsAll += draws; if (inside) { r.trisIn += tris; r.drawsIn += draws; } for (const mt of mats) r.mats.add(mt.uuid);
+    });
+    const rows = [...groups.entries()].map(([k, r]) => ({ owner: k, meshes: r.meshes, skinned: r.skinned, instanced: r.instanced, points: r.points, trisAll: Math.round(r.trisAll), trisIn: Math.round(r.trisIn), drawsAll: r.drawsAll, drawsIn: r.drawsIn, materials: r.mats.size }));
+    return { renderer: { triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0 }, rows: rows.sort((a, b) => b.trisIn - a.trisIn) };
+  },
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
