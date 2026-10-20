@@ -15,6 +15,12 @@ export async function pullSpecialSlots(token: string | null, character: string, 
   return slotsOffline(sent) ? 'kept' : 'pushed';
 }
 
+/** A page's whole wiring in one call (the Pit page, src/main.ts): every pick is sent from now on, and the account's slots are read once. A guest (no token), a writer that does not answer or a 503 leaves the device pick exactly as it was. Resolves when the one read is done. */
+export function followAccountSlots(token: () => string | null, character: () => string | null | Promise<string | null>, opts: Opts = {}): Promise<'adopted' | 'pushed' | 'kept'> {
+  pushSpecialSlotsOnPick(token, character, opts);
+  return (async () => { const t = token(), c = t ? await character() : null; return t && c ? pullSpecialSlots(t, c, opts) : 'kept'; })();
+}
+
 /** After sign-in: every pick made on this page is sent to the writer as the final pair (one write per swap). `token` and `character` are read at the moment of the pick, so a session that has since ended sends nothing. */
 export function pushSpecialSlotsOnPick(token: () => string | null, character: () => string | null | Promise<string | null>, opts: Opts = {}): void {
   useSpecialPush((picks) => { void (async () => { const t = token(), c = t ? await character() : null; if (t && c) await setSpecialSlots(t, c, picks, opts); })(); });
