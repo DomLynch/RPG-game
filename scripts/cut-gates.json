@@ -17,6 +17,12 @@
       "blob": "ed5dc83ea358592d0e7393617d3e37527689c96e",
       "pr": 3418,
       "note": "Hooks Dev reviewed 2026-10-20 (the whole diff is two hunks; Lead's written OK is on this PR before it merges): GAME_RE adds scripts/origins-late-stream-check; one optional browser matrix row late-stream (required: false, #3412's check, the script is on trunk). No new actions, secrets, permissions or triggers."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "62bbc4cd25a597c4c64075cf2fe9ee3144f0a0d4",
+      "pr": 3468,
+      "note": "Lead's written OK 2026-10-20 (cross-session to the Auditor), on condition #3468 merges after #3467: a separate load-time-zone1 job (scripts/load-time-check.mjs --page zone1, base and head on one runner) whose result feeds browser-rows (status); the two pin tests gain its name. No new actions, secrets, permissions or triggers."
     }
   ],
   "noPrExempt": [
