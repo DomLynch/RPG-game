@@ -172,7 +172,7 @@ deploy_step "release checks"
 # One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
 deploy_lock_yield_early "$DEPLOY_ROWS_LOCK"   # a pre-staged candidate's early rows must not hold the Mac against this deploy (K6i, 460 s); they restart after it
 deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
-trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
+trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" CI_DISPATCH_IF_MISSING="${CI_DISPATCH_IF_MISSING:-1}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
@@ -191,7 +191,7 @@ if [[ "${DEPLOY_MAC_AFTER_PUBLISH:-off}" == on ]]; then
   mac_deferred=$(SKIP="$trusted_checks,$out_of_scope" node --input-type=module -e 'import { MAC_ROWS } from "./scripts/lib/row-placement.mjs"; const skip = new Set(process.env.SKIP.split(",").map(Number)); console.log(MAC_ROWS.filter(row => !skip.has(row)).join(","))')
   [[ -z "$mac_deferred" ]] || echo "Mac rows deferred to after Published (rollback on failure): $mac_deferred"
 fi
-RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # width = row-placement.mjs LOCAL_CONCURRENCY (3) unless the caller sets RELEASE_CHECK_CONCURRENCY; SERIAL_ROWS (WebKit rows, rows that fail off the Mac, timing gates) run alone after the concurrent ones (Dom 2026-10-10: two WebKit rows at once put the load at 30, X ran 5 wide at 97; Dom 2026-10-20 asked why one at a time)
 deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
