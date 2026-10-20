@@ -93,7 +93,7 @@ import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
-import { SKILL_ROWS, type SkillId } from '../../src/fight/index.ts';   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
+import { SKILL_ROWS, specialName, type SkillId } from '../../src/fight/index.ts';   // specialName: the name a special shows for the wielded weapon, a sword's Skull Crack or a bow's Power Shot (Dom's beta specials ruling 2026-10-20)   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -791,7 +791,7 @@ const spellNames = new Map<string, string>();   // legend id -> the catalogue's 
 function syncSpell2Button() {
   const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
   duel?.setWorldSpecials((equippedSpecial(0) as SkillId | undefined) ?? null, equippedSpecial(1) as SkillId | undefined);   // the world input judges presses against an idle stand-in fighter: it carries the picks, so the press is accepted and the HUD lights the buttons
-  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? SKILL_ROWS[melee2]?.name : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows its skill row's own name
+  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? specialName(rigWeapon, melee2, SKILL_ROWS[melee2]?.name ?? melee2) : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows the wielded weapon's name for the pick (the sandbox name, a bow's own)
   if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpell2Button();
