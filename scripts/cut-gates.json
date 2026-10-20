@@ -20,9 +20,9 @@
     },
     {
       "path": ".github/workflows/quality.yml",
-      "blob": "62bbc4cd25a597c4c64075cf2fe9ee3144f0a0d4",
+      "blob": "1f592bcafee3343623b4c9f48f368dbf6fd34adc",
       "pr": 3468,
-      "note": "Lead's written OK 2026-10-20 (cross-session to the Auditor), on condition #3468 merges after #3467: a separate load-time-zone1 job (scripts/load-time-check.mjs --page zone1, base and head on one runner) whose result feeds browser-rows (status); the two pin tests gain its name. No new actions, secrets, permissions or triggers."
+      "note": "Lead's written OK 2026-10-20 on #3468 (re-OK after the one-step jpegtran fix; it was 62bbc4cd2), on condition #3468 merges after #3467: a separate load-time-zone1 job (scripts/load-time-check.mjs --page zone1, base and head on one runner) whose result feeds browser-rows (status); the two pin tests gain its name. No new actions, secrets, permissions or triggers."
     }
   ],
   "noPrExempt": [
