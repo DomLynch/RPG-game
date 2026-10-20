@@ -1,5 +1,23 @@
 # Character — project state
 
+## 2026-10-21 (~23:00 +04) — HANDOFF #10 (supersedes #9). READ THIS BLOCK FIRST. Theme: Zone 1 phone load and lag, all shipped or open as PRs.
+
+**Live / merged tonight**: #3441 (creature card `seen()`, p5 fps 10 -> 59.5), #3450 (kit-warm hide), #3457 K6i LIVE 453e43725 (zone-ready regression fix: the confirming plan after #3412's late-stream deferral no longer waits the 3 s gap; `replanGapRow(lateLookAt, zoneReadyAt)` in origins/preview/replan-gap.ts picks the short gap only while zoneReadyAt < 0; T4 iPhone 14270 -> 8171 ms, iPad 13287 -> 7817 ms, K6g vs head), #3463 K6k (phone cap 3, rows mob-view.phone-cap 3 / player-reach 8, origins/preview/draw-pick.ts; stills + profile on side branch char/evidence-phone-cap @1c12f4cf0; Zone 1's densest camp is 3, so the cap shows as total drawn 4 -> 3).
+
+**Open**: #3474 `char/phone-far-detail` (item C: far rank-look creature draws the body only, row mob-view.piece-range 14 m, -26% skinned vertices far; bare Skin stays drawn because no face close-up proved it safe; `?fardetail=0` look-test flag). Owed on it, Lead's ask: a 375 still pair at ~15 m (on vs off) and the pop check at the 14 m crossing; probe is branch char/probe-far-stills (scripts/far-detail-stills.mjs, scripts/gpu-run/far-stills.sh, tree sha = the PR head); T4 stop ($15 for 10-20) was hit, so run it on the Mac once Web's row 54 is done, or a VPS capture job.
+
+**Parked, no PR (measured, no gain)**: phone shadow change, branches char/zone-shadow (cd283dda6, old base) and char/zone-shadow2 (0e30316fb, on K6j trunk): phone 512 map re-rendered every 2nd frame; T4 iPhone tier 4x long tasks 2778 vs 2781 ms, p5 20 -> 15. Do not reopen unless a profile shows the shadow pass as a real share. Also parked: the 4x render floor (setProgram, draw calls ~130 in camera), Lead: not tonight.
+
+**Lessons**
+- Phone tier needs a mobile UA AND a coarse pointer: iPhone UA, or Macintosh UA + maxTouchPoints 5 for an iPad (scripts/zone-profile.mjs DEVICE=, probe scripts/origins-ready-time.mjs on char/probe-ready-tier). A harness without it measures desktop tier and misleads.
+- gpu-run cap: it refuses when HF spend for the UTC day is at/over the stop ($10, raised to $15 by #3456 on Dom's word); a relayed "Dom said yes" is not enough, wait until the PR is on trunk. gpu-run runs a PUSHED sha and only brings back files under artifacts/.
+- Mac hook: builds and suites need MAC_HEAVY_OK=1 on the command itself (not exported), only while the Mac is quiet and no deploy is in flight; never pkill by name (kill PIDs).
+- A watch like `pgrep -f release-checks` matches its own shell: use `ps -axo command | grep -E "^node .*scripts/(release-checks|deploy)"`.
+- The zone page does not set presence `flags` (always 0): there is no "engaged/target" field for a remote hero; #3463's 8 m reach is a proxy.
+- as-data baseline: an edit that removes an inline number in main.ts makes the baseline STALE (lower it by hand in scripts/as-data/inline-number-baseline.json when `--write-inline-number-baseline` refuses on unrelated new sites).
+
+**Branches (all pushed; delete when done)**: probes char/probe-ready-tier, char/probe-ready-tier2, char/probe-cap, char/probe-far-stills, char/regress; evidence char/evidence-phone-cap; WIP char/phone-bare-skin (has the ?skinhide=1 flag, not for a PR); char/late-replan-gap (merged as #3457), char/phone-cap2 (merged as #3463).
+
 ## 2026-10-20 (evening, ~19:30 +04) — HANDOFF #9 (supersedes #8). READ THIS BLOCK FIRST. Theme: Dom's "slow / glitchy" = Zone 1 main-thread load.
 
 **Open PRs (all auditor:ready, mine)**: #3441 `char/mobs-seen` (the creature card read `mobs.debug()` every 0.2 s = 39-56% of the main thread; now a cheap `seen()`; K6f top member; receipts: no throttle p5 fps 10 -> 59.5, long tasks 76 / 9.5 s -> 2 / 116 ms, zone ready 13.8 -> 9.4 s; 4x (desktop tier) p5 2.2 -> 15, long-task time 16.7 -> 4.3 s, ready 101 -> 44.8 s, median fps 20 -> 29.9; 4x numbers are NOT yet posted on the PR: post them). #3450 `char/kit-warm-hide` (the kit-warm's second hero is hidden except its two draw frames; census at ready+3.5 s: in-camera tris 391,260 -> 325,988, draws 130 -> 110; its 4x profile was run against a base without #3441, so it shows nothing: ignore it). Older open: #3418 (late-stream row in quality.yml, CI green @7933aba4b, Hooks/Lead own the chain), #3431 (duel peer bow/staff still), #3433 (Pit special slots, stacked on #3430), #3436 (Pit gfx lift, stacked on #3432; foot-disc bloom item PARKED by Lead).
