@@ -12,7 +12,7 @@ pr="${1:-}"; sha="${2:-}"
 state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"; hold="$state/deploy_hold"; stopped="$state/release-train.stopped"
 trunk="${TRUNK_BRANCH:-codex/01a09a76/task-1}"
 [ -e "$stopped" ] && { echo "refusing: $stopped exists; remove it (and deploy_hold) after the fix" >&2; exit 1; }
-git fetch -q origin || { echo "refusing: git fetch failed" >&2; exit 1; }
+git fetch -q origin "+refs/heads/$trunk:refs/remotes/origin/$trunk" || git fetch -q origin "+refs/heads/$trunk:refs/remotes/origin/$trunk" || { echo "refusing: git fetch failed" >&2; exit 1; }   # trunk only, one retry (Strategy 2026-10-20: the all-refs fetch races a lane's force-push, "cannot lock ref")
 tip=$(git rev-parse "origin/$trunk") || exit 1
 [ "$tip" = "$sha" ] || { echo "refusing: origin/$trunk is $tip, not $sha; this is not a resume, re-cut on trunk" >&2; exit 1; }
 live=$(curl -s -m 8 "${RELEASE_JSON_URL:-https://frankendom.com/release.json}" | grep -oE '[0-9a-f]{40}' | head -n 1)
