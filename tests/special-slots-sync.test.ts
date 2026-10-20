@@ -15,7 +15,7 @@ const writer = (initial: Row | null, down = false) => {
     const op = String(url).split('/').pop() as string, body = JSON.parse(init.body) as Record<string, unknown>; state.calls.push({ op, body });
     if (down) return new Response('{}', { status: 503 });
     if (op === 'special_slots_set') state.row = { slot1: (body.slot1 as string | null) ?? null, slot2: (body.slot2 as string | null) ?? null };
-    return new Response(JSON.stringify(state.row ?? { slot1: null, slot2: null }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, result: state.row ?? { slot1: null, slot2: null } }), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as unknown as typeof fetch;
   return { state, fetcher };
 };
