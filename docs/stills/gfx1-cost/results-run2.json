@@ -1,0 +1,134 @@
+[
+ {
+  "mode": "off",
+  "throttle": 1,
+  "run": 1,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 18319,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 45.5,
+  "p5Fps": 15,
+  "frames": 916
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 1,
+  "run": 1,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 17689,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 48,
+  "p5Fps": 19.8,
+  "frames": 976
+ },
+ {
+  "mode": "off",
+  "throttle": 1,
+  "run": 2,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 17192,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 60,
+  "p5Fps": 56.5,
+  "frames": 1176
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 1,
+  "run": 2,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 16652,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 54.5,
+  "p5Fps": 30,
+  "frames": 1103
+ },
+ {
+  "mode": "off",
+  "throttle": 1,
+  "run": 3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 15940,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 51.5,
+  "p5Fps": 20.4,
+  "frames": 1035
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 1,
+  "run": 3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 17150,
+  "medianFps": 59.9,
+  "medianPerSecondFps": 47,
+  "p5Fps": 15,
+  "frames": 962
+ },
+ {
+  "mode": "off",
+  "throttle": 4,
+  "run": 1,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 25796,
+  "medianFps": 30.8,
+  "medianPerSecondFps": 19,
+  "p5Fps": 4.3,
+  "frames": 372
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 4,
+  "run": 1,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 16374,
+  "medianFps": 29.9,
+  "medianPerSecondFps": 12,
+  "p5Fps": 3.5,
+  "frames": 278
+ },
+ {
+  "mode": "off",
+  "throttle": 4,
+  "run": 2,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 19936,
+  "medianFps": 30.3,
+  "medianPerSecondFps": 15,
+  "p5Fps": 3.8,
+  "frames": 329
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 4,
+  "run": 2,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 31261,
+  "medianFps": 29.8,
+  "medianPerSecondFps": 12,
+  "p5Fps": 3.5,
+  "frames": 258
+ },
+ {
+  "mode": "off",
+  "throttle": 4,
+  "run": 3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 26577,
+  "medianFps": 29.9,
+  "medianPerSecondFps": 14,
+  "p5Fps": 3.7,
+  "frames": 284
+ },
+ {
+  "mode": "gfx1",
+  "throttle": 4,
+  "run": 3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Ve",
+  "firstPlayableMs": 24789,
+  "medianFps": 58.1,
+  "medianPerSecondFps": 21,
+  "p5Fps": 5,
+  "frames": 459
+ }
+]
