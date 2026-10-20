@@ -223,9 +223,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
+  const FAR_OFF = typeof location !== 'undefined' && /[?&;]fardetail=0\b/.test(location.search);   // look test only: `?fardetail=0` draws every piece at every range, to compare the stills
   const rankPieces = (v: View): THREE.Mesh[] => { const found: THREE.Mesh[] = []; v.model?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.userData.rankLook) found.push(o as THREE.Mesh); }); const size = (m: THREE.Mesh) => m.geometry.getAttribute('position').count; found.sort((a, b) => size(b) - size(a)); return found.slice(1); };   // a rank look's draws but its biggest (the body): the armour pieces a far creature need not draw
   const farDetail = (v: View, d: number, matters: boolean) => {   // a phone draws a far creature's rank-look body only (its arms, gloves, greaves and helmet are a few pixels at that range); back at once when it fights, hunts or is engaged. Only the pieces that were shown are touched, so a bake that turned one off is not undone.
-    if (!v.ranked) return;
+    if (!v.ranked || FAR_OFF) return;
     const far = farHide(d, matters, fxNum('mob-view.piece-range'));
     if (far && !v.farOff) { const pieces = rankPieces(v); if (!pieces.length) return; v.farOff = pieces.filter((p) => p.visible); for (const p of v.farOff) p.visible = false; }
     else if (!far && v.farOff) { for (const p of v.farOff) p.visible = true; v.farOff = undefined; }
