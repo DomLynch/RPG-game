@@ -394,6 +394,7 @@ function step(dt: number) {
       if (soft && forward < -previewRule('lockAwayStick')) lockPausedUntil = now + previewRule('lockPauseSec') * 1000;
       if (!soft || now >= lockPausedUntil) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-previewRule(soft ? 'lockPullSoft' : 'lockPull') * dt));
     }
+    wc.hold(i.held);   // the STRIKE hold, every frame: a heavy chambers and charges while it is down (WSV64, as the Pit's held)
     const a = i.action; if (a) { actionLog.push([Math.round(performance.now()), a]); if (actionLog.length > 16) actionLog.shift(); }   // the browser checks read it (combat().acts): which action the Pit's controls handed the walk
     if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
     else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
