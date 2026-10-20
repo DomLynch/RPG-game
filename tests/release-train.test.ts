@@ -219,7 +219,7 @@ function publisher() {
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
   sh('gh', `echo "gh $*" >> "${log}"; if [ -n "\${GH_REQUIRE_REPO_FLAG:-}" ]; then case " $* " in *" --repo "*) ;; *) echo "not a git repository (no --repo, launchd cwd)" >&2; exit 1 ;; esac; fi; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
-  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
+  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; fetch) fn=$(cat "${dir}/fetchn" 2>/dev/null || echo 0); fn=$((fn+1)); echo $fn > "${dir}/fetchn"; if [ "$fn" -le "\${FETCH_RACES:-0}" ]; then echo "error: cannot lock ref 'refs/remotes/origin/lane/x': is at A but expected B" >&2; exit 1; fi ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
@@ -243,6 +243,23 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
     assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
     assert.equal(existsSync(join(p.state, 'release-train.lock')), false, 'lock released');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+// Strategy 2026-10-20: a lane force-pushing its branch while the train's all-refs `git fetch origin` runs fails it with "cannot lock ref ... is at X but expected Y" (10-19 19:16 and 19:41). The first call only
+// cost a tick; the same fetch at the candidate read and after the fast-forward STOPS the train. The fetches are scoped to trunk (+ release-*) and retried once.
+test('publisher: a "cannot lock ref" race on the fetch does not stop the train, and every fetch is scoped to the refs the train needs', () => {
+  const p = publisher();
+  try {
+    const r = p.run({ FETCH_RACES: '2' });   // the first two fetch calls lose a race (the trunk move gives up after its retry), the publish-path fetch then succeeds
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(p.calls(), new RegExp(`git push -q origin ${p.cand}:refs/heads/${TRUNK}`), 'it still publishes');
+    assert.doesNotMatch(r.stdout, /STOPPED/, r.stdout);
+    const fetches = p.calls().split('\n').filter(l => l.startsWith('git fetch'));
+    assert.ok(fetches.length >= 3, `retried: ${fetches.join(' | ')}`);
+    for (const f of fetches) assert.match(f, new RegExp(`\\+refs/heads/${TRUNK.replace(/[/]/g, '\\/')}:refs/remotes/origin/`), `scoped to trunk: ${f}`);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+  const src = readFileSync('scripts/release-train-publish.sh', 'utf8') + readFileSync('scripts/release-train-resume.sh', 'utf8');
+  assert.doesNotMatch(src, /fetch -q origin(\s*\)?\s*(\|\||&&|;|$))/m, 'no bare all-refs `fetch -q origin` is left (the one last-resort call goes through fetch_scoped with no refspec)');
 });
 
 // Overlapping publishes (#3177, Lead 2026-10-18): the pending marker, the stale-tail hold, the detached tail's start, publish-to-publish minutes.
