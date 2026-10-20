@@ -6,11 +6,11 @@ import type { CombatCam, CombatFraming } from '../../src/fight/index.ts';
 import { previewRule } from './preview-rules.ts';
 
 const portrait = (): CombatFraming => ({
-  back: previewRule('camPBack'), up: previewRule('camPUp'), ahead: previewRule('camPAhead'), lookY: previewRule('camPLookY'), mid: previewRule('camPMid'), perSep: previewRule('camPPerSep'), perSize: previewRule('camPPerSize'),
+  back: previewRule('camPBack'), up: previewRule('camPUp'), side: previewRule('camPSide'), ahead: previewRule('camPAhead'), lookY: previewRule('camPLookY'), mid: previewRule('camPMid'), perSep: previewRule('camPPerSep'), perSize: previewRule('camPPerSize'),
   sizeFrom: previewRule('camPSizeFrom'), fitRate: previewRule('camPFitRate'), minBack: previewRule('camPMinBack'), maxBack: previewRule('camPMaxBack'), shiftY: previewRule('camPShiftY'),
 });
 const landscape = (): CombatFraming => ({
-  back: previewRule('camLBack'), up: previewRule('camLUp'), ahead: previewRule('camLAhead'), lookY: previewRule('camLLookY'), mid: previewRule('camLMid'), perSep: previewRule('camLPerSep'), perSize: previewRule('camLPerSize'),
+  back: previewRule('camLBack'), up: previewRule('camLUp'), side: previewRule('camLSide'), ahead: previewRule('camLAhead'), lookY: previewRule('camLLookY'), mid: previewRule('camLMid'), perSep: previewRule('camLPerSep'), perSize: previewRule('camLPerSize'),
   sizeFrom: previewRule('camLSizeFrom'), fitRate: previewRule('camLFitRate'), minBack: previewRule('camLMinBack'), maxBack: previewRule('camLMaxBack'), shiftY: previewRule('camLShiftY'), zoom: previewRule('camLZoom'),
 });
 
