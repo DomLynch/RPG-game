@@ -2,6 +2,7 @@
 Per banner: a 768 px window round its hand-drawn box, banner-red pixels inside the box (dilated 3 px, never outside the box) are the mask, the window goes to the model at 1024, and the result is pasted back
 INSIDE THE MASK ONLY, so everything else in the picture is the original's pixels. Roofs are not banners: they are outside the boxes.
 Usage: python3 dome-inpaint-sdxl.py <src image> <dst image> "x0,y0,x1,y1;x0,y0,x1,y1;..."   (same size and format out as in; webp quality 92)"""
+import os
 import sys
 
 import numpy as np
@@ -25,7 +26,8 @@ out = img.copy()
 WIN = 768
 for n, (x0, y0, x1, y1) in enumerate(boxes):
     m = np.zeros((H, W), np.uint8)
-    m[y0:y1, x0:x1][red[y0:y1, x0:x1]] = 255
+    if os.environ.get('FULLMASK') == '1': m[y0:y1, x0:x1] = 255   # a banner the red test cannot isolate (red-brown wood behind it): the whole box is repainted
+    else: m[y0:y1, x0:x1][red[y0:y1, x0:x1]] = 255
     mi = Image.fromarray(m).filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MaxFilter(7))   # about 6 px: the cloth's dark outline too
     box_only = np.zeros((H, W), np.uint8); box_only[y0:y1, x0:x1] = 255
     mask = np.minimum(np.array(mi), box_only)
