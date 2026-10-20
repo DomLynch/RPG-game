@@ -115,7 +115,10 @@ if [ -z "$dry" ]; then   # a dry run writes nothing, not even the lock
   trap 'rm -rf "$lock"' EXIT
 fi
 cd "$repo" || { log "no repo at $repo"; exit 1; }
-if [ -z "$(git status --porcelain --untracked-files=no)" ]; then net_git 120 fetch -q origin && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
+# SCOPED FETCH (Strategy 2026-10-20): the all-refs `git fetch origin` races any lane that force-pushes its own branch while it runs ("cannot lock ref ... is at X but expected Y", 10-19 19:16 and 19:41); it only cost a tick
+# at the first call but would STOP the train at the two below. The train needs trunk and the release-* candidates, nothing else; one retry covers a race on those.
+fetch_scoped() { local i; for i in 1 2; do net_git 120 fetch -q origin "$@" && return 0; sleep 2; done; return 1; }
+if [ -z "$(git status --porcelain --untracked-files=no)" ]; then fetch_scoped "+refs/heads/$trunk:refs/remotes/origin/$trunk" && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
 
 # Judge each candidate on its FULL check list: `gh pr list` returns at most 100 checks per PR, and a candidate has 150+, so the list cut quality/quality and
 # release-checks/summary off DL #2431 (169 checks) and `pick` never chose it (2026-10-13: PASS + candidate:pass from 00:29Z, nothing published).
@@ -155,7 +158,8 @@ if p=$(deploy_running); then log "deploy.sh is running (pid $p)"; exit 0; fi   #
 # A checkout without the helper (the train runs the trunk it has) skips the check rather than stopping the train.
 if [ -r scripts/lib/free-space.sh ] && ! space=$(bash scripts/lib/free-space.sh "${FREE_GIB_MIN:-20}" 2>&1); then log "not publishing: $space"; exit 0; fi
 ( set -o noclobber; echo "$$" > "$hold" ) 2>/dev/null || { log "deploy_hold appeared meanwhile"; exit 0; }
-net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch failed}"
+fetch_scoped "+refs/heads/$trunk:refs/remotes/origin/$trunk" "+refs/heads/release-*:refs/remotes/origin/release-*" || stop "${NET_WHY:-git fetch failed}"
+git cat-file -e "$sha^{commit}" 2>/dev/null || fetch_scoped || stop "${NET_WHY:-candidate $sha not fetched}"   # a candidate on a branch the scoped refspec does not name: the old all-refs fetch, once, as the last resort
 git cat-file -e "$sha^{commit}" 2>/dev/null || stop "candidate $sha not fetched"
 git merge-base --is-ancestor "origin/$trunk" "$sha" || stop "trunk moved outside the train: the candidate does not contain origin/$trunk; nothing pushed, re-cut on trunk"
 [ "$draft" = draft ] && { net_gh 60 pr ready "$pr" >/dev/null || stop "${NET_WHY:-gh pr ready failed}"; }
@@ -165,7 +169,7 @@ net_git "${NET_PUSH_S:-180}" push -q origin "$sha:refs/heads/$trunk" || {
   stop "the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
 }
 ffwd=1
-net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch after the fast-forward failed}"
+fetch_scoped "+refs/heads/$trunk:refs/remotes/origin/$trunk" || stop "${NET_WHY:-git fetch after the fast-forward failed}"
 rev=$(git rev-parse "origin/$trunk") || stop "no origin/$trunk"
 [ "$rev" = "$sha" ] || stop "trunk is $rev after the fast-forward, not the audited $sha: not deploying an unchecked commit"
 dir=$(${RELEASE_TRAIN_WORKTREE:-bash scripts/release-worktree.sh} "$rev") || stop "no release checkout for $rev"
