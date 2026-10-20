@@ -7,3 +7,4 @@ import '../origins/server/practice.test.ts';
 import '../origins/server/grimoire.test.ts';
 import '../origins/server/spell-check.test.ts';
 import '../origins/server/skills.test.ts';
+import '../origins/server/special-slots.test.ts';
