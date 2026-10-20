@@ -1,5 +1,6 @@
 {
   "tunables": [
+    {"file": "origins/preview/main.ts", "name": "ACT_LOG_KEEP", "kind": "exempt", "reason": "how many recent actions the zone page keeps for the browser checks (combat().acts): a debug buffer size, never read by the game", "owner": "Combat & Specials"},
     {"file": "origins/preview/presence-client.ts", "name": "OPEN", "kind": "exempt", "reason": "browser API constant WebSocket.OPEN (1): not a number we choose", "owner": "World & Audio"},
     {"file": "origins/preview/daynight.ts", "name": "MINUTES_PER_DAY", "kind": "exempt", "reason": "a unit fact (24 h x 60 min = 1440 minutes in a day), not a tuning: nobody tunes how long a day is in minutes; the game day's real length is the gameDayMinutes row (Lead 2026-10-18)", "owner": "Web"},
     {"file": "origins/preview/horizon-dome.ts", "name": "COLUMN_SALT", "kind": "exempt", "reason": "salt that separates the smoke columns' draws from the ridges' (golden-ratio constant): part of the seed format, not tuning", "owner": "World & Audio"}

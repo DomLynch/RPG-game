@@ -381,7 +381,7 @@ const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
 const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = previewRule('turnRate'), followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
 function zoneCamera<T>(path: string): T | undefined { return ZONE_FIELDS.set?.includes(path) ? ZONE_FIELDS.fields![path] as T : undefined; }   // a camera field the zone (or its biome) SET
-const actionLog: [number, string][] = [];
+const actionLog: [number, string][] = [], ACT_LOG_KEEP = 16;   // the last few actions the controls handed the walk, for the browser checks (combat().acts)
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
@@ -395,7 +395,7 @@ function step(dt: number) {
       if (!soft || now >= lockPausedUntil) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-previewRule(soft ? 'lockPullSoft' : 'lockPull') * dt));
     }
     wc.hold(i.held);   // the STRIKE hold, every frame: a heavy chambers and charges while it is down (WSV64, as the Pit's held)
-    const a = i.action; if (a) { actionLog.push([Math.round(performance.now()), a]); if (actionLog.length > 16) actionLog.shift(); }   // the browser checks read it (combat().acts): which action the Pit's controls handed the walk
+    const a = i.action; if (a) { actionLog.push([Math.round(performance.now()), a]); if (actionLog.length > ACT_LOG_KEEP) actionLog.shift(); }   // the browser checks read it (combat().acts): which action the Pit's controls handed the walk
     if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
     else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
     else if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
