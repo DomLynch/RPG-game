@@ -1,0 +1,51 @@
+{
+  "url": "https://frankendom.com/zone1/",
+  "release": "4b0de269cc6acee1b3179e6be6c24f68c37c1392",
+  "errors": [],
+  "spawnReadyMs": 11770,
+  "spawn": {
+    "x": -103.77,
+    "z": 6.12,
+    "header": "The Cinder Fields",
+    "prompt": ""
+  },
+  "salamanders": [
+    {
+      "id": "salamander-shrine-1",
+      "x": -141.5,
+      "z": 64.7
+    },
+    {
+      "id": "salamander-mere-hollow-1",
+      "x": -203.5,
+      "z": -135.9
+    },
+    {
+      "id": "salamander-causeway-foot-1",
+      "x": -245.7,
+      "z": -150.6
+    },
+    {
+      "id": "salamander-ruin-gate-1",
+      "x": -282.5,
+      "z": -135.6
+    }
+  ],
+  "camp": {
+    "id": "salamander-shrine-1",
+    "x": -141,
+    "z": 64
+  },
+  "wide": {
+    "x": -141,
+    "z": 52.02,
+    "header": "The Cinder Fields",
+    "prompt": ""
+  },
+  "near": {
+    "x": -141.09,
+    "z": 57.98,
+    "header": "The Cinder Fields",
+    "prompt": ""
+  }
+}
