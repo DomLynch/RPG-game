@@ -1,4 +1,5 @@
-import { createInput } from './fight/index.ts';
+import { createInput, fxNum } from './fight/index.ts';
+import { gfxOn } from '../origins/preview/gfx-flag.ts';
 import { ui } from './ui-rows.ts';
 import { AFK_CAP_S, FRAME_DT_MAX_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers, pieceNumbers } from './fight/gear-numbers.ts';
@@ -429,6 +430,8 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void lo
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
+// The better graphics (height fog, half-res bloom, grade: origins/preview/gfx-lift.ts, the one module the zone pages use; Dom 2026-10-20: on for everyone, the default is the gfx.default row, ?gfx=0 opts out). Off = the chunk is never fetched.
+const gfxPost = gfxOn(location.search, fxNum('gfx.default') > 0) ? import('../origins/preview/gfx-lift.ts') : undefined;
 try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
 const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), spell2: slot2Pick, ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
@@ -1292,6 +1295,8 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
     peerKit,
+    undefined,
+    gfxPost,
   );
   // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
   // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from
