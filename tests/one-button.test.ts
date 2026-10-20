@@ -75,6 +75,6 @@ test('?lay=1 and ?lay=3 grow STRIKE and its zone ring apart; anything else is th
 
 test('the zone-ring labels and their places are rows, not literals in touch-layout.ts', async () => {
   const { default: defs } = await import('../src/fight/touch-layout-defs.json', { with: { type: 'json' } });
-  assert.deepEqual(defs.zones.map((z) => z.label), ['stab', 'sl', 'sh']);
+  assert.deepEqual(defs.zones.map((z) => z.label), ['stab', 'slash', 'slash']);
   assert.ok(defs.zones.every((z) => z.place.length > 0));
 });
