@@ -2,7 +2,7 @@
 # Prunes stale lane scratch on the VPS. Dry run unless called with --apply.
 # Runs only when free space is under TRIGGER_GIB (or with --force).
 # Rules (Auditor + COO, 2026-10-08): never touch bn-trunk, in-use dirs, dirs with files newer than
-# MIN_AGE_H, dirty/unpushed/stashed checkouts (archive instead), open-PR heads. Copies are
+# MIN_AGE_H, dirty/unpushed checkouts whose HEAD is not merged (kept: live work), open-PR heads. Copies are
 # rsync -c verified before any delete. Every removed path is written to the manifest.
 # NOTE: real node_modules dirs are NOT archived (regenerable from the lockfile); copy and verify both exclude them.
 # Lean archive (Dom + Hooks Dev 2026-10-19): the checkout's own .git is NOT archived either. Every job copy is a full clone (a 4 GB .git inside a 5.5 GB copy) of a repo whose history is on GitHub, and
@@ -126,6 +126,15 @@ sweep_cap_order() { # workdir min_age_h
     printf '%s %s %s\n' "$(find "$d" -path '*/node_modules' -prune -o -printf '%T@\n%C@\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)" "$(du -sk "$d" 2>/dev/null | cut -f1)" "$d"
   done | sort -n
 }
+# Live work (Lead + Strategy 2026-10-20): a checkout with uncommitted changes or commits no remote has, whose HEAD is not merged, is someone's work in progress, so an age or cap victim like that is
+# KEPT (archive-first would save it, but it would vanish from the lane). 0 = live, keep; 1 = fine to archive (no .git: a plain copy; clean and pushed; or HEAD already in a MERGE_REFS ref). Fails closed:
+# a repo whose HEAD cannot be read counts as live. Defined before the source-only return so the tests can call it.
+MERGE_REFS=${MERGE_REFS:-"origin/codex/01a09a76/task-1 origin/main"}
+work_live_checkout(){ [ -e "$1/.git" ] || return 1; local m dirty unpushed
+  git -C "$1" rev-parse -q --verify HEAD >/dev/null 2>&1 || return 0
+  for m in $MERGE_REFS; do git -C "$1" merge-base --is-ancestor HEAD "$m" 2>/dev/null && return 1; done
+  dirty=$(git -C "$1" status --porcelain 2>/dev/null | head -1); unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null)
+  [ -n "$dirty" ] || [ "${unpushed:-0}" != 0 ]; }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --cap) CAPMODE=1; FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -223,6 +232,7 @@ if [ "$CAPMODE" = 1 ]; then
     inuse "$d" && { say "cap keep(in-use) $n"; continue; }
     echo "$LINKED" | grep -qx "$d" && { say "cap keep(symlink target) $n"; continue; }
     work_open_pr "$d" && { say "cap keep(open-PR) $n"; continue; }
+    work_live_checkout "$d" && { say "cap keep(live work: dirty or unpushed, HEAD not merged) $n"; continue; }
     archive_then_delete "$d" work
     if [ "$APPLY" = 0 ] || [ ! -d "$d" ]; then total_kib=$((total_kib - ${kib:-0})); fi
   done < <(sweep_cap_order "$WORK" "$CAP_MIN_AGE_H")
@@ -237,6 +247,7 @@ for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
   echo "$LINKED" | grep -qx "$d" && { say "keep(symlink target) $n"; continue; }
   recent "$d" && continue
   work_open_pr "$d" && { say "keep(open-PR) $n"; continue; }
+  work_live_checkout "$d" && { say "keep(live work: dirty or unpushed, HEAD not merged) $n"; continue; }
   # never plain-delete: git can fail open and status hides ignored output, so everything is archived first
   archive_then_delete "$d" work
 done

@@ -490,6 +490,34 @@ test('--cap and --path are separate modes, and --cap is nowhere in the scheduled
   assert.doesNotMatch(readFileSync('ops/vps-scratch-sweep.service', 'utf8'), /--cap/, 'the timer never runs it');
 });
 
+// Lead + Strategy 2026-10-20: an age or cap victim with uncommitted changes or commits no remote has, whose HEAD is not merged, is live work: kept. Merged, clean-and-pushed and plain (no .git) copies stay victims.
+test('work_live_checkout: dirty or unpushed and not merged is live; merged, clean-and-pushed and no-.git are not; an unreadable HEAD fails closed', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-live-'));
+  try {
+    const mk = (name: string) => { const d = join(root, name); mkdirSync(d); git(d, 'init', '-q', '-b', 'main'); writeFileSync(join(d, 'a'), '1'); git(d, 'add', 'a'); git(d, 'commit', '-qm', 'one'); return d; };
+    const live = (d: string) => sourced('work_live_checkout "$1"; echo $?', d).stdout.trim() === '0';
+    const merged = mk('merged'); git(merged, 'update-ref', 'refs/remotes/origin/main', 'HEAD'); writeFileSync(join(merged, 'dirty'), 'x');
+    assert.equal(live(merged), false, 'dirty but HEAD already merged: archive-first keeps the files, so it is a fair victim');
+    const pushed = mk('pushed'); git(pushed, 'update-ref', 'refs/remotes/origin/feat', 'HEAD');
+    assert.equal(live(pushed), false, 'clean and pushed (a remote ref has the commit), not merged: a fair victim');
+    const dirty = mk('dirty'); git(dirty, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(dirty, 'wip'), 'x');
+    assert.equal(live(dirty), true, 'pushed but dirty, not merged: someone is working in it');
+    const unpushed = mk('unpushed'); git(unpushed, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(unpushed, 'a'), '2'); git(unpushed, 'commit', '-qam', 'two');
+    assert.equal(live(unpushed), true, 'clean but one unpushed commit, not merged: live');
+    const plain = join(root, 'plain'); mkdirSync(plain); writeFileSync(join(plain, 'f'), 'x');
+    assert.equal(live(plain), false, 'a plain copy with no .git has no work-in-progress signal');
+    const broken = join(root, 'broken'); mkdirSync(join(broken, '.git'), { recursive: true });
+    assert.equal(live(broken), true, 'a .git whose HEAD cannot be read fails closed');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the age loop and the cap loop both skip live work, right after the open-PR check', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
+  assert.equal(src.split('work_live_checkout "$d" &&').length - 1, 2, 'one call in the cap loop, one in the age loop');
+  assert.match(src, /work_open_pr "\$d" && \{ say "cap keep\(open-PR\) \$n"; continue; \}\n\s*work_live_checkout "\$d"/);
+  assert.match(src, /work_open_pr "\$d" && \{ say "keep\(open-PR\) \$n"; continue; \}\n\s*work_live_checkout "\$d"/);
+});
+
 test('a bundle that fails git bundle verify falls back to archiving the whole .git, and a failed .git copy keeps the source (Lead 2026-10-19)', () => {
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
