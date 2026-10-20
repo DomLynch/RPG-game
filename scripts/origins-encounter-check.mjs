@@ -134,7 +134,7 @@ try {
   eq(await code(O, `select public.origins_special_slots_set('${C}', '${pcC}', 'lunge', 'lunge');`), 'O0002', 'special slots: the same skill in both slots is refused');
   eq(psql(`set role ${V}; select coalesce(public.origins_special_slots_set('${A}', '${pcC}', 'lunge', null)::text, 'null');`).split('\n').pop(), 'null', 'special slots: not the account\'s character -> null');
   eq(psql(`select slot1 || '/' || coalesce(slot2, 'none') from public.origins_special_slots where character = '${pcC}'`), 'cleave/none', 'special slots: a refused or stranger write changed nothing');
-  eq(psql(`set role ${V}; select count(*) from public.origins_special_slots;`).split('\n').pop(), '0', 'special slots: a plain select by the writer sees no rows (RLS closed; the functions are the only way)');
+  eq(await code(V, `select count(*) from public.origins_special_slots`), '42501', 'special slots: the writer role has no table grant (RLS closed too; the functions are the only way)');
   eq(await code('anon', `select public.origins_special_slots_get('${C}', '${pcC}');`), '42501', 'special slots: no client reads it');
   eq(await code('authenticated', `select public.origins_special_slots_set('${C}', '${pcC}', 'lunge', null);`), '42501', 'special slots: no client writes it');
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
