@@ -20,4 +20,15 @@ The Mac was NOT quiet: load average 10 to 15 during pass 2 (above Lead's under-8
 - At 1x on an M5, neither mode is visibly below the 60 fps cap; gfx=1 is at most a few fps lower in these runs, inside the noise.
 - At 4x CPU throttle the gap points the same way (gfx=1 lower, 19 vs 35 and 12 vs 15) but pass 1's third "off" run (18 fps) and pass 2's spread make it unproven.
 - First-playable shows no cost from the flag (16 to 26 s either way; spread larger than the difference).
+- Pass 3 (below) is the clean one and supersedes the 4x numbers above.
 - Not measured: a real phone, GPU memory, battery. A clean answer needs a quiet Mac window or the HF T4 with the load figure in the receipt.
+
+## Pass 3: the 4x-throttle pair on a quieter Mac (Lead: rerun to settle it; Mac only if load under 8)
+Mac 1-minute load was 5.4 at the start and 4.0 at the end (the 5-minute average fell from 8.8 to 5.9); no other browser job of mine ran. Headless Chromium, M5 real GPU, 4x CPU throttle, 5 runs per mode, interleaved off / gfx=1, same script (`THROTTLES=4 RUNS=5`). Raw runs: `results-run3-4x-quiet.json`. This pass supersedes the 4x numbers above.
+
+| Mode | per-second fps median, each run | median | p5 fps median | frames in 20 s (median) | first-playable (median) |
+|---|---|---|---|---|---|
+| off | 43, 39, 21.5, 31, 33.5 | 33.5 | 7.5 | 656 | 20.8 s |
+| gfx=1 | 38, 30.5, 32, 32, 40 | 32 | 7.5 | 657 | 19.9 s |
+
+Verdict: on the quieter Mac the two modes are the same within the run-to-run spread (frames 656 vs 657, p5 7.5 vs 7.5, median fps 33.5 vs 32, first-playable 20.8 s vs 19.9 s). The earlier "gfx=1 lower under throttle" signal came from the loaded Mac. At 375 wide under a 4x CPU throttle gfx=1 costs no measurable frame rate or load time here. Still a throttled desktop GPU, not a real phone; GPU memory and battery were not measured.
