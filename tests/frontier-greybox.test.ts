@@ -43,5 +43,5 @@ test('one source for a footprint: the greybox draws the kinds the plan has rows 
 });
 
 test('the plan\'s build is unchanged by the split: Zone 1, flat and with relief', () => {
-  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [174, 59, 8, 21]); }
+  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [175, 60, 8, 21]); }   // 174/59 -> 175/60 (2026-10-20, the shrine salamander camp moves off Hrungnir's spot: the new `shrine-field` landmark leaves one stone post and its collider, as troll-cave did)
 });
