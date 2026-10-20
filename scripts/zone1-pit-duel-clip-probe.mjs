@@ -38,7 +38,7 @@ try {
     for (let tries = 0; tries < 12; tries++) { await page.locator(sel).tap({ timeout: 20000 }).catch((e) => console.log(name, 'tap failed', String(e).slice(0, 100))); await page.waitForTimeout(400); if ((await sample())[key] === 'true') break; }
     const seen = [], shots = [];
     for (let k = 0; k < 70; k++) { await page.waitForTimeout(50); seen.push(await sample()); if (k === 3 || k === 10 || k === 18) { const f = path.join(out, `${name.replace(' ', '').toLowerCase()}-${String(k).padStart(2, '0')}.png`); await page.screenshot({ path: f }).catch(() => {}); shots.push(f); } }
-    const row = { page: 'zone1 Fight in the Pit', slot: name, label: before[lab], accepted: seen.some((s) => s[key] === 'true'), clips: [...new Set(seen.map((s) => s.clip))], fx: [before.fx, seen.at(-1).fx], cues: [before.cues, seen.at(-1).cues], shots };
+    const row = { page: 'zone1 Fight in the Pit', slot: name, label: before[lab], accepted: seen.some((s) => s[key] === 'true'), clips: [...new Set(seen.map((s) => s.clip))], fx: [before.fx, seen.at(-1).fx], cues: [before.cues, seen.at(-1).cues], foeStaggered: seen.some((s) => /^Hit:/.test(String(s.clip ?? '').split(' ').slice(1).join(' '))), shots };   // the foe's token of view.playing() reads Hit: while it is staggered
     results.push(row); console.log(JSON.stringify(row));
   }
 } finally { fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify({ results, errors }, null, 1)); await browser.close(); server.close(); }
