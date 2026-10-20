@@ -27,6 +27,7 @@ const sample = () => page.evaluate(() => ({ t: Math.round(performance.now()), cl
 try {
   await page.goto(`${base}/preview/origins/?region=1&debug=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.fight, null, { timeout: 300000 });
+  if (process.env.WEAPON) { await page.evaluate((w) => window.originsPreview.forceWeapon?.(w), process.env.WEAPON); await page.waitForTimeout(12000); }   // WEAPON=bow: the hero wields it (originsPreview.forceWeapon), so the duel's buttons take the bow's four names
   await page.evaluate(() => { void window.originsPreview.fight(); });   // "Fight in the Pit" from Zone 1 (pit-duel.ts openDuel)
   await page.waitForSelector('#attack-button', { state: 'visible', timeout: 120000 });
   await page.locator('#attack-button').tap();
