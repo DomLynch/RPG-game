@@ -2,6 +2,16 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-20 23:4x Dubai — handoff at Dom's lid-close (25 releases today; the 21:3x six-item list live except the sky dome)
+
+**READ FIRST:** memory `session-handoff-2026-10-20-midnight` in the Strategy lane key (Wicked job ids, Steam queue, Once Human state, re-arm list). Lead [7fc0a5] and the Steam dev [ba1373] both restarted 23:37-23:40 with their own handoffs.
+
+**Now.** Live K6m 992d59033 at 23:33 (my curl). Tonight after the 21:4x clear, every target beaten: K6j landscape camera + train fixes (21:55), K6k phone/iPad creature cap (22:26), K6h2 Pit graphics on for all with Zone 1 loading -4.6 s (22:43), K6l Zone 1 landscape HUD + zone1 load-time stamp (23:13), K6m yield-marker and browser-check fixes (23:33). Next: K6n = sky dome (World pictures 11:00/14:00 +04) + olive rocks #3471 (one live boulder still); #3474 far-detail stills; #3477 zone1 load-time A/A proof, then #3468/#3469 (HELD on Lead's ruling). The sandbox migration and the special-slots migration completed this afternoon (K6a 16:15, K6b 16:33); nothing of them is outstanding.
+
+**Open.** Dom (optional, morning): 3.7 GB app scratch-workspace from 10-09 (delete yes/no), Steam claims (Torchlight, Deadlock, PoE1, Supervive, Battlerite, MIR4), iPad bird's-eye screenshot, the three refused SPECIAL 2 wins re-check, QA Smoke account. Steam dev: Wicked parts A and C failed on HF (re-run), D running, B on the box; character GLB writer; per-part receipt owed. Lanes: as under Now.
+
+**Gotchas.** "Lead: PASS @head" on an Auditor-authored member PR is enough; the train picker reads only the candidate (I chased it wrongly at 22:52). Read check conclusions from the commit's check-runs, not the PR rollup (a cancelled duplicate showed as FAILURE on #3463). The sshfs storage box writes at 235 MB/s; a slow download is Steam's CDN, not the box. steamcmd exits 8 at the first unowned app and drops the rest of the list. Haiku chasers lose their sleep loop; brief one background check per turn and silence between changes (Dom: no routine ticks). Mac data volume below 20 GiB refuses a cut; owners clear their own scratch.
+
 ## 2026-10-16 13:5x Dubai — handoff before /clear (nine releases, Dom's eight-item list, zone and sandbox rulings)
 
 **READ FIRST:** memory `session-handoff-2026-10-16-afternoon` in the Strategy lane key. Lead was cleared at 15:0x too (its handoff: docs/state/lead-catalogue.md top block); whichever of Lead or Strategy restarts first re-arms the 20-minute check-in (checkin skill); neither cron survives.
