@@ -878,7 +878,7 @@ async function legendFight(spec: MobSpec) {
   renderer.setAnimationLoop(null);
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
   if (!fighting) return;
-  duel.openDuel(duelLayer, begun.duel as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+  duel.openDuel(duelLayer, { ...begun.duel, weapon: rigWeapon } as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
 }
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
