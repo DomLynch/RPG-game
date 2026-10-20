@@ -10,7 +10,8 @@ case "$NAME" in
 esac
 mkdir -p artifacts/dome
 echo "== who: $(id -un) python: $(python3 --version 2>&1) pip: $(command -v pip3 || echo none) uv: $(command -v uv || echo none) nvidia: $(nvidia-smi -L 2>&1 | head -1)"
-if ! python3 -m venv /tmp/v 2>/tmp/venv.err; then cat /tmp/venv.err; apt-get update -qq 2>&1 | tail -2; apt-get install -y -qq python3-venv python3-pip 2>&1 | tail -3; python3 -m venv /tmp/v; fi
+python3 -m venv --without-pip /tmp/v   # the job runs as pwuser with no apt and no ensurepip: a pip-less venv, then pip's own bootstrap script
+curl -sSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && /tmp/v/bin/python /tmp/get-pip.py -q 2>&1 | tail -2
 /tmp/v/bin/pip install -q torch diffusers transformers accelerate pillow numpy safetensors 2>&1 | tail -4
 /tmp/v/bin/python scripts/dome-inpaint-sdxl.py "$SRC" "artifacts/dome/$NAME-clean.$EXT" "$BOXES"
 /tmp/v/bin/python - "$SRC" "artifacts/dome/$NAME-clean.$EXT" "$BOXES" <<'PY'
