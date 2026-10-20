@@ -333,3 +333,216 @@ test('the sweep aborts "cannot read open PR list" through open_pr_list, never ar
   assert.doesNotMatch(src, /^PRS=\$\(gh pr list/m, 'no direct gh call that would bypass the fallback');
 });
 
+// Dom + Hooks Dev 2026-10-19: finished job copies age out after 36 h (was 48), and the archive stops carrying every copy's own .git (vps-archive/named reached 592 GB on a 1 TB box).
+const sourced = (script: string, ...args: string[]) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${script}`, 'x', ...args], { encoding: 'utf8' });
+const git = (cwd: string, ...a: string[]) => { const r = spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+
+test('MIN_AGE_H defaults to 36 hours, and the environment still overrides it', () => {
+  assert.equal(sourced('echo "$MIN_AGE_H"').stdout.trim(), '36');
+  const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; echo "$MIN_AGE_H"'], { encoding: 'utf8', env: { ...process.env, MIN_AGE_H: '12' } });
+  assert.equal(r.stdout.trim(), '12');
+});
+
+// The Hugging Face CPU job image has git and jq but no rsync (its unit run failed exactly these two tests): they need rsync, so they skip with that reason there and run on the VPS, which has it.
+const hasRsync = spawnSync('rsync', ['--version']).status === 0;
+const noRsync = hasRsync ? false : 'rsync is not installed here (the VPS has it)';
+
+test('the archive copy leaves out node_modules and the checkout .git, keeps files, ignored files and a nested repo .git', { skip: noRsync }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-excl-'));
+  try {
+    const src = join(root, 'job'); const dst = join(root, 'arch');
+    mkdirSync(join(src, '.git'), { recursive: true }); writeFileSync(join(src, '.git', 'HEAD'), 'ref: x\n');
+    mkdirSync(join(src, 'node_modules', 'a'), { recursive: true }); writeFileSync(join(src, 'node_modules', 'a', 'i.js'), '1');
+    mkdirSync(join(src, 'vendor', 'lib', '.git'), { recursive: true }); writeFileSync(join(src, 'vendor', 'lib', '.git', 'HEAD'), 'ref: y\n');
+    writeFileSync(join(src, 'a.txt'), 'a'); writeFileSync(join(src, 'dirty.log'), 'untracked');
+    mkdirSync(dst);
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; rsync -rtlJ "${SWEEP_EXCLUDES[@]}" "$1" "$2/"', 'x', src, dst], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const names = (p: string) => readdirSync(join(dst, 'job', p)).sort();
+    assert.deepEqual(names('.'), ['a.txt', 'dirty.log', 'vendor']);
+    assert.deepEqual(names('vendor/lib'), ['.git'], 'a nested repo keeps its .git');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('sweep_unpushed_bundle: nothing unpushed writes no bundle; an unpushed commit, a stash and a detached unpushed HEAD are all bundled; no .git is skipped', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-bundle-'));
+  try {
+    const remote = join(root, 'remote.git'); const co = join(root, 'co');
+    git(root, 'init', '-q', '--bare', remote);
+    git(root, 'clone', '-q', remote, co);
+    writeFileSync(join(co, 'f'), '1'); git(co, 'add', '.'); git(co, 'commit', '-qm', 'one'); git(co, 'push', '-q', 'origin', 'HEAD');
+    const out = join(root, 'o.bundle');
+    const run = () => sourced('sweep_unpushed_bundle "$1" "$2"; echo $?', co, out).stdout.trim();
+    assert.equal(run(), '10', 'clean and pushed: no bundle'); assert.equal(spawnSync('test', ['-e', out]).status, 1);
+    writeFileSync(join(co, 'f'), '2'); git(co, 'commit', '-qam', 'two unpushed');
+    assert.equal(run(), '0', 'an unpushed commit is bundled');
+    assert.match(git(co, 'bundle', 'list-heads', out), /refs\/heads\//);
+    rmSync(out); git(co, 'push', '-q', 'origin', 'HEAD');
+    assert.equal(run(), '10', 'pushed again: nothing to bundle');
+    writeFileSync(join(co, 'f'), '3'); git(co, 'stash', 'push', '-q'); assert.equal(run(), '0', 'a stash is bundled'); assert.match(git(co, 'bundle', 'list-heads', out), /refs\/stash/);
+    rmSync(out); git(co, 'stash', 'drop', '-q');
+    git(co, 'checkout', '-q', '--detach'); writeFileSync(join(co, 'f'), '4'); git(co, 'commit', '-qam', 'detached unpushed');
+    assert.equal(run(), '0', 'a detached HEAD with an unpushed commit is bundled');
+    assert.equal(sourced('sweep_unpushed_bundle "$1" "$2"; echo $?', join(root, 'nogit'), out).stdout.trim(), '10', 'a dir without .git has nothing to bundle');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('sweep_box_has_room: fits only when the copy (without node_modules and .git) plus the reserve is free; unreadable paths say no', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-room-'));
+  try {
+    const src = join(root, 'job'); mkdirSync(join(src, '.git'), { recursive: true }); mkdirSync(join(src, 'node_modules'));
+    writeFileSync(join(src, 'a.bin'), Buffer.alloc(1024 * 1024)); writeFileSync(join(src, '.git', 'big'), Buffer.alloc(8 * 1024 * 1024)); writeFileSync(join(src, 'node_modules', 'n'), Buffer.alloc(8 * 1024 * 1024));
+    const room = (reserveKib: number, dir = root) => sourced('sweep_box_has_room "$1" "$2" "$3"; echo $?', src, dir, String(reserveKib)).stdout.trim();
+    assert.equal(room(0), '0', 'a tmpfs-sized copy fits with no reserve');
+    assert.equal(room(1e12), '1', 'a reserve larger than the disk is never met: the copy is kept');
+    assert.equal(room(0, join(root, 'missing')), '1', 'an archive path df cannot read says no');
+    assert.equal(sourced('sweep_box_has_room "$1" "$2" 0; echo $?', join(root, 'nope'), root).stdout.trim(), '1', 'a source du cannot read says no');
+    assert.equal(sourced('echo "$BOX_RESERVE_GIB"').stdout.trim(), '30');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// Strategy 2026-10-19 guardrail 2: the never-touch set is pinned, not implied. None of these is under a root the sweep may remove, and bn-trunk is on the EXCLUDE list that named-path and scheduled modes both read.
+test('never-touch: the origins, the live and release trees, databases and the donor mounts are refused by sweep_kind; bn-trunk is excluded', () => {
+  for (const p of ['/opt/frankendom-origins', '/opt/frankendom-origins/x', '/var/www/frankendom', '/var/www/frankendom/releases/20261018-1200', '/var/lib/postgresql', '/var/lib/postgresql/16/main',
+    '/mnt/frankendom-donors', '/mnt/frankendom-donors/vps-archive', '/mnt/armagedom-backups', '/opt/frankendom-reference.git', '/opt/frankendom.git', '/opt/deploy-backups'])
+    assert.equal(kind(p), '', `${p} is refused`);
+  assert.match(sourced('echo " $EXCLUDE "').stdout, / bn-trunk /);
+});
+
+// Strategy 2026-10-19: a 40 GB cap on work/, oldest idle first, same keep-set, a copy younger than 6 h is never a victim.
+test('sweep_cap_order: oldest idle first, with sizes; skips never-touch names, symlinks, files and anything changed within the age window', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-cap-'));
+  try {
+    // a change time cannot be backdated, so "older" is "made earlier"; the window is the second argument (a negative window is in the future, so nothing counts as recent)
+    const mk = (name: string, kib: number) => { const d = join(root, name); mkdirSync(d); writeFileSync(join(d, 'blob'), Buffer.alloc(kib * 1024)); };
+    mk('oldest', 16); spawnSync('sleep', ['1.2']); mk('mid', 8); mk('bn-trunk', 4);
+    symlinkSync(join(root, 'mid'), join(root, 'a-link')); writeFileSync(join(root, 'a-file'), 'x');
+    const order = (hours: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_cap_order "$1" "$2"', 'x', root, hours], { encoding: 'utf8' });
+    const all = order('-1'); assert.equal(all.status, 0, all.stderr);
+    const rows = all.stdout.trim().split('\n').map(l => l.split(' '));
+    assert.deepEqual(rows.map(c => c[2]), [join(root, 'oldest'), join(root, 'mid')], 'oldest first; bn-trunk, the symlink and the file are left out');
+    assert.ok(Number(rows[0][1]) >= 16 && Number(rows[1][1]) >= 8, 'sizes in KiB');
+    assert.ok(Number(rows[0][0]) < Number(rows[1][0]), 'sorted by the newest change, ascending');
+    assert.equal(order('6').stdout.trim(), '', 'everything here changed within 6 h, so nothing is a cap victim');
+    assert.equal(sourced('echo "$WORK_CAP_GIB $CAP_MIN_AGE_H"').stdout.trim(), '40 6');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// Lead 2026-10-19 (Dom's 10-13 rule: no hand or by-age deletes on the VPS): the cap is its own mode, `--cap`. It is never part of the scheduled sweep, touches only work/, removes only through
+// archive_then_delete (so never an unarchived copy), and is a dry run unless --apply is given by hand. These run the real script against a tmp root (SWEEP_TEST_ROOT) with a stub gh.
+function capWorld() {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-capmode-'));
+  const work = join(root, 'shadow', 'work'); mkdirSync(work, { recursive: true }); mkdirSync(join(root, 'bin')); mkdirSync(join(root, 'arch'));
+  writeFileSync(join(root, 'bin', 'gh'), '#!/usr/bin/env bash\nprintf "some-other-branch\\nsomesha\\n"\n'); chmodSync(join(root, 'bin', 'gh'), 0o755);   // a non-empty open-PR list that matches nothing here
+  const mk = (name: string) => { mkdirSync(join(work, name)); writeFileSync(join(work, name, 'blob'), Buffer.alloc(20 * 1024)); };
+  mk('oldest'); spawnSync('sleep', ['1.2']); mk('middle'); spawnSync('sleep', ['1.2']); mk('newest');
+  const cap = (args: string[]) => spawnSync('bash', ['ops/vps-scratch-sweep', '--cap', ...args], { encoding: 'utf8', timeout: 60_000,
+    env: { ...process.env, SWEEP_TEST_ROOT: root, PATH: `${join(root, 'bin')}:${process.env.PATH}`, HOME: root, WORK_CAP_KIB: '30', CAP_MIN_AGE_H: '-1', BOX_RESERVE_GIB: '0' } });
+  const left = () => readdirSync(work).sort();
+  const manifest = () => readdirSync(join(root, 'log')).filter(f => f.endsWith('.removed.txt')).map(f => readFileSync(join(root, 'log', f), 'utf8')).join('');
+  return { root, work, cap, left, manifest, done: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+test('--cap without --apply is a dry run: it names what it would archive and removes and archives nothing', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  try {
+    const r = w.cap([]); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /over the 40G cap|cap: oldest idle copies first/); assert.match(r.stdout, /would archive\+delete .*\/oldest/);
+    assert.deepEqual(w.left(), ['middle', 'newest', 'oldest']); assert.deepEqual(readdirSync(join(w.root, 'arch')), [], 'nothing archived');
+  } finally { w.done(); }
+});
+
+test('--cap --apply never deletes a copy it could not archive: an unwritable archive aborts before any removal', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  try {
+    rmSync(join(w.root, 'arch'), { recursive: true }); writeFileSync(join(w.root, 'arch'), 'a file, so the archive root cannot be made');
+    const r = w.cap(['--apply']); assert.equal(r.status, 3, r.stdout + r.stderr); assert.match(r.stdout, /ABORT: storage box not writable/);
+    assert.deepEqual(w.left(), ['middle', 'newest', 'oldest'], 'every copy is still there');
+  } finally { w.done(); }
+});
+
+test('--cap --apply archives the oldest idle copies first (verified, in the manifest), stops at the cap, and leaves the newest', { skip: process.platform !== 'linux' ? 'needs Linux' : noRsync }, () => {
+  const w = capWorld();
+  try {
+    const r = w.cap(['--apply']); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.deepEqual(w.left(), ['newest'], 'oldest and middle are gone, newest is under the cap');
+    const run = readdirSync(join(w.root, 'arch', 'work'))[0];
+    for (const n of ['oldest', 'middle']) assert.equal(readFileSync(join(w.root, 'arch', 'work', run, n, 'blob')).length, 20 * 1024, `${n} was archived whole before it was removed`);
+    assert.equal((w.manifest().match(/^ARCHIVED /gm) ?? []).length, 2); assert.doesNotMatch(w.manifest(), /DELETED /, 'no delete-only line: every removal went through the archive');
+  } finally { w.done(); }
+});
+
+test('--cap keeps a copy a process is working in, and says so', { skip: process.platform !== 'linux' }, () => {
+  const w = capWorld();
+  const child = spawn('sleep', ['30'], { cwd: join(w.work, 'oldest') });
+  try {
+    const r = w.cap(['--apply']); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.ok(w.left().includes('oldest'), 'the in-use copy is not removed'); assert.match(r.stdout, /cap keep\(in-use\) oldest/);
+  } finally { child.kill(); w.done(); }
+});
+
+test('--cap and --path are separate modes, and --cap is nowhere in the scheduled form or the cap code path', () => {
+  const r = run(['--cap', '--path=/tmp/x']); assert.equal(r.status, 2); assert.match(r.stderr, /separate modes/);
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const capBlock = src.slice(src.indexOf('# --cap mode'), src.indexOf('# work/: lane scratch'));
+  assert.equal(src.replace(/#[^\n]*/g, '').split('sweep_cap_order').length - 1, 2, 'defined once and called once, inside the --cap block');
+  assert.ok(capBlock.includes('sweep_cap_order "$WORK" "$CAP_MIN_AGE_H"') && capBlock.startsWith('# --cap mode') && /if \[ "\$CAPMODE" = 1 \]; then/.test(capBlock));
+  assert.doesNotMatch(capBlock.replace(/#[^\n]*/g, ''), /\brm\b|delete_only/, 'the cap removes nothing itself: only archive_then_delete');
+  assert.doesNotMatch(readFileSync('ops/vps-scratch-sweep.service', 'utf8'), /--cap/, 'the timer never runs it');
+});
+
+// Lead + Strategy 2026-10-20: an age or cap victim with uncommitted changes or commits no remote has, whose HEAD is not merged, is live work: kept. Merged, clean-and-pushed and plain (no .git) copies stay victims.
+test('work_live_checkout: dirty is always live; unpushed and not merged is live; clean merged, clean-and-pushed and no-.git are not; an unreadable HEAD fails closed', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-live-'));
+  try {
+    const mk = (name: string) => { const d = join(root, name); mkdirSync(d); git(d, 'init', '-q', '-b', 'main'); writeFileSync(join(d, 'a'), '1'); git(d, 'add', 'a'); git(d, 'commit', '-qm', 'one'); return d; };
+    const live = (d: string) => sourced('work_live_checkout "$1"; echo $?', d).stdout.trim() === '0';
+    const merged = mk('merged'); git(merged, 'update-ref', 'refs/remotes/origin/main', 'HEAD'); writeFileSync(join(merged, 'dirty'), 'x');
+    assert.equal(live(merged), true, 'dirty is ALWAYS live, even when HEAD is already merged (Lead 2026-10-20)');
+    const mergedClean = mk('mergedclean'); git(mergedClean, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    assert.equal(live(mergedClean), false, 'clean and HEAD merged: a fair victim');
+    const pushed = mk('pushed'); git(pushed, 'update-ref', 'refs/remotes/origin/feat', 'HEAD');
+    assert.equal(live(pushed), false, 'clean and pushed (a remote ref has the commit), not merged: a fair victim');
+    const dirty = mk('dirty'); git(dirty, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(dirty, 'wip'), 'x');
+    assert.equal(live(dirty), true, 'pushed but dirty, not merged: someone is working in it');
+    const unpushed = mk('unpushed'); git(unpushed, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(unpushed, 'a'), '2'); git(unpushed, 'commit', '-qam', 'two');
+    assert.equal(live(unpushed), true, 'clean but one unpushed commit, not merged: live');
+    const plain = join(root, 'plain'); mkdirSync(plain); writeFileSync(join(plain, 'f'), 'x');
+    assert.equal(live(plain), false, 'a plain copy with no .git has no work-in-progress signal');
+    const broken = join(root, 'broken'); mkdirSync(join(broken, '.git'), { recursive: true });
+    assert.equal(live(broken), true, 'a .git whose HEAD cannot be read fails closed');
+    const badIndex = mk('badindex'); git(badIndex, 'update-ref', 'refs/remotes/origin/feat', 'HEAD'); writeFileSync(join(badIndex, '.git', 'index'), 'not an index');
+    assert.equal(live(badIndex), true, 'a git status that errors (corrupt index) is not read as clean (Auditor nit, 2026-10-20)');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the age loop and the cap loop both skip live work, right after the open-PR check', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
+  assert.equal(src.split('work_live_checkout "$d" &&').length - 1, 2, 'one call in the cap loop, one in the age loop');
+  assert.match(src, /work_open_pr "\$d" && \{ say "cap keep\(open-PR\) \$n"; continue; \}\n\s*work_live_checkout "\$d"/);
+  assert.match(src, /work_open_pr "\$d" && \{ say "keep\(open-PR\) \$n"; continue; \}\n\s*work_live_checkout "\$d"/);
+});
+
+test('a bundle that fails git bundle verify falls back to archiving the whole .git, and a failed .git copy keeps the source (Lead 2026-10-19)', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
+  assert.match(fn, /git -C "\$s" bundle verify -q "\$bundle"/);
+  assert.match(fn, /rsync -rtlJ --chmod=Du\+rwx,Fu\+rw --partial "\$s\/\.git"/);
+  assert.match(fn, /GITCOPYFAIL \$s \(kept\)"; return/);
+  assert.ok(fn.indexOf('bundle verify') < fn.indexOf('rm -rf -- "$s"'), 'verified before anything is removed');
+});
+
+test('archive_then_delete checks the box has room before it copies, and keeps the copy when it does not', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const fn = src.slice(src.indexOf('archive_then_delete(){'), src.indexOf('delete_only(){'));
+  assert.ok(fn.indexOf('sweep_box_has_room') > 0 && fn.indexOf('sweep_box_has_room') < fn.indexOf('rsync -rtlJ'), 'the room check comes before the first rsync');
+  assert.match(fn, /sweep_box_has_room "\$s" "\$ARCH" \$\(\(BOX_RESERVE_GIB \* 1048576\)\) \|\| \{ say "skip\(storage box full, kept\) \$s"; return; \}/);
+});
+
+test('archive_then_delete copies with SWEEP_EXCLUDES and writes the bundle before it deletes', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  assert.doesNotMatch(src, /rsync [^\n]*--exclude=node_modules/, 'the two rsync calls use SWEEP_EXCLUDES, not a private exclude list');
+  assert.match(src, /sweep_unpushed_bundle "\$s" "\$bundle"; brc=\$\?/);
+  assert.ok(src.indexOf('sweep_unpushed_bundle "$s" "$bundle"') < src.indexOf('rm -rf -- "$s"; say "archived+deleted'), 'the bundle is written before anything is removed');
+});
+
