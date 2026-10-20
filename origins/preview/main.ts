@@ -85,6 +85,7 @@ import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } f
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { createLateStream } from './late-stream.ts';
+import { replanGapRow } from './replan-gap.ts';
 import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, enableSpecialCounter, loadFeedback, woundSpec, specialRoleOf } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
@@ -547,7 +548,7 @@ function planUpload() {
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
   if (!mobs || !skyReady) return;
-  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
+  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + previewRule(replanGapRow(lateLookAt, zoneReadyAt)); uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B

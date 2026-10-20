@@ -72,6 +72,8 @@
     { "id": "camLZoom", "value": 0.85, "unit": "ratio" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
+    { "id": "replanGap", "value": 3, "unit": "s" },
+    { "id": "lateReplanGap", "value": 0.05, "unit": "s" },
     { "id": "legendReach", "value": 6, "unit": "m" },
     { "id": "lockRange", "value": 9, "unit": "m" },
     { "id": "lockPull", "value": 6, "unit": "1/s" },
