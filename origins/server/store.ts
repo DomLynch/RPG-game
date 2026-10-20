@@ -297,6 +297,17 @@ export const skillFocus = async (db: Db, account: string, character: string, ski
   const out = await gated(db, 'skillpool', HAS_SKILL_POOL, 'skillpool', `select coalesce(public.origins_skill_focus(:'a'::uuid, :'c', :'s', :'o'::boolean)::text, 'null');`, { a: acct(account), c: character, s: skill, o: on ? 'true' : 'false' });
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
+// The two SPECIAL slots a character carries (migration 20261020150000): { slot1, slot2 }, each a skill id or null. 'absent' = the migration is not applied; null = not the account's character.
+export type SpecialSlotsRow = { slot1: string | null; slot2: string | null };
+const HAS_SPECIAL_SLOTS = `select to_regprocedure('public.origins_special_slots_set(uuid,text,text,text)') is not null as specialslots \\gset\n`;
+export const specialSlotsGet = async (db: Db, account: string, character: string): Promise<SpecialSlotsRow | null | 'absent'> => {
+  const out = await gated(db, 'specialslots', HAS_SPECIAL_SLOTS, 'specialslots', `select coalesce(public.origins_special_slots_get(:'a'::uuid, :'c')::text, 'null');`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+export const specialSlotsSet = async (db: Db, account: string, character: string, slot1: string | null, slot2: string | null): Promise<SpecialSlotsRow | null | 'absent'> => {
+  const out = await gated(db, 'specialslots', HAS_SPECIAL_SLOTS, 'specialslots', `select coalesce(public.origins_special_slots_set(:'a'::uuid, :'c', nullif(:'s1', ''), nullif(:'s2', ''))::text, 'null');`, { a: acct(account), c: character, s1: slot1 ?? '', s2: slot2 ?? '' });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
 export const buildSet = async (db: Db, account: string, character: string, placed: Record<string, number>, respreadRank: number, expected: number): Promise<BuildRow | null | 'absent'> => {
   const out = await gated(db, 'build', HAS_BUILD, 'build', `select coalesce(public.origins_set_build(:'a'::uuid, :'c', :'p'::jsonb, :'r'::int, :'e'::int)::text, 'null');`, { a: acct(account), c: character, p: JSON.stringify(placed), r: String(respreadRank), e: String(expected) });
   return out === 'absent' ? 'absent' : JSON.parse(out);
