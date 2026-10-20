@@ -7,7 +7,7 @@ import type { MobSpec } from './mobs.ts';
 type Seen = { id: string; x: number; z: number; mode: string };
 // Pure pick: the creature the hero is fighting now (`engaged`, the world fight's target: a nearer creature that has only noticed him must not take the card
 // mid-bout), else `focus` (a tapped legend, which stands still and never notices), each while it is in the list, else the nearest creature in `aggro` mode, or null.
-// `seen` is what mobs-view.debug() reports.
+// `seen` is what mobs-view.seen() reports (the cheap list: debug() is the browser checks' diagnostic and costs a skinned box per creature).
 export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null, engaged?: string | null): Seen | null {
   const e = engaged ? seen.find((m) => m.id === engaged) : undefined; if (e) return e;
   const f = focus ? seen.find((m) => m.id === focus) : undefined; if (f) return f;
