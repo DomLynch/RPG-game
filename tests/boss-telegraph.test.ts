@@ -30,7 +30,10 @@ test('nothing is drawn for a class special, outside a windup, or for a dead cast
 
 test('the open-world view (world = true) draws the ring under a hero special windup, nowhere else', () => {
   const hero = { specialShare: RULES.special.damage, health: 100, special: RULES.special.windup / 2 };
-  assert.deepEqual(telegraphLook(hero, false, true), { fill: 0.5, flash: false }, 'a world hero special fills the ring');
+  const look = telegraphLook(hero, false, true);
+  assert.equal(look?.fill, 0.5, 'a world hero special fills the ring');
+  assert.equal(look?.color, 0x7fd4ff, 'in the world row tint, never the boss orange');
+  assert.equal(telegraphLook({ ...hero, specialShare: RULES.special.bossDamage }, true, true)?.color, undefined, 'a boss special keeps its orange');
   assert.equal(telegraphLook(hero, false, false), null, 'the Pit keeps its no-ring hero special');
   assert.equal(telegraphLook({ ...hero, special: 0 }, false, true), null, 'outside a windup');
   assert.equal(telegraphLook({ ...hero, health: 0 }, false, true), null, 'a dead caster');
