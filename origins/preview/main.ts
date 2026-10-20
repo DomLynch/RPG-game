@@ -1075,8 +1075,8 @@ function programOwners(): Record<string, string[]> {
     const mats = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (!mats) return;
     for (const m of Array.isArray(mats) ? mats : [mats]) {
       const p = (renderer.properties.get(m) as { currentProgram?: { id: number; name: string } }).currentProgram; if (!p) continue;
-      const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && chain.length < 4; n = n.parent) chain.push(n.name || n.type);
-      const list = out[`${p.name}#${p.id}`] ??= []; if (list.length < 4) list.push(`${m.type}${m.name ? `:${m.name}` : ''} @ ${chain.join('<')}`);
+      const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && chain.length < 6; n = n.parent) chain.push(n.name || n.type);
+      const list = out[`${p.name}#${p.id}`] ??= []; if (list.length < 40) list.push(`${m.type}${m.name ? `:${m.name}` : ''}${(o as THREE.Mesh).isInstancedMesh ? ' [instanced]' : ''}${o.receiveShadow ? ' [recv]' : ''}${o.visible ? '' : ' [hidden]'} @ ${chain.join('<')}`);
     }
   });
   return out;
