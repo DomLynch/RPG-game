@@ -547,7 +547,7 @@ function planUpload() {
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
   if (!mobs || !skyReady) return;
-  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
+  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + previewRule(lateLookAt < 0 ? 'replanGap' : 'lateReplanGap'); uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
