@@ -153,6 +153,18 @@ test('packRows: every row exactly once, groups near the target, the longest row 
   assert.equal(packRows([row(999)])[0].estimateS, DEFAULT_ROW_S, 'a row with no measured weight is packed as the default');
 });
 
+// Dom 2026-10-20 (releases every 10-20 min): K5m's tail run had row 57 (ground-prompt-check, 713 s) packed with rows 35 and 38 because it had no weight (packed as the 120 s default),
+// so that job ran 1213 s; rows 9 (polearm, 494-854 s) and 46 (desktop-intro, 398 s) had no weight either. They are weighed now: the two longest CI rows get a job alone and nothing else
+// in the plan is over ~11 min. Today's measured seconds are the figures in scripts/lib/row-seconds.json.
+test('packRows: the real CI plan weighs rows 9, 46, 56 and 57, gives 57 and 9 a job each, and no shared job passes ~11 minutes', () => {
+  const sec = rowSeconds(), macOnly = [2, 4, 22, 44, 45, 48, 49, 52, 54], gpuOnly = [5, 7, 16, 21, 28, 34, 36];
+  for (const i of [9, 46, 56, 57]) assert.ok(Number(sec[String(i)]) > DEFAULT_ROW_S, `row ${i} carries a measured weight, not the ${DEFAULT_ROW_S} s default`);
+  const plan = Array.from({ length: 57 }, (_, k) => k + 1).filter(i => !macOnly.includes(i) && !gpuOnly.includes(i)).map(i => row(i));
+  const groups = packRows(plan);
+  for (const solo of [57, 9]) assert.deepEqual(groups.find(g => g.rows.some(r => r.index === solo))?.rows.map(r => r.index), [solo], `row ${solo} gets a job to itself`);
+  for (const g of groups) assert.ok(g.rows.length === 1 || g.estimateS <= 660, `shared job ${g.id} (${g.estimateS} s: rows ${g.rows.map(r => r.index).join(',')}) stays within ~11 minutes`);
+});
+
 test('groupLabel starts with the row list ci-trusted-checks reads', () => {
   const [g] = packRows([row(14, 'account-browser-check'), row(11, 'polearm-browser-check'), row(3, 'finisher-preview')], { 14: 100, 11: 100, 3: 100 }, 1000);
   assert.match(groupLabel(g), /^3,11,14 \(/);
