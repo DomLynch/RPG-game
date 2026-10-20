@@ -43,11 +43,26 @@ export const equippedSpecial = (slot = 0): string | undefined => equippedSpecial
 /** Equip a skill from the row's list into a slot; undefined (or an id not in the list) clears that slot. A skill already in the other slot MOVES (two different specials: the same skill is never in both). */
 export function equipSpecial(id: string | undefined, slot = 0): void {
   if (slot < 0 || slot >= SPECIAL_SLOT_COUNT) return;
+  const next = stored();
   try {
-    const next = stored();
     next[slot] = id && inBetaSpecials(id) ? id : undefined;
     if (next[slot]) next.forEach((other, i) => { if (i !== slot && other === next[slot]) next[i] = undefined; });
     if (next.every((x) => x === undefined)) store?.removeItem(KEY); else store?.setItem(KEY, JSON.stringify(next.map((x) => x ?? null)));
   } catch { /* storage refused: the pick lasts this page only through the picker */ }
+  for (const fn of listeners) fn();
+  pusher?.([next[0] ?? null, next[1] ?? null]);   // a signed-in page sends the final pair: the move rule above already ran, so a swap is one write
+}
+let pusher: ((picks: readonly [string | null, string | null]) => void) | undefined;
+/** A signed-in page hands it the writer push (special_slots_set), called with the final pair after every pick this page makes; a guest page never sets it, and a failed push changes nothing here (the device copy stands). */
+export const useSpecialPush = (fn: ((picks: readonly [string | null, string | null]) => void) | undefined): void => { pusher = fn; };
+/** The picks this device holds, a slot with no pick of its own undefined (the rows' defaults are not picks): what a first sign-in sends up when the account holds none. */
+export const devicePicks = (): readonly (string | undefined)[] => stored().map((id) => (id && inBetaSpecials(id) ? id : undefined));
+/** The account's copy replaces this device's cache (never pushed back): a slot the server holds as null, or a skill the cut has dropped, is no pick (the rows' defaults fill it), and the same skill in both slots keeps the first. */
+export function adoptSpecialSlots(picks: readonly (string | null | undefined)[]): void {
+  try {
+    const next = Array.from({ length: SPECIAL_SLOT_COUNT }, (_, i) => { const id = picks[i]; return id && inBetaSpecials(id) ? id : undefined; });
+    next.forEach((id, i) => { if (id && next.indexOf(id) !== i) next[i] = undefined; });
+    if (next.every((x) => x === undefined)) store?.removeItem(KEY); else store?.setItem(KEY, JSON.stringify(next.map((x) => x ?? null)));
+  } catch { /* storage refused: this page reads the server copy only for now */ }
   for (const fn of listeners) fn();
 }
