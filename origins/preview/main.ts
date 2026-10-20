@@ -518,8 +518,7 @@ const uploaded = new WeakSet<object>();   // textures and geometries already on 
 const UPLOAD_BUDGET_MS = previewRule('uploadBudget');
 const KINDS_WAIT_MS = previewRule('kindsWait'), MATERIAL_BOUND_MS = previewRule('materialBound');   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
 const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
-function planUpload() {
-  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+function scanScene() {   // what the scene holds that no plan has put on the GPU yet (the plan below queues it; zoneReadyCheck looks again before it says ready)
   const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh | THREE.Points>();
   scene.traverse((o) => {
     const sp = o as THREE.Sprite; if (sp.isSprite) { const t = sp.material.map; if (t && !uploaded.has(t)) textures.add(t); return; }   // a creature's name label and its '!' are canvas-texture sprites: first drawn at first sight, so they upload here (Metal trace: +1 texture at engage, #1921)
@@ -530,6 +529,11 @@ function planUpload() {
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
   });
+  return { textures, geometries, materials };
+}
+function planUpload() {
+  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+  const { textures, geometries, materials } = scanScene();
   linkProxy(renderer, camera);   // the shared proxy's program is linked now, before [zone ready], and stays (warm-proxy.ts)
   const queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
@@ -686,12 +690,15 @@ function allWarmed() {   // every body kind and the hero are warmed (or failed):
   const w = mobs?.warmState();
   return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
 }
+let lateLookAt = -1;   // when zoneReadyCheck first found something streamed in after the last plan (the bound's start)
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !modelsDrawn) return;
+  // One last look before it says ready: a body or prop that streamed in after the plan's last look would link its programs at the engage (seamless-quiet, K5r and trunk under load: a creature weapon's Leather and WeatheredStone, "mesh_2/mesh_3<WeaponDrawn<hand_r"). Plan again now, not in 3 s; bounded by the kinds' own wait so a material that never uploads cannot hold the zone.
+  { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...late.materials.keys()].map((m) => m.name || m.type).slice(0, 6) }); return; } } }
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
