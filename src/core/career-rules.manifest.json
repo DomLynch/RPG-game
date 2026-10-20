@@ -91,6 +91,8 @@
         "utilitySpells": "array",
         "specialPick": "array",
         "specialRoles": "object",
+        "slot1Default": "string",
+        "slot1Alt": "string",
         "slot2Default": "string",
         "slot2Alt": "string",
         "spells": "array"
