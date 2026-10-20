@@ -96,8 +96,7 @@ test('a picked duel that pressed SPECIAL 2 verifies through the encounter verifi
   const { readFileSync } = await import('node:fs');
   const { decodeRecord } = await import('../../src/fight/server.ts');
   const fixture = JSON.parse(readFileSync(new URL('../../tests/fixtures/skill2-picked-duel-records.json', import.meta.url), 'utf8')) as { records: { id: number; record: string }[] };
-  withEra(true, () => { /* the records are RV85 (live era): decoded and judged under it below */ });
-  for (const f of fixture.records) {
+  for (const f of fixture.records) {   // the records are RV85: judged under the live era
     const rec = await decodeRecord(f.record);
     const params: EncounterParams = { seed: rec.seed, enemy: rec.opponent, level: rec.level, bar: null, flags: [], layer: null };
     const v = withEra(true, () => verifyEncounter(rec, params));
