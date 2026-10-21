@@ -3,8 +3,8 @@
 Paste this into the new session, then say which lane you are. Every lane's own handoff is in memory (index line "READ FIRST ... account move") and in its state doc top entry; this page is the map.
 
 ## Live and in flight
-- Live: K6q6 `4fc056d81` (12:26). Seven releases shipped today.
-- K6q7 = release PR #3524 `29fb58b5d` (RV87 fairer fights, pace flag, clamp-rate counter, sweep tool, t4-small default). MERGED to trunk; publish resumed 14:47 from the box's local store after a VPS-to-GitHub outage; at 15:09 running release rows (22/57), `deploy_hold` up. Deploy posts the Published line then stops. If it STOPPED again: stop files stay, restart Deploy first, `bash scripts/release-train-resume.sh 3524 29fb58b5d220b152eb6dd6a8ad78a243955b0a6b` with work-1880's origin on `/opt/frankendom-shadow/repo` (restore the GitHub URL after).
+- Live: K6q7 `29fb58b5d` PUBLISHED 15:11, verified by Strategy's curl 15:16 (RV87 fairer fights, pace flag, clamp-rate counter, sweep tool, t4-small default, setsid test, sweep WARN). Eight releases today. The publish had stopped once on a VPS-to-GitHub outage and was resumed from the box's local store; work-1880's origin is restored to GitHub; `deploy_hold` and the stop file are gone; presence healthy.
+- OPEN CI TAIL, nobody watching: run 39590338326 (rows 10,11,38,39,46 at 29fb58b5d) was still in progress at 15:16 and the resume wrote no postcheck marker. First lane up reads `gh run view 39590338326 --repo DomLynch/RPG-game --json status,conclusion`; green = tail trusted; red = Lead/Strategy decide (no trust lines).
 - K6q8 order (Lead): #3526 guards, #3527 Backend mirror-first + 30 s GitHub probes (then remove the TEMP hosts pin `140.82.121.3 github.com`, backup `/root/hosts.bak-2026-10-21`), #3520 creature-body defer, #3525 road tops, #3529 Web labels cache, #3528 RV88 salamander. Each needs "Auditor: PASS @head9" then Lead's candidate:pass.
 
 ## Rulings today (all in Strategy memory)
