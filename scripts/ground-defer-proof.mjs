@@ -36,12 +36,12 @@ try {
   page.on('requestfinished', (r) => { const u = new URL(r.url()).pathname; if (/\.(glb|webp|png|jpe?g|ktx2)$/.test(u)) seq.push({ u, ready }); });
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 480000, polling: 1000 }).catch(() => console.log(label, 'NO __zoneReady within 480 s'));
-  ready = true; await page.waitForTimeout(25000);
+  ready = true; await page.waitForTimeout(150000);   // software GL parses slowly after ready: give the deferred models time to arrive
   const kb = (list) => Math.round(list.reduce((n, s) => n + (wire.get(s.u) ?? 0), 0) / 1024);
   const before = seq.filter((s) => !s.ready), after = seq.filter((s) => s.ready);
   const models = (list) => list.filter((s) => /\.glb$/.test(s.u)).map((s) => `${s.u.split('/').pop()} ${Math.round((wire.get(s.u) ?? 0) / 1024)}KB`);
   console.log(`${label} BEFORE-READY: ${before.length} files ${kb(before)} KB gzip; models ${models(before).length}: ${models(before).join(', ')}`);
-  console.log(`${label} AFTER-READY (25 s): ${after.length} files ${kb(after)} KB; models ${models(after).length}: ${models(after).join(', ')}`);
+  console.log(`${label} AFTER-READY (150 s): ${after.length} files ${kb(after)} KB; models ${models(after).length}: ${models(after).join(', ')}`);
   for (const s of before.filter((x) => /\/(loot|longsword|bow|bow-v1|staff-v1|cleaver|estoc|gladius|shield)[-.]/.test(x.u))) console.log(`${label} WHO ${s.u.split('/').pop()}: ${who.get(s.u) ?? '?'}`);
   console.log(`${label} ready=${await page.evaluate(() => window.__zoneReady?.atMs ?? null)} ms (software GL, not a timing); page errors: ${errors.length ? errors.join(' | ') : 'none'}`);
   await page.screenshot({ path: path.join(out, `${label}-after-ready.png`), timeout: 240000 });
