@@ -28,6 +28,16 @@ test('a dead ssh or unreadable output is a WARN, never a block', () => {
   assert.equal(vpsDiskVerdict('garbage').level, 'warn');
 });
 
+test('two mounts: the fullest decides and the reason names it', () => {
+  const two = (a: number, b: number) => `Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1 1 1 ${a}% /\n/dev/sdb 1 1 1 ${b}% /mnt/HC_Volume_107195252\n`;
+  assert.equal(vpsDiskVerdict(two(72, 40)).level, 'ok');
+  const w = vpsDiskVerdict(two(72, 85));
+  assert.equal(w.level, 'warn'); assert.equal(w.mount, '/mnt/HC_Volume_107195252');
+  const r = vpsDiskVerdict(two(91, 40));
+  assert.equal(r.level, 'refuse'); assert.match(r.reason, /\/ at 91%/);
+  assert.deepEqual(loadGates().vpsDisk.paths, ['/', '/mnt/HC_Volume_107195252']);
+});
+
 test('the header line is not read as a percentage', () => {
   assert.equal(vpsDiskVerdict('Use% header only\n').level, 'warn');
 });

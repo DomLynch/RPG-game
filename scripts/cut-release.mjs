@@ -140,11 +140,12 @@ export const loadGates = (file = new URL('./cut-gates.json', import.meta.url)) =
 /** VPS root disk pre-check (Strategy 2026-10-21, after the VPS stalled at 95%). `dfOut` is the stdout of `df -P <path>` on the VPS, or null when ssh failed or timed out.
  *  Returns { level: 'ok' | 'warn' | 'refuse', pct, reason }: >= refusePct refuses the cut, >= warnPct warns, an unreadable answer or a dead ssh is a WARN (never a block: the box may just be busy). */
 export function vpsDiskVerdict(dfOut, { warnPct, refusePct } = loadGates().vpsDisk) {
-  const pct = Number((/(\d+)%/.exec(String(dfOut || '').split('\n').slice(1).join('\n')) || [])[1]);
-  if (!Number.isFinite(pct)) return { level: 'warn', pct: null, reason: 'could not read the VPS disk usage (ssh failed or timed out)' };
-  if (pct >= refusePct) return { level: 'refuse', pct, reason: `VPS disk at ${pct}% (refuse at ${refusePct}%): clear space with vps-scratch-sweep first` };
-  if (pct >= warnPct) return { level: 'warn', pct, reason: `VPS disk at ${pct}% (warn at ${warnPct}%)` };
-  return { level: 'ok', pct, reason: `VPS disk at ${pct}%` };
+  const rows = String(dfOut || '').split('\n').slice(1).map(l => /(\d+)%\s+(\S+)\s*$/.exec(l)).filter(Boolean).map(m => ({ pct: Number(m[1]), mount: m[2] }));   // `df -P a b`: one row per mount
+  if (!rows.length) return { level: 'warn', pct: null, mount: null, reason: 'could not read the VPS disk usage (ssh failed or timed out)' };
+  const worst = rows.reduce((a, b) => (b.pct > a.pct ? b : a)), { pct, mount } = worst;
+  if (pct >= refusePct) return { level: 'refuse', pct, mount, reason: `VPS disk ${mount} at ${pct}% (refuse at ${refusePct}%): clear space with vps-scratch-sweep first` };
+  if (pct >= warnPct) return { level: 'warn', pct, mount, reason: `VPS disk ${mount} at ${pct}% (warn at ${warnPct}%)` };
+  return { level: 'ok', pct, mount, reason: `VPS disk ok, fullest ${mount} at ${pct}%` };
 }
 
 /** Gate 1: every commit in live..base must belong to a PR. git(args) -> { status, stdout }; pullsOf(sha) -> the PR numbers GitHub lists for the commit (throws if it cannot ask).
@@ -216,7 +217,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (space.status !== 0) { console.error(`cut-release: refusing to cut, ${space.stdout || ''}${space.stderr || ''}${space.error ? ` (${space.error.message})` : ''}${space.signal ? ` (killed by ${space.signal})` : ''}`.trim()); process.exit(2); }   // a timeout or kill is a refusal too (status null)
   console.log(space.stdout.trim());
   const dg = loadGates().vpsDisk;
-  const vdf = run('ssh', ['-o', 'BatchMode=yes', '-o', `ConnectTimeout=${dg.sshTimeoutS}`, '-i', join(process.env.HOME, '.ssh/binance_futures_tool'), 'root@49.12.7.18', `df -P ${dg.path}`], { timeout: (dg.sshTimeoutS + 10) * 1000 });
+  const vdf = run('ssh', ['-o', 'BatchMode=yes', '-o', `ConnectTimeout=${dg.sshTimeoutS}`, '-i', join(process.env.HOME, '.ssh/binance_futures_tool'), 'root@49.12.7.18', `df -P ${dg.paths.join(' ')}`], { timeout: (dg.sshTimeoutS + 10) * 1000 });
   const vd = vpsDiskVerdict(vdf.status === 0 ? vdf.stdout : null);
   console.error(`cut-release: ${vd.level === 'ok' ? 'vps disk ok: ' : vd.level === 'warn' ? 'WARN, ' : 'refusing to cut, '}${vd.reason}`);
   if (vd.level === 'refuse') process.exit(2);
