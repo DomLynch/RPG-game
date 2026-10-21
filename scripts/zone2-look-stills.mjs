@@ -3,12 +3,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 
 const out = process.argv[2], base = process.env.BASE ?? 'http://127.0.0.1:5199';
 if (!out) throw new Error('usage: zone2-look-stills.mjs <out dir>');
 fs.mkdirSync(out, { recursive: true });
 const shapes = { '375': { width: 375, height: 812 }, desktop: { width: 1280, height: 720 } };
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: process.env.SOFT ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME || undefined, args: process.env.SOFT ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
 const receipt = { renderer: null, shots: [], errors: [] };
 try {
   for (const look of (process.env.LOOKS ?? 'base').split(',')) for (const [name, viewport] of Object.entries(shapes)) {

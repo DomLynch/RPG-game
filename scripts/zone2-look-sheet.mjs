@@ -2,10 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 
 const dir = process.argv[2]; if (!dir) throw new Error('usage: zone2-look-sheet.mjs <stills dir>');
 const labels = { today: 'Today', plate: "Dom's plate (look row reach-plate)" };   // <name>-<375|desktop>[-fight].png in the stills dir
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
+const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME || undefined });
 try {
   for (const [name, w, h] of [['375', 375, 812], ['desktop', 640, 360]]) {
     const cells = ['', '-fight'].flatMap((suffix) => Object.entries(labels).map(([k, t]) => [`${k}-${name}${suffix}.png`, `${t}${suffix ? ' · mid-fight' : ' · ready idle'}`])).filter(([f]) => fs.existsSync(path.join(dir, f)))
