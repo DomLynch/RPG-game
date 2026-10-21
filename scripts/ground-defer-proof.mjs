@@ -27,6 +27,7 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE })).newPage();
+  await page.addInitScript(() => { const st = window.setTimeout.bind(window); window.setTimeout = (f, ms, ...a) => (ms === 30000 ? 0 : st(f, ms, ...a)); });   // software GL reaches [zone ready] after the 30 s groundDeferMax backstop (a real phone does in ~9 s): this run drops that one timer so what it shows is the gate on [zone ready] itself
   const errors = [], seq = []; let ready = false;
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
   const cdp = await page.context().newCDPSession(page); await cdp.send('Network.enable'); await cdp.send('Debugger.enable'); await cdp.send('Debugger.setAsyncCallStackDepth', { maxDepth: 32 });
