@@ -15,7 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { costOfSeconds, jobScript, parseArgs, parseJobLog, shellLine } from './lib/gpu-run.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const hf = process.env.GPU_RUN_HF || 'hf', flavor = 't4-medium', pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
+const hf = process.env.GPU_RUN_HF || 'hf', flavor = process.env.GPU_RUN_FLAVOR || 't4-medium',   // probe branch only (Dom 2026-10-21: T4 small always; the shared runner still hard-codes medium until Deploy's PR lands)
+ pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
 const say = message => process.stderr.write(`gpu-run: ${message}\n`);
 const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', timeout: 120_000, ...options });   // every sync child is bounded (tests/child-process-bounds.test.ts)
 const sleep = s => new Promise(resolve => setTimeout(resolve, s * 1000));   // async: a SIGTERM/SIGINT (GitHub cancelling the run) is only handled when the loop yields
