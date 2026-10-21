@@ -96,6 +96,31 @@ sweep_fstab_drop() {
     || { rm -f "$tmp"; echo "fstab: edit failed, left alone"; }
   return 0
 }
+# sweep_bind_orphan <mountpoint>: 0 only for an ORPHAN bind: findmnt shows its SOURCE as /dev/xxx[/sub//deleted] (the directory behind it was removed, e.g. swept through the volume path) AND the mount point shows nothing inside. Anything else: 1.
+sweep_bind_orphan() {
+  local mp=$1 desc
+  desc=$(findmnt -rn -o SOURCE --target "$mp" 2>/dev/null | head -n 1)
+  case "$desc" in */*"["/*"//deleted]") ;; *) return 1;; esac
+  mountpoint -q -- "$mp" 2>/dev/null || return 1
+  [ -z "$(find "$mp" -mindepth 1 -print -quit 2>/dev/null)" ]
+}
+# sweep_binds_of <source>: print the mount point of every BIND mount whose source is exactly the directory <source> (findmnt SOURCE /dev/xxx[/sub], the device's own mount + /sub).
+sweep_binds_of() {
+  local want=$1 t s dev sub base
+  while read -r t s; do
+    case "$s" in */*"["/*"]") ;; *) continue;; esac
+    dev=${s%%\[*}; sub=${s#*\[}; sub=${sub%\]}
+    base=$(findmnt -rn -o TARGET,SOURCE 2>/dev/null | awk -v d="$dev" '$2 == d { print $1; exit }')
+    [ -n "$base" ] && [ "${base%/}$sub" = "$want" ] && printf '%s\n' "$t"
+  done < <(findmnt -rn -o TARGET,SOURCE 2>/dev/null)
+  return 0
+}
+# sweep_bind_release <mountpoint>: plain umount (never -f or -l), rmdir the empty mount point, drop its one fstab line. Prints what it did; returns 1 when the umount failed.
+sweep_bind_release() {
+  local mp=$1
+  if umount -- "$mp" 2>>"${LOG:-/dev/null}"; then echo "unmounted the bind $mp"; rmdir -- "$mp" 2>/dev/null; sweep_fstab_drop "$mp"
+  else echo "UMOUNT FAILED $mp (unmount by hand)"; return 1; fi
+}
 # In use = a process has its cwd inside, or lsof +D finds an open file. FAILS CLOSED: 0 (in use) for anything but a clean "nothing open" (lsof exit 1); a timeout (124) or any
 # other exit is "could not tell", which counts as in use. 1 = safe to remove.
 sweep_in_use() {
@@ -256,13 +281,17 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
     kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
     # A BIND MOUNT (Lead 2026-10-21): when <p> is a bind of a dir on an allowed volume root, the SOURCE is what is archived and removed ($target), then the bind is unmounted and its fstab line dropped. A bind whose
     # source resolves outside the allowed roots, and any other mount point, is refused as before.
-    target=$p; bound=0
+    target=$p; bound=0; orphan=0
     if mountpoint -q -- "$p" 2>/dev/null; then
-      src=$(sweep_bind_source "$p") || { say "REFUSE(is a mount point, and not a bind of a directory under an allowed root) $p"; continue; }
+      if sweep_bind_orphan "$p"; then orphan=1   # Lead 2026-10-21 (#3518): the source is already gone and the mount point is empty: nothing to archive, only unmount + rmdir + fstab line
+      else
+        src=$(sweep_bind_source "$p") || { say "REFUSE(is a mount point, and not a bind of a directory under an allowed root) $p"; continue; }
+        target=$src; bound=1
+      fi
       [ "$kind" = lane ] || { say "REFUSE(a bind mount is only swept under a lane root, this is '$kind') $p"; continue; }   # the aged/tmp/home kinds delete by path and would reach through the mount
-      target=$src; bound=1
     fi
-    if [ "$bound" = 1 ]; then why=$(sweep_safe_path "$p" bind) || { say "REFUSE($why) $p"; continue; }; why=$(sweep_safe_path "$target") || { say "REFUSE(bind source: $why) $p -> $target"; continue; }
+    if [ "$orphan" = 1 ]; then why=$(sweep_safe_path "$p" bind) || { say "REFUSE($why) $p"; continue; }
+    elif [ "$bound" = 1 ]; then why=$(sweep_safe_path "$p" bind) || { say "REFUSE($why) $p"; continue; }; why=$(sweep_safe_path "$target") || { say "REFUSE(bind source: $why) $p -> $target"; continue; }
     else why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }; fi
     case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
     if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
@@ -277,14 +306,26 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
       if sweep_in_use "$target"; then say "REFUSE(bind source in use, or the in-use probe could not tell) $p -> $target"; continue; fi
     fi
     if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
+    if [ "$orphan" = 1 ]; then
+      if [ $APPLY = 0 ]; then say "would umount the ORPHAN bind $p (its source is already gone), remove the empty mount point and drop its fstab line; nothing is archived"
+      else say "$(sweep_bind_release "$p")"; fi
+      continue
+    fi
+    # A volume SOURCE dir that binds point to (Lead 2026-10-21): remember the binds BEFORE the delete (findmnt then shows //deleted), release them after, so a sweep through the volume path cannot leave an orphan.
+    sbinds=""; if [ "$kind" = lane ] && [ "$bound" = 0 ]; then sbinds=$(sweep_binds_of "$p"); fi
     case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$target" named;; esac
     if [ "$bound" = 1 ]; then
       if [ $APPLY = 0 ]; then say "would umount the bind $p (source $target) and drop its fstab line"
       elif [ -e "$target" ]; then say "bind $p: source $target still exists (archive failed or kept): not unmounting"
-      else
-        if umount -- "$p" 2>>"$LOG"; then say "unmounted the bind $p"; rmdir -- "$p" 2>/dev/null; say "$(sweep_fstab_drop "$p")"; else say "UMOUNT FAILED $p (its source $target is already removed; unmount by hand)"; fi
-      fi
+      else say "$(sweep_bind_release "$p")"; fi
     fi
+    for b in $sbinds; do
+      if [ $APPLY = 0 ]; then say "would umount the bind $b (it points at $p) after the source is removed, and drop its fstab line"
+      elif [ -e "$p" ]; then say "bind $b: source $p still exists (archive failed or kept): not unmounting"
+      elif [ "$(sweep_kind "$b")" != lane ]; then say "bind $b: not under a lane root, left for a hand step"
+      elif sweep_bind_orphan "$b"; then say "$(sweep_bind_release "$b")"
+      else say "bind $b: not an empty orphan after the delete, left alone"; fi
+    done
   done
   say "named-path mode done"; exit 0
 fi
