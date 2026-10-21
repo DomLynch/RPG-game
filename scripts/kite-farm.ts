@@ -46,8 +46,9 @@ const BOTS: Record<string, (x: Ctx) => Input> = {
 };
 function run(name: string, seed: number) {
   const starter = env('KIT', 'plate') === 'starter' ? wornGear({ head: 'goblin.Helmet', legs: 'goblin.Greaves' }, () => TIERS[0]) : undefined;   // KIT=starter: the starter armour (goblin helmet + shin plates at Recruit); KIT=plate (default): the full plate set at Recruit quality, RECRUIT=1
-  const sheet = rungSheet(0, level, 'plate', env('RECRUIT', '1') === '1', starter), a = seed * 0.37;
-  const hero = (id: string, x: number, z: number) => player(id, x, z, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) });
+  const heroLevel = +env('HERO_LEVEL', String(level)), heroRung = +env('HERO_RUNG', '0');   // HERO_LEVEL / HERO_RUNG: a geared hero (the troll's L16 rung-4 bar, tests/troll-level-fixed.test.ts); the defaults are the Recruit starter hero at the creature's level, as always
+  const sheet = rungSheet(heroRung, heroLevel, 'plate', env('RECRUIT', '1') === '1', starter), a = seed * 0.37;
+  const hero = (id: string, x: number, z: number) => player(id, x, z, 0, heroLevel, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) });
   const heroes = name === 'tag' ? [hero('hero', 0, 0), hero('hero2', 14, 0)] : [hero('hero', 0, 0)];
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
   const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, follow: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
