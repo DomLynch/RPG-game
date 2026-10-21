@@ -49,7 +49,10 @@
   ],
   "palettes": [
     { "id": "fortress", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-panorama", "backdropLandscape": "fortress-panorama" },
-    { "id": "fortress-card", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-card", "backdropLandscape": "fortress-card" }
+    { "id": "fortress-card", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-card", "backdropLandscape": "fortress-card" },
+    { "id": "town-a", "haze": "town-a", "zenith": "#566fa8", "mid": "#c9a98a", "horizon": "#f2b878", "glow": "#ffe2a0", "ridge": "#6a5a68", "ridgeFar": "#a08c9c", "smoke": "#8a7a76", "puff": "#6c5c58", "torch": "#ffb050", "torchPower": 6, "backdropPortrait": "", "backdropLandscape": "" },
+    { "id": "town-b", "haze": "town-b", "zenith": "#8496b2", "mid": "#b9c3cd", "horizon": "#dedcd4", "glow": "#f6f1e4", "ridge": "#69727d", "ridgeFar": "#98a1aa", "smoke": "#9aa0a5", "puff": "#80868b", "torch": "#ffc070", "torchPower": 4, "backdropPortrait": "", "backdropLandscape": "" },
+    { "id": "town-c", "haze": "town-c", "zenith": "#0c1630", "mid": "#222f4a", "horizon": "#5c4a52", "glow": "#e8904c", "ridge": "#121828", "ridgeFar": "#222b40", "smoke": "#3a3a4a", "puff": "#2a2a38", "torch": "#ff9a40", "torchPower": 9, "backdropPortrait": "", "backdropLandscape": "" }
   ],
   "backdrops": [
     { "id": "fortress-card", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.84, "arc": 56, "azimuth": 180, "fadeSide": 0.25, "flat": 1, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.06, "drop": 0.04 },
@@ -58,7 +61,10 @@
     { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06, "drop": 0.08 }
   ],
   "looks": [
-    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] }
+    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] },
+    { "id": "town-a", "fog": "#d2a272", "fogDensity": 0.012, "hemiSky": "#9ab0d8", "hemiGround": "#5a4636", "hemiIntensity": 1.3, "sunColor": "#ffc078", "sunIntensity": 5.0, "sunPos": [-24, 9, -15], "exposure": 1.3, "ground": [1.0, 0.97, 0.92] },
+    { "id": "town-b", "fog": "#b8bec4", "fogDensity": 0.016, "hemiSky": "#c0ccdc", "hemiGround": "#66625c", "hemiIntensity": 1.4, "sunColor": "#f0f0e8", "sunIntensity": 3.2, "sunPos": [-10, 14, -20], "exposure": 1.2, "ground": [1.0, 1.0, 1.0] },
+    { "id": "town-c", "fog": "#1c2438", "fogDensity": 0.02, "hemiSky": "#34486c", "hemiGround": "#1a1612", "hemiIntensity": 0.8, "sunColor": "#7088c0", "sunIntensity": 1.2, "sunPos": [-24, 10, -15], "exposure": 1.1, "ground": [0.7, 0.72, 0.8] }
   ],
   "grounds": [
     { "id": "fortress-ground", "texN": 1024, "tileM": 4, "seed": 7, "base": "#4b3828", "light": "#68513c", "dark": "#271c14", "wet": "#1e1610", "blotches": 140, "blotchMin": 20, "blotchMax": 70, "wetPatches": 30, "wetMin": 60, "wetMax": 200, "speckles": 26000, "speckleMin": 1, "speckleMax": 3, "pebbles": 260, "pebbleMin": 2, "pebbleMax": 7, "cracks": 40, "crackSteps": 8, "crackStep": 50, "noise": 14, "bump": 1.6, "roughness": 0.95 },
