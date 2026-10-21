@@ -13,6 +13,7 @@ export type Look = {
   sunColor: string; sunIntensity: number; sunPos: [number, number, number];
   exposure: number;
   ground: [number, number, number];   // a multiplier on the ground materials' base colour (1,1,1 = as built)
+  field?: [number, number, number];   // the same for the Frontier's own field dirt (frontier.ts), the ground the player walks on in Zone 1 (absent = 1,1,1: no tint); `ground` only reaches the arena's ground
   stone?: [number, number, number];   // the same for the masonry (absent = 1,1,1): ground darker and masonry lighter is what lets a plaza read at 375
 };
 // The structural subset of a resolved zone's params this reads (origins/world Params satisfies it).
@@ -43,7 +44,7 @@ export function blendLook(a: Look, b: Look, t: number): Look {
   if (k === 0) return a;
   if (k === 1) return b;
   return { fog: hexLerp(a.fog, b.fog, k), fogDensity: lerp(a.fogDensity, b.fogDensity, k), hemiSky: hexLerp(a.hemiSky, b.hemiSky, k), hemiGround: hexLerp(a.hemiGround, b.hemiGround, k), hemiIntensity: lerp(a.hemiIntensity, b.hemiIntensity, k),
-    sunColor: hexLerp(a.sunColor, b.sunColor, k), sunIntensity: lerp(a.sunIntensity, b.sunIntensity, k), sunPos: vec(a.sunPos, b.sunPos, k), exposure: lerp(a.exposure, b.exposure, k), ground: vec(a.ground, b.ground, k), stone: vec(a.stone ?? [1, 1, 1], b.stone ?? [1, 1, 1], k) };
+    sunColor: hexLerp(a.sunColor, b.sunColor, k), sunIntensity: lerp(a.sunIntensity, b.sunIntensity, k), sunPos: vec(a.sunPos, b.sunPos, k), exposure: lerp(a.exposure, b.exposure, k), ground: vec(a.ground, b.ground, k), stone: vec(a.stone ?? [1, 1, 1], b.stone ?? [1, 1, 1], k), field: vec(a.field ?? [1, 1, 1], b.field ?? [1, 1, 1], k) };
 }
 // The look at a position along an axis: `stops` are zone centres (axis value, preset) in any order; between two neighbours the look blends (smoothstepped), beyond the ends it holds.
 export function lookAlong(at: number, stops: readonly { at: number; preset: string }[]): Look {
@@ -83,13 +84,13 @@ export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.
 export const zoneDayNight = (z: ZoneFields): boolean => !(z.set?.includes('dayNight.on') && z.fields?.['dayNight.on'] === false);
 
 // Put a look on the scene. `grounds` (optional) are the ground materials to tint: their first-seen base colour is kept in userData so a tint never compounds.
-export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = [], stones: readonly THREE.MeshStandardMaterial[] = []): Look {
+export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = [], stones: readonly THREE.MeshStandardMaterial[] = [], fields: readonly THREE.MeshStandardMaterial[] = []): Look {
   (scene.background as THREE.Color).set(look.fog);
   const fog = scene.fog as THREE.FogExp2; fog.color.set(look.fog); fog.density = look.fogDensity;
   hemi.color.set(look.hemiSky); hemi.groundColor.set(look.hemiGround); hemi.intensity = look.hemiIntensity;
   sun.color.set(look.sunColor); sun.intensity = look.sunIntensity;
   renderer.toneMappingExposure = look.exposure;
   const tint = (ms: readonly THREE.MeshStandardMaterial[], t: readonly [number, number, number]) => { for (const m of ms) { const base = (m.userData.lookBase ??= m.color.clone()) as THREE.Color; m.color.copy(base); m.color.r *= t[0]; m.color.g *= t[1]; m.color.b *= t[2]; } };   // no allocation: this runs every frame
-  tint(grounds, look.ground); tint(stones, look.stone ?? [1, 1, 1]);
+  tint(grounds, look.ground); tint(stones, look.stone ?? [1, 1, 1]); tint(fields, look.field ?? [1, 1, 1]);
   return look;
 }
