@@ -169,8 +169,14 @@ try {
   // The half-extent class (Auditor's rule, Lead-approved 2026-10-18): `<extent> / 2`, the centre or half-size of a width / depth / size, is a geometric identity nobody tunes. ONLY the literal 2, ONLY the `/ 2` form
   // (`* 0.5` stays counted, so neither can be traded for the other), and ONLY when the operand's last name is on this CLOSED list (a member or a bare identifier: `z.width / 2`, `plan.depth / 2`, `size / 2`).
   // Halving a range, a reach or a timing (`aggro / 2`, `windup / 2`) is a design choice and stays counted. Growing the list is a Lead/Strategy ruling, not a PR's choice.
-  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)';
-  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent)\s*\/$/;
+  // arc and ring joined the list on Lead's ruling (2026-10-21, Dom's audit): the half-span of an angular arc or a ring's diameter (`b.arc / 2`, `V.ring / 2`), both row values.
+  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent/arc/ring / 2)';
+  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent|arc|ring)\s*\/$/;
+  // Two more named maths classes (Lead's ruling 2026-10-21, Dom's audit), each as narrow as the sites that asked for it:
+  // degrees <-> radians: 180 straight against Math.PI (`(deg * Math.PI) / 180`, `Math.PI / 180`, `* 180 / Math.PI`);
+  // a git sha's display: `.slice(0, N)` of a sha / revision / release / commit / hash, and a full sha's `.length === 40` on a line that names one.
+  const DEGREES_BEFORE = /Math\.PI\s*\)?\s*\/$/, DEGREES_AFTER = /^\/\s*Math\.PI\b/;
+  const SHA_SLICE_BEFORE = /\b(?:sha|rev(?:ision)?|release|commit|hash|head)\w*(?:\([^()]*\))?\.slice\(\s*0\s*,$/i, SHA_LINE = /\b(?:sha|hex|revision|release|commit)\b/i;
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -186,6 +192,9 @@ try {
     if (text === '-1') return /(?:===|!==|==|!=|<=|>=|<|>)$/.test(before) || /\b(?:indexOf|lastIndexOf|findIndex|findLastIndex)\b/.test(line) ? '-1 sentinel (compared, or beside indexOf/findIndex)' : null;
     if (bitOp) return 'bits (beside & | ^ << >>)';
     const beside = arithBefore.test(before) || arith.test(after);
+    if (text === '180' && (DEGREES_BEFORE.test(before) || DEGREES_AFTER.test(after))) return 'math: degrees <-> radians (180 against Math.PI)';
+    if (SHA_SLICE_BEFORE.test(before)) return 'display: a short git sha (.slice(0, N) of a sha/revision/release)';
+    if (text === '40' && /\.length\s*[!=]==?$/.test(before) && SHA_LINE.test(line)) return 'format: a full git sha is 40 hex characters';
     if (text === '2') {
       if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
       if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
