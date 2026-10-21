@@ -18,7 +18,7 @@ const server = http.createServer((req, res) => {
   res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 try {
   const [w, h] = (process.env.VIEW || '844x390').split('x').map(Number);
   const shots = JSON.parse(process.env.SHOTS || '[]');
