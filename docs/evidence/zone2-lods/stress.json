@@ -1,0 +1,178 @@
+[
+ {
+  "body": "skeleton",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "clips": {
+   "duel": 38,
+   "world": 38
+  },
+  "clipsUsed": [
+   "Armed",
+   "Armed",
+   "Attack",
+   "Attack"
+  ],
+  "stress": [
+   {
+    "pose": "rest",
+    "duel": [
+     0.803,
+     1.521,
+     0.965
+    ],
+    "world": [
+     0.802,
+     1.527,
+     0.969
+    ],
+    "worldOverDuel": [
+     0.998,
+     1.004,
+     1.005
+    ]
+   },
+   {
+    "pose": "x0.5",
+    "duel": [
+     0.807,
+     1.5,
+     1.017
+    ],
+    "world": [
+     0.8,
+     1.498,
+     1.004
+    ],
+    "worldOverDuel": [
+     0.991,
+     0.999,
+     0.987
+    ]
+   },
+   {
+    "pose": "z0.5",
+    "duel": [
+     0.763,
+     1.56,
+     0.934
+    ],
+    "world": [
+     0.754,
+     1.519,
+     0.948
+    ],
+    "worldOverDuel": [
+     0.988,
+     0.974,
+     1.015
+    ]
+   },
+   {
+    "pose": "x-0.5",
+    "duel": [
+     0.803,
+     1.529,
+     0.885
+    ],
+    "world": [
+     0.799,
+     1.524,
+     0.903
+    ],
+    "worldOverDuel": [
+     0.995,
+     0.997,
+     1.021
+    ]
+   }
+  ]
+ },
+ {
+  "body": "nightborn",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "clips": {
+   "duel": 25,
+   "world": 25
+  },
+  "clipsUsed": [
+   "Armed",
+   "Armed",
+   "Attack",
+   "Attack"
+  ],
+  "stress": [
+   {
+    "pose": "rest",
+    "duel": [
+     0.669,
+     1.648,
+     0.958
+    ],
+    "world": [
+     0.673,
+     1.647,
+     0.962
+    ],
+    "worldOverDuel": [
+     1.006,
+     1,
+     1.005
+    ]
+   },
+   {
+    "pose": "x0.5",
+    "duel": [
+     0.675,
+     1.59,
+     0.992
+    ],
+    "world": [
+     0.679,
+     1.593,
+     0.998
+    ],
+    "worldOverDuel": [
+     1.007,
+     1.002,
+     1.006
+    ]
+   },
+   {
+    "pose": "z0.5",
+    "duel": [
+     0.645,
+     1.655,
+     0.855
+    ],
+    "world": [
+     0.639,
+     1.66,
+     0.855
+    ],
+    "worldOverDuel": [
+     0.991,
+     1.003,
+     0.999
+    ]
+   },
+   {
+    "pose": "x-0.5",
+    "duel": [
+     0.667,
+     1.731,
+     0.855
+    ],
+    "world": [
+     0.671,
+     1.734,
+     0.855
+    ],
+    "worldOverDuel": [
+     1.006,
+     1.002,
+     1
+    ]
+   }
+  ]
+ }
+]
