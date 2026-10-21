@@ -72,6 +72,7 @@ if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with 
 else if (verb === 'logs') { const seen = ${JSON.stringify(join(dir, 'logged'))}; if (${JSON.stringify(mode)} === 'empty-log-once' && !fs.existsSync(seen)) fs.writeFileSync(seen, 'x'); else process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8')); }
 else if (verb === 'cancel' && ${JSON.stringify(mode)} === 'small-stuck-nocancel') { console.error('cancel refused'); process.exit(1); }
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
+else if (verb === 'inspect' && ${JSON.stringify(mode)} === 'small-stuck-nocancel') { const f = ${JSON.stringify(join(dir, 'inspects'))}, n = (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0) + 1; fs.writeFileSync(f, String(n)); console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: n <= 4 ? 'SCHEDULING' : 'COMPLETED' } }])); }
 else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: (${JSON.stringify(mode)} === 'hangs' || ${JSON.stringify(mode)}.startsWith('small-stuck')) && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? (${JSON.stringify(mode)} === 'hangs' ? 'RUNNING' : 'SCHEDULING') : 'COMPLETED' } }]));
 else if (verb === 'ps') console.log(JSON.stringify(${JSON.stringify(mode)} === 'small-full' ? [1, 2, 3, 4].map(n => ({ id: String(n).repeat(24), flavor: 't4-small', created_at: '2026-10-21 08:00:0' + n + '+00:00', status: { stage: 'RUNNING' } })) : []));
 `);
@@ -123,11 +124,13 @@ test('the capacity clause: a small job still SCHEDULING past the wait is cancell
   assert.equal(launches.length, 2); assert.match(launches[0], /--flavor t4-small /); assert.match(launches[1], /--flavor t4-medium /);
 });
 
-test('the capacity clause never double-bills: if the stalled small job cannot be cancelled, medium is NOT launched beside it', () => {
+test('the capacity clause never double-bills: a stalled small job whose cancel is not confirmed stays on small, ONE launch, no medium', () => {
   const t = setup('small-stuck-nocancel', GOOD_LOG), r = t.runWith({ GPU_RUN_SMALL_WAIT_S: '0' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
-  assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /still live and could not be cancelled .*not launching medium beside it/);
-  assert.equal(readFileSync(join(t.dir, 'ran-log'), 'utf8').trim().split('\n').length, 1, 'exactly one launch');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /WARN the stalled small job a{24} was not confirmed cancelled \(cancel exit 1, stage SCHEDULING\): staying on t4-small, no medium fallback/);
+  assert.doesNotMatch(r.stderr, /t4-medium/);
+  assert.equal(readFileSync(join(t.dir, 'ran-log'), 'utf8').trim().split('\n').length, 1, 'exactly one `jobs run`');
+  assert.match(r.stderr, /ran 180 s on t4-small/, 'the small job went on to finish');
 });
 
 test('t4-medium stays selectable by GPU_RUN_FLAVOR: it warns until HF_REASON gives a reason, and is priced at $0.60/h', () => {

@@ -20,7 +20,7 @@ const say = message => process.stderr.write(`gpu-run: ${message}\n`);
 // t4-small unless GPU_RUN_FLAVOR says otherwise (Dom 2026-10-21); medium wants HF_REASON.
 const hf = process.env.GPU_RUN_HF || 'hf', pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
 // Medium is the capacity fallback only (Dom 2026-10-21): no small slot, or a small job not running within SMALL_WAIT_S. `flavor` changes once, at that fallback, and `fellBack` says why.
-let flavor = t4Flavor(process.env.GPU_RUN_FLAVOR, process.env.HF_REASON, say), fellBack = '';
+let flavor = t4Flavor(process.env.GPU_RUN_FLAVOR, process.env.HF_REASON, say), fellBack = '', cancelUnconfirmed = false;
 const canFallBack = mayFallBack(flavor), SMALL_WAIT_S = Number(process.env.GPU_RUN_SMALL_WAIT_S ?? SMALL_CAPACITY_S);
 const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', timeout: 120_000, ...options });   // every sync child is bounded (tests/child-process-bounds.test.ts)
 const sleep = s => new Promise(resolve => setTimeout(resolve, s * 1000));   // async: a SIGTERM/SIGINT (GitHub cancelling the run) is only handled when the loop yields
@@ -71,10 +71,11 @@ export async function main(argv) {
       let stalled = false;
       while (LIVE.includes(now)) {
         const waitedS = (Date.now() - t0) / 1000;
-        if (canFallBack && !fellBack && ['SCHEDULING', 'PENDING', 'QUEUED'].includes(now) && waitedS > SMALL_WAIT_S) {   // a small job that would not start: cancel it and run on medium (a job that STARTED then failed is never retried here)
-          const cancelled = run(['jobs', 'cancel', jobId]);
-          if (cancelled.status !== 0 && LIVE.includes(stage(jobId))) throw new Error(`the small job ${jobId} is still live and could not be cancelled (${(cancelled.stderr || '').trim().slice(0, 120)}): not launching medium beside it (no double billing)`);
-          settle({ id: jobId, flavor, seconds: waitedS }); toMedium(capacityReason(waitedS)); stalled = true; break;
+        if (canFallBack && !fellBack && !cancelUnconfirmed && ['SCHEDULING', 'PENDING', 'QUEUED'].includes(now) && waitedS > SMALL_WAIT_S) {   // a small job that would not start: cancel it and run on medium (a job that STARTED then failed is never retried here)
+          const cancelled = run(['jobs', 'cancel', jobId]), after = stage(jobId);
+          if (cancelled.status !== 0 || LIVE.includes(after)) {   // no CONFIRMED cancel (exit 0 and a terminal stage): the small job may still start and bill, so medium is NOT launched beside it
+            cancelUnconfirmed = true; say(`WARN the stalled small job ${jobId} was not confirmed cancelled (cancel exit ${cancelled.status}, stage ${after}): staying on ${flavor}, no medium fallback`);
+          } else { settle({ id: jobId, flavor, seconds: 0 }); toMedium(capacityReason(waitedS)); stalled = true; break; }   // it never ran: settled at 0 s
         }
         if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
         await sleep(pollS); now = stage(jobId);

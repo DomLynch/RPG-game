@@ -77,7 +77,7 @@ test('the job log: HEAD/TREE from git inside the container, one receipt line per
   assert.equal(costLine(555, 'x1', 't4-medium'), `hf-wall-rows: job x1 ran 555 s on t4-medium ≈ $${(555 / 3600 * T4_MEDIUM_USD_PER_HOUR).toFixed(2)} at $${T4_MEDIUM_USD_PER_HOUR.toFixed(2)}/h`, 'medium is priced at its own rate');
   assert.deepEqual([T4_SMALL_USD_PER_HOUR, T4_MEDIUM_USD_PER_HOUR, T4_DEFAULT_FLAVOR], [0.4, 0.6, 't4-small']);
   const said: string[] = [];
-  assert.equal(t4Flavor('', '', (m: string) => said.push(m)), 't4-small'); assert.deepEqual(said, [], 'no flavor chosen: small, silent');
+  assert.equal(t4Flavor('', '', (m: string) => said.push(m)), 't4-small'); assert.equal(said.length, 0, 'no flavor chosen: small, silent');
   assert.equal(t4Flavor('t4-medium', '', (m: string) => said.push(m)), 't4-medium'); assert.match(said[0], /WARN t4-medium chosen without HF_REASON/);
   assert.equal(t4Flavor('t4-medium', 'needs-30gb', (m: string) => said.push(m)), 't4-medium'); assert.match(said[1], /HF_REASON=needs-30gb/); assert.doesNotMatch(said[1], /WARN/);
 });
