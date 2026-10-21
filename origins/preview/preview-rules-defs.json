@@ -138,6 +138,7 @@
     { "id": "stickRange", "value": 1, "unit": "ratio" },
     { "id": "dtFloor", "value": 0.001, "unit": "s" },
     { "id": "frameDtMax", "value": 0.05, "unit": "s" },
+    { "id": "clampPauseS", "value": 1, "unit": "s" },
     { "id": "mobHeightMin", "value": 1.9, "unit": "m" },
     { "id": "mobSpeedMax", "value": 8, "unit": "m/s" },
     { "id": "pitDtMax", "value": 0.1, "unit": "s" },

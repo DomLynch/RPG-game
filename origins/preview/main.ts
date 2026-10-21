@@ -111,6 +111,7 @@ import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
 import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
+import { createClampRate } from './clamp-rate.ts';
 
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins). It is made FIRST, before the renderer
 // and the zone are touched: its max hold is a wall-clock timer, so a device with no WebGL or a throw anywhere below still fades the cover at the hold (and says why) instead of leaving it up for good.
@@ -722,8 +723,12 @@ function zoneReadyCheck() {
   void warmRemoteKitsAfterReady();   // off the critical path: [zone ready] is already logged
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
+// The frame clamp's rate: how many frames the clamp below bound and the game speed (sim s / wall s). Always counted (a few additions a frame); mirrored on #debug only with ?debug (clamp-rate.ts).
+const clampRate = createClampRate(previewRule('clampPauseS'), /[?&]debug\b/.test(location.search) ? document.getElementById('debug') : null);
+(window as unknown as { __clampRate: typeof clampRate.snapshot }).__clampRate = clampRate.snapshot;   // window.__clampRate() -> { frames, clamped, paused, wallMs, simMs, clampedShare, gameSpeed }: cumulative, a harness subtracts two reads
 const walkLoop = () => {
-  const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
+  const rawDt = clock.getDelta(), dt = Math.min(rawDt, previewRule('frameDtMax')), time = clock.elapsedTime;
+  clampRate.frame(rawDt, dt);
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
   step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
@@ -1123,6 +1128,7 @@ function programOwners(): Record<string, string[]> {
   kitNodes: (prefix: string) => { const out: { node: string; x: number; z: number }[] = [], m = new THREE.Matrix4(); frontierGroup?.traverse((o) => { const im = o as THREE.InstancedMesh; if (im.isInstancedMesh && im.name.startsWith(prefix)) for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); out.push({ node: im.name, x: m.elements[12]!, z: m.elements[14]! }); } }); return out; },   // stills: where the kit's instances of a node stand in the live scene (the boulder still, #3471)
   combat: () => ({ acts: actionLog.slice(), hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe(), clip: warriors?.player.playing() ?? null }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
+  clampRate: clampRate.snapshot,   // the same read as window.__clampRate(), for the browser checks
   settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
   cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
