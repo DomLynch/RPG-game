@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { Raycaster, Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3, Vector4, Matrix4 } from 'three';
 import { createBladeBlood, createBodyWounds, createSplatPool, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE, DROPS } from '../src/fight/gore.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
+import { bloodNum } from '../src/fight/blood-rows.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
 
@@ -435,6 +436,28 @@ test('the phone tier skips the per-triangle surface ray (row gore.phone-surface-
     g.location = { search: '?gfx=full' }; resetPhoneTierForTests();
     assert.ok(surfaceHit(root, bone, new Vector3(0, 0, 1)), 'full tier: the ray meets the face');
   } finally { delete g.location; resetPhoneTierForTests(); }
+});
+
+test('hit(..., rays = false) places the wound without casting a ray against the skin (the zone creature\'s mark, which the zone never draws); the default still casts', () => {
+  const bone = new Bone(); bone.name = 'spine_03'; const geometry = new BoxGeometry(.2, .2, .2);
+  const n = geometry.attributes.position.count;
+  geometry.setAttribute('skinIndex', new Uint16BufferAttribute(new Uint16Array(n * 4), 4));
+  geometry.setAttribute('skinWeight', new Float32BufferAttribute(new Float32Array(n * 4).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+  const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  let casts = 0; const real = skin.raycast.bind(skin); skin.raycast = (...a: Parameters<typeof real>) => { casts++; real(...a); };
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const wounds = createBodyWounds(new Scene(), null);
+  assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading: 0 }, 1, false), 'the wound is placed');
+  assert.equal(casts, 0, 'no ray with rays = false');
+  assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading: 0 }, 1), 'the default places a wound too');
+  assert.ok(casts > 0, 'the default still casts the ray');
+});
+
+test('the zone\'s fight effects ask for no creature surface ray (zone: true) and fx.ts gates it on the zone row', () => {
+  const src = (f: string) => readFileSync(new URL(`../src/fight/${f}`, import.meta.url), 'utf8');
+  assert.match(src('zone-fx.ts'), /createFightFx\(\{[^}]*zone: true/);
+  assert.match(src('fx.ts'), /host\.zone && enemyHurt\) \|\| bloodNum\('gore\.zone-creature-surface-ray'\) > 0/);
+  assert.equal(bloodNum('gore.zone-creature-surface-ray'), 0);
 });
 
 // The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the

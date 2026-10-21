@@ -15,6 +15,7 @@ import type { createBurstPool } from './armfeel-fx.ts';
 import type { createFootDust } from './foot-dust.ts';
 import { bloodGrow, foeBurstPull } from './blood-style.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
+import { bloodNum } from './blood-rows.ts';
 import type { FinisherId } from './finishers.ts';
 import { isTemplate } from './finisher-look.ts';
 import type { CombatEvent, Practice } from './combat.ts';
@@ -86,7 +87,7 @@ export type ContactCtx = {
   DIP_FRAMES: number; setDip(frames: number): void;
 };
 
-export function createFightFx(host: { scene: THREE.Scene; dropTexture: THREE.Texture; splatTexture: THREE.Texture }) {
+export function createFightFx(host: { scene: THREE.Scene; dropTexture: THREE.Texture; splatTexture: THREE.Texture; zone?: boolean }) {
   const { scene, dropTexture, splatTexture } = host;
   const clash = createClashSparks(scene);
   const sparkPositions = new Float32Array(12 * 3),
@@ -189,7 +190,8 @@ export function createFightFx(host: { scene: THREE.Scene; dropTexture: THREE.Tex
       if (blow?.type === 'Hit' && blow.location && blow.move && !kick && (!enemyHurt || hasBlood(opponentId)) && warriors)
         bodyWounds.hit(enemyHurt ? 1 : 0, (enemyHurt ? warriors.opponent : warriors.player).anchor,
           { location: blow.location, direction: weaponOf(practice.duel.fighters[blow.actor].weapon).moves[blow.move].direction, heading: target.heading },
-          enemyHurt ? OPPONENTS[opponentId].scale : 1);
+          enemyHurt ? OPPONENTS[opponentId].scale : 1,
+          !(host.zone && enemyHurt) || bloodNum('gore.zone-creature-surface-ray') > 0);   // a zone creature's skin mark is never drawn (Pit-only by design): no surface ray for it, the Pit and the hero keep theirs
       // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
       // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
       // sandbox-mech impact: a guard break may throw the same clash sparks when its hit-stop-defs row carries a `sparks` strength (no column: nothing, as on trunk).

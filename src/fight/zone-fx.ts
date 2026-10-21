@@ -53,7 +53,7 @@ export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; r
   const skillImpact = createSkillImpact(host.scene), shards = shardRows() ? createSpecialShards(host.scene, shardCapacity()) : null, shardAt = new THREE.Vector3();
   const windupRing = createBossTelegraph(host.scene), ringFoot = new THREE.Vector3();   // the Pit's cast-tell ring (boss-telegraph.ts), here under the foe the hero's special will land on: its own cool tint (scene-rows boss-telegraph.world-color), a pose alone is no telegraph (Lead 2026-10-20)
   const live = new Map<string, Slot>(), free: Slot[] = [];
-  const newSlot = (): Slot => ({ fx: createFightFx({ scene: host.scene, dropTexture, splatTexture }), idle: 0 });
+  const newSlot = (): Slot => ({ fx: createFightFx({ scene: host.scene, dropTexture, splatTexture, zone: true }), idle: 0 });
   free.push(newSlot());   // the first pair's effects exist before any contact, so the zone's warm-up (planUpload) sees their materials and links their programs before [zone ready], not at the first hit
   const slotFor = (foe: string): Slot => {
     let s = live.get(foe);

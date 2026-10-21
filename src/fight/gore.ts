@@ -367,7 +367,8 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
   return {
     // A blow landed on `side`: take the next pooled mark (the oldest when all are used), pin it to the struck bone on the
     // struck face, and seed this hit's runs: how many strands (1–3), each one's width, x offset, start delay and duration.
-    hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1) {
+    // `rays` false = skip the surface ray (a zone creature's mark, which the zone never draws: gore.zone-creature-surface-ray); the site table's fallback places it.
+    hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1, rays = true) {
       let seed = woundSeed(next[side], hit);
       seed = lcg(seed); const draw = unit(seed);   // seeded like the runs: a replay lands the same cut on the same limb, the same shoulder
       const limb = draw < ARM_SHARE ? (draw < ARM_SHARE / 2 ? 1 : 2) : 0, mirror = draw >= .5;
@@ -380,7 +381,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
       // Anchor on the surface the blow actually met — its point AND its own normal, kept in the bone's frame so the mark rides the
       // animation lying flat on that cloak, gambeson or skin. Nothing met (no skin, a ray past a flapping cape) → the old path:
       // the site table's direction at its own radius out from the bone.
-      const met = surfaceHit(root, bone, world), inverse = bone.getWorldQuaternion(new THREE.Quaternion()).invert();
+      const met = rays ? surfaceHit(root, bone, world) : null, inverse = bone.getWorldQuaternion(new THREE.Quaternion()).invert();
       mark.dir.copy(met ? met.normal : world).applyQuaternion(inverse);
       mark.anchor = met ? bone.worldToLocal(met.point.clone()) : null;
       if (met) {   // the same basis update() builds: +Y is world-up along the surface, so −Y is the way the blood runs
