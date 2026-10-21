@@ -15,6 +15,7 @@ source scripts/lib/deploy-lock.sh
 deploy_lock_take "$(git rev-parse HEAD)"
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
+source scripts/lib/hf-submit-path.sh   # submit=vps in scripts/lib/hf-submit.json: every hf below runs from the VPS (default mac: no change)
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh

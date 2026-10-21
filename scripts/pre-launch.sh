@@ -7,6 +7,7 @@
 # otherwise launches as before. Nothing here decides trust: a row is trusted only from a receipt bound to the deployed TREE (hf-wall-rows collect,
 # vps-receipt-trust), so a pre-launch planned for a different scope can only cost a few cents or leave a row to the Mac.
 set -euo pipefail
+source "$(dirname "$0")/lib/hf-submit-path.sh"   # submit=vps in scripts/lib/hf-submit.json: the T4/CPU jobs below are submitted from the VPS (default mac: no change)
 sha="${1:-}"; live="${2:-}"; superseded="${3:-}"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "pre-launch: needs a full 40-hex candidate sha" >&2; exit 2; }
 dir="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}"; mkdir -p "$dir"

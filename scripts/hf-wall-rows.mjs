@@ -21,7 +21,9 @@ import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-pl
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 // launchd's login shell may not have Homebrew on PATH (Release HA: four finished T4 jobs were cancelled as "no hardware" after `hf jobs inspect` failed to run): use the absolute path when it exists.
-const hf = process.env.HF_WALL_ROWS_HF || (existsSync('/opt/homebrew/bin/hf') ? '/opt/homebrew/bin/hf' : 'hf');
+// submit=vps in scripts/lib/hf-submit.json (Dom 2026-10-21, jobs from the VPS): the shim in scripts/hf-vps/bin sends every hf call to the box, which holds the token.
+let submitVps = false; try { submitVps = JSON.parse(readFileSync(process.env.HF_SUBMIT_JSON || join(root, 'scripts', 'lib', 'hf-submit.json'), 'utf8')).submit === 'vps'; } catch { /* no row: the Mac path */ }
+const hf = process.env.HF_WALL_ROWS_HF || (submitVps ? join(root, 'scripts', 'hf-vps', 'bin', 'hf') : existsSync('/opt/homebrew/bin/hf') ? '/opt/homebrew/bin/hf' : 'hf');
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
 const flavor = t4Flavor(process.env.HF_WALL_ROWS_FLAVOR, process.env.HF_REASON, message => process.stderr.write(`hf-wall-rows: ${message}\n`)), width =process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
