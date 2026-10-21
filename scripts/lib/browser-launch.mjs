@@ -33,7 +33,7 @@ export function wrapperText(realPath, pidFile, row = rows) {   // the wrapper ex
 export const reniceArgs = (tids, level = rows.niceLevel) => ['-n', String(level), '-p', ...tids.map(String)];
 
 /** Every thread id of a process and its descendants, from /proc. */
-export function threadIds(rootPid, procRoot = '/proc') {
+export function processTree(rootPid, procRoot = '/proc') {
   const kids = new Map(), all = [];
   for (const name of fs.readdirSync(procRoot)) {
     if (!/^\d+$/.test(name)) continue;
@@ -41,7 +41,10 @@ export function threadIds(rootPid, procRoot = '/proc') {
   }
   const walk = (pid) => { all.push(pid); for (const k of kids.get(pid) ?? []) walk(k); };
   walk(rootPid);
-  const tids = [];
+  return all;
+}
+export function threadIds(rootPid, procRoot = '/proc') {
+  const all = processTree(rootPid, procRoot), tids = [];
   for (const pid of all) { try { for (const t of fs.readdirSync(`${procRoot}/${pid}/task`)) tids.push(Number(t)); } catch { /* ended */ } }
   return tids;
 }

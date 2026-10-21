@@ -4,9 +4,10 @@ import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sa
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { launchBrowser, onVps, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
+import { launchBrowser, onVps, processTree, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // The helper itself, and the two job scripts that run INSIDE Hugging Face jobs as node snippets (HF behaviour stays unchanged, not the VPS).
@@ -62,6 +63,30 @@ test('threadIds walks a process and its descendants, every thread', () => {
   };
   proc(100, 1, [100, 101]); proc(200, 100, [200, 201, 202]); proc(300, 200, [300]); proc(400, 1, [400]);   // 400 is not a descendant
   assert.deepEqual(threadIds(100, root).sort((a: number, b: number) => a - b), [100, 101, 200, 201, 202, 300]);
+});
+
+// VPS only (skipped on the Mac, CI and HF): a real Chromium through the helper, with a page up so renderer and GPU processes exist. EVERY process in the browser's tree must sit
+// in the helper's run-*.scope with CPUWeight=20 and none in a Chromium-made app-org scope (Strategy 2026-10-21: one chrome of a row escaped the cap when the bus was reachable).
+test('VPS: every Chromium process of a helper launch is inside the CPUWeight=20 scope', { skip: !onVps() }, async () => {
+  const { chromium } = await import('playwright');
+  const browser = await launchBrowser(chromium, { headless: true });
+  try {
+    const page = await browser.newPage(); await page.goto('data:text/html,<canvas></canvas>');
+    await new Promise((r) => setTimeout(r, 6500));   // one renice tick
+    const pid = (browser as unknown as { vpsPid: number }).vpsPid;
+    assert.ok(pid > 0, 'the wrapper wrote the browser pid');
+    const pids = processTree(pid), seen = new Set<string>();
+    assert.ok(pids.length >= 3, `a browser plus its helpers (${pids.length})`);
+    for (const p of pids) {
+      let cg = ''; try { cg = readFileSync(`/proc/${p}/cgroup`, 'utf8').trim(); } catch { continue; }   // a short-lived helper may be gone
+      assert.match(cg, /\/system\.slice\/run-[0-9a-f]+\.scope$/, `pid ${p} is in a run scope, not ${cg}`);
+      assert.doesNotMatch(cg, /app-org\.chromium/, `pid ${p} escaped into a Chromium scope`);
+      seen.add(cg.split('/').pop()!);
+    }
+    assert.equal(seen.size, 1, `one scope for the whole tree: ${[...seen]}`);
+    const weight = execFileSync('systemctl', ['show', '-p', 'CPUWeight', [...seen][0]!], { encoding: 'utf8', timeout: 10_000 }).trim();
+    assert.equal(weight, 'CPUWeight=20');
+  } finally { await browser.close(); }
 });
 
 test('off the VPS launchBrowser is exactly type.launch(options)', async () => {
