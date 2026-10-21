@@ -14,6 +14,8 @@ for (let round = 0; round < ROUNDS; round++) {
     const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
     try {
       const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA })).newPage();
+      const net = { n: 0, bytes: 0, bad: [] };   // what the page asked for: requests, bytes, and every non-2xx (a missing texture or kit file is a cost too)
+      page.on('response', async (res) => { net.n++; try { net.bytes += (await res.body()).length; } catch { /* a redirect or a closed page */ } if (res.status() >= 400) net.bad.push(`${res.status()} ${new URL(res.url()).pathname}`.slice(0, 90)); });
       const t0 = Date.now();
       await page.goto(p.url, { waitUntil: 'load' });
       await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
@@ -25,7 +27,7 @@ for (let round = 0; round < ROUNDS; round++) {
         return { gaps, calls: info.calls, triangles: info.triangles, programs: info.programs };
       }, SAMPLE);
       const g = r.gaps.slice(2), mean = g.reduce((s, x) => s + x, 0) / g.length, sorted = [...g].sort((a, b) => a - b);
-      const row = { page: p.name, round, readyMs, frames: g.length, medianMs: +med(g).toFixed(2), meanMs: +mean.toFixed(2), p95Ms: +sorted[Math.floor(sorted.length * 0.95)].toFixed(2), calls: r.calls, triangles: r.triangles, programs: r.programs };
+      const row = { page: p.name, round, readyMs, frames: g.length, medianMs: +med(g).toFixed(2), meanMs: +mean.toFixed(2), p95Ms: +sorted[Math.floor(sorted.length * 0.95)].toFixed(2), calls: r.calls, triangles: r.triangles, programs: r.programs, requests: net.n, MB: +(net.bytes / 1048576).toFixed(1), bad: [...new Set(net.bad)].slice(0, 8) };
       console.log('RUN', JSON.stringify(row)); (results[p.name] ??= []).push(row);
     } catch (e) { console.log('RUN', JSON.stringify({ page: p.name, round, error: String(e).slice(0, 160) })); } finally { await browser.close(); }
   }
