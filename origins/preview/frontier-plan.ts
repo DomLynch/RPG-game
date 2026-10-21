@@ -23,7 +23,7 @@ import { drawBank, drawBlock, drawCentre, drawDock, drawGround, drawMarker, draw
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
   region: RegionId; zone: string; name: string; mount: Mount; width: number; depth: number;
-  preset: string; ground: string; landmarks: Record<string, At>;
+  preset: string; ground: string; landmarks: Record<string, At>; spots: Record<string, At>;   // spots: spawn-only places (a layout name ending -spot): creatures stand there, nothing is drawn or avoided, so adding one never moves the dressing, kit or relief
   relief: ReliefParams; // terrain.relief / hillScale / seed (seed 0 = the zone id): the hills frontier-relief.ts lays over the flat plan
   links: { here: string; to: string; kind: string }[]; // this zone's connections, by the landmark on this side
   town: Town | null;
@@ -53,8 +53,8 @@ function mountAt(p: Params, landmark: string, world: { x: number; z: number }, f
 }
 function zonePlan(region: RegionId, zone: string, p: Params, mount: Mount, town: Town | null): ZonePlan {
   const m = toMetres(p);
-  const landmarks = Object.fromEntries(Object.entries(m.landmarks).map(([k, l]) => [k, { ...toWorld(l, mount), facing: wrap(mount.heading + l.facing) }]));
-  return { region, zone, name: ZONE_NAMES[zone] ?? zone, mount, width: m.width, depth: m.depth, preset: p.ambience.preset, ground: p.terrain.ground, landmarks,
+  const placed = Object.entries(m.landmarks).map(([k, l]) => [k, { ...toWorld(l, mount), facing: wrap(mount.heading + l.facing) }] as const), landmarks = Object.fromEntries(placed.filter(([k]) => !k.endsWith('-spot'))), spots = Object.fromEntries(placed.filter(([k]) => k.endsWith('-spot')));
+  return { region, zone, name: ZONE_NAMES[zone] ?? zone, mount, width: m.width, depth: m.depth, preset: p.ambience.preset, ground: p.terrain.ground, landmarks, spots,
     relief: { relief: p.terrain.relief, hillScale: p.terrain.hillScale, seed: p.terrain.seed || seedOf(zone) },
     links: Object.values(p.connections).map((c) => ({ here: c.here, to: c.to, kind: c.kind })), town };
 }

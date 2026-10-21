@@ -735,7 +735,7 @@
             "v": 1,
             "facing": 0
           },
-          "fell-stones": {
+          "fell-spot": {
             "u": 0.05,
             "v": 0.95,
             "facing": 90
@@ -864,7 +864,7 @@
             "v": 0.85,
             "facing": 90
           },
-          "pool-edge": {
+          "pool-spot": {
             "u": 0.83,
             "v": 0.67,
             "facing": 90
@@ -929,12 +929,12 @@
             "v": 0.95,
             "facing": -90
           },
-          "sedge-flat": {
+          "sedge-spot": {
             "u": 0.16,
             "v": 0.39,
             "facing": 0
           },
-          "pier-rock": {
+          "pier-spot": {
             "u": 0.25,
             "v": 0.86,
             "facing": 0
@@ -1158,10 +1158,10 @@
       "hold-road",
       "troll-cave",
       "cave-mouth",
-      "pool-edge",
-      "fell-stones",
-      "sedge-flat",
-      "pier-rock",
+      "pool-spot",
+      "fell-spot",
+      "sedge-spot",
+      "pier-spot",
       "landing-shore",
       "reed-bank",
       "mere-hollow",
@@ -1326,29 +1326,29 @@
         ]
       },
       {
-        "id": "salamander-pool-edge",
-        "at": "pool-edge",
+        "id": "salamander-pool-spot",
+        "at": "pool-spot",
         "characters": [
           "character:giant-salamander"
         ]
       },
       {
-        "id": "salamander-sedge-flat",
-        "at": "sedge-flat",
+        "id": "salamander-sedge-spot",
+        "at": "sedge-spot",
         "characters": [
           "character:giant-salamander"
         ]
       },
       {
-        "id": "cave-troll-fell-stones",
-        "at": "fell-stones",
+        "id": "cave-troll-fell-spot",
+        "at": "fell-spot",
         "characters": [
           "character:cave-troll"
         ]
       },
       {
-        "id": "cave-troll-pier-rock",
-        "at": "pier-rock",
+        "id": "cave-troll-pier-spot",
+        "at": "pier-spot",
         "characters": [
           "character:cave-troll"
         ]

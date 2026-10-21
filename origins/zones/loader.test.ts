@@ -100,8 +100,7 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
 // like a link: +3 pieces (marker and sign) and +1 collider, 171 -> 174 and 58 -> 59.
 test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark and the cave-mouth door)', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
-  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [179, '0fee1c79d319a89b', 64, '1b127e8b314a7243']);
-// Re-pinned 2026-10-21 (World, Lead/Strategy: a few salamanders and trolls scattered along the route): the four new landmarks pool-edge, fell-stones, sedge-flat, pier-rock each leave the stone cairn and its collider, +4 pieces and +4 colliders, 175 -> 179 and 60 -> 64; the hashes before them 1768f2aa4e292dd5 and 0635b6287034a063.
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [175, '1768f2aa4e292dd5', 60, '0635b6287034a063']);
 // Re-pinned 2026-10-20 (World, Lead's ruling: the shrine salamander camp moves 15-20 m off Hrungnir's bounty spot): the new `shrine-field` landmark (u 0.3, v 0.86, chosen from a scan so the goblin camp's dead tree still stands) leaves one stone post and its collider (r 0.6), +1 piece and +1 collider, 174 -> 175 and 59 -> 60; the hashes before it fbc437921f82ccf3 and 2fce1d40b375e5ff.
 });
 
