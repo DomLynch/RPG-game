@@ -37,9 +37,12 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 480000, polling: 1000 }).catch(() => console.log(label, 'NO __zoneReady within 480 s'));
   ready = true; await page.waitForTimeout(150000);   // software GL parses slowly after ready: give the deferred models time to arrive
-  const kb = (list) => Math.round(list.reduce((n, s) => n + (wire.get(s.u) ?? 0), 0) / 1024);
-  const before = seq.filter((s) => !s.ready), after = seq.filter((s) => s.ready);
-  const models = (list) => list.filter((s) => /\.glb$/.test(s.u)).map((s) => `${s.u.split('/').pop()} ${Math.round((wire.get(s.u) ?? 0) / 1024)}KB`);
+  // The browser's own resource timing against __zoneReady.atMs (both ms since the page's time origin): a file counts as BEFORE ready when its request started before the zone said ready.
+  const rt = await page.evaluate(() => ({ at: window.__zoneReady?.atMs ?? Infinity, res: performance.getEntriesByType('resource').filter((r) => /\.(glb|webp|png|jpe?g|ktx2)(\?|$)/.test(r.name)).map((r) => ({ u: new URL(r.name).pathname, start: Math.round(r.startTime), kb: Math.round(r.encodedBodySize / 1024) })) }));
+  const seen = new Set(), uniq = rt.res.filter((r) => (seen.has(r.u) ? false : seen.add(r.u)));
+  const before = uniq.filter((r) => r.start < rt.at), after = uniq.filter((r) => r.start >= rt.at);
+  const kb = (list) => list.reduce((n, s) => n + s.kb, 0);
+  const models = (list) => list.filter((s) => /\.glb$/.test(s.u)).map((s) => `${s.u.split('/').pop()} ${s.kb}KB@${Math.round((s.start - rt.at) / 1000)}s`);
   console.log(`${label} BEFORE-READY: ${before.length} files ${kb(before)} KB gzip; models ${models(before).length}: ${models(before).join(', ')}`);
   console.log(`${label} AFTER-READY (150 s): ${after.length} files ${kb(after)} KB; models ${models(after).length}: ${models(after).join(', ')}`);
   for (const s of before.filter((x) => /\/(loot|longsword|bow|bow-v1|staff-v1|cleaver|estoc|gladius|shield)[-.]/.test(x.u))) console.log(`${label} WHO ${s.u.split('/').pop()}: ${who.get(s.u) ?? '?'}`);
