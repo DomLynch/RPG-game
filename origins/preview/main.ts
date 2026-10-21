@@ -74,6 +74,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
+import { limitCasters } from './shadow-casters.ts';
 import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
@@ -249,6 +250,7 @@ const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pi
 
 // The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
 // holds his place until the file lands, and stays if it never does.
+let casterTick = 0;
 const hero = new THREE.Group();
 const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.15, 4, 12), new THREE.MeshStandardMaterial({ color: '#4a3b2e', roughness: 0.9 }));
 body.position.y = 0.88; body.castShadow = true;
@@ -735,6 +737,7 @@ const walkLoop = () => {
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
+  if (PHONE && fxNum('zone.shadow.phone-hero-only') > 0 && ++casterTick % fxNum('zone.shadow.sweep-every') === 0) limitCasters(scene, hero);   // the phone's sun-shadow pass draws the hero only (260 meshes / 675 k triangles cast before: creature pieces, weapons, kit stones); swept every N frames because pieces and props stream in after the zone is ready
   zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)

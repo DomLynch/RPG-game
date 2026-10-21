@@ -20,3 +20,10 @@ test('the zone page sizes the sun shadow from the rows, and a phone re-renders i
   assert.match(main, /draws\+\+ % shadowEvery === 0\) renderer\.shadowMap\.needsUpdate = true/);
   assert.doesNotMatch(main, /mapSize\.set\(PHONE \? 1024 : 2048/, 'the literal is a row now');
 });
+
+test('a phone casts the sun shadow from the hero only, swept every Nth frame (rows)', () => {
+  assert.equal(fxNum('zone.shadow.phone-hero-only'), 1);
+  assert.ok(fxNum('zone.shadow.sweep-every') >= 1);
+  assert.equal(fxNum('zone.shadow.phone-every'), 1, 'no refresh-every-Nth: in a fight everything moves (Lead 2026-10-21)');
+  assert.match(main, /PHONE && fxNum\('zone\.shadow\.phone-hero-only'\) > 0 && \+\+casterTick % fxNum\('zone\.shadow\.sweep-every'\) === 0\) limitCasters\(scene, hero\)/);
+});
