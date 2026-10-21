@@ -27,6 +27,8 @@
     { "id": "duskHour", "value": 19, "unit": "h" },
     { "id": "dawnHour", "value": 5, "unit": "h" },
     { "id": "duskSpan", "value": 1.5, "unit": "h" },
+    { "id": "captureStep", "value": 0.03333333333333333, "unit": "s" },
+    { "id": "dressPhaseSpan", "value": 3, "unit": "s" },
     { "id": "gateGap", "value": 0.62, "unit": "rad" },
     { "id": "gateGapFade", "value": 0.08, "unit": "ratio" },
     { "id": "heroWait", "value": 45000, "unit": "ms" },
