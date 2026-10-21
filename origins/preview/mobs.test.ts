@@ -246,7 +246,9 @@ test('levelAt: the band\'s low level within LEVEL_NEAR_M of the spawn, its high 
 test('near the spawn the common creatures are the zone level; at the far edge one more', () => {
   const origin = spawnAmong(F, B, SPECS)!, d = (s: MobSpec) => Math.hypot(s.home.x - origin.x, s.home.z - origin.z), common = SPECS.filter((s) => !s.named);
   assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= ZONE_LEVEL + 1) && common.some((s) => s.level === ZONE_LEVEL), 'the camps by the spawn are the zone level');
-  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
+  const ramps = (s: MobSpec) => { const row = loadZone().spawns.rows.find((r) => r.id === s.character); return !!row && row.level[1] > row.level[0]; };   // a row with a flat band stays at its level at any distance: the giant salamander is [1, 1] since RV87 (2026-10-21: 70% hero wins at L1, 17% at L2)
+  assert.ok(common.some((s) => d(s) >= LEVEL_FAR_M && ramps(s)), 'the far-edge case has creatures to check: some ramping row sits at the far edge (an empty set would pass the next line for nothing)');
+  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M && ramps(s)).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
 });
 
 test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {

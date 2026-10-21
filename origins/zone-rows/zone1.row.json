@@ -191,7 +191,7 @@
         "loot": "loottable:giant-salamander",
         "level": [
           1,
-          2
+          1
         ],
         "weight": 2,
         "respawnSeconds": 60,
