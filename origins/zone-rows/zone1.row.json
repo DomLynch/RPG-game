@@ -295,9 +295,9 @@
   "kit": {
     "url": "/world/kit/zone1-kit.glb",
     "tint": {
-      "boulder_a": { "color": [0.8, 0.78, 1.1], "roughness": 1 },
-      "boulder_b": { "color": [0.8, 0.78, 1.1], "roughness": 1 },
-      "boulder_c": { "color": [0.8, 0.78, 1.1], "roughness": 1 }
+      "boulder_a": { "color": [0.72, 0.69, 0.64], "roughness": 1 },
+      "boulder_b": { "color": [0.72, 0.69, 0.64], "roughness": 1 },
+      "boulder_c": { "color": [0.72, 0.69, 0.64], "roughness": 1 }
     },
     "nodes": [
       "boulder_a",
