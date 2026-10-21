@@ -30,6 +30,12 @@ try {
   const start = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
   console.log(JSON.stringify({ size: [w, h], start, mobKeys: await page.evaluate(() => Object.keys(window.originsPreview.mobs().mobs[0] ?? {})) }));
   for (const s of shots) {
+    if (s.mob) {   // { mob: '<mob id>', standoff: metres }: stand `standoff` m from that mob on the line from the start, facing it
+      const m = await page.evaluate((id) => { const k = window.originsPreview.mobs().mobs.find((x) => x.id === id); return k && { x: k.x, z: k.z }; }, s.mob);
+      if (!m) throw new Error(`no mob ${s.mob}`);
+      const dx = m.x - start.x, dz = m.z - start.z, len = Math.hypot(dx, dz) || 1, so = s.standoff ?? 4;
+      s.from = [m.x - dx / len * so, m.z - dz / len * so]; s.look = [m.x, m.z];
+    }
     const from = s.from === 'start' ? [start.x, start.z] : s.from, heading = Math.atan2(s.look[0] - from[0], s.look[1] - from[1]);
     await page.evaluate(([x, z, hd]) => window.originsPreview.place(x, z, hd), [from[0], from[1], heading]);
     await page.waitForTimeout(+(process.env.SETTLE || 6000));
