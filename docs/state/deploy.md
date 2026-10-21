@@ -1,5 +1,14 @@
 # Deploy lane — state
 
+## 2026-10-21 16:0x (+04) — K6q8 LIVE 0d972c63a; K6q9b cut
+
+- **K6q8 published 16:02:18** = PR #3530 @0d972c63a9f3644a0f231e44c4b90b19098f52fc (#3526 guards + #3527 mirror-first/30 s probes). Cut 15:46 on Lead's GO; train published after the Auditor's PASS + candidate:pass. deploy_hold gone 16:06:45, "Mac rows done" and "gap open" sent to Lead and Hooks Dev (#172 install). CI tail marker `post-publish-pending-0d972c63` was pending at 16:07: read the postcheck log / run by hand if the train does not clear it.
+- **K6q9b = PR #3533 @b09bd0a09e23a3ab7a6f56dac1ddf80de05ce97e** (#3520 @05361f40a + #3525 @5a9929e84). My first cut #3532 (#3520 only) was closed: #3525's PASS landed 1 min after it. Waits on rows + Auditor PASS at b09bd0a09 + Lead's candidate:pass. No wound-ray PR existed at the cut.
+- **PR #3531** (cut-release VPS disk pre-check, warn 80 / refuse 90, ssh failure = warn, thresholds in cut-gates.json `vpsDisk`) open, CI decides.
+- **gpu-checks.yml owed line CLOSED (Strategy agreed, no PR for a comment):** the t4-small default and the t4-small to t4-medium capacity fallback are already live (scripts/gpu-run.mjs, #3519, tested in tests/gpu-run.test.ts). The workflow carries only a stale comment on line 2 ("t4-medium job"); fold that fix into the next workflow change that has Lead's OK (gate 2 watches .github/workflows).
+- **Hosts pin** (`140.82.121.3 github.com`, VPS) still on until Backend removes it now that #3527 is live. Backend asked which armagedom-* job dirs are sweepable: answered with 12 exact names, nothing deleted by me.
+- **Open:** HF-from-VPS train rows (t4-small default + auto-fallback with reason). Not started.
+
 ## 2026-10-21 15:4x (+04) — restart on Dom's account (Strategy's message)
 
 Live = K6q7 29fb58b5d (curl release.json). CI tail run 39590338326 = completed/success (tail trusted). Logged: /etc/hosts pin `140.82.121.3 github.com` still on the VPS (Strategy's TEMP, backup /root/hosts.bak-2026-10-21; Backend removes it after #3527 is live, not me); work-1880 origin was restored to GitHub at 15:11:34. No deploy_hold, no stop file, no pending marker. K6q8 members open, none has candidate:pass yet (#3526 #3527 #3520 #3525 labelled auditor:ready; #3529 #3528 unlabelled). Cut only on Lead's go. Owed PRs: gpu-checks.yml workflow, df pre-check (WARN 80 / refuse 90), HF-from-VPS train rows (t4-small default + auto-fallback with reason).
