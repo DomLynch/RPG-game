@@ -14,7 +14,7 @@ function fight(pick: { special?: SkillId; special2?: SkillId } | null, seconds =
   const mobs = { within: (x: number, z: number, r: number) => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: () => {} } as never;
   const wc = createWorldCombat({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, onEvent: (e) => events.push(e), ...(pick ? { hero: () => ({ level: 1, ...pick }) } : {}) });
   for (let i = 0; i < 30 * seconds && !fell.length; i++) {
-    if (i % 20 === 0) { if (pick?.special2 && i % 120 === 80) wc.cast2(); else if (pick?.special && i % 120 === 20) wc.cast(); else wc.press();   // RV87: the wolf is 45 hp and dies at tick ~117 on the old 0 / 60 cadence before a special lands; 20 / 80 lets both skills fire (a Pit event) before the kill }
+    if (i % 20 === 0) { if (pick?.special2 && i % 120 === 80) wc.cast2(); else if (pick?.special && i % 120 === 20) wc.cast(); else wc.press(); }   // RV87: the wolf is 45 hp and dies at tick ~117 on the old 0 / 60 cadence before a special lands; 20 / 80 lets both skills fire (a Pit event) before the kill }
     const w = wc.debug().find((x) => x.id === 'wolf-1');
     wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 });
   }
