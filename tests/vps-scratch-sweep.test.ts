@@ -18,6 +18,11 @@ test('sweep_kind: the lane roots keep the archive-first rule', () => {
   assert.equal(kind('/opt/frankendom-shadow/work/deploy-dl'), 'lane');
   assert.equal(kind('/srv/dev-jobs/cq-pg-1'), 'lane');
   assert.equal(kind('/opt/frankendom-shadow/scratch-retirement-20261013'), 'lane');
+  // The volume's copies of the two job roots (2026-10-21): a moved dir's real path is a lane dir; the volume roots themselves and anything else on it are refused.
+  assert.equal(kind('/mnt/HC_Volume_107195252/work/combat-er86'), 'lane');
+  assert.equal(kind('/mnt/HC_Volume_107195252/dev-jobs/s2x'), 'lane');
+  for (const p of ['/mnt/HC_Volume_107195252', '/mnt/HC_Volume_107195252/work', '/mnt/HC_Volume_107195252/dev-jobs', '/mnt/HC_Volume_107195252/hfvenv', '/mnt/HC_Volume_107195252/work/../hfvenv', '/mnt/frankendom-donors/work/x'])
+    assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: be-*, hooks-* and cq-* are aged roots, direct children of /var/tmp or /tmp only', () => {
