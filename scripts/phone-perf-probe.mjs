@@ -31,7 +31,7 @@ if (mode === 'local') {
 const URL_ = mode === 'live' ? `${base}/zone1/?presence=0` : `${base}/preview/origins/?region=1&worldfight&presence=0`;   // presence=0: a probe must not appear to players on the live site
 const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const q = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * s.length))].toFixed(1); };
-const frameStats = (rows) => { const d = rows.map((r) => r[1]); return { n: d.length, medianMs: q(d, 0.5), p95Ms: q(d, 0.95), p99Ms: q(d, 0.99), maxMs: d.length ? +Math.max(...d).toFixed(1) : null, fpsMedian: d.length ? +(1000 / q(d, 0.5)).toFixed(1) : null, over33: d.filter((x) => x > 33.4).length, over50: d.filter((x) => x > 50).length }; };
+const frameStats = (rows) => { const d = rows.map((r) => r[1]), c = rows.map((r) => r[2]), tr = rows.map((r) => r[3]); return { n: d.length, callsMedian: q(c, 0.5), callsP95: q(c, 0.95), trisMedian: q(tr, 0.5), trisP95: q(tr, 0.95), medianMs: q(d, 0.5), p95Ms: q(d, 0.95), p99Ms: q(d, 0.99), maxMs: d.length ? +Math.max(...d).toFixed(1) : null, fpsMedian: d.length ? +(1000 / q(d, 0.5)).toFixed(1) : null, over33: d.filter((x) => x > 33.4).length, over50: d.filter((x) => x > 50).length }; };
 // A CPU profile → self ms and inclusive ms per "function file:line", from the sampled stacks.
 const digest = (prof) => {
   const nodes = new Map(prof.nodes.map((n) => [n.id, n])), parent = new Map();
@@ -58,8 +58,14 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   const navAt = { t: Date.now() }, said = [], readyLog = { atMs: null };
   page.on('console', (m) => { const t = m.text(); if (/\[zone ready\]/.test(t) && readyLog.atMs === null) readyLog.atMs = Date.now() - navAt.t; if (/warm|stuck|zone ready|compile|context|lost|webgl/i.test(t) && said.length < 25) said.push(`${Date.now() - navAt.t} ms ${m.type()}: ${t.slice(0, 200)}`); });
   await page.addInitScript(() => {
-    window.__perf = { fr: [], lt: [], ph: 'load' }; let last = performance.now();
-    const loop = (t) => { window.__perf.fr.push([window.__perf.ph, t - last]); last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+    window.__perf = { fr: [], lt: [], ph: 'load', calls: 0, tris: 0, links: 0, progs: new Set() }; let last = performance.now();
+    // renderer.info is the LAST pass only (with the composer on it reads the final full-screen quad: 1 call, 1 triangle), so count the real draws at the GL context instead.
+    const P = window.WebGL2RenderingContext?.prototype, W = (name, f) => { const o = P?.[name]; if (o) P[name] = function (...a) { f(a); return o.apply(this, a); }; };
+    const tri = (mode, n) => (mode === 4 ? n / 3 : mode === 5 || mode === 6 ? Math.max(0, n - 2) : 0);   // TRIANGLES, STRIP, FAN
+    W('drawElements', (a) => { window.__perf.calls++; window.__perf.tris += tri(a[0], a[1]); }); W('drawArrays', (a) => { window.__perf.calls++; window.__perf.tris += tri(a[0], a[2]); });
+    W('drawElementsInstanced', (a) => { window.__perf.calls++; window.__perf.tris += tri(a[0], a[1]) * a[4]; }); W('drawArraysInstanced', (a) => { window.__perf.calls++; window.__perf.tris += tri(a[0], a[2]) * a[3]; });
+    W('linkProgram', () => { window.__perf.links++; });
+    const loop = (t) => { const p = window.__perf; p.fr.push([p.ph, t - last, p.calls, Math.round(p.tris)]); p.calls = 0; p.tris = 0; last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__perf.lt.push([window.__perf.ph, Math.round(e.startTime), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: true }); } catch { /* no longtask API */ }
   });
   await cdp.send('Network.enable'); let bytes = 0, requests = 0; cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength || 0; requests++; });
@@ -77,14 +83,14 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     run.load.longTasksDuringLoad = await page.evaluate(() => { const l = window.__perf.lt.filter((x) => x[0] === 'load'); return { n: l.length, over50: l.filter((x) => x[2] > 50).length, totalMs: l.reduce((a, x) => a + x[2], 0), maxMs: Math.max(0, ...l.map((x) => x[2])) }; });
     run.env = await page.evaluate(() => { const c = document.createElement('canvas').getContext('webgl'), e = c?.getExtension('WEBGL_debug_renderer_info'); const cv = document.querySelector('canvas'); return { gl: e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a', coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, canvas: cv ? [cv.width, cv.height] : null, ua: /iPhone/.test(navigator.userAgent) }; });
     const phase = async (name, ms, drive) => {
-      await page.evaluate((n) => { window.__perf.ph = n; }, name);
+      const links0 = await page.evaluate((n) => { window.__perf.ph = n; return window.__perf.links; }, name);
       if (PROFILE) await cdp.send('Profiler.start');
       await drive(ms);
       if (PROFILE) { const { profile } = await cdp.send('Profiler.stop'); (run.profile ||= {})[name] = digest(profile); }
       const info = await page.evaluate(() => window.originsPreview.renderInfo?.() ?? null).catch(() => null);
       const rows = await page.evaluate((n) => window.__perf.fr.filter((r) => r[0] === n), name);
       const lts = await page.evaluate((n) => window.__perf.lt.filter((x) => x[0] === n), name);
-      (run.phases ||= {})[name] = { frames: frameStats(rows), longTasks: { n: lts.length, over50: lts.filter((x) => x[2] > 50).length, totalMs: lts.reduce((a, x) => a + x[2], 0), top: [...lts].sort((a, b) => b[2] - a[2]).slice(0, 5).map((x) => x[2]) }, render: info && { calls: info.calls, triangles: info.triangles, programs: info.programs } };
+      (run.phases ||= {})[name] = { frames: frameStats(rows), longTasks: { n: lts.length, over50: lts.filter((x) => x[2] > 50).length, totalMs: lts.reduce((a, x) => a + x[2], 0), top: [...lts].sort((a, b) => b[2] - a[2]).slice(0, 5).map((x) => x[2]) }, render: info && { lastPassCalls: info.calls, lastPassTriangles: info.triangles, programsLive: info.programs }, programsLinkedInPhase: (await page.evaluate(() => window.__perf.links)) - links0 };
     };
     await page.waitForTimeout(1500);
     await phase('idle', IDLE_MS, (ms) => page.waitForTimeout(ms));
@@ -92,9 +98,10 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     const stickAt = await page.evaluate(() => { const b = document.getElementById('joystick').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2, b.width / 2]; });
     const p0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
     await phase('walk', WALK_MS, async (ms) => {
-      const [cx, cy, r] = stickAt, t1 = Date.now() + ms; let a = 0;
+      const [cx, cy, r] = stickAt, t0w = Date.now(), t1 = t0w + ms; let a = 0;
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy, id: 1 }] });
-      while (Date.now() < t1) { a += 0.05; await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + Math.cos(a) * r * 0.7, y: cy + Math.sin(a) * r * 0.7, id: 1 }] }); await page.waitForTimeout(40); }
+      // Long straight legs: the stick holds one direction for 5 s, then turns 1.3 rad (a first version rotated it continuously and the hero walked a 2 m circle).
+      while (Date.now() < t1) { a = Math.floor((Date.now() - t0w) / 5000) * 1.3; await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + Math.cos(a) * r * 0.7, y: cy + Math.sin(a) * r * 0.7, id: 1 }] }); await page.waitForTimeout(40); }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     });
     const p1 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
@@ -116,7 +123,7 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   run.errors = errors; results.push(run);
   fs.writeFileSync(path.join(out, `${label}.json`), JSON.stringify(run, null, 1));
   const ph = run.phases || {}, f = (n) => ph[n]?.frames, l = run.load || {};
-  console.log(`PERF ${label} gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls ${ph[n]?.render?.calls} tris ${ph[n]?.render?.triangles}`).join(' | ') + ` | zoneReady at-load ${l.zoneReady} by-end ${run.zoneReadyByEnd} logged@${run.zoneReadyLogAtMs} ms${run.settleTimeout ? ' SETTLE-TIMEOUT' : ''} stuck-lines ${said.filter((x) => /stuck/i.test(x)).length}` + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
+  console.log(`PERF ${label} gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls/f ${f(n)?.callsMedian}(p95 ${f(n)?.callsP95}) tris/f ${f(n)?.trisMedian} linked ${ph[n]?.programsLinkedInPhase}`).join(' | ') + ` | zoneReady at-load ${l.zoneReady} by-end ${run.zoneReadyByEnd} logged@${run.zoneReadyLogAtMs} ms${run.settleTimeout ? ' SETTLE-TIMEOUT' : ''} stuck-lines ${said.filter((x) => /stuck/i.test(x)).length}` + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
   await ctx.close();
 }
 await browser.close(); await close();
