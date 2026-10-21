@@ -3,10 +3,11 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 // @ts-expect-error: a .mjs tool module without types
-import { launchBrowser, onVps, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
+import { launchBrowser, onVps, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // The helper itself, and the two job scripts that run INSIDE Hugging Face jobs as node snippets (HF behaviour stays unchanged, not the VPS).
@@ -46,7 +47,20 @@ test('the VPS gets a low-weight, niced scope and software GL; its own GL choice 
   const chosen = vpsOptions({ args: ['--use-angle=gl-egl', '--foo'] }, wrapper);
   assert.deepEqual(chosen.args, ['--use-angle=gl-egl', '--foo']);
   const text = wrapperText('/opt/pw/headless_shell');
-  assert.match(text, /systemd-run --scope .*-p CPUWeight=20 -- nice -n 10 "\/opt\/pw\/headless_shell" "\$@"/);
+  assert.match(text, /^exec nice -n 10 systemd-run --scope --quiet --collect -p CPUWeight=20 -- "\/opt\/pw\/headless_shell" "\$@"$/m);   // Nice= is rejected for a scope, so nice wraps systemd-run
+  assert.doesNotMatch(text, /Nice=/);
+  assert.deepEqual(reniceArgs([11, 12]), ['-n', '10', '-p', '11', '12']);
+});
+
+test('threadIds walks a process and its descendants, every thread', () => {
+  const root = mkdtempSync(join(tmpdir(), 'proc-'));
+  const proc = (pid: number, ppid: number, tasks: number[]) => {
+    mkdirSync(join(root, String(pid), 'task'), { recursive: true });
+    writeFileSync(join(root, String(pid), 'stat'), `${pid} (chrome) S ${ppid} 1 1 0`);
+    for (const t of tasks) mkdirSync(join(root, String(pid), 'task', String(t)));
+  };
+  proc(100, 1, [100, 101]); proc(200, 100, [200, 201, 202]); proc(300, 200, [300]); proc(400, 1, [400]);   // 400 is not a descendant
+  assert.deepEqual(threadIds(100, root).sort((a: number, b: number) => a - b), [100, 101, 200, 201, 202, 300]);
 });
 
 test('off the VPS launchBrowser is exactly type.launch(options)', async () => {

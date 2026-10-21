@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const rows = JSON.parse(fs.readFileSync(fileURLToPath(new URL('./browser-launch.json', import.meta.url)), 'utf8'));
@@ -24,8 +25,30 @@ export function vpsOptions(options, wrapperPath, row = rows) {
 /** Pure: the wrapper script text: the real browser, in a low-weight scope, niced. */
 export function wrapperText(realPath, row = rows) {
   const props = row.scopeProperties.map((p) => `-p ${p}`).join(' ');
-  return `#!/bin/sh\nexec systemd-run --scope --quiet --collect ${props} -- nice -n ${row.niceLevel} "${realPath}" "$@"\n`;
+  return `#!/bin/sh\nexec nice -n ${row.niceLevel} systemd-run --scope --quiet --collect ${props} -- "${realPath}" "$@"\n`;
 }
+
+/** Pure: the renice call for a set of thread ids (root Chromium boosts its main and GPU processes to -8 on its own, so the scope's CPUWeight is the real cap and this is belt and braces). */
+export const reniceArgs = (tids, level = rows.niceLevel) => ['-n', String(level), '-p', ...tids.map(String)];
+
+/** Every thread id of a process and its descendants, from /proc. */
+export function threadIds(rootPid, procRoot = '/proc') {
+  const kids = new Map(), all = [];
+  for (const name of fs.readdirSync(procRoot)) {
+    if (!/^\d+$/.test(name)) continue;
+    try { const ppid = Number(fs.readFileSync(`${procRoot}/${name}/stat`, 'utf8').split(') ')[1].split(' ')[1]); (kids.get(ppid) ?? kids.set(ppid, []).get(ppid)).push(Number(name)); } catch { /* the process ended */ }
+  }
+  const walk = (pid) => { all.push(pid); for (const k of kids.get(pid) ?? []) walk(k); };
+  walk(rootPid);
+  const tids = [];
+  for (const pid of all) { try { for (const t of fs.readdirSync(`${procRoot}/${pid}/task`)) tids.push(Number(t)); } catch { /* ended */ } }
+  return tids;
+}
+
+const reniceTree = (pid) => {
+  const tids = threadIds(pid);
+  if (tids.length) spawnSync('renice', reniceArgs(tids), { stdio: 'ignore', timeout: 10_000 });   // bounded like every sync child (tests/child-process-bounds.test.ts)
+};
 
 const headlessShell = () => {   // Playwright's headless shell is what a launch without executablePath runs; keep running it (same rendering as before) inside the scope
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.PLAYWRIGHT_BROWSERS_PATH !== '0' ? process.env.PLAYWRIGHT_BROWSERS_PATH : path.join(os.homedir(), '.cache', 'ms-playwright');
@@ -39,11 +62,18 @@ const headlessShell = () => {   // Playwright's headless shell is what a launch 
   return null;
 };
 
-export function launchBrowser(type, options = {}) {
+export async function launchBrowser(type, options = {}) {
   const isChromium = typeof type.name === 'function' ? type.name() === 'chromium' : false;
   if (!isChromium || !onVps()) return type.launch(options);
   const real = options.executablePath || ((options.headless === false ? null : headlessShell()) ?? type.executablePath());
   const wrapper = path.join(os.tmpdir(), `scope-chromium-${crypto.createHash('sha1').update(real).digest('hex').slice(0, 10)}.sh`);
   fs.writeFileSync(wrapper, wrapperText(real), { mode: 0o755 });
-  return type.launch(vpsOptions(options, wrapper));
+  const browser = await type.launch(vpsOptions(options, wrapper));
+  const pid = browser.process?.()?.pid;
+  if (pid) {   // the processes Chromium adds later (renderers, GPU) are reniced on a short timer until the browser goes
+    reniceTree(pid);
+    const timer = setInterval(() => reniceTree(pid), 5000); timer.unref();
+    browser.on?.('disconnected', () => clearInterval(timer));
+  }
+  return browser;
 }
