@@ -1,5 +1,5 @@
 // The one way a script starts a browser (Lead 2026-10-21: the fourth raised-priority Chromium on the shared VPS in a day, lane memory was not holding it).
-//   import { launchBrowser } from './lib/harness-browser-launch.mjs';   const browser = await launchBrowser(chromium, { headless: true, ... });
+//   const browser = await launchBrowser(chromium, { headless: true, ... });   (the import line must not be quoted here: tests/vps-receipts reads relative imports out of comments too)
 // Everywhere except the VPS this is exactly `type.launch(options)`: Mac, Hugging Face and CI behave as before. On the VPS (hostname in harness-browser-launch.json) a Chromium
 // gets software GL args unless the script already chose its GL, and starts inside `systemd-run --scope -p CPUWeight=20` under `nice -n 10`, so it can never
 // out-rank a deploy or another lane. (Nice= is not a scope property; the wrapper runs `nice` inside the scope.) tests/browser-launch.test.ts fails on any
