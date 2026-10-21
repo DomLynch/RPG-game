@@ -195,10 +195,11 @@ test('RV80 simulated with the real recipe (thresholds move too): a cave-troll fi
 });
 
 // RV76 (balance): a live fight against an opponent the bump REACHED is stamped at that bump (reachStamp), and a plain v76 record (no patron, no flag) must round-trip; a fight against an unreached opponent stays the no-patron v31, unaffected.
-test('a live cave-troll fight is a plain v76 record that round-trips; a live goblin or veteran fight is still the v31 it always was', () => {
+test('a live cave-troll or giant-salamander fight is a plain v87 record that round-trips; a live goblin, wolf or veteran fight is still the v31 it always was', () => {
   const fight = (opponent: OpponentId, level: number) => { const rec = liveRecorder({ build: 'abc1234', opponent, weapon: 'longsword', level, seed: 3 }); for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('draw'); };
   try {
-    for (const [opponent, level] of [['cave-troll', 1], ['cave-troll', 3], ['cave-troll', 46]] as const) { const r = fight(opponent, level); assert.equal(r.v, 76, `${opponent} L${level} is stamped at the reaching bump`); assert.deepEqual(unpackRecord(packRecord(r)), r, `${opponent} L${level}: a plain v76 record round-trips`); }
+    for (const [opponent, level] of [['cave-troll', 1], ['cave-troll', 3], ['cave-troll', 46], ['giant-salamander', 1], ['giant-salamander', 2]] as const) { const r = fight(opponent, level); assert.equal(r.v, 87, `${opponent} L${level} is stamped at the reaching bump (RV87)`); assert.deepEqual(unpackRecord(packRecord(r)), r, `${opponent} L${level}: a plain v87 record round-trips`); }
+    const wolf = fight('wolf', 1); assert.equal(wolf.v, NO_PATRON_VERSION, 'the wolf shares nothing with the salamander now: RV87 does not reach it'); assert.equal(packRecord(wolf)[2], 31);
     const veteran = fight('veteran', 18); assert.equal(veteran.v, NO_PATRON_VERSION); assert.equal(packRecord(veteran)[2], 31, 'an unreached fight is still written as v31'); assert.deepEqual(unpackRecord(packRecord(veteran)), veteran);
   } finally { setLateNotice(false); setStab(false); setPlayScale(1); }
 });
