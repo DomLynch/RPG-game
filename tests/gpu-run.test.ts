@@ -62,7 +62,7 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once' | 'small-full' | 'small-stuck', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once' | 'small-full' | 'small-stuck' | 'small-stuck-nocancel', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
@@ -70,8 +70,9 @@ const fs = require('fs'); const [, , , verb] = process.argv;
 if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); }
 if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); fs.appendFileSync(${JSON.stringify(join(dir, 'ran-log'))}, process.argv.slice(2).join(' ') + '\\n'); console.log('Job started with ID: ${'a'.repeat(24)}'); }
 else if (verb === 'logs') { const seen = ${JSON.stringify(join(dir, 'logged'))}; if (${JSON.stringify(mode)} === 'empty-log-once' && !fs.existsSync(seen)) fs.writeFileSync(seen, 'x'); else process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8')); }
+else if (verb === 'cancel' && ${JSON.stringify(mode)} === 'small-stuck-nocancel') { console.error('cancel refused'); process.exit(1); }
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
-else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: (${JSON.stringify(mode)} === 'hangs' || ${JSON.stringify(mode)} === 'small-stuck') && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? (${JSON.stringify(mode)} === 'hangs' ? 'RUNNING' : 'SCHEDULING') : 'COMPLETED' } }]));
+else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: (${JSON.stringify(mode)} === 'hangs' || ${JSON.stringify(mode)}.startsWith('small-stuck')) && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? (${JSON.stringify(mode)} === 'hangs' ? 'RUNNING' : 'SCHEDULING') : 'COMPLETED' } }]));
 else if (verb === 'ps') console.log(JSON.stringify(${JSON.stringify(mode)} === 'small-full' ? [1, 2, 3, 4].map(n => ({ id: String(n).repeat(24), flavor: 't4-small', created_at: '2026-10-21 08:00:0' + n + '+00:00', status: { stage: 'RUNNING' } })) : []));
 `);
   chmodSync(stub, 0o755);
@@ -120,6 +121,13 @@ test('the capacity clause: a small job still SCHEDULING past the wait is cancell
   assert.ok(existsSync(join(t.dir, 'cancelled')), 'the stuck small job was cancelled');
   const launches = readFileSync(join(t.dir, 'ran-log'), 'utf8').trim().split('\n');
   assert.equal(launches.length, 2); assert.match(launches[0], /--flavor t4-small /); assert.match(launches[1], /--flavor t4-medium /);
+});
+
+test('the capacity clause never double-bills: if the stalled small job cannot be cancelled, medium is NOT launched beside it', () => {
+  const t = setup('small-stuck-nocancel', GOOD_LOG), r = t.runWith({ GPU_RUN_SMALL_WAIT_S: '0' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /still live and could not be cancelled .*not launching medium beside it/);
+  assert.equal(readFileSync(join(t.dir, 'ran-log'), 'utf8').trim().split('\n').length, 1, 'exactly one launch');
 });
 
 test('t4-medium stays selectable by GPU_RUN_FLAVOR: it warns until HF_REASON gives a reason, and is priced at $0.60/h', () => {

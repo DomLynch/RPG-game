@@ -72,7 +72,9 @@ export async function main(argv) {
       while (LIVE.includes(now)) {
         const waitedS = (Date.now() - t0) / 1000;
         if (canFallBack && !fellBack && ['SCHEDULING', 'PENDING', 'QUEUED'].includes(now) && waitedS > SMALL_WAIT_S) {   // a small job that would not start: cancel it and run on medium (a job that STARTED then failed is never retried here)
-          run(['jobs', 'cancel', jobId]); settle({ id: jobId, flavor, seconds: waitedS }); toMedium(capacityReason(waitedS)); stalled = true; break;
+          const cancelled = run(['jobs', 'cancel', jobId]);
+          if (cancelled.status !== 0 && LIVE.includes(stage(jobId))) throw new Error(`the small job ${jobId} is still live and could not be cancelled (${(cancelled.stderr || '').trim().slice(0, 120)}): not launching medium beside it (no double billing)`);
+          settle({ id: jobId, flavor, seconds: waitedS }); toMedium(capacityReason(waitedS)); stalled = true; break;
         }
         if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
         await sleep(pollS); now = stage(jobId);
