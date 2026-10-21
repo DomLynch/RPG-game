@@ -8,6 +8,7 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
+import { dressPhase } from './capture.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { bodyFileOfKey, bodyKeyOf, bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
@@ -80,7 +81,7 @@ const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed aft
 const RING = { width: previewRule('ringWidth'), segments: previewRule('ringSegments'), opacityCalm: previewRule('ringOpacityCalm'), opacityAggro: previewRule('ringOpacityAggro'), colorCalm: previewRule('ringColorCalm'), colorAggro: previewRule('ringColorAggro') };   // the creature's aggro-radius ring on the ground (rows; colours are 0xrrggbb numbers): the look it had as literals, so no change to the picture
 const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSphereNamed') };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[]; zoneReady?: () => boolean }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[]; zoneReady?: () => boolean; seeded?: boolean }): Mobs {
   const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? fxNum('mob-view.phone-cap') : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -200,7 +201,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     const row = loadoutRow(look?.loadout);
     if (look) dressMob(actor.anchor, row?.look ? { ...look, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
-    actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
+    actor.update(0, opts.seeded ? dressPhase(s.id) : Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours (?capture=seed: the same phase whichever body arrived first)
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
     if (row?.look && look?.body) { v.ranked = true; actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
     else if (row) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); if ((look?.scale ?? 1) <= fxNum('mob-view.wear-max-scale')) { v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v, keyOf(s)); } reshapeWeapon(v, weapon, row.rung); }   // the loot pieces are hero-sized: on a body bigger than the row's scale (the troll) they clip and float, so only the weapon is shown until pieces are built for it   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
