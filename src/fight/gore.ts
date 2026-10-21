@@ -247,6 +247,7 @@ function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
   return skins;
 }
 export function surfaceHit(root: THREE.Object3D, bone: THREE.Object3D, normal: THREE.Vector3): { point: THREE.Vector3; normal: THREE.Vector3 } | null {
+  { const w = globalThis as unknown as { __sh?: { callers: Record<string, number>; phone: boolean } }; w.__sh ??= { callers: {}, phone: phoneTier() }; const c = ((new Error().stack ?? '').split('\n')[2] ?? '?').trim().slice(0, 90) + ' | bone=' + bone.name; w.__sh.callers[c] = (w.__sh.callers[c] ?? 0) + 1; }   // PROBE ONLY
   if (!surfaceRays()) return null;
   const skins = skinsOf(root).filter((o) => o.visible);
   if (!skins.length) return null;
@@ -368,6 +369,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
     // A blow landed on `side`: take the next pooled mark (the oldest when all are used), pin it to the struck bone on the
     // struck face, and seed this hit's runs: how many strands (1–3), each one's width, x offset, start delay and duration.
     hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1) {
+      { const w = globalThis as unknown as { __sh?: { hits?: string[] } }; (w.__sh ??= {}).hits ??= []; w.__sh.hits.push(`bodyWounds.hit side=${side} loc=${hit.location} root=${root.name || root.type}`); }   // PROBE ONLY
       let seed = woundSeed(next[side], hit);
       seed = lcg(seed); const draw = unit(seed);   // seeded like the runs: a replay lands the same cut on the same limb, the same shoulder
       const limb = draw < ARM_SHARE ? (draw < ARM_SHARE / 2 ? 1 : 2) : 0, mirror = draw >= .5;
