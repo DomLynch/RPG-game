@@ -77,7 +77,9 @@ function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24
 test('against the hero\'s brain the wolf is neither a pushover nor a wall (the Goblin\'s band)', () => {
   const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(OPPONENTS.goblin, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(OPPONENTS.goblin, PROFILES.normal, 'normal')] };
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
-  for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
+  // RV87 (2026-10-21, Strategy/Lead: the L1 wolf must die to a masher at >= 80 % of the gaps): the wolf is 45 hp, so it is now FRAILER than the Goblin (hero wins 18/24 against the Goblin's 7 and 4), no longer in his band.
+  // Re-pinned to a two-sided bar: not stronger than the Goblin (w >= g - 3) and not a pushover (the hero's brain wins at most 22/24; the masher sweep, zone1-fairness-masher-sweep.ts, holds the L2 wolf to <= 50 % of the gaps).
+  for (const [w, g] of [rows.easy, rows.normal]) { assert.ok(w >= g - 3, `the wolf lost ${w}/24 to the hero's brain, the Goblin ${g}: the beast must not be tougher than the Goblin`); assert.ok(w <= 22, `the hero's brain won ${w}/24 against the wolf: a pushover`); }
 });
 
 // The baked blade tables of every rig that was live before the wolf are byte-identical to trunk (the Auditor's RV35 delta, 2026-10-07: a re-bake had moved all nine Goblin knife
