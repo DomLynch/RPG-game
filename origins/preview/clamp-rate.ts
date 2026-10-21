@@ -11,6 +11,7 @@ export type ClampSnapshot = {
   clampedShare: number; // clamped / frames, 0..1
   gameSpeed: number;    // simMs / wallMs, 0..1 (1 = real time)
 };
+const PERCENT = 100;   // the #debug mirror's unit: a readout scale, not a game number
 export type ClampRate = { frame(raw: number, dt: number): void; snapshot(): ClampSnapshot };
 
 /** `pauseS`: a frame longer than this is a pause, not slowness (the preview-rules row clampPauseS). `mirror`: the #debug element, or null when ?debug is off (nothing is written then). */
@@ -24,7 +25,7 @@ export function createClampRate(pauseS: number, mirror: { dataset: DOMStringMap 
       frames++; wallMs += raw * 1000; simMs += dt * 1000;
       if (raw > dt) clamped++;
       if (mirror) {   // written only when a whole percent changes, so a ?debug page does not touch the DOM every frame
-        const s = snapshot(), share = String(Math.round(s.clampedShare * 100)), speed = String(Math.round(s.gameSpeed * 100)), key = `${share}|${speed}`;
+        const s = snapshot(), share = String(Math.round(s.clampedShare * PERCENT)), speed = String(Math.round(s.gameSpeed * PERCENT)), key = `${share}|${speed}`;
         if (key !== shown) { shown = key; mirror.dataset.clampShare = share; mirror.dataset.gameSpeed = speed; }
       }
     },
