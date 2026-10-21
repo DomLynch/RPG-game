@@ -52,6 +52,7 @@ const { profile } = await cdp.send('Profiler.stop');
 console.log('KITS', JSON.stringify(await page.evaluate(() => window.originsPreview.remoteKitsWarm?.() ?? null)).slice(0, 1500));
 const long = await page.evaluate((n) => window.__long.slice(n), longBefore);
 const gaps = (await page.evaluate(() => window.__gaps.slice(1))).sort((a, b) => a - b), fpsAt = (p) => (gaps.length ? Math.round(10 * 1000 / gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))]) / 10 : null), medianFps = fpsAt(0.5), p5Fps = fpsAt(0.95);
+const clampShare = gaps.length ? Math.round(1000 * gaps.filter((g) => g > 50).length / gaps.length) / 10 : null, gameSpeedPct = gaps.length ? Math.round(1000 * gaps.reduce((a, g) => a + Math.min(g, 50), 0) / gaps.reduce((a, g) => a + g, 0)) / 10 : null;   // the page clamps dt to 0.05 s: a frame over 50 ms runs the game slower than real time (Dom's "slowed down" is literal)
 // aggregate: self time by node, inclusive by function along each sample's stack
 const nodes = new Map(profile.nodes.map((n) => [n.id, n])), parent = new Map();
 for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
@@ -68,7 +69,7 @@ const top = (m2, n) => [...m2.entries()].sort((a, b) => b[1] - a[1]).slice(0, n)
 const special = (name) => Math.round([...self.entries()].filter(([k]) => k.startsWith(name)).reduce((a, [, v]) => a + v, 0));
 const report = { label, device: DEVICE, medianFps, p5Fps, rate: RATE, readyMs, windowMs: WINDOW_MS, totalMs: Math.round(total), idleMs: special('(idle)'), gcMs: special('(garbage collector)'), programMs: special('(program)'), longTasks: long.length, longTotalMs: long.reduce((a, t) => a + t.ms, 0), longMaxMs: Math.max(0, ...long.map((t) => t.ms)), errors, topSelf: top(self, TOP), topInclusive: top(incl, TOP), byFile: top(byFile, 14) };
 fs.writeFileSync(path.join(out, `profile-${label}-rate${RATE}.json`), JSON.stringify(report, null, 2));
-console.log(`PROFILE ${label} rate ${RATE} ${DEVICE}: fps median ${medianFps} p5 ${p5Fps}, ready ${readyMs} ms, window ${report.totalMs} ms (idle ${report.idleMs}, gc ${report.gcMs}, program ${report.programMs}), long tasks ${report.longTasks} / ${report.longTotalMs} ms / max ${report.longMaxMs}`);
+console.log(`PROFILE ${label} rate ${RATE} ${DEVICE}: fps median ${medianFps} p5 ${p5Fps}, clamp-share ${clampShare}% game-speed ${gameSpeedPct}%, ready ${readyMs} ms, window ${report.totalMs} ms (idle ${report.idleMs}, gc ${report.gcMs}, program ${report.programMs}), long tasks ${report.longTasks} / ${report.longTotalMs} ms / max ${report.longMaxMs}`);
 console.log('SELF'); for (const r of report.topSelf.slice(0, 22)) console.log(`  ${String(r.ms).padStart(6)} ms ${String(r.pct).padStart(5)}%  ${r.k}`);
 console.log('INCLUSIVE'); for (const r of report.topInclusive.slice(0, 30)) console.log(`  ${String(r.ms).padStart(6)} ms ${String(r.pct).padStart(5)}%  ${r.k}`);
 console.log('FILES'); for (const r of report.byFile) console.log(`  ${String(r.ms).padStart(6)} ms ${String(r.pct).padStart(5)}%  ${r.k}`);
