@@ -74,6 +74,31 @@ test('net_fetch_local_first: an empty sha has no local shortcut (the plain fetch
   const w = fetchWorld(true, 0), r = w.run('net_fetch_local_first /repo ""; echo "rc=$?"');
   assert.match(r.stdout, /rc=0/); assert.deepEqual(w.calls(), ['curl', 'fetch']);
 });
+// net_remote_fetch_cmd (deploy.sh's writer install on the box, Lead 2026-10-21): the generated text run under bash with stub git/curl/sleep/timeout.
+const remoteWorld = (haveLocal: boolean, haveStore: boolean, curlFails: number) => {
+  const dir = mkdtempSync(join(tmpdir(), 'net-remote-')), bin = join(dir, 'bin'), log = join(dir, 'calls'); mkdirSync(bin);
+  const tool = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`); chmodSync(join(bin, name), 0o755); };
+  tool('git', `case "$1" in -C) exit ${haveStore ? 0 : 1};; cat-file) exit ${haveLocal ? 0 : 1};; fetch) echo "git $*" >> '${log}'; exit 0;; esac\nexit 0`);
+  tool('curl', `echo curl >> '${log}'\nn=$(grep -c '^curl' '${log}')\n[ "$n" -le ${curlFails} ] && exit 7\nexit 0`);
+  tool('sleep', 'exit 0'); tool('timeout', 'shift; exec "$@"');
+  const run = () => spawnSync('bash', ['-c', `source '${lib}'\nbash -c "$(net_remote_fetch_cmd deadbeef /store)"; echo "rc=$?"`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  return { run, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []) };
+};
+test('net_remote_fetch_cmd: the revision already in the clone needs nothing; in the box store, a local fetch with no curl; neither, GitHub after a probe', () => {
+  const a = remoteWorld(true, true, 0), ra = a.run(); assert.match(ra.stdout, /rc=0/); assert.deepEqual(a.calls(), []);
+  const b = remoteWorld(false, true, 99), rb = b.run(); assert.match(rb.stdout, /rc=0/); assert.deepEqual(b.calls(), ['git fetch -q /store deadbeef'], 'from the box\'s own store, no probe');
+  const c = remoteWorld(false, false, 0), rc = c.run(); assert.match(rc.stdout, /rc=0/); assert.deepEqual(c.calls(), ['curl', 'git fetch -q origin deadbeef']);
+});
+test('net_remote_fetch_cmd: GitHub down for all 3 attempts exits 1 with one named line and never starts a fetch (deploy then says "the site has not moved")', () => {
+  const w = remoteWorld(false, false, 99), r = w.run();
+  assert.match(r.stdout, /rc=1/); assert.match(r.stderr, /github\.com unreachable or the fetch failed after 3 attempts/); assert.deepEqual(w.calls(), ['curl', 'curl', 'curl']);
+  const blip = remoteWorld(false, false, 2), rb = blip.run(); assert.match(rb.stdout, /rc=0/); assert.deepEqual(blip.calls(), ['curl', 'curl', 'curl', 'git fetch -q origin deadbeef'], 'a blip that clears on attempt 3 still lands');
+});
+test('deploy.sh: the writer install gets its revision through net_remote_fetch_cmd and keeps the "site has not moved" stop', () => {
+  const d = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(d, /cd \/root\/work-1880 && \$\(net_remote_fetch_cmd "\$revision"\) && git checkout -q -f --detach '\$revision'/);
+  assert.doesNotMatch(d, /work-1880 && git fetch -q origin/, 'no bare fetch before the install'); assert.match(d, /writer install failed for \$revision; the site has not moved/);
+});
 test('net_retry: the last failure code passes through after N tries; an early success stops it', () => {
   const dir = mkdtempSync(join(tmpdir(), 'net-retry-')), n = join(dir, 'n');
   const r = spawnSync('bash', ['-c', `source '${lib}'\nexport NET_RETRY_SLEEP=0\ntry(){ echo x >> '${n}'; return 7; }\nnet_retry 3 try; echo "rc=$?"; wc -l < '${n}'\nok(){ return 0; }\nnet_retry 3 ok; echo "rc=$?"`], { encoding: 'utf8' });

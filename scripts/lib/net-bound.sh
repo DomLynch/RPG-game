@@ -65,3 +65,10 @@ net_fetch_local_first() {
   done
   echo "net-bound: $NET_WHY" >&2; return 1
 }
+# net_remote_fetch_cmd REVISION [STORE]: the shell text deploy.sh runs ON THE BOX inside a clone (the writer install's /root/work-1880) to get REVISION, local first (Lead 2026-10-21): already there = no
+# fetch; else from the box's own object store STORE (default /opt/frankendom-shadow/repo, no network); else GitHub, 3 attempts each behind a 30 s connect probe, `timeout 180` on the fetch. A final failure
+# prints one line and exits 1, so the caller's "the site has not moved" stop runs in seconds instead of after a 135 s hang per call.
+net_remote_fetch_cmd() {
+  local rev=$1 store=${2:-/opt/frankendom-shadow/repo}
+  printf '%s' "if git cat-file -e '$rev^{commit}' 2>/dev/null; then :; elif git -C '$store' cat-file -e '$rev^{commit}' 2>/dev/null && git fetch -q '$store' '$rev'; then :; else got=0; for i in 1 2 3; do curl -sS -o /dev/null --connect-timeout 30 --max-time 45 https://github.com </dev/null 2>/dev/null && timeout 180 git fetch -q origin '$rev' </dev/null && { got=1; break; }; [ \"\$i\" = 3 ] || sleep \$((i * 5)); done; [ \"\$got\" = 1 ] || { echo 'github.com unreachable or the fetch failed after 3 attempts' >&2; exit 1; }; fi"
+}
