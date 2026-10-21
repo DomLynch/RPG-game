@@ -31,6 +31,8 @@ Backend lane, 2026-10-21 night, for review before 12:00 on 10-22. **Docs only: n
 - **Updates:** **Steam only.** The in-app updater is off in the Steam channel (donor pattern: `publish: null`, no updater module loaded). A new build is a new SteamPipe upload to the playtest branch; the Steam client delta-patches. No auto-update code to write.
 - **Signing:** the donor signs Windows builds through Azure Trusted Signing or a Key Vault certificate (credentials only from the build env). Whether the Playtest needs a signed `.exe` is to be confirmed with Steam's build review; no certificate is bought until then (a spend, so Dom's call).
 
+**Data layer (Dom, standing; Lead 10-21):** every value the shell uses is a data row loaded through the registry (a `*.json` plus manifest), never a literal in the shell: the version gate (minimum client RV and its message), the Steam app ids (Playtest and, later, the main app; Spacewar 480 only as the dev row), the channel name, the "update on Steam" text, the API origin and every timing (Steam init retry, the gate's server-check timeout). The Electron main process stays a thin consumer; `npm run check:as-data -- --gate` must pass on the shell PR. **First build = the smallest that works:** the shell loads the bundle, inits Steam (soft-fail), runs the gate, hands login to the system browser; no achievements, cloud, rich presence, Steam Input, Discord or updater code in build 1.
+
 **Depots:** the Playtest depot is **Windows only**; a Mac depot and build come only after Windows is proven (Lead + Strategy).
 
 ## 4. What a Playtest needs (items marked **DOM** are Dom's own acts; I never create or sign in to accounts)
