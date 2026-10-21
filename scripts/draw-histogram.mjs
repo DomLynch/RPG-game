@@ -48,7 +48,7 @@ try {
     const pass = () => !rec.fbo ? 'screen' : rec.vp[0] === rec.vp[1] ? 'shadow' : (rec.vp[0] === rec.W && rec.vp[1] === rec.H ? 'main' : 'post');
     const slot = () => { const k = `${pass()}|${rec.cur ? label(rec.cur.o) : 'untagged'}`; return (rec.agg[k] ??= { draws: 0, switches: 0, binds: 0, progs: new Set(), mats: new Set() }); };
     rec.slot = slot;
-    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); const s = slot(); s.draws++; s.progs.add(rec.prog); if (rec.cur) s.mats.add(rec.cur.m); rec.cur = null; };
+    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); if (rec.cur && rec.frame === 12 && pass() === 'main') (rec.seq ??= []).push([label(rec.cur.o).slice(0, 70), rec.prog, rec.cur.o.renderOrder, rec.cur.mat?.transparent ? 1 : 0, rec.cur.mat?.blending, rec.cur.mat?.depthTest ? 1 : 0, rec.cur.m]); const s = slot(); s.draws++; s.progs.add(rec.prog); if (rec.cur) s.mats.add(rec.cur.m); rec.cur = null; };
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       const orig = (n) => proto[n];
       const wrap = (name, fn) => { const o = orig(name); if (!o) return; proto[name] = function (...a) { fn(a); return o.apply(this, a); }; };
@@ -65,13 +65,14 @@ try {
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 420000 });
   await page.waitForTimeout(4000);
   const sample = async (name, extra = {}) => {
-    await page.evaluate(([W, H]) => { const rec = window.__draws; rec.W = W; rec.H = H; rec.agg = {}; rec.switches = []; rec.binds = [];
-      const tag = (o) => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !o.__tagged) { o.__tagged = true; const prev = o.onBeforeRender; o.onBeforeRender = function (r, s, c, g, m, grp) { rec.cur = { o: this, m: (m?.name || m?.type || '?') + '#' + (m?.uuid || '').slice(0, 6) }; return prev.call(this, r, s, c, g, m, grp); }; const prevS = o.onBeforeShadow; o.onBeforeShadow = function (r, obj, cam, sc, g, m, grp) { rec.cur = { o: this, m: 'shadow:' + (m?.type || '?') }; return prevS.call(this, r, obj, cam, sc, g, m, grp); }; } for (const ch of o.children) tag(ch); };
+    await page.evaluate(([W, H]) => { const rec = window.__draws; rec.W = W; rec.H = H; rec.agg = {}; rec.switches = []; rec.binds = []; rec.seq = [];
+      const tag = (o) => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !o.__tagged) { o.__tagged = true; const prev = o.onBeforeRender; o.onBeforeRender = function (r, s, c, g, m, grp) { rec.cur = { o: this, mat: m, m: (m?.name || m?.type || '?') + '#' + (m?.uuid || '').slice(0, 6) }; return prev.call(this, r, s, c, g, m, grp); }; const prevS = o.onBeforeShadow; o.onBeforeShadow = function (r, obj, cam, sc, g, m, grp) { rec.cur = { o: this, m: 'shadow:' + (m?.type || '?') }; return prevS.call(this, r, obj, cam, sc, g, m, grp); }; } for (const ch of o.children) tag(ch); };
       for (const s of window.__scenes) tag(s);
       clearInterval(window.__retag); window.__retag = setInterval(() => { for (const s of window.__scenes) tag(s); }, 160);   // meshes spawned after the first walk (creatures, fx) get tagged within ~10 frames
       rec.frames = []; rec.frame = 0; rec.on = true; }, [w, h]);
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
     const trace = await page.evaluate(() => { const rec = window.__draws, n = rec.frame; return Object.entries(rec.agg).map(([k, s]) => ({ key: k, drawsPerFrame: +(s.draws / n).toFixed(2), switchesPerFrame: +(s.switches / n).toFixed(2), bindsPerFrame: +(s.binds / n).toFixed(2), programs: s.progs.size, materials: s.mats.size })).sort((a, b) => b.switchesPerFrame - a.switchesPerFrame).slice(0, 60); });
+    extra.seq = await page.evaluate(() => window.__draws.seq);   // one frame's main-pass draw order: label, program, renderOrder, transparent, blending, depthTest, material
     const got = await page.evaluate(() => { window.__draws.on = false; return { f: window.__draws.frames.slice(2, -2), sw: window.__draws.switches.slice(2, -2), bd: window.__draws.binds.slice(2, -2) }; });
     // the scene graph census: every visible mesh (all ancestors visible), by class; meshes ~ scene draws (x material groups), unique materials, unique material types, how many cast shadows
     const census = await page.evaluate(() => {
