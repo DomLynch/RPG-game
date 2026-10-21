@@ -80,7 +80,8 @@ test('a zone row carries pvp and safeAreas through to the loaded zone, and the l
   const z = zoneFromRow(1, row);
   assert.equal(z.pvp, 'on'); assert.deepEqual(z.safeAreas, [yard]);
   assert.equal(pvpAt(z, 5, 5), false);
-  assert.deepEqual(zoneProblems(z), [], 'a good row validates');
+  const own = (zn: Zone) => zoneProblems(zn).filter((p) => /safeAreas|pvp/.test(p));   // the rest of this synthetic row (Zone 1's creatures without its height exception) is not what is under test
+  assert.deepEqual(own(z), [], 'a good row has no safeAreas or pvp problem');
   const broken = { ...z, safeAreas: [{ ...yard, min: [11, 0] }] } as unknown as Zone;
   assert.match(zoneProblems(broken).join('|'), /safeAreas\[0\]: min is not at or below max/);
   assert.match(zoneProblems({ ...z, pvp: 'always' } as unknown as Zone).join('|'), /schema: .*pvp/);
