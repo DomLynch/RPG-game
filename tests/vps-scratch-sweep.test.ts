@@ -637,7 +637,16 @@ test('named-path mode: an orphan bind is released without archiving, and a swept
   const orphan = src.indexOf('if [ "$orphan" = 1 ]; then\n      if [ $APPLY = 0 ]'), arch = src.indexOf('archive_then_delete "$target" named');
   assert.ok(orphan > 0 && orphan < arch, 'the orphan branch continues before any archive');
   assert.match(src, /sbinds=""; if \[ "\$kind" = lane \] && \[ "\$bound" = 0 \]; then sbinds=\$\(sweep_binds_of "\$p"\)/, 'binds are found BEFORE the delete');
-  const gone = src.indexOf('elif [ -e "$p" ]; then say "bind $b'), rel = src.indexOf('sweep_bind_orphan "$b"');
+  // Auditor on #3518: every bind of the source is checked BEFORE the delete (lane kind, LINKED, INUSE, in-use probe), a hit refuses the whole path; a sibling bind of a bind source is released too.
+  const pre = src.indexOf('sbinds=""; if [ "$kind" = lane ]'), refuse = src.indexOf('[ "$refused" = 0 ] || continue');
+  assert.ok(pre > 0 && refuse > pre && refuse < arch, 'the per-bind checks and the refusal come before archive_then_delete');
+  const checks = src.slice(pre, refuse);
+  assert.match(checks, /sweep_kind "\$b"\)" != lane \]; then say "REFUSE\(a bind of the source is not under a lane root/);
+  assert.match(checks, /grep -qx "\$b"[^\n]*grep -q "\^\$b\/"[^\n]*a symlink points into a bind/);
+  assert.match(checks, /grep -qx "\$b"[^\n]*grep -q "\^\$b\/"[^\n]*a bind of the source is in use\)/);
+  assert.match(checks, /if sweep_in_use "\$b"; then say "REFUSE\(a bind of the source is in use, or the in-use probe could not tell/);
+  assert.match(checks, /sweep_binds_of "\$target" \| grep -vxF -e "\$p"/, 'binds of the SOURCE (target), minus the path itself: a second bind of a bind source is released with it');
+  const gone = src.indexOf('elif [ -e "$target" ]; then say "bind $b'), rel = src.indexOf('sweep_bind_orphan "$b"');
   assert.ok(arch > 0 && gone > arch && rel > gone, 'release a volume source bind only after the source is gone and it is a clean orphan');
 });
 

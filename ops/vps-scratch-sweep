@@ -312,7 +312,17 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
       continue
     fi
     # A volume SOURCE dir that binds point to (Lead 2026-10-21): remember the binds BEFORE the delete (findmnt then shows //deleted), release them after, so a sweep through the volume path cannot leave an orphan.
-    sbinds=""; if [ "$kind" = lane ] && [ "$bound" = 0 ]; then sbinds=$(sweep_binds_of "$p"); fi
+    # Every bind of the source is checked BEFORE the delete (Auditor on #3518): a non-lane bind, a symlink into it, a process inside it, or an in-use probe that cannot tell refuses the whole path. When <p> is itself a bind, a
+    # SECOND bind of the same source would be orphaned by the delete, so it is released with it.
+    sbinds=""; if [ "$kind" = lane ]; then sbinds=$(sweep_binds_of "$target" | grep -vxF -e "$p"); fi
+    refused=0
+    for b in $sbinds; do
+      if [ "$(sweep_kind "$b")" != lane ]; then say "REFUSE(a bind of the source is not under a lane root) $p -> $b"; refused=1; break; fi
+      if echo "$LINKED" | grep -qx "$b" || echo "$LINKED" | grep -q "^$b/"; then say "REFUSE(a symlink points into a bind of the source) $p -> $b"; refused=1; break; fi
+      if echo "$INUSE" | grep -qx "$b" || echo "$INUSE" | grep -q "^$b/"; then say "REFUSE(a bind of the source is in use) $p -> $b"; refused=1; break; fi
+      if sweep_in_use "$b"; then say "REFUSE(a bind of the source is in use, or the in-use probe could not tell) $p -> $b"; refused=1; break; fi
+    done
+    [ "$refused" = 0 ] || continue
     case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$target" named;; esac
     if [ "$bound" = 1 ]; then
       if [ $APPLY = 0 ]; then say "would umount the bind $p (source $target) and drop its fstab line"
@@ -320,9 +330,8 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
       else say "$(sweep_bind_release "$p")"; fi
     fi
     for b in $sbinds; do
-      if [ $APPLY = 0 ]; then say "would umount the bind $b (it points at $p) after the source is removed, and drop its fstab line"
-      elif [ -e "$p" ]; then say "bind $b: source $p still exists (archive failed or kept): not unmounting"
-      elif [ "$(sweep_kind "$b")" != lane ]; then say "bind $b: not under a lane root, left for a hand step"
+      if [ $APPLY = 0 ]; then say "would umount the bind $b (it points at the same source as $p) after the source is removed, and drop its fstab line"
+      elif [ -e "$target" ]; then say "bind $b: source $target still exists (archive failed or kept): not unmounting"
       elif sweep_bind_orphan "$b"; then say "$(sweep_bind_release "$b")"
       else say "bind $b: not an empty orphan after the delete, left alone"; fi
     done
