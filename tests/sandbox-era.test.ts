@@ -4,7 +4,7 @@
 //   - class specials with the era OFF are the fights trunk fought: the hash of a class-special battery (the opponent casts its own class special, nothing picked) equals the one taken at trunk b40785691, before the sandbox landed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FIRST_ROWS80_VERSION, FIRST_SANDBOX_VERSION, SANDBOX_ON, onSandboxEra, setSandbox, underRows80, underSandbox } from '../src/fight/sandbox-era.ts';
+import { FIRST_ROWS80_VERSION, FIRST_ROWS86_VERSION, FIRST_SANDBOX_VERSION, SANDBOX_ON, onSandboxEra, setSandbox, underRows80, underRows86, underSandbox } from '../src/fight/sandbox-era.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import { checkEraFixtures, FIXTURE } from '../scripts/record-era-fixtures.mjs';
 import { classSpecialBatteryHash } from './lib/class-special-battery.ts';
@@ -41,5 +41,5 @@ test('every stored era record (v31..v77 and the newest) still replays to its pin
 
 test('class specials with the era OFF are the fights trunk fought (hash taken at trunk b40785691)', () => {
   setStab(true);
-  try { assert.equal(underSandbox(FIRST_SANDBOX_VERSION - 1, () => underRows80(FIRST_ROWS80_VERSION - 1, () => classSpecialBatteryHash())), TRUNK_CLASS_SPECIAL_HASH); } finally { setStab(false); }   // RV80: the special timers (2 s / 6 s) are an era of their own, so the old fight also needs them pinned to the old 20 s
+  try { assert.equal(underSandbox(FIRST_SANDBOX_VERSION - 1, () => underRows80(FIRST_ROWS80_VERSION - 1, () => underRows86(FIRST_ROWS86_VERSION - 1, () => classSpecialBatteryHash()))), TRUNK_CLASS_SPECIAL_HASH); } finally { setStab(false); }   // RV80: the special timers (2 s / 6 s) are an era of their own, so the old fight also needs them pinned to the old 20 s
 });

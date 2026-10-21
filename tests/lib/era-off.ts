@@ -3,7 +3,7 @@
 // written against. Live play and records at v78 or later are not touched by this file (it runs in tests only).
 // The era is FORCED off, not just set off: a fight the legacy suite records now is stamped with the current RECORD_VERSION, and its replay must run under the same rules
 // it was fought with, not flip the era on because its version says so.
-import { forceSandbox, setRows79, setRows80, setRows83, setRows84, setRows85, setSandbox } from '../../src/fight/sandbox-era.ts';
+import { forceSandbox, setRows79, setRows80, setRows83, setRows84, setRows85, setRows86, setSandbox } from '../../src/fight/sandbox-era.ts';
 
 forceSandbox(false);
 setSandbox(false);
@@ -12,3 +12,4 @@ setRows80(false);   // RV80 (leathers' shape, the special timers) too
 setRows83(false);   // RV83 (the open world's bow hero carries the special share) too
 setRows84(false);   // RV84 (the open world's picked specials, the added band rows) too
 setRows85(false);   // RV85 (the open world's held STRIKE: the charged heavy) too
+setRows86(false);   // RV86 (the Elden Ring light and thrust timings) too
