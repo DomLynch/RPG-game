@@ -16,7 +16,9 @@ try {
   const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
   const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA })).newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.originsPreview?.kitNodes?.('boulder').length > 0, null, { timeout: 300000 });
+  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });   // the page is up
+  const seen = await page.waitForFunction(() => (window.originsPreview?.kitNodes?.('boulder').length ?? 0) > 0, null, { timeout: 150000 }).then(() => true, () => false);
+  if (!seen) { console.log(JSON.stringify(await page.evaluate(() => ({ fn: typeof window.originsPreview?.kitNodes, all: window.originsPreview?.kitNodes?.('')?.length, names: [...new Set((window.originsPreview?.kitNodes?.('') ?? []).map((n) => n.node))], keys: Object.keys(window.originsPreview ?? {}).slice(0, 60) })))); process.exitCode = 3; throw new Error('no boulder instance in the live scene'); }
   await page.waitForTimeout(3000);
   const near = await page.evaluate(() => { const p = window.originsPreview.pos, all = window.originsPreview.kitNodes('boulder'); all.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)); return { start: [p.x, p.z], count: all.length, nearest: all[0] }; });
   await page.evaluate(([x, z, d]) => window.originsPreview.place(x, z - d, 0), [near.nearest.x, near.nearest.z, DIST]);
