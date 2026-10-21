@@ -24,7 +24,7 @@ function walk(dir: string, out: string[] = []): string[] {
 
 test('no script calls a Playwright browserType.launch( directly', () => {
   const offenders: string[] = [];
-  for (const dir of ['scripts', 'tests', 'origins', 'ops']) {
+  for (const dir of ['scripts', 'tests', 'origins', 'ops', 'sandbox']) {
     let files: string[] = [];
     try { files = walk(join(ROOT, dir)); } catch { continue; }
     for (const file of files) {
