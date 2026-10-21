@@ -225,6 +225,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
   const FAR_OFF = typeof location !== 'undefined' && /[?&;]fardetail=0\b/.test(location.search);   // look test only: `?fardetail=0` draws every piece at every range, to compare the stills
+  const PREREADY_K = typeof location !== 'undefined' ? (/[?&;]preready=(\d+)\b/.exec(location.search)?.[1] !== undefined ? Number(/[?&;]preready=(\d+)\b/.exec(location.search)![1]) : undefined) : undefined;   // look test only: `?preready=N` overrides the row (how many nearest creatures' kinds a phone fetches before [zone ready])
   const rankPieces = (v: View): THREE.Mesh[] => { const found: THREE.Mesh[] = []; v.model?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.userData.rankLook) found.push(o as THREE.Mesh); }); const size = (m: THREE.Mesh) => m.geometry.getAttribute('position').count; found.sort((a, b) => size(b) - size(a)); return found.slice(1); };   // a rank look's draws but its biggest (the body): the armour pieces a far creature need not draw
   const farDetail = (v: View, d: number, matters: boolean) => {   // a phone draws a far creature's rank-look body only (its arms, gloves, greaves and helmet are a few pixels at that range); back at once when it fights, hunts or is engaged. Only the pieces that were shown are touched, so a bake that turned one off is not undone.
     if (!v.ranked || FAR_OFF) return;
@@ -254,7 +255,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
-      for (const kind of fetchKinds(mobs.map((m, i) => ({ x: m.x, z: m.z, kind: keyOf(specs[i]!) })), hero, fetchRange, !!opts.phone && !!opts.zoneReady && !opts.zoneReady(), fxNum('mob-view.preready-kinds'))) fetchBody(kind);   // a phone fetches only its nearest creatures' kinds before [zone ready], then the rest closest first (Dom: the phone is slow; the salamander's 705 KB sat in front of the ready)
+      for (const kind of fetchKinds(mobs.map((m, i) => ({ x: m.x, z: m.z, kind: keyOf(specs[i]!) })), hero, fetchRange, !!opts.phone && !!opts.zoneReady && !opts.zoneReady(), PREREADY_K ?? fxNum('mob-view.preready-kinds'))) fetchBody(kind);   // a phone fetches only its nearest creatures' kinds before [zone ready], then the rest closest first (Dom: the phone is slow; the salamander's 705 KB sat in front of the ready)
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
