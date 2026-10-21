@@ -46,7 +46,7 @@ const digest = (prof) => {
   });
   const top = (m, n) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => [k, +v.toFixed(0)]);
   const idle = (self.get('(idle) :1') || 0) + (self.get('(program) :1') || 0);
-  return { totalMs: +total.toFixed(0), idleMs: +idle.toFixed(0), busyMs: +(total - idle).toFixed(0), topSelf: top(self, 25), topInclusive: top(incl, 40), byFile: top(file, 12) };
+  return { totalMs: +total.toFixed(0), idleMs: +idle.toFixed(0), busyMs: +(total - idle).toFixed(0), topSelf: top(self, 40), topInclusive: top(incl, 200), byFile: top(file, 12) };
 };
 const results = [];
 for (const orient of ORIENTS) for (const thr of THROTTLES) {
