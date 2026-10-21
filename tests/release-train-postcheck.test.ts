@@ -267,7 +267,8 @@ test('release-train-publish.sh (IT fix): the tail starts in its OWN session (per
   const dir = mkdtempSync(join(tmpdir(), 'setsid-'));
   const out = join(dir, 'out');
   const stub = join(dir, 'stub.sh');
-  writeFileSync(stub, `#!/bin/sh\necho "pid=$$ pgid=$(ps -o pgid= -p $$ | tr -d ' ') sid=$(ps -o sess= -p $$ | tr -d ' ')" > "${out}"\n`, { mode: 0o755 });
+  // sid comes from os.getsid: macOS `ps -o sess=` prints 0 for every process (seen 2026-10-21), which made this test fail on the Mac while the real tails were fine.
+  writeFileSync(stub, `#!/bin/sh\necho "pid=$$ pgid=$(ps -o pgid= -p $$ | tr -d ' ') sid=$(python3 -c 'import os; print(os.getsid(0))')" > "${out}"\n`, { mode: 0o755 });
   const pub = readFileSync('scripts/release-train-publish.sh', 'utf8');
   assert.match(pub, /nohup perl -MPOSIX -e 'POSIX::setsid\(\); exec @ARGV' -- \$\{RELEASE_TRAIN_POSTCHECK:-/);
   // the very wrapper the publisher uses, run from a subshell like the publisher does
