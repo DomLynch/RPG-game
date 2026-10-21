@@ -190,9 +190,13 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
 // A row whose asset is a ranged-model id (`bow`, ranged-model-defs.json) lies as the painted model the hand holds (the player/bow.glb equip file is a knife copy), with its matte and no hold.
 const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item), ranged = rangedModelOf(asset); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : ranged ? rangedModelUrl(ranged) : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
 const groundModelOf = (url: string): Promise<THREE.Object3D> => { const ranged = RANGED_MODELS.find((m) => rangedModelUrl(m) === url); return ranged ? sceneOf(url).then((loaded) => rangedGroundPartOf(loaded, ranged)) : sceneOf(url); };
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: groundModelOf });
+// On a phone no ground model is fetched or parsed before [zone ready] (loot.glb alone is 2 MB on the wire and 77k skinned vertices to parse; the weapons lying about add 0.7 MB more, all fetched at 5 s in the live K6l capture): the items appear when the zone is ready, or after groundDeferMax if it never settles. Desktop loads at once.
+let zoneReadyOpen!: () => void;
+const zoneReadyGate = new Promise<void>((resolve) => { zoneReadyOpen = resolve; });
+const afterReadyOnPhone = <T>(load: () => Promise<T>): Promise<T> => PHONE ? Promise.race([zoneReadyGate, new Promise<void>((resolve) => { setTimeout(resolve, previewRule('groundDeferMax')); })]).then(load) : load();
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => afterReadyOnPhone(() => groundModelOf(url)) });
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
-const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => afterReadyOnPhone(() => sceneOf(url)) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -712,7 +716,7 @@ function zoneReadyCheck() {
   { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
-  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
+  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail); zoneReadyOpen();
   void warmRemoteKitsAfterReady();   // off the critical path: [zone ready] is already logged
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
