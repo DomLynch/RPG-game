@@ -210,7 +210,7 @@ test('RV80 simulated with the real recipe (thresholds move too): a cave-troll fi
     const m = await importEraOn(file);
     assert.equal(m.RECORD_VERSION, 90); assert.equal(m.NO_PATRON_VERSION, 31);
     const fight = (opponent: OpponentId, level: number) => { setPlayScale(playScaleFor(opponent, 43)); setLateNotice(true); setStab(true); const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent, level, seed: 7 }); for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('draw'); };
-    for (const [opponent, level] of [['cave-troll', 3], ['giant-salamander', 1]] as const) { const f = fight(opponent, level); assert.equal(f.v, 87, `${opponent}: stamped at the reaching bump (RV87)`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `${opponent}: packs and round-trips at RV77`); }
+    for (const [opponent, level, v] of [['cave-troll', 3, 87], ['giant-salamander', 1, 88]] as const) { const f = fight(opponent, level); assert.equal(f.v, v, `${opponent}: stamped at its reaching bump (RV${v})`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `${opponent}: packs and round-trips at RV77`); }
     for (const [opponent, level] of [['veteran', 18], ['goblin', 6]] as const) { const plain = fight(opponent, level); assert.equal(plain.v, 31, `${opponent} is not reached by RV76: still v31`); assert.deepEqual(m.unpackRecord(m.packRecord(plain)), plain); }
   } finally { rmSync(dir, { recursive: true, force: true }); setLateNotice(false); setStab(false); setPlayScale(1); }
 });
