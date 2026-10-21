@@ -62,16 +62,17 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once' | 'small-full' | 'small-stuck', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
 const fs = require('fs'); const [, , , verb] = process.argv;
 if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); }
-if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
+if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); fs.appendFileSync(${JSON.stringify(join(dir, 'ran-log'))}, process.argv.slice(2).join(' ') + '\\n'); console.log('Job started with ID: ${'a'.repeat(24)}'); }
 else if (verb === 'logs') { const seen = ${JSON.stringify(join(dir, 'logged'))}; if (${JSON.stringify(mode)} === 'empty-log-once' && !fs.existsSync(seen)) fs.writeFileSync(seen, 'x'); else process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8')); }
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
-else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: ${JSON.stringify(mode)} === 'hangs' && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? 'RUNNING' : 'COMPLETED' } }]));
+else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: (${JSON.stringify(mode)} === 'hangs' || ${JSON.stringify(mode)} === 'small-stuck') && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? (${JSON.stringify(mode)} === 'hangs' ? 'RUNNING' : 'SCHEDULING') : 'COMPLETED' } }]));
+else if (verb === 'ps') console.log(JSON.stringify(${JSON.stringify(mode)} === 'small-full' ? [1, 2, 3, 4].map(n => ({ id: String(n).repeat(24), flavor: 't4-small', created_at: '2026-10-21 08:00:0' + n + '+00:00', status: { stage: 'RUNNING' } })) : []));
 `);
   chmodSync(stub, 0o755);
   const runWith = (extra: Record<string, string>, ...args: string[]) => spawnSync(process.execPath, ['scripts/gpu-run.mjs', ...args], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, GPU_RUN_FLAVOR: '', HF_REASON: '', GPU_RUN_HF: stub, GPU_RUN_OUT: out, HF_LEDGER_DIR: ledger, GPU_RUN_POLL_S: '0', HF_WALL_ROWS_ENV_FILE: join(dir, 'none.env'), ...extra } });
@@ -94,6 +95,31 @@ test('a good run: the job is ledgered, the artifacts come back, the exit is the 
   assert.match(launched, /--flavor t4-small --timeout 10m/, 'the default is the 40-cent T4 (Dom 2026-10-21)');
   assert.ok(launched.includes('mcr.microsoft.com/playwright:v1.62.1-noble'));
   assert.doesNotMatch(r.stderr, /t4-medium chosen/, 'no medium warning on the default');
+});
+
+const GOOD_LOG = ['=== HEAD h TREE t ===', `=== RENDERER shell=${T4} | chrome=${T4} ===`, '=== RUN ===', 'smoke OK', '=== EXIT 0 ===', '=== COST seconds=180 ==='].join('\n');
+
+test('the capacity clause: no free t4-small slot in the wait -> t4-medium automatically, and the receipt line names why', () => {
+  const t = setup('small-full', GOOD_LOG), r = t.runWith({ GPU_RUN_MAX_WAIT_S: '0' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /WARN small at capacity \(\d+ s\): this job goes to t4-medium \(\$0\.60\/h\)/);
+  assert.match(r.stderr, /ran 180 s on t4-medium ≈ \$0\.03 at \$0\.60\/h \[t4-medium because small at capacity \(\d+ s\)\]/);
+  assert.match(readFileSync(join(t.dir, 'ran'), 'utf8'), /--flavor t4-medium /);
+  assert.match(readFileSync(join(t.ledger, readdirSync(t.ledger).find(f => f.endsWith('.ledger') || f.endsWith('.done'))!), 'utf8'), /^[0-9a-f]{24}/m, 'the fallback job is in the cleanup ledger');
+  const noFallback = t.runWith({ GPU_RUN_MAX_WAIT_S: '0', HF_T4_NO_FALLBACK: '1' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.notEqual(noFallback.status, 0, 'HF_T4_NO_FALLBACK=1 (the A/A) never moves to medium');
+  assert.match(noFallback.stderr, /no t4-small slot \(4 of 4 in use\)/);
+  assert.doesNotMatch(noFallback.stderr, /t4-medium/);
+});
+
+test('the capacity clause: a small job still SCHEDULING past the wait is cancelled and relaunched on t4-medium with the reason in the receipt; the log-retry is not consumed', () => {
+  const t = setup('small-stuck', GOOD_LOG), r = t.runWith({ GPU_RUN_SMALL_WAIT_S: '0' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /WARN small at capacity \(\d+ s\): this job goes to t4-medium/);
+  assert.match(r.stderr, /\[t4-medium because small at capacity \(\d+ s\)\]/);
+  assert.ok(existsSync(join(t.dir, 'cancelled')), 'the stuck small job was cancelled');
+  const launches = readFileSync(join(t.dir, 'ran-log'), 'utf8').trim().split('\n');
+  assert.equal(launches.length, 2); assert.match(launches[0], /--flavor t4-small /); assert.match(launches[1], /--flavor t4-medium /);
 });
 
 test('t4-medium stays selectable by GPU_RUN_FLAVOR: it warns until HF_REASON gives a reason, and is priced at $0.60/h', () => {
