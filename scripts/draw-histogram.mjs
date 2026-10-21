@@ -42,13 +42,19 @@ try {
     const rec = { on: false, frame: 0, frames: [], fbo: null, vp: [0, 0], prog: 0, progs: new WeakMap(), nextProg: 1, switches: [], binds: [] };
     window.__draws = rec;
     window.__scenes = []; window.__THREE_DEVTOOLS__ = new EventTarget(); window.__THREE_DEVTOOLS__.addEventListener('observe', (e) => { if (e.detail?.isScene) window.__scenes.push(e.detail); });   // three announces its Scene here
-    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); };
+    rec.cur = null; rec.agg = {}; rec.W = 0; rec.H = 0;
+    // per-draw trace: which pass (main / shadow / post), which mesh (its name path), which material and program; set by each mesh's onBeforeRender (tagMeshes), read by the draw / useProgram / bindTexture hooks
+    const label = (o) => o.__lbl ??= `${o.isSkinnedMesh ? 'skinned' : o.isInstancedMesh ? 'instanced' : 'mesh'}:${[o.name, o.parent?.name, o.parent?.parent?.name, o.parent?.parent?.parent?.name].filter(Boolean).slice(0, 3).join('<')}`;
+    const pass = () => !rec.fbo ? 'screen' : rec.vp[0] === rec.vp[1] ? 'shadow' : (rec.vp[0] === rec.W && rec.vp[1] === rec.H ? 'main' : 'post');
+    const slot = () => { const k = `${pass()}|${rec.cur ? label(rec.cur.o) : 'untagged'}`; return (rec.agg[k] ??= { draws: 0, switches: 0, binds: 0, progs: new Set(), mats: new Set() }); };
+    rec.slot = slot;
+    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); const s = slot(); s.draws++; s.progs.add(rec.prog); if (rec.cur) s.mats.add(rec.cur.m); rec.cur = null; };
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       const orig = (n) => proto[n];
       const wrap = (name, fn) => { const o = orig(name); if (!o) return; proto[name] = function (...a) { fn(a); return o.apply(this, a); }; };
       wrap('bindFramebuffer', (a) => { if (a[0] === 36009 || a[0] === 36160) rec.fbo = a[1]; });
-      wrap('useProgram', (a) => { if (a[0] && !rec.progs.has(a[0])) rec.progs.set(a[0], rec.nextProg++); rec.prog = a[0] ? rec.progs.get(a[0]) : 0; if (rec.on) (rec.switches[rec.frame] ??= []).push(rec.prog); });
-      wrap('bindTexture', () => { if (rec.on) rec.binds[rec.frame] = (rec.binds[rec.frame] ?? 0) + 1; });
+      wrap('useProgram', (a) => { if (a[0] && !rec.progs.has(a[0])) rec.progs.set(a[0], rec.nextProg++); rec.prog = a[0] ? rec.progs.get(a[0]) : 0; if (rec.on) { (rec.switches[rec.frame] ??= []).push(rec.prog); slot().switches++; } });
+      wrap('bindTexture', () => { if (rec.on) { rec.binds[rec.frame] = (rec.binds[rec.frame] ?? 0) + 1; slot().binds++; } });
       wrap('viewport', (a) => { rec.vp = [a[2], a[3]]; });
       wrap('drawElements', (a) => note('e', a[1], 1)); wrap('drawArrays', (a) => note('a', a[2], 1));
       wrap('drawElementsInstanced', (a) => note('ei', a[1], a[4])); wrap('drawArraysInstanced', (a) => note('ai', a[2], a[4])); wrap('drawRangeElements', (a) => note('e', a[4], 1));
@@ -59,8 +65,12 @@ try {
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 420000 });
   await page.waitForTimeout(4000);
   const sample = async (name, extra = {}) => {
-    await page.evaluate(() => { window.__draws.frames = []; window.__draws.frame = 0; window.__draws.on = true; });
+    await page.evaluate(([W, H]) => { const rec = window.__draws; rec.W = W; rec.H = H; rec.agg = {}; rec.switches = []; rec.binds = [];
+      const tag = (o) => { if (o.isMesh && !o.__tagged) { o.__tagged = true; const prev = o.onBeforeRender; o.onBeforeRender = function (r, s, c, g, m, grp) { rec.cur = { o: this, m: (m?.name || m?.type || '?') + '#' + (m?.uuid || '').slice(0, 6) }; return prev.call(this, r, s, c, g, m, grp); }; } for (const ch of o.children) tag(ch); };
+      for (const s of window.__scenes) tag(s);
+      rec.frames = []; rec.frame = 0; rec.on = true; }, [w, h]);
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
+    const trace = await page.evaluate(() => { const rec = window.__draws, n = rec.frame; return Object.entries(rec.agg).map(([k, s]) => ({ key: k, drawsPerFrame: +(s.draws / n).toFixed(2), switchesPerFrame: +(s.switches / n).toFixed(2), bindsPerFrame: +(s.binds / n).toFixed(2), programs: s.progs.size, materials: s.mats.size })).sort((a, b) => b.switchesPerFrame - a.switchesPerFrame).slice(0, 60); });
     const got = await page.evaluate(() => { window.__draws.on = false; return { f: window.__draws.frames.slice(2, -2), sw: window.__draws.switches.slice(2, -2), bd: window.__draws.binds.slice(2, -2) }; });
     // the scene graph census: every visible mesh (all ancestors visible), by class; meshes ~ scene draws (x material groups), unique materials, unique material types, how many cast shadows
     const census = await page.evaluate(() => {
@@ -82,7 +92,7 @@ try {
     }
     const top = Object.entries(shapes).map(([k, v]) => [k, +(v / n).toFixed(2)]).sort((a, b) => b[1] - a[1]);
     const label = (k) => { const m = /count=(\d+) inst=(\d+)/.exec(k); return m && expected.has(+m[1]) && m[2] === '1' ? expected.get(+m[1]) : (m && +m[2] > 1 ? 'instanced (kit/crowd/fx)' : ''); };
-    result.scenarios[name] = { frames: n, ...extra, census,uniqueProgramsByTarget: Object.fromEntries(Object.entries(uniq).map(([k, v]) => [k, v.size])), programSwitchesPerFrame: +(got.sw.reduce((s, f) => s + (f?.length ?? 0), 0) / n).toFixed(1), textureBindsPerFrame: +(got.bd.reduce((s, v) => s + (v || 0), 0) / n).toFixed(1), drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
+    result.scenarios[name] = { frames: n, ...extra, census, trace, uniqueProgramsByTarget: Object.fromEntries(Object.entries(uniq).map(([k, v]) => [k, v.size])), programSwitchesPerFrame: +(got.sw.reduce((s, f) => s + (f?.length ?? 0), 0) / n).toFixed(1), textureBindsPerFrame: +(got.bd.reduce((s, v) => s + (v || 0), 0) / n).toFixed(1), drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
       staticDressingMergedPerFrame: +top.filter(([k]) => label(k).startsWith('frontier')).reduce((s, [, v]) => s + v, 0).toFixed(1), instancedPerFrame: +top.filter(([k]) => /inst=(?!1\b)/.test(k)).reduce((s, [, v]) => s + v, 0).toFixed(1) };
   };
   await sample('opening-view', { at: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })) });
