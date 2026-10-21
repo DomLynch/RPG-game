@@ -110,7 +110,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   return levelByDistance(f, b, out, rows);
 }
 // Risk = reward by depth (Dom 2026-10-08): a common creature is its zone's level near the hero's spawn (Zone 1 = L1) and one more at the zone's edge, a
-// row's band [N, N+1] ramped by the distance of its home from the spawn; the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
+// row's band [N, N+1] ramped by the distance of its home from the spawn (a FLAT band [N, N], the giant salamander since RV87, stays at N at any distance); the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
 // town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
 export const LEVEL_NEAR_M = stageRule('levelNear'), LEVEL_FAR_M = stageRule('levelFar'), NAMED_LEVEL = ZONE_LEVEL + stageRule('namedLevelLift');
 export const levelAt = (d: number, band: readonly [number, number]): number => band[0] + Math.round(Math.max(0, Math.min(1, (d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M))) * (band[1] - band[0]));
