@@ -295,10 +295,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       const ceiling = labelCeilingNdc(floorPx, heightPx), at = labelAt;
       for (const v of displaced) v.label.position.set(0, v.label.userData.y0 as number, 0);   // the tags that slid last frame go back home first (every other tag is already home: only this function moves one), then only the drawn creatures' tags are tested, not every view ever made
       displaced.clear();
+      (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.('cl.reset');
       for (const i of shown) {
         const v = views.get(i);
         if (!v || !v.label.visible || !v.group.visible) continue;
-        v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
+        (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.('cl.loopHead'); v.group.updateMatrixWorld(true); (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.('cl.skeletonMatrix'); v.label.getWorldPosition(at).project(camera);
         if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
         at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at); displaced.add(v);
       }
