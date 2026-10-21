@@ -80,7 +80,7 @@ sweep_bind_source() {
   [ -n "$base" ] || return 1
   real=$(realpath -e -- "${base%/}$sub" 2>/dev/null) || return 1
   [ -d "$real" ] && [ ! -L "$real" ] || return 1
-  [ -n "$(sweep_kind "$real")" ] || return 1
+  [ "$(sweep_kind "$real")" = lane ] || return 1   # a LANE root only (Lead's spec): an aged, tmp, home or file source would be deleted by a different rule than the mount path's
   mountpoint -q -- "$real" 2>/dev/null && return 1
   printf '%s\n' "$real"
 }
@@ -92,7 +92,7 @@ sweep_fstab_drop() {
   [ "$n" = 1 ] || { echo "fstab: $n bind lines for $mp (expected exactly 1), left alone"; return 0; }
   tmp=$(mktemp "$fstab.new.XXXXXX") || { echo "fstab: cannot write a temp file, left alone"; return 0; }
   awk -v t="$mp" '!($0 !~ /^[ \t]*#/ && $2 == t && $4 ~ /(^|,)bind(,|$)/)' "$fstab" > "$tmp" \
-    && cp -p "$fstab" "$fstab.bak-$(date +%Y%m%d-%H%M%S)" && cat "$tmp" > "$fstab" && rm -f "$tmp" && echo "fstab: dropped the bind line for $mp (backup $fstab.bak-*)" \
+    && cp -p "$fstab" "$fstab.bak-$(date +%Y%m%d-%H%M%S)" && chmod --reference="$fstab" -- "$tmp" && mv -- "$tmp" "$fstab" && echo "fstab: dropped the bind line for $mp (backup $fstab.bak-*)" \
     || { rm -f "$tmp"; echo "fstab: edit failed, left alone"; }
   return 0
 }
@@ -269,6 +269,13 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
     if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
     # every kind, the lane roots too: the INUSE scan above is lsof +D over the whole of work/ and dev-jobs/ and silently comes back empty on a timeout
     if sweep_in_use "$p"; then say "REFUSE(in use, or the in-use probe could not tell: a process has its cwd or a file open inside, or lsof timed out) $p"; continue; fi
+    # A bind: the same three checks on the SOURCE path too (Auditor on #3518): the /proc cwd loop and the LINKED/INUSE sets are path-based, so a process that cd'd in through the volume path, or a symlink that
+    # points at the volume path, is missed when only the mount path is checked (lsof sees through a bind; a cwd string does not).
+    if [ "$bound" = 1 ]; then
+      if echo "$LINKED" | grep -qx "$target" || echo "$LINKED" | grep -q "^$target/"; then say "REFUSE(a symlink points into the bind source) $p -> $target"; continue; fi
+      if echo "$INUSE" | grep -qx "$target" || echo "$INUSE" | grep -q "^$target/"; then say "REFUSE(bind source in use) $p -> $target"; continue; fi
+      if sweep_in_use "$target"; then say "REFUSE(bind source in use, or the in-use probe could not tell) $p -> $target"; continue; fi
+    fi
     if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
     case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$target" named;; esac
     if [ "$bound" = 1 ]; then

@@ -3,7 +3,7 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -591,9 +591,9 @@ test('sweep_safe_path: a regular file directly in a lane root is accepted; a sym
 
 // (2) BIND MOUNTS: sweep_bind_source resolves a bind of a dir on an allowed root to its source; a bind whose source is OUTSIDE the roots, a whole-device mount and a source that is itself a mount stay refused.
 // `mountpoint` and `findmnt` are stubbed (a test cannot mount): the device's own mount is /tmp and the bind source is a direct child of /tmp, which sweep_kind accepts as a lane path.
-function bindWorld(desc: (src: string) => string, opts: { srcIsMount?: boolean } = {}) {
+function bindWorld(desc: (src: string) => string, opts: { srcIsMount?: boolean; srcPrefix?: string } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'sweep-bind-')), bin = join(root, 'bin'); mkdirSync(bin);
-  const src = join('/tmp', `sweep-bindsrc-${process.pid}-${Date.now()}`), mp = join('/tmp', `sweep-bindmnt-${process.pid}-${Date.now()}`); mkdirSync(src); mkdirSync(mp);
+  const src = join('/tmp', `${opts.srcPrefix ?? 'sweep-bindsrc-'}${process.pid}-${Date.now()}`), mp = join('/tmp', `sweep-bindmnt-${process.pid}-${Date.now()}`); mkdirSync(src); mkdirSync(mp);
   writeFileSync(join(bin, 'mountpoint'), `#!/bin/sh\nfor a; do case "$a" in "${mp}"${opts.srcIsMount ? `|"${src}"` : ''}) exit 0;; esac; done\nexit 1\n`, { mode: 0o755 });
   writeFileSync(join(bin, 'findmnt'), `#!/bin/sh\ncase "$*" in *"--target"*) echo '${desc(src)}';; *"TARGET,SOURCE"*) echo '/tmp /dev/stub'; echo '${mp} ${desc(src)}';; esac\n`, { mode: 0o755 });
   const run = (fn: string) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${fn} "$1"`, 'x', mp], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
@@ -610,6 +610,9 @@ test('sweep_bind_source: a bind whose source is OUTSIDE the allowed roots, a who
   try { assert.equal(whole.run('sweep_bind_source').status, 1); } finally { whole.done(); }
   const nested = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`, { srcIsMount: true });
   try { assert.equal(nested.run('sweep_bind_source').status, 1); } finally { nested.done(); }
+  // Auditor on #3518: the source must be a LANE root, not just any allowed root: an aged-kind source (/tmp/hooks-*) would be deleted by the aged rule, not archive-first.
+  const aged = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`, { srcPrefix: 'hooks-bindsrc-' });
+  try { const r = aged.run('sweep_bind_source'); assert.equal(r.status, 1); assert.equal(r.stdout.trim(), '', 'an aged source is not offered'); } finally { aged.done(); }
 });
 
 test('sweep_fstab_drop: removes exactly the one bind line for the target, keeps a backup, and leaves the file alone when it is not exactly one', { skip: process.platform !== 'linux' }, () => {
@@ -618,7 +621,10 @@ test('sweep_fstab_drop: removes exactly the one bind line for the target, keeps 
     const keep = ['UUID=abc / ext4 defaults 0 1', '# /srv/dev-jobs/x is mentioned here and is not a mount', '/mnt/vol/dev-jobs/y /srv/dev-jobs/y none bind,nofail 0 0', '/dev/sdb /srv/dev-jobs/x ext4 defaults 0 0'];
     writeFileSync(fstab, [...keep, '/mnt/vol/dev-jobs/x /srv/dev-jobs/x none bind,nofail,x-systemd.requires-mounts-for=/mnt/vol 0 0'].join('\n') + '\n');
     const drop = () => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_fstab_drop /srv/dev-jobs/x'], { encoding: 'utf8', env: { ...process.env, SWEEP_FSTAB: fstab } });
+    chmodSync(fstab, 0o640);
     const r = drop(); assert.match(r.stdout, /dropped the bind line for \/srv\/dev-jobs\/x/);
+    assert.equal(statSync(fstab).mode & 0o777, 0o640, 'the write is a rename of a temp file that took the old mode (atomic), not an in-place rewrite');
+    assert.equal(readdirSync(root).filter((f) => f.startsWith('fstab.new.')).length, 0, 'no temp file left behind');
     assert.equal(readFileSync(fstab, 'utf8'), keep.join('\n') + '\n', 'only the bind line for that exact target went: the comment, the other bind and the non-bind line stay');
     assert.equal(readdirSync(root).filter((f) => f.startsWith('fstab.bak-')).length, 1, 'a dated backup was kept');
     assert.match(drop().stdout, /0 bind lines for \/srv\/dev-jobs\/x \(expected exactly 1\), left alone/, 'a second run finds nothing and changes nothing');
@@ -632,6 +638,8 @@ test('named-path mode: a bind is only swept under a lane root, its SOURCE is arc
   assert.match(src, /\[ "\$kind" = lane \] \|\| \{ say "REFUSE\(a bind mount is only swept under a lane root/);
   const arch = src.indexOf('archive_then_delete "$target" named'), umount = src.indexOf('umount -- "$p"'), gone = src.indexOf('elif [ -e "$target" ]');
   assert.ok(arch > 0 && gone > arch && umount > gone, 'order: archive the source, check it is gone, then umount');
+  assert.match(src, /if sweep_in_use "\$target"; then say "REFUSE\(bind source in use/, 'a bind runs the in-use probe on the source path too (a cwd via the volume path is invisible to the mount path)');
+  assert.match(src, /grep -qx "\$target"[^\n]*\n[^\n]*grep -qx "\$target"/, 'and the LINKED and INUSE sets');
   assert.match(src, /sweep_fstab_drop "\$p"/); assert.doesNotMatch(src, /umount[^\n]*(-f|-l|--force|--lazy)/, 'no forced or lazy unmount');
 });
 
