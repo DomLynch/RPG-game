@@ -27,7 +27,7 @@ const SHA: Record<string, string> = {
   'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
   'longsword-ornate': 'b4e8a3ba78d8578fd8a62173b0c796093253242283b73dbe39e2e75917cc562f',
   'gladius-plain': '7e39180d7e15bf52ef62645fc346899a56c7e8d308728d53f7b34e742f19b437',
-  'gladius-crafted': '0a04d3b416cc170abc0624dfc12e6fd96faa59864524ef227af19109e2320e67',
+  'gladius-crafted': 'db7afd6e121ffcbbf27fb023ec62bdeb69cd33cd2203b79ce092c097706d2485',   // 2026-10-21: the two PNG textures re-encoded as WebP (1,065 -> 246 KB on the wire; geometry byte-identical; scripts/glb-png-to-webp.py q88 base colour / q93 metal-rough); was 0a04d3b416cc170abc0624dfc12e6fd96faa59864524ef227af19109e2320e67
   'gladius-ornate': '44dd49d4f7b1f9a3b963e03597d12a4a77d71cb911bcd6d1ed39bb02b608e0b0',
   'knife-plain': 'a5b5c0375019fcf4bea92b611ae4112464ec64af1e2ec18d11c90be7e013e140',
   'knife-crafted': 'e8e29048ee02a5bdbe62d11d3c8f71b876e5a2723de25d1a089006d3fdb23cdd',
