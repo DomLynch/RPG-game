@@ -13,7 +13,7 @@ for T in before after; do
   [ -d "$W" ] && git worktree remove --force "$W"
   git worktree add -q --detach "$W" "$REF"
   ln -s /srv/dev-jobs/char-webp/repo/node_modules "$W/node_modules"
-  (cd "$W" && npx vite build --config origins/preview/vite.config.mjs > "/srv/dev-jobs/char-webp/b-$T.log" 2>&1) || { tail -20 "/srv/dev-jobs/char-webp/b-$T.log"; exit 1; }
+  (cd "$W" && npx vite build --minify false --config origins/preview/vite.config.mjs > "/srv/dev-jobs/char-webp/b-$T.log" 2>&1) || { tail -20 "/srv/dev-jobs/char-webp/b-$T.log"; exit 1; }
 done
 mkdir -p /srv/dev-jobs/char-webp/out2
 for T in before after; do node scripts/ground-defer-proof.mjs /srv/dev-jobs/char-webp/wt-$T $T /srv/dev-jobs/char-webp/out2; done

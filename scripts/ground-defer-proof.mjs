@@ -29,6 +29,9 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE })).newPage();
   const errors = [], seq = []; let ready = false;
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
+  const cdp = await page.context().newCDPSession(page); await cdp.send('Network.enable'); await cdp.send('Debugger.enable'); await cdp.send('Debugger.setAsyncCallStackDepth', { maxDepth: 32 });
+  const who = new Map();   // glb path -> who asked (the initiator's top frames, function names readable in the unminified build)
+  cdp.on('Network.requestWillBeSent', (e) => { const u = new URL(e.request.url).pathname; if (/\.glb$/.test(u) && !who.has(u)) { const frames = []; for (let s = e.initiator.stack; s && frames.length < 14; s = s.parent) for (const f of s.callFrames) frames.push(`${f.functionName || '(anon)'}@${f.url.split('/').pop()}:${f.lineNumber}`); who.set(u, frames.filter((f) => !/three|GLTFLoader|FileLoader|Loader/i.test(f)).slice(0, 4).join(' < ')); } });
   page.on('requestfinished', (r) => { const u = new URL(r.url()).pathname; if (/\.(glb|webp|png|jpe?g|ktx2)$/.test(u)) seq.push({ u, ready }); });
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 480000, polling: 1000 }).catch(() => console.log(label, 'NO __zoneReady within 480 s'));
@@ -38,6 +41,7 @@ try {
   const models = (list) => list.filter((s) => /\.glb$/.test(s.u)).map((s) => `${s.u.split('/').pop()} ${Math.round((wire.get(s.u) ?? 0) / 1024)}KB`);
   console.log(`${label} BEFORE-READY: ${before.length} files ${kb(before)} KB gzip; models ${models(before).length}: ${models(before).join(', ')}`);
   console.log(`${label} AFTER-READY (25 s): ${after.length} files ${kb(after)} KB; models ${models(after).length}: ${models(after).join(', ')}`);
+  for (const s of before.filter((x) => /\/(loot|longsword|bow|bow-v1|staff-v1|cleaver|estoc|gladius|shield)[-.]/.test(x.u))) console.log(`${label} WHO ${s.u.split('/').pop()}: ${who.get(s.u) ?? '?'}`);
   console.log(`${label} ready=${await page.evaluate(() => window.__zoneReady?.atMs ?? null)} ms (software GL, not a timing); page errors: ${errors.length ? errors.join(' | ') : 'none'}`);
   await page.screenshot({ path: path.join(out, `${label}-after-ready.png`), timeout: 240000 });
 } finally { await browser.close(); server.close(); }
