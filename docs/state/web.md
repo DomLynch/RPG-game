@@ -21,13 +21,17 @@ Sizes read 2026-10-21 from https://partner.steamgames.com/doc/store/assets (Stea
 | Screenshots | 5+ at 1920x1080 | no | (1) Zone 1 golden-hour fight, (2) Pit duel, (3) Zone 2 Nightborn, (4) loot or gear sheet, (5) town or character screen; real HUD on, desktop layout | `scripts/*-stills.mjs` pattern (Playwright against `artifacts/origins-preview`, `creature-spot-stills.mjs` takes FROM/LOOK coordinates and a SETTLE wait) at a 1920x1080 viewport |
 | Trailer/clip | 1920x1080, about 30 s | n/a | real fights: Zone 1 plus a Pit duel, golden hour, blade glint visible | NOT `src/clip.ts` (it is a 13 s portrait kill replay at CLIP_WIDTH x CLIP_HEIGHT, rows 'clip-seconds', 'clip-tail', 'clip-finish-cap'; it stays untouched). A separate landscape capture of the live build on the Mac real GPU, cut to about 30 s |
 
+**Settled tonight:**
+1. Golden hour (World & Audio, Lead's go): `?z1look=a` on branch `world/zone2-looks` @309f5af58 (not on trunk, no PR). Zone 1 URL `?region=1&zone=1&presence=0&daynight=0&z1look=a`, built or served from that sha; look row `town-a` (warm fog, sun at [-24,9,-15], intensity 5.0) over Zone 1's own skyline, so the blade glint stays; Zone 1 only, byte-identical without the flag. Before/after stills: docs/stills/z1look-a/ on that branch. Art A renders from that branch's build; record the sha in each receipt. The gate-arena start shows fence and totem: frame the duel with place()/tapMob.
+2. HUD-off: no capture/no-HUD flag exists (grepped src, scripts, docs). None needed: the HUD is DOM, so a screenshot of the canvas element alone has no HUD; screenshots that need it use the full page.
+
 **Things to settle at 09:00 (not guessed here):**
-1. How to force golden hour and the sun angle in the live build. Look for the arena theme/sky rows (`src/arena-themes.json`, sky sun values) and the `?look=` flags before inventing a flag; if none exists, ask World & Audio for the row, do not add game code from this lane.
-2. How to hide the HUD for the hero and capsule art (no UI in those); the screenshots keep the HUD.
 3. Screen-recording route for the clip (Playwright `recordVideo` on a headed Mac Chromium, or a canvas MediaRecorder at 1080p); pick the one that holds 60 fps on the M5 and say which in the receipt.
 4. The wordmark: 2-3 options in the game's style (same pipeline as the art), Dom picks before any capsule is exported.
 
 **Receipt per asset:** the file path, its exact pixel size (`file`/`sips -g`), the renderer string, the commit sha of the build shot, and the Mac load figure.
+
+## 2026-10-19 (+04) — Web: saved VPS web-asdata-ui work as a WIP branch
 
 Branch `wip/web-asdata-ui-vps-2026-10-19` @5a38b8022, base 052f57d99 (web/port-dome-hooks merge): 31 files, unreviewed; the next Web session decides whether any of it is wanted. Saved before the folder moves to the 200 GB disk.
 
