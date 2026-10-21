@@ -3,7 +3,7 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -85,7 +85,7 @@ test('sweep_kind: exactly /tmp/rev2354-dist.tgz, /tmp/wk.tgz and /tmp/wk2.tgz ar
   for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/root/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
-test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour file is refused because its kind needs a directory', { skip: process.platform !== 'linux' }, () => {
+test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour regular file of kind lane passes since 2026-10-21', { skip: process.platform !== 'linux' }, () => {
   const dir = mkdtempSync(join('/tmp', 'sweep-file-'));
   const file = join(dir, 'a.tgz'), link = join(dir, 'l.tgz'), sub = join(dir, 'd.tgz');
   const neighbour = join('/tmp', `wk3-test-${process.pid}.tgz`);
@@ -96,7 +96,8 @@ test('sweep_safe_path: a kind-file path must be a regular file (never a director
     assert.equal(asFile(link).status, 1); assert.match(asFile(link).stdout, /symlink/);
     assert.equal(asFile(sub).status, 1); assert.match(asFile(sub).stdout, /not a regular file/);
     const real = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', neighbour], { encoding: 'utf8' });
-    assert.equal(real.status, 1, 'a neighbour file (kind lane) is refused'); assert.match(real.stdout, /not a real directory/);
+    // Lead 2026-10-21: a regular file of kind lane is a valid --path now (the Steam dev had to move finished tars into a dir to sweep them); the three one-off kind-file paths above keep their own rules.
+    assert.equal(real.status, 0, 'a neighbour regular file (kind lane) passes now: ' + real.stdout);
   } finally { rmSync(neighbour, { force: true }); rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -152,13 +153,15 @@ test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), 
     const refused: Record<string, RegExp> = {
       [`${real}/`]: /not canonical/, [`${join(base, 'cq-planted')}/`]: /not canonical/, [join(base, 'cq-planted')]: /is a symlink/, [join(base, 'cq-dangling')]: /is a symlink/,
       [join(base, 'parent-link', 'child')]: /path component is a symlink/, [`${base}/real/../real`]: /not canonical/, [`${base}//real`]: /not canonical/,
-      'relative/dir': /not an absolute path/, [join(base, 'a-file')]: /not a real directory/, [join(base, 'missing')]: /not a real directory/,
+      'relative/dir': /not an absolute path/, [join(base, 'missing')]: /not a real directory/,
     };
     for (const [path, why] of Object.entries(refused)) {
       const r = safe(path);
       assert.equal(r.status, 1, `${path} must be refused: ${r.stdout}`);
       assert.match(r.stdout, why, path);
     }
+    // Lead 2026-10-21: a regular file inside a lane root is a valid --path now (it was refused here as "not a real directory"); the symlink and canonical-path refusals above are unchanged.
+    assert.equal(safe(join(base, 'a-file')).status, 0, 'a regular file in a lane root passes');
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
@@ -570,5 +573,108 @@ test('sweep_linked: an outside link makes its target a link target; a link insid
     assert.equal(r.status, 0, r.stderr);
     assert.deepEqual(r.stdout.trim().split('\n'), [join(work, 'bowspec'), join(work, 'rootlinked'), join(work, 'shared')], 'bowspec, rootlinked and shared are held; self is not, for its own links');
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// Lead 2026-10-21 (Strategy's card): (1) a single regular file inside a lane root is a valid --path (the Steam dev had to mv finished tars into a dir first); a symlink file is still refused.
+test('sweep_safe_path: a regular file directly in a lane root is accepted; a symlink file, a file outside the roots and a file of an aged kind are refused', { skip: process.platform !== 'linux' }, () => {
+  const file = join('/tmp', `sweep-file-${process.pid}`), link = join('/tmp', `sweep-filelink-${process.pid}`), aged = join('/tmp', `hooks-sweepfile-${process.pid}`), outside = join('/var/tmp', `sweep-file-outside-${process.pid}`);   // not process.cwd(): a checkout under /srv/dev-jobs is itself inside a lane root
+  try {
+    for (const f of [file, aged, outside]) writeFileSync(f, 'x');
+    symlinkSync(file, link);
+    const safe = (p: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', p], { encoding: 'utf8' });
+    assert.equal(safe(file).status, 0, safe(file).stdout);
+    assert.equal(safe(link).status, 1); assert.match(safe(link).stdout, /is a symlink/);
+    assert.equal(safe(aged).status, 1, 'an aged-kind path is deleted by age, not taken as a file');
+    assert.equal(safe(outside).status, 1);
+  } finally { for (const f of [file, link, aged, outside]) rmSync(f, { force: true }); }
+});
+
+// (2) BIND MOUNTS: sweep_bind_source resolves a bind of a dir on an allowed root to its source; a bind whose source is OUTSIDE the roots, a whole-device mount and a source that is itself a mount stay refused.
+// `mountpoint` and `findmnt` are stubbed (a test cannot mount): the device's own mount is /tmp and the bind source is a direct child of /tmp, which sweep_kind accepts as a lane path.
+function bindWorld(desc: (src: string) => string, opts: { srcIsMount?: boolean; srcPrefix?: string } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-bind-')), bin = join(root, 'bin'); mkdirSync(bin);
+  const src = join('/tmp', `${opts.srcPrefix ?? 'sweep-bindsrc-'}${process.pid}-${Date.now()}`), mp = join('/tmp', `sweep-bindmnt-${process.pid}-${Date.now()}`); mkdirSync(src); mkdirSync(mp);
+  writeFileSync(join(bin, 'mountpoint'), `#!/bin/sh\nfor a; do case "$a" in "${mp}"${opts.srcIsMount ? `|"${src}"` : ''}) exit 0;; esac; done\nexit 1\n`, { mode: 0o755 });
+  writeFileSync(join(bin, 'findmnt'), `#!/bin/sh\ncase "$*" in *"--target"*) echo '${desc(src)}';; *"TARGET,SOURCE"*) echo '/tmp /dev/stub'; echo '${mp} ${desc(src)}';; esac\n`, { mode: 0o755 });
+  const run = (fn: string) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${fn} "$1"`, 'x', mp], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  return { src, mp, bin, run, done: () => { rmSync(root, { recursive: true, force: true }); rmSync(src, { recursive: true, force: true }); rmSync(mp, { recursive: true, force: true }); } };
+}
+test('sweep_bind_source: a bind of a dir under an allowed root resolves to its source', { skip: process.platform !== 'linux' }, () => {
+  const w = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`);
+  try { const r = w.run('sweep_bind_source'); assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), w.src); } finally { w.done(); }
+});
+test('sweep_bind_source: a bind whose source is OUTSIDE the allowed roots, a whole-device mount and a source that is itself a mount point are refused', { skip: process.platform !== 'linux' }, () => {
+  const out = bindWorld(() => '/dev/stub[/etc]');
+  try { const r = out.run('sweep_bind_source'); assert.equal(r.status, 1); assert.equal(r.stdout.trim(), '', 'nothing is offered for removal'); } finally { out.done(); }
+  const whole = bindWorld(() => '/dev/stub');
+  try { assert.equal(whole.run('sweep_bind_source').status, 1); } finally { whole.done(); }
+  const nested = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`, { srcIsMount: true });
+  try { assert.equal(nested.run('sweep_bind_source').status, 1); } finally { nested.done(); }
+  // Auditor on #3518: the source must be a LANE root, not just any allowed root: an aged-kind source (/tmp/hooks-*) would be deleted by the aged rule, not archive-first.
+  const aged = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`, { srcPrefix: 'hooks-bindsrc-' });
+  try { const r = aged.run('sweep_bind_source'); assert.equal(r.status, 1); assert.equal(r.stdout.trim(), '', 'an aged source is not offered'); } finally { aged.done(); }
+});
+
+// (3) ORPHAN BINDS (Lead 2026-10-21): a bind whose source was swept through the volume path shows `//deleted` in findmnt and an empty mount point.
+test('sweep_bind_orphan: only a //deleted source with an EMPTY mount point is an orphan', { skip: process.platform !== 'linux' }, () => {
+  const w = bindWorld(() => '/dev/stub[/work/gone//deleted]');
+  try { assert.equal(w.run('sweep_bind_orphan').status, 0, 'deleted source + empty mount point'); writeFileSync(join(w.mp, 'x'), '1'); assert.equal(w.run('sweep_bind_orphan').status, 1, 'a mount point with content is refused'); } finally { w.done(); }
+  const live = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`);
+  try { assert.equal(live.run('sweep_bind_orphan').status, 1, 'a live bind is not an orphan'); } finally { live.done(); }
+  const whole = bindWorld(() => '/dev/stub');
+  try { assert.equal(whole.run('sweep_bind_orphan').status, 1); } finally { whole.done(); }
+});
+test('sweep_binds_of: finds the bind(s) of a volume source dir, and nothing when no bind points at it', { skip: process.platform !== 'linux' }, () => {
+  const w = bindWorld((src) => `/dev/stub[${src.replace(/^\/tmp/, '')}]`);
+  try {
+    const run = (d: string) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_binds_of "$1"`, 'x', d], { encoding: 'utf8', env: { ...process.env, PATH: `${w.bin}:${process.env.PATH}` } });
+    assert.equal(run(w.src).stdout.trim(), w.mp);
+    assert.equal(run('/tmp/some-other-dir').stdout.trim(), '', 'a source with no bind is left unchanged');
+  } finally { w.done(); }
+});
+test('named-path mode: an orphan bind is released without archiving, and a swept volume source releases its binds only once the source is gone', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
+  const orphan = src.indexOf('if [ "$orphan" = 1 ]; then\n      if [ $APPLY = 0 ]'), arch = src.indexOf('archive_then_delete "$target" named');
+  assert.ok(orphan > 0 && orphan < arch, 'the orphan branch continues before any archive');
+  assert.match(src, /sbinds=""; if \[ "\$kind" = lane \]; then sbinds=\$\(sweep_binds_of "\$target"/, 'binds are found BEFORE the delete');
+  // Auditor on #3518: every bind of the source is checked BEFORE the delete (lane kind, LINKED, INUSE, in-use probe), a hit refuses the whole path; a sibling bind of a bind source is released too.
+  const pre = src.indexOf('sbinds=""; if [ "$kind" = lane ]'), refuse = src.indexOf('[ "$refused" = 0 ] || continue');
+  assert.ok(pre > 0 && refuse > pre && refuse < arch, 'the per-bind checks and the refusal come before archive_then_delete');
+  const checks = src.slice(pre, refuse);
+  assert.match(checks, /sweep_kind "\$b"\)" != lane \]; then say "REFUSE\(a bind of the source is not under a lane root/);
+  assert.match(checks, /grep -qx "\$b"[^\n]*grep -q "\^\$b\/"[^\n]*a symlink points into a bind/);
+  assert.match(checks, /grep -qx "\$b"[^\n]*grep -q "\^\$b\/"[^\n]*a bind of the source is in use\)/);
+  assert.match(checks, /if sweep_in_use "\$b"; then say "REFUSE\(a bind of the source is in use, or the in-use probe could not tell/);
+  assert.match(checks, /sweep_binds_of "\$target" \| grep -vxF -e "\$p"/, 'binds of the SOURCE (target), minus the path itself: a second bind of a bind source is released with it');
+  const gone = src.indexOf('elif [ -e "$target" ]; then say "bind $b'), rel = src.indexOf('sweep_bind_orphan "$b"');
+  assert.ok(arch > 0 && gone > arch && rel > gone, 'release a volume source bind only after the source is gone and it is a clean orphan');
+});
+
+test('sweep_fstab_drop: removes exactly the one bind line for the target, keeps a backup, and leaves the file alone when it is not exactly one', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-fstab-')), fstab = join(root, 'fstab');
+  try {
+    const keep = ['UUID=abc / ext4 defaults 0 1', '# /srv/dev-jobs/x is mentioned here and is not a mount', '/mnt/vol/dev-jobs/y /srv/dev-jobs/y none bind,nofail 0 0', '/dev/sdb /srv/dev-jobs/x ext4 defaults 0 0'];
+    writeFileSync(fstab, [...keep, '/mnt/vol/dev-jobs/x /srv/dev-jobs/x none bind,nofail,x-systemd.requires-mounts-for=/mnt/vol 0 0'].join('\n') + '\n');
+    const drop = () => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_fstab_drop /srv/dev-jobs/x'], { encoding: 'utf8', env: { ...process.env, SWEEP_FSTAB: fstab } });
+    chmodSync(fstab, 0o640);
+    const r = drop(); assert.match(r.stdout, /dropped the bind line for \/srv\/dev-jobs\/x/);
+    assert.equal(statSync(fstab).mode & 0o777, 0o640, 'the write is a rename of a temp file that took the old mode (atomic), not an in-place rewrite');
+    assert.equal(readdirSync(root).filter((f) => f.startsWith('fstab.new.')).length, 0, 'no temp file left behind');
+    assert.equal(readFileSync(fstab, 'utf8'), keep.join('\n') + '\n', 'only the bind line for that exact target went: the comment, the other bind and the non-bind line stay');
+    assert.equal(readdirSync(root).filter((f) => f.startsWith('fstab.bak-')).length, 1, 'a dated backup was kept');
+    assert.match(drop().stdout, /0 bind lines for \/srv\/dev-jobs\/x \(expected exactly 1\), left alone/, 'a second run finds nothing and changes nothing');
+    writeFileSync(fstab, ['/a /srv/dev-jobs/x none bind 0 0', '/b /srv/dev-jobs/x none bind 0 0'].join('\n') + '\n');
+    assert.match(drop().stdout, /2 bind lines/); assert.equal(readFileSync(fstab, 'utf8').split('\n').length, 3, 'two matching lines: left alone');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('named-path mode: a bind is only swept under a lane root, its SOURCE is archived first, and it is unmounted (and its fstab line dropped) only after the source is gone', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
+  assert.match(src, /\[ "\$kind" = lane \] \|\| \{ say "REFUSE\(a bind mount is only swept under a lane root/);
+  const arch = src.indexOf('archive_then_delete "$target" named'), umount = src.indexOf('sweep_bind_release "$p"', src.indexOf('sweep_bind_release "$p"') + 1), gone = src.indexOf('elif [ -e "$target" ]');
+  assert.ok(arch > 0 && gone > arch && umount > gone, 'order: archive the source, check it is gone, then umount');
+  assert.match(src, /if sweep_in_use "\$target"; then say "REFUSE\(bind source in use/, 'a bind runs the in-use probe on the source path too (a cwd via the volume path is invisible to the mount path)');
+  assert.match(src, /grep -qx "\$target"[^\n]*\n[^\n]*grep -qx "\$target"/, 'and the LINKED and INUSE sets');
+  assert.match(src, /sweep_fstab_drop "\$mp"/); assert.doesNotMatch(src, /umount[^\n]*(-f|-l|--force|--lazy)/, 'no forced or lazy unmount');
 });
 
