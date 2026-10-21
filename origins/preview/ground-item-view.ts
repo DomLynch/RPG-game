@@ -63,28 +63,31 @@ export function bakeSkinned(src: THREE.Object3D): THREE.Object3D {
 }
 
 // The pickup ring: flat additive rings on the ground under the item (the bands of its row: a bright thin one and a faint wide one), so a thin object reads from the walk camera. Never casts or receives shadow.
-// Everything made here is OWNED by the drawn item (`userData.owned`): hide() disposes it. The item's own meshes are not: their geometry is the loaded model's and their materials are the cached finish clones.
+// The geometry and material of a ring band or beam are SHARED by every item whose row gives the same numbers (one cache per look, keyed on all of them): a drawn item then switches to the same
+// material as its neighbours instead of each loot piece carrying its own copies (27 meshes, 27 materials in Zone 1, which cost program-state uploads every frame). They are never disposed: the cache
+// is bounded by the rows. An item's own meshes are not shared either: their geometry is the loaded model's and their materials are the cached finish clones.
+const shared = new Map<string, THREE.BufferGeometry | THREE.Material>();
+const once = <T extends THREE.BufferGeometry | THREE.Material>(key: string, make: () => T): T => { let v = shared.get(key); if (!v) shared.set(key, (v = make())); return v as T; };
 function ring(r: GroundRing): THREE.Group {
   const g = new THREE.Group(), color = new THREE.Color(r.color);
   for (const [inner, outer, k] of r.bands) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, r.segments).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-    m.position.y = r.liftM; m.renderOrder = 2; m.name = 'ground-ring'; m.userData.owned = true; g.add(m);
+    const geo = once(`ring-g:${r.radiusM}:${inner}:${outer}:${r.segments}`, () => new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, r.segments).rotateX(-Math.PI / 2));
+    const mat = once(`ring-m:${r.color}:${r.opacity * k}`, () => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(geo, mat);
+    m.position.y = r.liftM; m.renderOrder = 2; m.name = 'ground-ring'; g.add(m);
   }
   return g;
 }
 
-// The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black). Owned like the ring.
+// The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black). Shared like the ring.
 function beam(b: GroundBeam): THREE.Mesh {
-  const g = new THREE.CylinderGeometry(b.radiusM * b.topRatio, b.radiusM, b.heightM, b.segments, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
-  for (let i = 0; i < pos.count; i++) { const k = Math.max(0, 1 - pos.getY(i) / b.heightM); cols.push(c.r * k, c.g * k, c.b * k); }
-  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: b.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  m.name = 'ground-beam'; m.renderOrder = 3; m.userData.owned = true; return m;
-}
-
-// Free what a drawn item owns on the GPU (its ring and beam); never the shared model geometry or the cached finish materials its item meshes use.
-function disposeOwned(g: THREE.Object3D) {
-  g.traverse((o) => { if (o instanceof THREE.Mesh && o.userData.owned) { o.geometry.dispose(); for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose(); } });
+  const geo = once(`beam-g:${b.color}:${b.radiusM}:${b.topRatio}:${b.heightM}:${b.segments}`, () => {
+    const g = new THREE.CylinderGeometry(b.radiusM * b.topRatio, b.radiusM, b.heightM, b.segments, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
+    for (let i = 0; i < pos.count; i++) { const k = Math.max(0, 1 - pos.getY(i) / b.heightM); cols.push(c.r * k, c.g * k, c.b * k); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); return g;
+  });
+  const m = new THREE.Mesh(geo, once(`beam-m:${b.opacity}`, () => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: b.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
+  m.name = 'ground-beam'; m.renderOrder = 3; return m;
 }
 
 // The row's finish on a mesh's material (a cached clone, never the model's own); an armour piece is a thin shell, so its clone draws both faces (it lies at any roll and must not vanish edge-on).
@@ -124,7 +127,7 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   let serial = 0;
   const modelOf = (url: string) => { let m = models.get(url); if (!m) models.set(url, (m = opts.loadModel(url))); return m; };
   const place = (g: THREE.Group, at: { x: number; z: number }) => g.position.set(at.x, groundAt(at.x, at.z), at.z);
-  const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); disposeOwned(g); drawn.delete(id); } };   // free functions: the page hands them around unbound
+  const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); drawn.delete(id); } };   // nothing to dispose: the ring and beam are shared, the model and finish materials are the page's   // free functions: the page hands them around unbound
   return {
     show(id, itemId, at, tier) {
       const look = (opts.lookOf ?? groundLook)(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
