@@ -26,6 +26,7 @@ import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
+import DROP_DEFS from '../../src/fight/record-drop-defs.json' with { type: 'json' };   // the reasons the page sends for a missing record (#3151): the tally's only drop keys
 import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './units.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
@@ -92,6 +93,10 @@ const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/,
 // without a verified record is unverified whatever it says). A malformed one, or one beside a record, is ignored rather than refused, so a label can never cost an honest kill its report.
 const DROP = /^[a-z0-9-]{1,40}$/;
 export const dropOf = (v: unknown, rec: string | undefined): string | null => (rec === undefined && typeof v === 'string' && DROP.test(v) ? v : null);
+// The label is the player's to choose, so only the reasons the page can actually send (the record-drop rows) get their own tally key; anything else is 'other' (Lead / Backend on #3155: a free
+// label must not grow the writer's in-memory tally or its hourly log line without bound).
+const KNOWN_DROPS: ReadonlySet<string> = new Set(DROP_DEFS.drops.map((d) => d.reason));
+export const dropBucket = (drop: string): string => (KNOWN_DROPS.has(drop) ? drop : 'other');
 const recordOf = (v: unknown): string | undefined => { if (v === undefined) return undefined; if (typeof v !== 'string' || v.length === 0 || v.length > MAX_RECORD_CHARS) throw new BadRequest('record: a packed world record'); return v; };
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {
@@ -183,7 +188,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // The record (BASE): replayed on the server. During the soak every kill pays as before whatever the record says (verdict logged, with its reason); with scorecardOnlyUnverified
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
     let record = recText === undefined ? 'none' : 'unverified';
-    if (recText === undefined) deps.tally?.add(drop ? `dropped: ${drop}` : 'no record');   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
+    if (recText === undefined) deps.tally?.add(drop ? `dropped: ${dropBucket(drop)}` : 'no record');   // the readout tells "the page dropped its window (and why)" apart from "no record at all"
     if (recText !== undefined) {
       const tag = `kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
@@ -211,7 +216,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${drop})` : ''}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}${reach === 'unchecked' ? ` (${seen.why})` : ''} record=${record}${drop ? ` (dropped: ${dropBucket(drop)})` : ''}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

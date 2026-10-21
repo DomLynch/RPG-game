@@ -8,7 +8,7 @@ const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: 
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, flipReadiness, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
-import { worldSpawnOps, defaultZoneSpawns, dropOf, type Spawn } from './world-spawns.ts';
+import { worldSpawnOps, defaultZoneSpawns, dropBucket, dropOf, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../../src/core/server.ts';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
@@ -115,6 +115,15 @@ test('the page\'s `drop` (#3151: why it sent no record) is counted apart from pl
   await strict.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, drop: 'gear-change' });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'flag on: a dropped window pays scorecard counts only, like any kill without a verified record');
   assert.deepEqual([dropOf('gear-change', undefined), dropOf('gear-change', 'rec'), dropOf('BAD', undefined), dropOf(undefined, undefined)], ['gear-change', null, null, null]);
+});
+
+test('a drop label is the player\'s choice, so only the record-drop rows get a tally key: 1,000 distinct valid labels make ONE \'dropped: other\' key (Lead/Backend on #3155)', async () => {
+  const tally = createVerdictTally(), logs: string[] = [], ops = mk({ tally, log: (l: string) => logs.push(l) });
+  for (let i = 0; i < 1000; i++) await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, drop: `made-up-${i}` });
+  await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, drop: 'gear-change' });
+  assert.deepEqual(tally.snapshot().outcomes, { 'dropped: other': 1000, 'dropped: gear-change': 1 }, 'the key set stays bounded by the rows');
+  assert.ok(!logs.some((l) => /made-up-/.test(l)), 'the log names the bucket, never the free label');
+  assert.deepEqual([dropBucket('gear-change'), dropBucket('hero-unclean'), dropBucket('anything-else')], ['gear-change', 'hero-unclean', 'other']);
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
