@@ -1,0 +1,85 @@
+// How many draw calls per frame does Zone 1 make, and how many are the static dressing? Counts every WebGL draw the page issues, per frame, by render target (the screen, the shadow map, other
+// offscreen passes), in two views: the opening view and the fight camera, and labels the draws that are the merged dressing meshes (frontier-*, camp-*) by their exact index count.
+//   node scripts/draw-histogram.mjs <built origins-preview dist> <out json>     env: VIEW=375x812  FRAMES=40  PIT_GL=1 (software GL: the COUNT does not depend on the GPU; times do)  CHROME=<path>
+// Measures only: no row, no prop, no render setting is changed. Run on the VPS (PIT_GL=1) or the Mac; the numbers are draw counts, not times.
+/* global process, console, window, document */
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import * as THREE from 'three';
+import { chromium } from 'playwright';
+import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
+import { frontierDress } from '../origins/preview/frontier-dress.ts';
+import { meshPieces } from '../origins/preview/exchange.ts';
+
+const [dist, outFile] = process.argv.slice(2);
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.ogg': 'audio/ogg', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
+const server = http.createServer((req, res) => {
+  const u = decodeURIComponent(req.url.split('?')[0]); let f = path.join(path.resolve(dist), u.replace(/^\/preview\/origins\//, ''));
+  if (!fs.existsSync(f) && fs.existsSync(path.join('public', u))) f = path.join('public', u);
+  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
+  if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; res.end(); return; }
+  res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
+});
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+
+// What the static dressing draws as, by index count (the same meshing the page does: exchange.ts meshPieces, one merged mesh per layer; frontier.ts passes build, ground, dress and camp pieces).
+const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B);
+const mats = { stone: new THREE.MeshBasicMaterial(), iron: new THREE.MeshBasicMaterial(), coal: new THREE.MeshBasicMaterial() };
+const expected = new Map();   // index count -> label
+for (const [prefix, pieces] of [['frontier', B.pieces], ['frontier-ground', D.ground], ['frontier-dress', D.pieces]]) {
+  const g = new THREE.Group(); meshPieces(g, pieces, mats, prefix, {});
+  for (const m of g.children) if (m.geometry?.index) expected.set(m.geometry.index.count, m.name);
+}
+
+const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const result = { view: process.env.VIEW || '375x812', expected: Object.fromEntries([...expected].map(([k, v]) => [v, k])), scenarios: {} };
+try {
+  const [w, h] = (process.env.VIEW || '375x812').split('x').map(Number), FRAMES = +(process.env.FRAMES || 40);
+  const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+  const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA })).newPage();
+  await page.addInitScript(() => {
+    const rec = { on: false, frame: 0, frames: [], fbo: null, vp: [0, 0] };
+    window.__draws = rec;
+    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1]]); };
+    for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
+      const orig = (n) => proto[n];
+      const wrap = (name, fn) => { const o = orig(name); if (!o) return; proto[name] = function (...a) { fn(a); return o.apply(this, a); }; };
+      wrap('bindFramebuffer', (a) => { if (a[0] === 36009 || a[0] === 36160) rec.fbo = a[1]; });
+      wrap('viewport', (a) => { rec.vp = [a[2], a[3]]; });
+      wrap('drawElements', (a) => note('e', a[1], 1)); wrap('drawArrays', (a) => note('a', a[2], 1));
+      wrap('drawElementsInstanced', (a) => note('ei', a[1], a[4])); wrap('drawArraysInstanced', (a) => note('ai', a[2], a[4])); wrap('drawRangeElements', (a) => note('e', a[4], 1));
+    }
+    const tick = () => { rec.frame++; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+  });
+  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0&worldfight&debug=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 420000 });
+  await page.waitForTimeout(4000);
+  const sample = async (name, extra = {}) => {
+    await page.evaluate(() => { window.__draws.frames = []; window.__draws.frame = 0; window.__draws.on = true; });
+    await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
+    const frames = await page.evaluate(() => { window.__draws.on = false; return window.__draws.frames.slice(2, -2); });
+    const full = frames.filter(Boolean), n = full.length || 1, groups = {}, shapes = {};
+    for (const f of full) for (const [kind, count, inst, fbo, vw, vh] of f) {
+      const g = fbo ? `offscreen ${vw}x${vh}` : `screen ${vw}x${vh}`; groups[g] = (groups[g] ?? 0) + 1;
+      const k = `${g} | ${kind} count=${count} inst=${inst}`; shapes[k] = (shapes[k] ?? 0) + 1;
+    }
+    const top = Object.entries(shapes).map(([k, v]) => [k, +(v / n).toFixed(2)]).sort((a, b) => b[1] - a[1]);
+    const label = (k) => { const m = /count=(\d+) inst=(\d+)/.exec(k); return m && expected.has(+m[1]) && m[2] === '1' ? expected.get(+m[1]) : (m && +m[2] > 1 ? 'instanced (kit/crowd/fx)' : ''); };
+    result.scenarios[name] = { frames: n, ...extra, drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
+      staticDressingMergedPerFrame: +top.filter(([k]) => label(k).startsWith('frontier')).reduce((s, [, v]) => s + v, 0).toFixed(1), instancedPerFrame: +top.filter(([k]) => /inst=(?!1\b)/.test(k)).reduce((s, [, v]) => s + v, 0).toFixed(1) };
+  };
+  await sample('opening-view', { at: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })) });
+  // the fight camera: the hero beside the nearest scavenger, a light tap to engage, then the page's fight camera
+  const target = await page.evaluate(() => { const p = window.originsPreview.pos, all = window.originsPreview.mobs().mobs.filter((m) => /scavenger/.test(m.id)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)); return all[0] ? { id: all[0].id, x: all[0].x, z: all[0].z } : null; });
+  if (target) {
+    for (let t = 0; t < 10 && !(await page.evaluate(() => document.body.classList.contains('infight'))); t++) {
+      await page.evaluate(([id]) => { const m = window.originsPreview.mobs().mobs.find((q) => q.id === id); if (m) window.originsPreview.place(m.x, m.z - 1.4, 0); window.originsPreview.press?.('light'); }, [target.id]);
+      await page.waitForTimeout(900);
+    }
+    await page.waitForTimeout(2500);
+    await sample('fight-camera', { target: target.id, infight: await page.evaluate(() => document.body.classList.contains('infight')) });
+  }
+  fs.writeFileSync(outFile, JSON.stringify(result, null, 1));
+  for (const [name, s] of Object.entries(result.scenarios)) console.log(name, JSON.stringify({ frames: s.frames, byTarget: s.drawsPerFrameByTarget, staticDressingMergedPerFrame: s.staticDressingMergedPerFrame, instancedPerFrame: s.instancedPerFrame, infight: s.infight }));
+} finally { await browser.close(); server.close(); }
