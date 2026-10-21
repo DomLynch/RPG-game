@@ -27,7 +27,7 @@ export const rng = (seed: string) => {   // mulberry32 over a string hash
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-// Ground decals sit at fixed heights per kind so overlapping ones never fight: ash pale, then the worn road, its ruts, the scorch.
+// Ground decals sit at fixed heights per kind so overlapping ones never fight (ash < road < rut < scorch): ash pale, then the worn road, its ruts, the scorch.
 const SLAB = stageRule('dressSlab'), TOP = { ash: previewRule('decalTopAsh'), road: previewRule('decalTopRoad'), rut: previewRule('decalTopRut'), scorch: previewRule('decalTopScorch') };   // m: preview-rules rows
 const ASHPALE: Tint = [1.45, 1.42, 1.38], SCORCH: Tint = [0.38, 0.34, 0.32], ROAD: Tint = [1.2, 1.12, 1.02], RUT: Tint = [0.7, 0.64, 0.58];
 const BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.88, 0.8, 0.7], [0.56, 0.54, 0.54]], WALL: Tint = [0.95, 0.84, 0.7];
