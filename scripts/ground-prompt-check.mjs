@@ -82,7 +82,7 @@ async function run(take) {
   await settled(page, WIDTHS[0]);
   await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, ID, { timeout: 90000 });
   if (guest) { const a = await page.evaluate((id) => window.originsPreview.ground.anchor(id), ID); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [a.x, a.z - 1.3]); }   // the row's own point (its place centre plus its offset, wherever World puts it), not the place centre
-  await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 });
+  await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }).catch(() => { throw new Error(`${take}: ground prompt: never showed within 30 s`); });   // a named step, not "check crashed: TimeoutError"
   const name = (await measure(page)).text.replace(/^Take the /, '');
   await expectClear(page, `${take}-prompt`, `Take the ${name}`, true);
   await settled(page, WIDTHS[0]);
