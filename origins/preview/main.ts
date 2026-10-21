@@ -38,7 +38,7 @@ import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinName, goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
@@ -218,6 +218,9 @@ if (frontier && frontierParts) {
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
+// The Concord Exchange's own plate (Dom 2026-10-21: "for the town area"): the Exchange page (no region) shows a horizon dome when the goblin-field names table has an `exchange:sky` row (a palette id); none = today's Exchange. The Pit's sky cover and abyss sphere (`pit:abyss`) hide under it.
+const TOWN_SKY = !frontier && goblinName('exchange:sky') ? goblinPalette(goblinName('exchange:sky')) : null;
+if (TOWN_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, TOWN_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.visible = false; const abyss = arena.group.getObjectByName(goblinName('pit:abyss') ?? ''); if (abyss) abyss.visible = false; }).catch(() => {});
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.
 let mobs: Mobs | null = null, mobsAsked = false;

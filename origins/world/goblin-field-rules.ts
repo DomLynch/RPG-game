@@ -56,6 +56,8 @@ export const goblinRule = (id: (typeof RULES)[number]): number => LOADED.rules.f
 /** A palette by id (the ?goblin= flag); an absent or unknown id is the default named by the "palette" name row. */
 export const goblinPalette = (id?: string | null): GoblinPalette => LOADED.palettes.find((p) => p.id === id) ?? LOADED.palettes.find((p) => p.id === LOADED.names.find((n) => n.id === 'palette')!.text)!;
 export const goblinPalettes = (): readonly GoblinPalette[] => LOADED.palettes;
+/** The text of a `names` row (e.g. `exchange:sky`: the palette the Concord Exchange's dome shows, `pit:abyss`: the Pit's abyss sphere), or null when the table has no such row. */
+export const goblinName = (id: string): string | null => LOADED.names.find((n) => n.id === id)?.text ?? null;
 /** The backdrop row a palette shows on a portrait or a landscape screen, or null (no picture: the painted sky alone). */
 export const goblinBackdrop = (p: GoblinPalette, portrait: boolean): GoblinBackdrop | null => { const id = portrait ? p.backdropPortrait : p.backdropLandscape; return id ? LOADED.backdrops.find((b) => b.id === id)! : null; };
 /** A zone's fields as loadZone gives them (only what a biome or the zone SET counts). */
