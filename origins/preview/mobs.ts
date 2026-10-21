@@ -46,7 +46,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   const ID_PREFIX = zoneKeyPrefix(f.zone);   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [], late: MobSpec[] = [];   // late: a named camp boss's creature, appended after the openers so no existing creature (or opener) draws a different seed
   for (const sp of reg.spawns) {
-    const zone = f.zones.find((z) => z.region === FRONTIER && (Object.hasOwn(z.landmarks, sp.at) || Object.hasOwn(z.spots, sp.at)));
+    const zone = f.zones.find((z) => z.region === FRONTIER && (Object.hasOwn(z.landmarks, sp.at) || Object.hasOwn(z.spots ?? {}, sp.at)));
     if (!zone) continue;
     // Who: the spawn's creatures (their `mob` form), or the boss of its encounter (the form that names that encounter).
     const who: { id: CharacterId; form: { id: string; opponent: string | null; level: number | null } }[] = [];
@@ -59,7 +59,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
       const form = def && def.encounterForms.find((x) => x.encounter === sp.encounter);
       if (def && form) who.push({ id: def.id, form });
     }
-    const at = (zone.landmarks[sp.at] ?? zone.spots[sp.at])!, stand = mobStand(b, zone), mid = zoneCentre(zone);
+    const at = (zone.landmarks[sp.at] ?? zone.spots?.[sp.at])!, stand = mobStand(b, zone), mid = zoneCentre(zone);
     // A weighted group (docs/specs/origins/weighted-spawns.md): ONE camp, sized by its first entry's row, each slot rolled from the entries in proportion to their weights (rollCamp), from the group's own stream.
     // A plain group (a single bare id, every row today) never reaches this and keeps the draws below exactly.
     const group = loadZone(f.zone).place?.spawns.find((g) => g.id === sp.id), weighted = !!group && !isPlainGroup(group) && !sp.encounter;
