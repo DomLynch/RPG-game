@@ -31,6 +31,43 @@ Dom pasted an external audit of the repo on 2026-10-21 and asked the Auditor to 
 | 25 | `net/lobby.ts:106` RPC result dropped | **not a defect**: documented fire-and-forget (a guest, offline page or unapplied migration changes nothing) | - | not a defect | kept | - |
 | 26 | 243 non-null assertions, 162 module-level lets | not re-measured | - | parked | style debt; #3538's ratchet bounds the files that hold most of them | - |
 
+## Verdicts: list CLOSED 2026-10-21 ~20:2x +04 (Dom: "the audit must be done")
+
+Every item has one verdict: **FIXED-LIVE** (the live sha it shipped in), **RULED-NO-CHANGE** (why), or **FIX-NEEDED** (size; the release it unblocks, or none; owner). Launch mode (Dom via Lead 19:4x): a FIX-NEEDED that unblocks no release is a finding on record, not a PR. Live releases: K6q12 = `cbb80860a` (19:4x), K6q14 = `1b96e0cbf` (19:48, carries K6q13), checked on #3554 (issuecomment-6320171555).
+
+| # | Item | Verdict | Detail |
+|---|---|---|---|
+| 1 | public/looks 481 MB in git | RULED-NO-CHANGE | Dom: 5 TB VPS, no LFS or history rewrite; revisit only if GitHub refuses pushes (5 GB soft limit, ~4.4 GB now) |
+| 2 | src/assets/source 193 MB | RULED-NO-CHANGE | as 1; it is the art pipeline's input |
+| 3 | source/backups leftovers | RULED-NO-CHANGE | not leftovers: creature_pack.py:101 builds the Skeleton from veteran-v1 |
+| 4 | three unloaded scythe variants | FIXED-LIVE `cbb80860a` | #3536 (K6q12) |
+| 5 | docs/ 250 MB of PNG/video | RULED-NO-CHANGE | as 1; the PNGs are PR evidence links |
+| 6 | artifacts/ + evidence/ force-added | RULED-NO-CHANGE | as 1 |
+| 7 | dead root preview pages | FIXED-LIVE `cbb80860a` | #3536; loot-preview/family-turntable/mob-lineup return 404 on frankendom.com |
+| 8 | vite re-optimises every GLB at build start | FIX-NEEDED M, unblocks none, Auditor | content-hash cache + a VPS build A/B; build time is not on tonight's release path |
+| 9 | 204 "orphan" scripts | FIXED-LIVE `cbb80860a` | the 2 truly dead ones removed in #3536; the rest are hand-run receipts or named in lane skills (not a defect) |
+| 10 | 847 flat test files, heavy pin tests | FIX-NEEDED L, unblocks none, Lead | suites + `[pin]` tags; its own session after beta |
+| 11 | eslint+tsc 3x per PR, npm ci copied around | FIXED-LIVE `1b96e0cbf` | #3547 (K6q14), lint once per PR; A/A x2 + trunk control 16/16 identical |
+| 12 | Node pinned 3 ways | FIXED-LIVE `1b96e0cbf` | #3547: .nvmrc 22.23.3, all 20 setup-node steps read node-version-file |
+| 13 | five overlapping quality* scripts | FIXED-LIVE `1b96e0cbf` | #3547: built from two shared parts, quality:lint + quality:checks (no repeated command lists) |
+| 14 | PROJECT_STATE.md a month stale | FIXED-LIVE `1b96e0cbf` | #3539: generated from docs/state/, a test keeps the file list current |
+| 15 | same preamble in CLAUDE/AGENTS/GAME_SPEC | FIX-NEEDED S, unblocks none, Strategy | Strategy's ruling stands (CLAUDE.md is the one source, the others get a pointer); the docs-only PR is not done yet (AGENTS.md + GAME_SPEC.md still repeat it on 1b96e0cbf) |
+| 16 | 77 migrations without _down.sql | RULED-NO-CHANGE | forward-only by design; the restore path is the R1 reset design |
+| 17 | presentation inline numbers not blocking | FIXED-LIVE `1b96e0cbf` | #3537: a new presentation number is red under --gate; baseline restarted at that day's trunk |
+| 18 | FX files with most inline numbers | RULED-NO-CHANGE | #3537's ratchet lets them only shrink; each owning lane lowers them as it touches the file; no PR before beta |
+| 19 | god functions, no max-lines rule | FIXED-LIVE `1b96e0cbf` | #3538: max-lines-per-function 150 for src/, the 15 over-size files held at their length (ratchet) |
+| 20 | split main.ts; break stepDuel/decide into phases | FIX-NEEDED L, unblocks none, Combat (sim) + Web (main.ts) | SIM_FILES are digest-guarded, so it needs an RV bump; after beta |
+| 21 | 51 *-rows.ts repeat a loader | FIX-NEEDED M, unblocks none, Combat + owners | a shared rowTable() touches SIM_FILES = an RV change; after beta |
+| 22 | duplicated el()/HUD/streak helpers | RULED-NO-CHANGE | low value, presentation only; fold in when a lane next edits the file |
+| 23 | 596 unused exports, 14 test-only files | RULED-NO-CHANGE | Strategy's ruling: shipped-ahead features stay; the dead files went in #3536; re-measure once after the beta list closes |
+| 24 | record.ts:512 swallowed catch | RULED-NO-CHANGE | not a defect: a failed write surfaces on the read (a bad gzip fails the read) |
+| 25 | net/lobby.ts:106 RPC result dropped | RULED-NO-CHANGE | not a defect: documented fire-and-forget |
+| 26 | 243 non-null assertions, 162 module lets | RULED-NO-CHANGE | style debt; #3538's ratchet bounds the files that hold most of them |
+
+Totals (26 items; the list has 26 rows, not 23): **FIXED-LIVE 9** (4, 7, 9, 11, 12, 13, 14, 17, 19), **RULED-NO-CHANGE 12** (1, 2, 3, 5, 6, 16, 18, 22, 23, 24, 25, 26), **FIX-NEEDED 5** (8, 10, 15, 20, 21), none of which unblocks a release, so all five are findings on record, not PRs. Nothing is open.
+
+Follow-ups found tonight (not audit items): the unit-ci receipt reads a stale attempt's shard artifact after a `--failed` rerun (blocked K6q14; the Auditor's CI-only PR for tomorrow's first cut, Lead's OK on the blob); the duel relay runs #3545/#3555's logging only after its next planned restart (releases don't restart it).
+
 ## Found while checking (not in the audit)
 
 - cache_guard (Claude hooks) false-blocked a read-only python heredoc that only ran `git show` through subprocess. Hooks Dev fixed it in Codex-Hooks #173 (merged and installed 9fae04e). The Auditor's probe of the installed copy: 25 ordinary lane forms allowed, 13 deny forms denied, no bypass; one contradiction sent to Hooks Dev (the older rule advises `"${VAR:?}/..."`, and the new destructive_var_guard denies that form too).
