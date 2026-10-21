@@ -4,6 +4,7 @@
 // Usage: node scripts/zone1-world-special-probe.mjs <built origins-preview dist> <out dir>     env: SKILL=cleave
 // Build first: npx vite build --config origins/preview/vite.config.mjs      (software GL: the launch flags below)
 /* global process, console, window, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -22,7 +23,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });   // REAL_GPU=1: the Mac's own GPU, so page time is real time
+const browser = await launchBrowser(chromium, { args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });   // REAL_GPU=1: the Mac's own GPU, so page time is real time
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
 const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
 await page.addInitScript(() => { window.__links = 0; window.__linked = []; const src = new WeakMap(), att = new WeakMap(); for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { const p = C?.prototype; if (!p) continue; const f = p.linkProgram, ss = p.shaderSource, as = p.attachShader; p.shaderSource = function (s, t) { src.set(s, t); return ss.call(this, s, t); }; p.attachShader = function (pr, s) { (att.get(pr) ?? att.set(pr, []).get(pr)).push(s); return as.call(this, pr, s); }; p.linkProgram = function (pr) { window.__links++; const text = (att.get(pr) ?? []).map((s) => src.get(s) ?? '').join('\n'), name = /#define SHADER_NAME (\S+)/.exec(text)?.[1] ?? '?', defs = [...new Set([...text.matchAll(/#define (USE_[A-Z_]+|SKINNING|FLAT_SHADED|DOUBLE_SIDED|USE_ENVMAP|NUM_[A-Z_]+ \d+)/g)].map((m) => m[1]))].slice(0, 8); window.__linked.push({ n: window.__links, name, defs }); return f.call(this, pr); }; } });   // every link, named from three's SHADER_NAME define

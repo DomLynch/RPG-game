@@ -2,6 +2,7 @@
 // Shared box only (a real browser): ssh the VPS, `cd /root/frankendom-worktrees/sandbox && capture --prio 3 sandbox node scripts/special-weapon-sheet.mjs --weapon maul --out out/sheets`
 //   [--base https://frankendom.com/preview/sandbox/] [--only cleave,stomp] [--wait 260]. Writes <out>/sheet-<weapon>.jpg (rows in the order of --only) plus the stills beside it.
 /* global process, console, document, globalThis */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -11,7 +12,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const BASE = arg('base', 'https://frankendom.com/preview/sandbox/'), OUT = arg('out', 'out/sheets'), WEAPON = arg('weapon', 'maul'), WAIT = Number(arg('wait', '260'));
 const BOW = arg('bow', '') === '1', ORBIT = Number(arg('orbit', '0')), CROP = ORBIT ? 'crop=330:400:22:200' : 'crop=250:330:62:250', TAG = ORBIT ? '-side' : '';
 const SPECIALS = ['cleave', 'reaping', 'stomp', 'lunge'].filter((s) => !arg('only', '') || arg('only', '').split(',').includes(s));
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 await fs.mkdir(OUT, { recursive: true });
 const rows = [];
 for (const special of SPECIALS) {

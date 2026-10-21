@@ -7,6 +7,7 @@
 // Writes <out>/clip.mp4, <out>/peak.jpg (the frame at PEAK ticks after the strike), <out>/windup.jpg, build/payoff/aftermath.jpg (a still sheet's frames) and <out>/meta.json.
 // --pre may be negative: the clip then starts that many ticks INTO the windup (the Executioner clips start 60 in, the last second of a 2 s windup).
 /* global process, console, document, URL */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -28,7 +29,7 @@ async function serveDist(dir) {   // scripts/special-stills.mjs's static server:
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0] }; });
 
 // One deterministic run. `plan` null: draws off, find the windup and strike ticks. Otherwise draw from plan.from to plan.to and shoot.

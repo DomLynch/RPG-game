@@ -5,6 +5,7 @@
 //   ROWS=1: one still per shipped ground row (origins/world/ground-items.json), the walker 3 m short of the item at its place, labels on; named <item stem>-<width>.jpg.
 //   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword node scripts/ground-item-stills.mjs
 /* global process, console, window */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -30,7 +31,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { errors: [] };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
 try {

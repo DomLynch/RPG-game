@@ -5,6 +5,7 @@
 //   node scripts/armour-contact-sheet.mjs [--label audit] [--slots Helmet,Boots] [--opponents dwarf,goblin] [--only fight|doll] [--sets] [--rungs [--levels 1,5,10]]
 // Writes artifacts/armour/<label>/{fight,doll}/<id>.png, sheet-<Slot>.png and receipt.json. Serves this tree's dist (npm run build first),
 // or QA_URL. Never part of a gate: a person reads the sheets.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import fs from 'node:fs/promises';
@@ -90,7 +91,7 @@ window.__roster = {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'roster-cell', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/roster-cell.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml(req.url, PAGE)); }); } }] });
   await server.listen();
   const base = `${server.resolvedUrls.local[0]}roster-cell.html`;
-  const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+  const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
   const receipt = { tiers: {}, settings: { yaw, pitch, gap, heroX, fill, arena, look } };
   try {
     const page = await browser.newPage({ viewport: { width: 1400, height: 2000 }, deviceScaleFactor: 1 });   // tall: the opponent sits below the hero pivot and drops further as the fov narrows
@@ -143,7 +144,7 @@ const DAY = '2026-09-26';
 const ledgerFor = (cell) => { const owned = Object.values(cell.equipped); const loot = { owned, equipped: cell.equipped }; if (cell.level) loot.taken = Object.fromEntries(owned.map((id) => [id, { opponent: cell.opponent, attempt: 1, healthLeft: 1, recordId: null, day: DAY, tier: cell.level }])); return loot; };
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); await quietDebug(page);
 page.setDefaultTimeout(90000);
 await page.route('**/*sentry.io/**', (route) => route.abort());

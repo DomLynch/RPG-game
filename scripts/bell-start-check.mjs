@@ -1,4 +1,5 @@
 // Cold returning-player startup, with the optional arena download deliberately unavailable.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ import fs from 'node:fs/promises';
 import { BELL_SECONDS } from '../src/audio/bell.ts';
 const out='artifacts/audio/bell-fix';await fs.mkdir(out,{recursive:true});
 const server=await createServer({configFile:false,appType:'custom',logLevel:'error',server:{host:'127.0.0.1',port:0},optimizeDeps:{noDiscovery:true,include:[]}});await server.listen();
-const origin=`http://127.0.0.1:${server.httpServer.address().port}`,browser=await chromium.launch({headless:true});
+const origin=`http://127.0.0.1:${server.httpServer.address().port}`,browser=await launchBrowser(chromium, {headless:true});
 const receipt={checks:[],physicalPhone:false};
 try {
  const page=await browser.newPage();

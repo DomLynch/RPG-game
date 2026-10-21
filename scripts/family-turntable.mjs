@@ -1,5 +1,6 @@
 // Review stills for a static family body (docs/specs/origins/body-families.md): four azimuths at 375 wide and the numbers the QA caps read.
 //   node scripts/family-turntable.mjs --glb src/assets/source/creatures/giant-hrungnir.glb --name giant --out <dir> [--h 1.8]
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -7,7 +8,7 @@ const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(`--
 const glb = opt('glb'), name = opt('name', 'body'), out = opt('out', 'artifacts/family-turntable'), h = opt('h', '1.8'), W = +opt('width', 375), Hh = +opt('height', 560);
 await fs.mkdir(out, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' }); await server.listen();
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 try {
   for (const az of [0, 90, 180, 270]) {

@@ -4,6 +4,7 @@
 // 375x812 and 320x568 each. Each frame comes with a receipt of the visible action boxes (no two overlap, all inside the viewport, each >= 44 px) and the page text is checked for a fallback toast.
 //   node scripts/spell-slots-still.mjs --dist dist [--out artifacts/spell-slots] [--dpr 2] [--b <spell id for slot b, default andvari>]      (the origins preview is always rebuilt here and checked for this tree's code)
 /* global process, console, document, localStorage */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -41,7 +42,7 @@ const writer = http.createServer((req, res) => {   // grimoire_get / open / buil
 });
 await Promise.all([new Promise((r) => site.listen(0, '127.0.0.1', r)), new Promise((r) => writer.listen(0, '127.0.0.1', r))]);
 const origin = `http://127.0.0.1:${site.address().port}`, writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
-const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const receipt = [], fails = [], ops = [];
 
 async function boxesOf(page) {

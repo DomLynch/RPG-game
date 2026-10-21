@@ -1,11 +1,12 @@
 // Phone-tier network capture of the live Zone 1 page: every request the page makes in its first N seconds, with the bytes that crossed the wire (CDP encodedDataLength, so the CDN's compression counts).
 // Usage: node scripts/phone-budget-capture.mjs <page url> <seconds> <out json>   (iPhone UA + coarse pointer, 375 wide; no sign-in, presence off)
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import { chromium } from 'playwright';
 
 const [url, secondsArg, out] = process.argv.slice(2), SECONDS = Number(secondsArg || 75);
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
-const browser = await chromium.launch();
+const browser = await launchBrowser(chromium);
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, userAgent: IPHONE });
 const page = await ctx.newPage();
 const cdp = await ctx.newCDPSession(page);

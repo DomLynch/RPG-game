@@ -1,6 +1,7 @@
 // The second fight's first frame at 375x812 (the standoff draw-in must replay on a rematch): boots the guest, lets the first standoff finish, presses
 // the next-fight button in place, steps one frame and takes the still. Run it once per tree (before = trunk, after = this branch).
 //   node scripts/standoff-rematch-stills.mjs <label>     stills + receipt: artifacts/combat/standoff-rematch/<label>-*.png
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -12,7 +13,7 @@ await fs.mkdir(out, { recursive: true });
 await build({ logLevel: 'error', build: { outDir } });
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 const page = await context.newPage(); await quietDebug(page);   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 const errors = [];

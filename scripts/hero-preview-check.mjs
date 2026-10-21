@@ -4,6 +4,7 @@
 // the flag survives a reload (rematch-to-next-rung and the weapon-swap rematch are location.reload()) and the journal's loot screen;
 // a refused value (`?hero=/assets/...`, a full URL) boots warrior.glb with no page or console error.
 //   node scripts/hero-preview-check.mjs [/herolook/legionary.glb]      receipt: artifacts/hero-preview/receipt.json
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { webkit } from 'playwright';
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -24,7 +25,7 @@ const KIT = { head: 'veteran.Helmet', crest: 'veteran.Crest', chest: 'veteran.Bo
 const loot = { owned: Object.values(KIT), equipped: KIT, pack: [] };
 const row = { display_name: 'QA fighter', encounter: 'veteran', victory_marks: 12, loot, revision: 1 };
 const receipt = { origin, rig: RIG, profile: 'mocked QA profile, not Dom\'s device', engine: 'WebKit (Playwright), 375x812 touch', runs: [], errors: [] };
-const browser = await webkit.launch({ headless: true });
+const browser = await launchBrowser(webkit, { headless: true });
 try {
   const run = async (label, query, steps = async () => {}) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });

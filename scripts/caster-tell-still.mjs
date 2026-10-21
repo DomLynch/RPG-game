@@ -4,6 +4,7 @@
 // Same deterministic clock as special-clip.mjs (scripts/lib/harness-clock.mjs): one 16 ms frame at a time, so a frame number is a sim tick on any machine.
 // Writes <out>/ready.jpg, <out>/cast-<frame>.jpg every --every frames through the 120-tick wind-up, mid.jpg (about 70 % of the wind-up), late.jpg (about 92 %, the flashing roll window) and meta.json.
 /* global process, console, document, URL */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
@@ -25,7 +26,7 @@ async function serveDist(dir) {
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   await fs.rm(OUT, { recursive: true, force: true }); await fs.mkdir(OUT, { recursive: true });
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();

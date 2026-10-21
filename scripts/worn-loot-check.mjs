@@ -8,6 +8,7 @@
 // TRAP (it hid the answer once): `equipped` is keyed by PAPERDOLL key (legs, chest), not slot name (Greaves, Body); cleanLoot silently
 // drops a slot-named key and then NOTHING draws — so the seeded ledger is read back and asserted.
 // Guest only, nothing sent anywhere. QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';
@@ -25,7 +26,7 @@ const FIGURE = { x: 140, y: 510, width: 110, height: 170 };
 const FULL = { head: 'veteran.Helmet', crest: 'veteran.Crest', chest: 'goblin.Body', arms: 'goblin.Arms', hands: 'goblin.Gloves', legs: 'dwarf.Greaves', feet: 'goblin.Boots' };
 const STATES = [['none', {}], ['over', { legs: 'dwarf.Greaves' }], ['over+replace', { legs: 'dwarf.Greaves', chest: 'goblin.Body' }], ['full', FULL]];
 const SLOT_OF = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'] };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); await quietDebug(page);
 page.setDefaultTimeout(90000);
 const errors = [], lootFetches = []; page.on('pageerror', e => errors.push(String(e)));

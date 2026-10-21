@@ -5,6 +5,7 @@
 //   build first: npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview
 //   encode:      ffmpeg -framerate 60 -i <out>/f%05d.jpg -vf scale=376:812,setsar=1 -c:v libx264 -pix_fmt yuv420p -crf 20 <out>/clip.mp4
 /* global process, console, window, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -30,7 +31,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const glArgs = process.env.PIT_GL === '0' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];   // software GL by default (a headless Chromium on the Mac paints no 3D scene without it, like the stills scripts); PIT_GL=0: the Mac's own GL
-const browser = await chromium.launch({ args: glArgs });
+const browser = await launchBrowser(chromium, { args: glArgs });
 const receipt = { dist, kind: KIND, zone: ZONE, seconds: SECONDS, frames: 0, errors: [] };
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();

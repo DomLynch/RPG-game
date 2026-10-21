@@ -1,6 +1,7 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) with the hero wielding a picked-up weapon (gear in the world, Dom 2026-10-17): ready idle, then mid-fight. Prints the weapon the rig holds and the
 // weapon the sim swings (they are one variable), so a still of a knife in hand is also proof the fight swings a knife.
 // Usage: WEAPON=knife node scripts/zone1-weapon-stills.mjs <built origins-preview dist> <out dir>   (GPU: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/weapon-still.sh knife)
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -19,7 +20,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));

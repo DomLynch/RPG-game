@@ -1,6 +1,7 @@
 // The visual cost of a client-governor trip (src/fight/governor.ts), on record: the fight camera at 375x812, ready idle and mid-fight, BEFORE (the page as it plays) and AFTER the ladder is forced
 // to its last lever (view.degrade('shadows') then 'crowd' through the ?debug __view), a sparring dummy so the fight is the same one.
 // Usage: SERVE=<dist dir> OUT=<dir> node scripts/governor-trip-still.mjs   (REAL_GL=1 on a GPU machine: scripts/gpu-run.mjs). Writes <OUT>/{before,after}-{idle,mid}.png.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs/promises'; import http from 'node:http'; import path from 'node:path'; import zlib from 'node:zlib';
 import { chromium } from 'playwright';
 const OUT = process.env.OUT || 'artifacts/governor-trip', DIST = process.env.SERVE || 'dist';
@@ -15,7 +16,7 @@ const srv = http.createServer(async (req, res) => {
 });
 await new Promise((r) => srv.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${srv.address().port}`;
-const browser = await chromium.launch({ headless: true, args: process.env.REAL_GL ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { headless: true, args: process.env.REAL_GL ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 await fs.mkdir(OUT, { recursive: true });
 const errors = [];
 try {

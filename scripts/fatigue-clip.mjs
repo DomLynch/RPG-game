@@ -5,6 +5,7 @@
 //   node scripts/fatigue-clip.mjs --dist dist --out artifacts/fatigue [--record file] [--opponent veteran] [--level 3] [--every 3] [--dpr 2] [--side 0]
 // Stills are keyed by sim tick (meta.json `stills`: name -> tick). Writes <out>/clip.mp4, <out>/<band>.jpg for the first tick of each band the hero reaches (+ --after ticks, default 40, so the blend has settled), <out>/record.txt and <out>/meta.json.
 /* global process, console, document, URL, window */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -59,7 +60,7 @@ let text, bands = [], ticks = 0, outcome = 'replayed';
 if (RECORD) { text = (await fs.readFile(RECORD, 'utf8')).trim(); }
 else { const fight = recordFight(); text = await encodeRecord(fight.rec.finish(fight.outcome === 'abandoned' ? 'abandoned' : 'killed')); bands = fight.bands; ticks = fight.ticks; outcome = fight.outcome; await fs.writeFile(`${OUT}/record.txt`, text); console.log(`${ticks} ticks, ${outcome}; bands [tick, band]:`, JSON.stringify(bands)); }
 
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));

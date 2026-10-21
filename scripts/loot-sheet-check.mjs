@@ -2,6 +2,7 @@
 // (what #3052's rarity shift makes common) beside the worn starter set. Opens menu > Gear and asserts: each pack row names its own rung and shows its own line ("RES n" / "No bonus"), trying one on shows that
 // copy's rung and a strip delta, and Wear this equips THAT server piece (the second copy, not the first). 375x812; stills of ready idle, the pack, and the try-on go to <out dir>.
 //   node scripts/loot-sheet-check.mjs <out dir>        Serves artifacts/origins-preview (built here when missing). Stub writer on loopback, stub session, no credentials.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -59,7 +60,7 @@ await new Promise((r) => writer.listen(0, '127.0.0.1', r));
 const writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
 
 const WEBKIT = process.env.ENGINE === 'webkit';   // ENGINE=webkit: Safari's engine as an iPhone (a WebKit row stays on the Mac); default Chromium
-const browser = WEBKIT ? await webkit.launch() : await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = WEBKIT ? await launchBrowser(webkit) : await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { engine: WEBKIT ? 'webkit' : 'chromium', low: LOW, high: HIGH, errors: [] };
 try {
   const ctx = await browser.newContext(WEBKIT ? { ...devices['iPhone 15'] } : { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });

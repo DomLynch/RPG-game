@@ -1,6 +1,7 @@
 // The armour weight badge on the gear sheet (Web, wear & repair part 1; 375x812, this tree's build): the piece's class (Heavy / Medium / Light) from the gear rows, read only, on the rack rows, the pack and the fitting card.
 // Seeds a guest's loot with a plate set worn (shieldmaiden: Heavy), a witch piece (robes: Light) and a goblin piece (leathers: Medium) in the pack, opens the ☰ gear sheet, and checks each badge is the class the rows give,
 // that a piece no set owns shows none, and that nothing clips. Stills: <dir>/weight-*.png.   node scripts/gear-weight-check.mjs   (run `npm run build` first; PIT_GL=1 for software GL on a box with no GPU)
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ const take = (opponent) => ({ opponent, attempt: 1, healthLeft: 100, recordId: n
 const loot = { owned: [...Object.values(KIT), 'witch.Body', 'goblin.Body'], equipped: KIT, pack: ['witch.Body', 'goblin.Body'], taken: { 'witch.Body': take('witch'), 'goblin.Body': take('goblin') } };
 const args = process.env.PIT_GL ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.indexOf('--engine') + 1] : 'chromium';
-const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = ENGINE === 'webkit' ? await launchBrowser(webkit, { headless: true }) : await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 let passed = false;
 try {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

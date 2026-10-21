@@ -4,6 +4,7 @@
 // Usage: node scripts/zone1-special-presentation-check.mjs <built origins-preview dist> <built game dist> <out dir>      env: PAIRS="lunge:ironrush,pommel:shove,cleave:stomp" (slot 1 : slot 2), PIT=0 to skip the Pit
 // Build first: npx vite build --config origins/preview/vite.config.mjs && npx vite build      (software GL: the launch flags below)
 /* global process, console, window, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -24,7 +25,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const rows = []; let failed = false;
 const counts = (page) => page.evaluate(() => ({ ...(window.__specials ?? { fx: -1, cues: -1 }), dataFx: document.querySelector('#debug')?.dataset.specialFx ?? null, dataCues: document.querySelector('#debug')?.dataset.specialCues ?? null }));
 const newPage = async (a, b) => {

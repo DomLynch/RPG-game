@@ -3,6 +3,7 @@
 //   node scripts/goblin-fit-stills.mjs --dist dist --out artifacts/goblin-fit [--only looks|weapons] [--dpr 2] [--clip x,y,w,h] [--swing-at 10]
 // Writes <out>/<set>-<name>-idle.jpg and -swing.jpg plus <out>/fit.json (the phases and the goblin's bounding height read off the page). Never part of the build. Drawn on the Mac GPU; the VPS draws the same pixels on SwiftShader, slowly.
 /* global process, console, document, globalThis */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -31,7 +32,7 @@ async function serveDist(dir) {
 }
 
 await fs.mkdir(OUT, { recursive: true });
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--ignore-gpu-blocklist', ...(process.env.SWIFTSHADER ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=metal'])] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--ignore-gpu-blocklist', ...(process.env.SWIFTSHADER ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=metal'])] });
 const report = [];
 try {
   for (const s of shots) {

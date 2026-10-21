@@ -1,10 +1,11 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/regen-check.mjs <outDir> "<url>" <seconds> still   // hurt 80, stand still, health every 5 s
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
+import { launchBrowser } from '../lib/browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const [OUT, URL, TOTAL, MODE] = process.argv.slice(2);   // MODE: still (stand still) | walk
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 140)));

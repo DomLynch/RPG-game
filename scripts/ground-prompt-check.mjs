@@ -5,6 +5,7 @@
 //   - a GUEST (no session, no stub; Dom 2026-10-16): the same prompt "Take the ..." on the static row, the take puts it in the session bag, the "Sign in to keep it" line, the item hidden.
 //   node scripts/ground-prompt-check.mjs [--dist <built origins preview>] [--out artifacts/ground-prompt]     (no --dist: builds origins/preview)
 /* global process, console, document, window */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
@@ -22,7 +23,7 @@ await fs.mkdir(OUT, { recursive: true });
 if (!arg('dist')) await build({ configFile: path.resolve('origins/preview/vite.config.mjs'), logLevel: 'error', build: { outDir: DIST, emptyOutDir: true } });
 const STARTED = Date.now();
 const { origin, close } = await serveOriginsPreview(DIST);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const failures = [], receipt = { widths: WIDTHS, steps: [] };
 // No fixed sleeps (a loaded box turns them into false FAILs): every wait polls its condition up to a ceiling.
 const settled = async (page, w) => { await page.setViewportSize({ width: w, height: 812 }); await page.waitForFunction((x) => innerWidth === x, w, { timeout: 15000 }); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); };

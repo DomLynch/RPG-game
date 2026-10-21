@@ -1,5 +1,6 @@
 // 375-wide stills of Zone 1 (?region=1) on the Mac GPU (Metal), one dist per run: node scripts/zone1-stills-mac.mjs <dist dir> <out dir> [query] [x,z ...]
 // The dist is a vite build of origins/preview (built by the caller). Prints the GL renderer so the receipt shows it was a real GPU, not SwiftShader.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -18,7 +19,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));

@@ -6,6 +6,7 @@
 //   4. no page errors anywhere.
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) while the fight plays out, and frames are not painted (skipDraws) because the
 // check reads state, not pixels. QA_URL points it at a built page instead of starting `vite preview`.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
@@ -22,7 +23,7 @@ const dir = process.env.FIRST_LOSS_RECEIPT_DIR || 'artifacts/first-loss'; await 
 const FLAG = 'frankendom.firstloss.v1';
 const receipt = { steps: [], errors: [] };
 const step = (name, data) => { receipt.steps.push({ name, ...data }); console.log(name, JSON.stringify(data)); };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 try {
   // A fresh context: empty storage, so this is a first visit. 375 wide, touch, like a phone.
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });

@@ -2,6 +2,7 @@
 // walk.jpg at the start, then the hero is placed 3 m and 1.4 m south of the first drawn creature, a tap starts the fight, fight.jpg. Used for the boulder tint before/after.
 // Usage: node scripts/boulder-start-stills.mjs <built origins-preview dist> <out dir>   env: VIEW=844x390 PIT_GL=1 (software GL)
 /* global process, console, window */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -11,7 +12,7 @@ const [dist, out] = process.argv.slice(2); fs.mkdirSync(out, { recursive: true }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.ogg': 'audio/ogg', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let f = path.join(path.resolve(dist), u.replace(/^\/preview\/origins\//, '')); if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html'); if (!fs.existsSync(f)) { res.statusCode = 404; res.end(); return; } res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res); });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await launchBrowser(chromium, { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 try {
   const [w, h] = (process.env.VIEW || '844x390').split('x').map(Number);
   // Web's harness for docs/evidence/zone-landscape/after-844x390.jpg (message 10-20 22:5x): this URL, an iPhone Safari UA, the first drawn Cinder scavenger, the hero 2.5 m short of it, heading 0; the kit's phone thinning follows the UA

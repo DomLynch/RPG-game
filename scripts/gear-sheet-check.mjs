@@ -4,6 +4,7 @@
 // back; Wear this swaps through the pack (the replaced piece takes the pack place); a worn slot's Store moves it into the pack; the empty
 // pack says where gear comes from; closing the sheet mid-try reverts. Stills of each state are the receipt (artifacts/gear-sheet).
 // QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -18,7 +19,7 @@ const STORED = { owned: [...Object.values(KIT), 'veteran.Body', 'knight.Helmet']
 const EMPTY = { owned: Object.values(KIT), equipped: KIT, pack: [] };
 // A Mac's headless Chromium needs the GPU flags or the software renderer blocks the main thread (the live game never boots); the VPS runs SwiftShader (PIT_GL).
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, revision: null, errors: [], states: {}, passed: false };
 const open = async (loot, query = '') => {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();

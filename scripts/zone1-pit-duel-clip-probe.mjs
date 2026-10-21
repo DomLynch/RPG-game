@@ -1,6 +1,7 @@
 // Which clip a SPECIAL 1 / SPECIAL 2 press plays in the Pit duel opened from Zone 1 ("Fight in the Pit", pit-duel.ts), a fresh guest, 375 wide, on a BUILT origins preview. REAL_GPU=1 for the T4.
 // Usage: node scripts/zone1-pit-duel-clip-probe.mjs <built origins-preview dist> <out dir>. ?debug=1 exposes __view (pit-duel.ts) and __specials (the fx / cue counters).
 /* global process, console, window, document, globalThis, performance */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -19,7 +20,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launchBrowser(chromium, { args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage(), errors = [], results = [];
 page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));

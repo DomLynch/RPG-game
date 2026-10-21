@@ -4,6 +4,7 @@
 // (worn-loot-check.mjs's way: `equipped` by paperdoll key), nothing sent.
 //   node scripts/pit-fight-boots.mjs                                  this tree   → artifacts/pit/boots/fight-boots-tree.png
 //   BOOTS_ROOT=<trunk checkout> BOOTS_LABEL=trunk node scripts/pit-fight-boots.mjs  → artifacts/pit/boots/fight-boots-trunk.png
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
@@ -18,7 +19,7 @@ await build({ root, logLevel: 'error', build: { outDir, emptyOutDir: true } });
 const server = await preview({ root, build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const profile = { version: 1, id: 'pit-boots-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['goblin.Boots'], equipped: { feet: 'goblin.Boots' } } };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 try {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

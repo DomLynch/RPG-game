@@ -7,6 +7,7 @@
 //   BEFORE=1 films a build WITHOUT the feature (trunk) through the same stub: the same spot, nothing drawn, no prompt.
 //   ZONE_DIST=<built origins preview> OUT=<dir> LABEL=<before|after> WIDTHS=375,320 node scripts/ground-pickup-stills.mjs
 /* global process, console, window, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -19,7 +20,7 @@ const SIGNED_OUT = 'ground:zone1.rusty-sword-1';
 const OFFSETS = { near: [[0.3, 1.0]], several: [[0.3, 1.0], [-2.2, 2.6], [2.4, 3.4], [-0.8, 4.4], [3.4, 5.6], [-3.6, 6.4]], race: [[0.3, 1.0]], signedout: [] };
 fs.mkdirSync(out, { recursive: true });
 const { origin, close } = await serveOriginsPreview(ZONE);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { errors: [], frames: {} };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
 

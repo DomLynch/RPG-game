@@ -1,6 +1,7 @@
 // One universal "your character exists" rule, in a browser (src/core/open.ts): the Pit, /zone1/ and /zone/2/ each load with a stored sign-in against a stand-in writer, and each page asks the writer's
 // `open` exactly once, with no page or console error. Serves dist/ (the Pit, `npm run build`) and artifacts/origins-preview (the zone page, `npx vite build --config origins/preview/vite.config.mjs`) the way nginx
 // does (deploy/frankendom.com.conf: /zone1/ and /zone/<n>/ are the preview page). Usage: node scripts/open-once-smoke.mjs   Exit 1 with the counts and errors on a miss; receipt to artifacts/open-once-smoke.json.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -25,7 +26,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const row = { seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 };
 const opened = { ok: true, result: { marks: 0, career: row, characters: [{ id: 'pc:00000000000000000000000000000001', name: 'Wanderer aaaaaa' }], items: [], quests: [], journal: [], talk: [] } };
 const pages = [['pit', '/'], ['zone1', '/zone1/'], ['zone2', '/zone/2/']];
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { origin, pages: {} };
 let failed = false;
 try {

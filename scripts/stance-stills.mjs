@@ -1,4 +1,5 @@
 /* global process, console, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -24,7 +25,7 @@ async function serveDist(dir) {
 // Stance poses (?look=stances, src/fight/stance-pose.ts): the hero in ready idle at the fight camera (375x812), one still per stance, from the same sim frame.
 //   node scripts/stance-stills.mjs --dist dist --out artifacts/stances
 await fs.mkdir(OUT, { recursive: true });
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   for (const s of (arg('only', '') ? arg('only', '').split(',') : STANCES)) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();

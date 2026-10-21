@@ -1,4 +1,5 @@
 // A local-only browser player: real keyboard input, seeded opponents, full-fight video and event receipts.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -41,7 +42,7 @@ const dir = option('out', 'artifacts/combat/player-bot');
 await fs.mkdir(dir, { recursive: true });
 const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: !headed, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: !headed, executablePath: chromium.executablePath() });
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 20_000 }).trim();
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';

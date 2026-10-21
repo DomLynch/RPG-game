@@ -1,6 +1,7 @@
 // The Career tab (core slice 2, src/core/career-screen.ts) in the Pit's journal, GUEST (the signed-in read is the stubbed-RPC unit test, tests/career-client.test.ts): ten title rows of five rungs, the rung the seeded
 // 7 marks give lit (Legionary III), the sign-in note where the account's scorecard would be, nothing scrolls sideways, every tab target >= 44 px, and no two visible controls overlap, at 375x812, 812x375 (landscape) and 1024x768.
 // Stills: artifacts/career-screen/. Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own (software) GL, for the VPS.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const profile = { version: 1, id: 'career-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: [], equipped: {} } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], views: {}, passed: false };
 const verify = async (page, name, W) => {
   const v = await page.evaluate(() => {

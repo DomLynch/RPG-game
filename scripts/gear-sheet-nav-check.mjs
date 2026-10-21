@@ -1,6 +1,7 @@
 // The gear sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack | Arena as a tab bar under the header (Dom via Strategy 2026-10-01: top, not
 // the foot) at 375x812 touch. The Pit tab went with the Pit room (2026-10-08). Stats is a header link and Gear & pack returns; Arena closes the sheet.
 // Stills: artifacts/gear-sheet/nav-*.png. Guest only; serves this tree's build (run `npm run build` first).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const KIT = { head: 'shieldmaiden.Helmet', chest: 'shieldmaiden.Body' };
 const profile = { version: 1, id: 'gear-nav-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: [...Object.values(KIT), 'veteran.Body'], equipped: KIT, pack: ['veteran.Body'] } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], nav: {}, passed: false };
 const fresh = async (opponent) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

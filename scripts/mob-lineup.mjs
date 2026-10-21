@@ -1,5 +1,6 @@
 // Review stills of the Region 1 mobs (mob-looks.ts + mob-dress.ts): node scripts/mob-lineup.mjs --out <dir> [--width 375 --height 812] [--spread]
 // Writes before.png (roster bodies as they are) and after.png (dressed), plus one still per mob. Never part of the build.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -8,7 +9,7 @@ const out = option('out', 'artifacts/mob-lineup'), width = +option('width', 375)
 await fs.mkdir(out, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' }); await server.listen();
 const base = `${server.resolvedUrls.local[0]}mob-lineup.html`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 async function shot(name, query, w = width, h = height) {
   const page = await (await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2 })).newPage();

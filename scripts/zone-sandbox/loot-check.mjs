@@ -1,10 +1,11 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/loot-check.mjs <outDir> "<url>"   // fell three ranks via originsPreview.fell, walk onto the drops, print the outfit, reload, count console errors
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
+import { launchBrowser } from '../lib/browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const [OUT, URL] = process.argv.slice(2);
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 const errors = []; let phase = 'load';

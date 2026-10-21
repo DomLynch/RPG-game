@@ -1,6 +1,7 @@
 // The shop screen at a phone (Web, top-30 item 4): the built origins page (?region=1&worldfight), the ☰ menu's Shop entry, the dialog. Stills: <OUT>/shop-*.png.
 // Checks: the entry exists in the ☰, the dialog opens with one row per list row (name, list price, shelf line), every line is words (no id), a guest's Buy answers "Sign in to buy.", nothing clips or scrolls sideways,
 // controls are 44 px, and Close closes it. Usage: node scripts/shop-check.mjs <built origins-preview dist> [--engine webkit]   (OUT=<dir> for the stills; software GL is fine: it is a layout check).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -25,7 +26,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = ENGINE === 'webkit' ? await launchBrowser(webkit, { headless: true }) : await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const fails = [], check = (ok, what) => { if (!ok) fails.push(what); };
 try {
   for (const [name, w, h] of [['phone', 375, 812], ['small', 320, 568]]) {

@@ -3,6 +3,7 @@
 // Reports `joined` (everyone who entered the world fight, wolves and the others counted separately) and `peak engaged` (creatures in a duel with the hero at one sample), and FAILS if
 // peak engaged > MAX_ATTACKERS (src/fight/attackers.ts) or fewer than MIN_JOINED joined: "6 joined" must never mean 6 attacking at once. The page needs `fighters[].duel` (world-combat debug).
 // Software GL is fine (it reads the engine's state, not frames). Run on the VPS: capture --prio 3 <lane> env HOME=/home/lanes node scripts/live-pack-check.mjs /tmp/pack-live
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { MAX_ATTACKERS } from '../src/fight/attackers.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ import { chromium } from 'playwright';
 const out = process.argv[2] || 'artifacts/live-pack', url = process.env.LIVE_URL || 'https://frankendom.com/zone/2/?region=1&zone=2&worldfight';
 const want = process.env.TAGS_TARGET || 'z2:reach-pack-a-1', minJoined = Number(process.env.MIN_JOINED || 4);
 fs.mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { url, target: want, errors: [] };
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();

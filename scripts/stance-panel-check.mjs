@@ -1,12 +1,13 @@
 // The stance setting lives in the burger menu now (Dom 2026-10-19: "keep stances, but NOT on the fight screen"). Real page, real arena boot: there is NO #stance-panel on the fight screen, ready or mid-fight, and the menu's Gear tab
 // holds #stance-menu with four buttons labelled Balanced / Aggressive / Defensive / Trickster (the fourth's id stays neutral). A pick sticks (aria-pressed, the fighter card names it) without restarting the fight, the buttons are
 // disabled mid-fight with the hint "Locked in a fight" and open again before Fight; ?stances=off (the kill switch) hides the menu setting.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0, strictPort: true } });
 const base = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: base.href, cases: [], errors: [] };
 const menuState = (page) => page.evaluate(() => {
   const menu = document.querySelector('#stance-menu');

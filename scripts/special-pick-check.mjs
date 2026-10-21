@@ -3,6 +3,7 @@
 // Usage: node scripts/special-pick-check.mjs <built origins-preview dist> <out dir> [--first lunge] [--second stomp] [--zone 1]   (Mac GL by default; PIT_GL=1 = software GL for a loaded box)
 //   build first: npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview
 /* global process, console, window, document */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -27,7 +28,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const glArgs = process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
-const browser = await chromium.launch({ args: glArgs });
+const browser = await launchBrowser(chromium, { args: glArgs });
 const receipt = { dist, picks: [FIRST, SECOND], checks: [], errors: [], passed: false };
 const ok = (name, detail) => { receipt.checks.push({ name, ...(detail === undefined ? {} : { detail }) }); console.log('ok:', name, detail === undefined ? '' : JSON.stringify(detail)); };
 try {

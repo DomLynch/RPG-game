@@ -1,4 +1,5 @@
 // Two actors dressed through dressRemote, 375 wide (scripts/dress-remote-still.html on a vite dev server). Usage: node scripts/dress-remote-still.mjs <out dir>   (GL: software on the VPS; the GPU job passes its own flags)
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
@@ -9,7 +10,7 @@ fs.mkdirSync(out, { recursive: true });
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
 const url = `http://127.0.0.1:${server.httpServer.address().port}/scripts/dress-remote-still.html`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 560 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });

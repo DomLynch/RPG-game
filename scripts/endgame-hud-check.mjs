@@ -6,6 +6,7 @@
 // existing frame probe — src/main.ts; the fade wait makes the sample deterministic under load, see below). The autopsy's
 // own content is scripts/autopsy-browser-check.mjs's job; this check is purely about geometry, and it is the same DOM/CSS for a
 // win (drop + Wear/Store) as for a death (autopsy), so one path — the reliable, deterministic one — proves both.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
@@ -24,7 +25,7 @@ const guard = (what, p, ms = STEP_MS) => { let t; return Promise.race([p, new Pr
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, errors: [] };
 const out = 'artifacts/presentation/endgame-hud'; await fs.mkdir(out, { recursive: true });
 try {

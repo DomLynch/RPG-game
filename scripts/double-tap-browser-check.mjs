@@ -3,6 +3,7 @@
 // taps land on an attack button, just outside it (the arena canvas) and on a HUD gap. For each pair the first touchend must go through (a
 // single tap keeps working) and the second must be refused at the document (main.ts's double-tap guard); the page scale must stay 1.
 // Then the journal's Sound toggle, off the fight surface: a quick double tap there must click twice.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -15,7 +16,7 @@ import { existsSync } from 'node:fs';
 // behind the frame, so its two "quick" taps landed 6.3 s apart (CI 2026-09-27, prevented [false,false]) and were never a double tap.
 // Each pair's touchend timeStamp gap is recorded and asserted, so the row proves the taps it sends are the ones it claims.
 const engine = existsSync(webkit.executablePath()) ? webkit : chromium;
-const site = await serveDist(), browser = await engine.launch({ headless: true });
+const site = await serveDist(), browser = await launchBrowser(engine, { headless: true });
 const receipt = { url: site.url, engine: engine.name(), viewport: { width: 375, height: 812 }, spots: {}, errors: [], passed: false };
 try {
   const page = await browser.newPage({ viewport: receipt.viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });

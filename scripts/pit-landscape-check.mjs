@@ -3,6 +3,7 @@
 // a control under 44 px, or text clipped by its own box (scrollWidth > clientWidth on a non-scrolling element). Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own GL (the VPS).
 // Usage: PIT_STILLS=<state regex> OUT=<dir> node scripts/pit-landscape-check.mjs [--engine webkit]. --engine webkit is the Mac release row (Safari's engine, Dom's iPhone): WebKit has no safe-area emulation, so
 // the notch view runs as a plain 844x390 there (overlap, off screen, tab wrap, clipped text, 44 px tabs still apply). The profile wears six pieces at rungs 2..10, so the Gear tab is the paper-doll (tinted slots, the stat strip), and a still/row asserts both. Stills: artifacts/pit-landscape/.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
@@ -16,7 +17,7 @@ const worn = { head: 'veteran.Helmet', chest: 'nightborn.Body', arms: 'execution
 const taken = Object.fromEntries(Object.values(worn).map((id, i) => [id, { opponent: id.split('.')[0], attempt: 1, healthLeft: 50, recordId: null, day: '2026-10-12', tier: [2, 4, 6, 8, 9, 10][i] }]));
 const profile = { version: 1, id: 'career-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: [...Object.values(worn), 'knight.Helmet'], equipped: worn, pack: ['knight.Helmet'], taken: { ...taken, 'knight.Helmet': { opponent: 'knight', attempt: 1, healthLeft: 50, recordId: null, day: '2026-10-12', tier: 8 } } } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = ENGINE === 'webkit' ? await launchBrowser(webkit, { headless: true }) : await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 // [name, w, h, safe-area insets {l, r, t, b}] as in landscape-check.mjs
 const VIEWS = [['portrait', 375, 812], ['landscape', 812, 375], ['short', 844, 340], ['notch', 844, 390, { l: 47, r: 47, t: 0, b: 21 }], ['ipad', 1024, 768]];
 const CTL = 'button, a[href], [role=button], select, input, #journal .tab-strip label, #journal-name, .identity, .combat-hud'; // the Gear tab label is display:none (the bottom bar's #nav-gear is its control)

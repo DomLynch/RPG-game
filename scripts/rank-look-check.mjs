@@ -20,6 +20,7 @@
 //   came before the last step and forced the rest (drained), and the finisher clock's steps, so a catch-up jump shows against the median.
 // Row 4 is the worst frame from the look's fetch end (its warm-up: compile, one map upload per frame) to 300 ms after the swap; it also reports its p90 and, for the worst run, the long tasks (PerformanceObserver) that overlap the worst frame.
 // Receipt: artifacts/herolook/<label>/receipt.json. Guest only; nothing is sent anywhere. Never part of the build or the runtime.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -59,7 +60,7 @@ const pngUrl = async (file) => `data:image/png;base64,${(await fs.readFile(file)
 const verdict = (d) => d ? (d[`px${MATCHED_DIFF.level}`] <= MATCHED_DIFF.aaMaxPx ? 'same' : 'look changed') : 'not judged (no f240 shot)';
 // --judge <dir>:<a>,<b> [...]: the verdict re-run on shots already taken (offline, no server, no game): <dir>/<a>-f240.png vs <dir>/<b>-f240.png.
 if (process.argv.includes('--judge')) {
-  const b = await chromium.launch({ headless: true }), page = await b.newPage();
+  const b = await launchBrowser(chromium, { headless: true }), page = await b.newPage();
   for (const spec of process.argv.slice(process.argv.indexOf('--judge') + 1).filter((v) => !v.startsWith('--'))) {
     const [dir, pair] = spec.split(':'), [a, c] = pair.split(','), f = MATCHED_DIFF.frame;
     const d = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${c}-f${f}.png`));
@@ -98,7 +99,7 @@ async function serveDist(dir) {
 const server = DIST ? await serveDist(DIST) : await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 if (!DIST) await server.listen();
 const origin = DIST ? server.origin : `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
 const os = await import('node:os');   // the box's load at the start and end: Lead takes no row 4 / C numbers measured above 15
 const out = { loadStart: os.loadavg().map((v) => +v.toFixed(1)), opponent: OPP, look: LOOK, bytes: (await fs.stat(LOOK_FILE)).size, served: DIST ? `dist ${DIST} (gzip)` : 'vite dev (raw)', mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
 const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });

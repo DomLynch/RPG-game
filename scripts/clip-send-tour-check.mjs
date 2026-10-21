@@ -14,6 +14,7 @@
 // frame); the row tests what happens after the kill, not the fight. receipt.pageMs holds each stepped phase's page time. From the
 // death to the tour the WebGL draws are skipped (skipDraws: same sim, DOM and timers, no painting): the clip re-play alone took 708 s
 // on CI (run 36333230742, ~0.9 s a frame), and the stubbed recorder never looks at the pixels. The tour still is painted.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -23,7 +24,7 @@ import { serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 const site = await serveDist(), url = new URL(site.url);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
 const out = 'artifacts/clip-send-tour'; await fs.mkdir(out, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser(chromium, { headless: true });
 const receipt = { url: url.href, errors: [], passed: false, phases: {}, pageMs: {} };
 const t0 = Date.now(), mark = (phase) => { receipt.phases[phase] = Math.round((Date.now() - t0) / 1000); console.log(`phase ${phase} ${receipt.phases[phase]} s (page ${receipt.pageMs[phase] ?? '-'} ms)`); };   // wall seconds at the end of each phase
 try {

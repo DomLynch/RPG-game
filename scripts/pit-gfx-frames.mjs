@@ -1,5 +1,6 @@
 // A burst of Pit stills for a look comparison (the foot-dust discs under the lift): the built main game at <dist dir>, 375x812, the sparring Pit page, the hero walks in and strikes, one screenshot every STEP_MS for FRAMES frames into <out dir>/<prefix>-NN.png.
 // Usage: node scripts/pit-gfx-frames.mjs <dist dir> <out dir> <prefix> [gfx0]   (gfx0 = ?gfx=0, the plain frame). REAL_GPU=1 for the machine's own GPU.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -16,7 +17,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: process.env.REAL_GPU === '1' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
 await page.route('**/*sentry.io/**', (route) => route.abort());
 await page.goto(`http://127.0.0.1:${server.address().port}/?opponent=veteran&spar=1&weapon=longsword&difficulty=1&skill=none${off ? '&gfx=0' : ''}`, { waitUntil: 'load' });

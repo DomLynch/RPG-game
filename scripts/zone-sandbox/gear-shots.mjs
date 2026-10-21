@@ -1,11 +1,12 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/gear-shots.mjs <outDir> "<url>" <body: goblin|cave-troll>   // walks the hero up to each creature with a loadout and makes a contact sheet
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
 // (old header) // Walk the hero up to several goblins (no fight started: no ?fight=) and take a close portrait still of each, to judge the armour finishes and weapons per loadout. Contact sheet of up to 8.
+import { launchBrowser } from '../lib/browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const OUT = process.argv[2], URL = process.argv[3], BODY = process.argv[4] ?? 'goblin';
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 await page.goto(URL + `&v=gs${Date.now()}`, { waitUntil: 'domcontentloaded' });

@@ -4,6 +4,7 @@
 // diagonal, under loot-layers' own lights and exposure, then loot-layers' thumbnail crop (alpha bounds, squared at 1.12, 96 px, webp .82)
 // to public/game/img/loot/<id>.thumb.webp for every weapon id in src/core/loot.ts LOOT. Run after an equip file changes:
 // `node scripts/weapon-thumbs.mjs` (Playwright's Chromium, a few seconds).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -65,7 +66,7 @@ const server = createServer(async (req, res) => {
   try { res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' }); res.end(await readFile(file)); } catch { res.writeHead(404); res.end(); }
 });
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
-const browser = await chromium.launch(), page = await browser.newPage({ viewport: { width: SIZE, height: SIZE }, deviceScaleFactor: 1 });
+const browser = await launchBrowser(chromium), page = await browser.newPage({ viewport: { width: SIZE, height: SIZE }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => { console.error('page error:', e.message); process.exitCode = 1; });
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/`); await page.waitForFunction(() => window.ready, null, { timeout: 90000 });

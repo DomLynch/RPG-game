@@ -1,0 +1,8 @@
+{
+  "_comment": "scripts/lib/browser-launch.mjs reads this. On the shared VPS every Chromium a script launches runs low priority so a lane's browser job cannot starve the box (Lead 2026-10-21: four raised-priority Chromiums in one day). Mac, HF and CI hosts are not named here and are left exactly as they were.",
+  "vpsHostnames": ["Brain"],
+  "scopeProperties": ["CPUWeight=20"],
+  "niceLevel": 10,
+  "softwareGlArgs": ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  "gpuArgPrefixes": ["--use-gl", "--use-angle", "--disable-gpu", "--enable-gpu"]
+}

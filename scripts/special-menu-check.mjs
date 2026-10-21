@@ -2,6 +2,7 @@
 // (Skull Crack, Whirlwind), Equip SPECIAL 1 on Ground Slam moves it in, a skill already in the other slot moves (never in both), the HUD's two buttons wear the new names, the pick is kept in this device's store, and a reload keeps it.
 // Usage: node scripts/special-menu-check.mjs <built origins-preview dist> <out dir>   (PIT_GL=1 = software GL)   receipt: <out>/receipt.json   stills: menu-open.png picker-defaults.png picker-swapped.png hud-swapped.png
 /* global process, console, window, document, localStorage */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -12,7 +13,7 @@ const [dist, out] = process.argv.slice(2); fs.mkdirSync(out, { recursive: true }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.ogg': 'audio/ogg', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let f = path.join(path.resolve(dist), u.replace(/^\/preview\/origins\//, '')); if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html'); if (!fs.existsSync(f)) { res.statusCode = 404; res.end(); return; } res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res); });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await launchBrowser(chromium, { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 const receipt = { dist, checks: [], errors: [], passed: false };
 const ok = (name, detail) => { receipt.checks.push({ name, ...(detail === undefined ? {} : { detail }) }); console.log('ok:', name, detail === undefined ? '' : JSON.stringify(detail)); };
 const KEY = 'frankendom.special.slots.v1';

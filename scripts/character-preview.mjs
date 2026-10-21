@@ -9,6 +9,7 @@
 //                                                            camera on a plain flat background, for a silhouette/reskin measurement
 //   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
 //                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -25,7 +26,7 @@ const url = `${server.resolvedUrls.local[0]}character-preview.html${query.size ?
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const weapons = args.includes('--weapons'), dir = `artifacts/${weapons ? 'weapons' : 'character'}/${label}`; await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 async function open(context) {
   const page = await context.newPage(); page.on('pageerror', e => errors.push(String(e))); page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errors.push(`${r.status()} ${r.url()}`); });

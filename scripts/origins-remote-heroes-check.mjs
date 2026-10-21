@@ -5,6 +5,7 @@
 //   ninth  nine bots in range after [zone ready]: eight or more figures are drawn (the warmed pool plus one) and the page's render programs do not grow (0 compiles after zone ready)
 //   gone   a bot that leaves (closes) is no longer drawn within the expiry
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the numbers on a miss; a receipt goes to artifacts/origins-remote-heroes.json.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,7 +28,7 @@ const until = async (ok, ms = 20000) => { for (let t = 0; t < ms; t += 100) { if
 const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LIMITS, ipSockets: 64, ipJoinsPerMinute: 600 } });   // every client is 127.0.0.1: the per-address caps (a production defence) would refuse the ninth socket
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
-const browser = await chromium.launch({ args: process.env.GPU_REAL === '1' ? ['--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });   // GPU_REAL=1: the machine's own GPU (the Mac, a T4 job), not software GL
+const browser = await launchBrowser(chromium, { args: process.env.GPU_REAL === '1' ? ['--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });   // GPU_REAL=1: the machine's own GPU (the Mac, a T4 job), not software GL
 const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();

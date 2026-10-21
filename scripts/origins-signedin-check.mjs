@@ -5,6 +5,7 @@
 // -> the server's answer is applied: the kill toast shows what the writer paid and the saved career's CP rose by it (the result is saved server-side by the real writer; the stub proves the page asks for it).
 //   SIGNEDIN_ZONE=2     the same path on Zone 2 (default 1)       SIGNEDIN_TARGET=wolves-1   a creature id (default: first drawn wolf, else first drawn)
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the receipt on a miss; receipt: artifacts/origins-signedin.json.
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -48,7 +49,7 @@ const writer = http.createServer((req, res) => {
 await new Promise((r) => writer.listen(0, '127.0.0.1', r));
 const writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const zone = process.env.SIGNEDIN_ZONE || '1', want = process.env.SIGNEDIN_TARGET || '';
 const receipt = { origin, zone, physicalPhone: false, stub: 'writer on loopback, stub session, no credentials', errors: [] };
 try {

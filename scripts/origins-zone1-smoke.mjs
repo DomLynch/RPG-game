@@ -1,6 +1,7 @@
 // Zone smoke (K2d, P2): the built origins page loads ?region=1 for EACH zone (Zone 1, and Zone 2 by ?zone=2: the one shared page, no zone gate), a creature is engaged with the real tap path, and the engine's combat loop RUNS: no page error, no console error,
 // and wc.update stepped (a ReferenceError in step() once stopped it every frame while every unit test stayed green: origins/preview/main.ts is not in any tsconfig).
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the errors on a miss; a receipt goes to artifacts/origins-zone1-smoke.json (one entry per zone).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -22,7 +23,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const ZONES = [['1', '?region=1'], ['2', '?region=1&zone=2']];   // the same page for every zone (the path /zone/<n>/ and ?zone=<n> name it)
 const all = [];
 try {

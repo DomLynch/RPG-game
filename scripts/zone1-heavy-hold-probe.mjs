@@ -2,6 +2,7 @@
 // reading what follows from the world sim: the hero's phases (a heavy's windup is longer than a light's) and the foe's hp drop (a heavy hits harder). REAL_GPU=1 so page time is real time.
 // Usage: node scripts/zone1-heavy-hold-probe.mjs <built origins-preview dist> <out dir>     env: HOLD_MS=400 SLIDE=1 (a slow slide left: down, wait HOLD_MS, slide 40 px left, up)
 /* global process, console, window, document, performance */
+import { launchBrowser } from './lib/browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -20,7 +21,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launchBrowser(chromium, { args: process.env.REAL_GPU === '1' ? ['--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const page = await ctx.newPage(), cdp = await ctx.newCDPSession(page), errors = [];
 page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));

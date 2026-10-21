@@ -7,6 +7,7 @@
 //   --phone                                                 capture at the phone tier (halved arena maps, 512 shadow map, prop maps capped)
 // Every capture uses the same camera and exposure; changing them here to flatter the set is a failed iteration. The lock views settle
 // the camera before capturing (the lead's 7.6 % lesson: an unsettled camera is not a before/after).
+import { launchBrowser } from './lib/browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -177,7 +178,7 @@ const url = `${server.resolvedUrls.local[0]}arena-preview.html${args.includes('-
 if (args.includes('--serve')) { console.log(`Arena preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/world/${args.includes('--moodboard') ? 'moodboard' : label}`; await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 const save = async (name, dataUrl) => { await fs.writeFile(`${dir}/${name}`, Buffer.from(dataUrl.split(',')[1], 'base64')); console.log(`  ${dir}/${name}`); };
 try {
