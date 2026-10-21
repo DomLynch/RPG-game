@@ -596,7 +596,7 @@ async function applySelf() {
   const dressed = dressedSet(base, outfit), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
-    const pieces = await sharedLoot();
+    const pieces = mine.ids.length ? await sharedLoot() : [];   // a bare hero (the guest's default look) wears nothing, so loot.glb (2 MB on the wire) is not fetched before [zone ready]: `wear([])` below only undresses
     if (mine.ids.length) {
       const probe = secondActor(); probe.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(probe.anchor);
       try { dressRemote(probe, pieces, worn, mine.tiers, failed); await warmActor(renderer, camera, scene, cloneRig(probe.anchor), nextFrame); await nextFrame(); await nextFrame(); } finally { scene.remove(probe.anchor); }
