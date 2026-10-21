@@ -2,6 +2,7 @@
 // (GLTFLoader + MeshoptDecoder), plays Idle then Walk on an AnimationMixer, and the skinned mesh visibly moves between two Walk times
 // (a body that ignores its rig fails: the unskinned knight/witch of the first world_body.py would). Prints one line per body; exit 1 on any miss.
 //   node scripts/world-body-browser-check.mjs [--dir public/world] [--shot artifacts/world-bodies.png]
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, readdir, mkdir } from 'node:fs/promises';
@@ -40,7 +41,7 @@ const server = createServer(async (req, res) => {
   try { const body = await readFile(join(root, p)); res.writeHead(200, { 'content-type': types[extname(p)] ?? 'application/octet-stream' }); res.end(body); } catch { res.writeHead(404); res.end(); }
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = []; let failed = false;
 try {
   const tab = await (await browser.newContext({ viewport: { width: 750, height: 250 } })).newPage();

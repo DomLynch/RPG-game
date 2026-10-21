@@ -1,6 +1,7 @@
 /* global process, console, document */
 // Stills for the Coach UI (TOP10 row 8, Web): the live "Coached" tag mid-fight, the menu chip, and the "Coached win" mark after a coached kill; before = the same page with the Coach off.
 //   node scripts/coach-stills.mjs --dist dist --out artifacts/coach [--widths 375,1280]
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
@@ -19,7 +20,7 @@ async function serveDist(dir) {
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 await fs.mkdir(OUT, { recursive: true });
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   for (const width of WIDTHS) for (const coachOn of [false, true]) {
     const mobile = width < 700, context = await browser.newContext({ viewport: { width, height: mobile ? 812 : 800 }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }), page = await context.newPage();

@@ -6,6 +6,7 @@
 // VPS capture lock, `capture world node scripts/charge-clip.mjs --dist dist --arena c --out out/charge-c`, then encode the frames dir:
 //   ffmpeg -framerate 60 -i out/charge-c/f%05d.jpg -vf scale=376:812,setsar=1 -c:v libx264 -pix_fmt yuv420p -crf 20 charge-c.mp4
 /* global process, console, document, URL */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -25,7 +26,7 @@ const server = http.createServer(async (req, res) => {   // gzip, no-store, SPA 
   res.writeHead(200, { 'content-type': types[path.extname(file)] ?? 'application/octet-stream', 'content-encoding': 'gzip', 'content-length': gz.length, 'cache-control': 'no-store' }); res.end(gz);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 
 // One scripted fight. `record` null: no pictures, stop at the first windup frame and return its frame number. Otherwise: record [from, to).
 async function play({ record }) {

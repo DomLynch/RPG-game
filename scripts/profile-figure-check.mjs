@@ -7,6 +7,7 @@
 // (the slot's height differs between worn and empty), so a green here means the figure is decoupled, not that nothing moved.
 // Guest only: a ledger is seeded straight into localStorage, nothing is sent anywhere. QA_URL points it at a deployed site; unset, it
 // serves this tree's build (run `npm run build` first). Stills of the tab in each state are the receipt.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -17,7 +18,7 @@ const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.addre
 const dir = process.env.FIGURE_RECEIPT_DIR || 'artifacts/profile-figure'; await fs.mkdir(dir, { recursive: true });
 // veteran.Helmet reads "the Centurion's helmet": long enough to wrap in a 375 px slot card, the other lever on the row's height.
 const SEED = { owned: ['veteran.Helmet', 'goblin.Body'], equipped: { head: 'veteran.Helmet' }, pack: ['goblin.Body'] };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 })).newPage();
 page.setDefaultTimeout(90000);
 const errors = []; page.on('pageerror', e => errors.push(String(e)));

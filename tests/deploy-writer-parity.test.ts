@@ -38,7 +38,7 @@ test('deploy.sh: the writer installs inside the publish window just before the s
 
 test('deploy.sh: a site switch that fails after the writer install puts the outgoing writer back (never leaves the writer ahead of the site)', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  const prev = deploy.indexOf('writer_prev=$(ssh'), install = deploy.indexOf('writer_install=$(ssh'), back = deploy.indexOf('writer_back() {');
+  const prev = deploy.indexOf('writer_prev=$(ssh'), install = deploy.indexOf('writer_install=$('), back = deploy.indexOf('writer_back() {');
   assert.ok(prev > 0 && prev < back && back < install, 'the outgoing writer is read before the install; writer_back is defined before it is needed');
   const body = deploy.slice(back, install);
   assert.match(body, /writer_back_cmd "\$writer_prev" "\$release"/);   // the command itself is tested in deploy-writer-back.test.ts
@@ -47,7 +47,7 @@ test('deploy.sh: a site switch that fails after the writer install puts the outg
 
 test('deploy.sh: presence flips with the site like the writer: read before the install, installed inside the window before the switch, rolled back on a failed switch, parity before Published', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  const prev = deploy.indexOf('presence_prev=$(ssh'), install = deploy.indexOf('presence_install=$(ssh'), sw = deploy.indexOf('mv -Tf next current');
+  const prev = deploy.indexOf('presence_prev=$(ssh'), install = deploy.indexOf('presence_install=$('), sw = deploy.indexOf('mv -Tf next current');
   const gate = deploy.indexOf('writer_parity_gaps /opt/frankendom-presence/current'), published = deploy.indexOf("printf '\\nPublished");
   assert.ok(prev > 0 && prev < install && install < sw && sw < gate && gate < published, 'order: read < install < switch < parity < Published');
   assert.match(deploy.slice(install, sw), /install-presence\.sh --if-changed '\$revision'/);

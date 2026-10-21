@@ -3,6 +3,7 @@
 // A fresh guest at a phone width, headless Chromium on software GL, the fight driver of scripts/loot-smoke-check.mjs on the harness clock. Prints the controls that intersect Next fight; exits non-zero if any.
 // One duel, then the same kill screen is measured at 375 and again after a resize to 320 (the layout is pure CSS, so a resize is the same page at the narrower phone). Release row 55.
 //   node scripts/end-overlap-check.mjs [--dist dist] [--out artifacts/end-overlap] [--width 375]     (no --dist: builds this tree; no --width: 375 then 320)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
@@ -26,7 +27,7 @@ const srv = http.createServer(async (req, res) => {
 await new Promise((r) => srv.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${srv.address().port}`;
 await fs.mkdir(OUT, { recursive: true });
-const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), type: 'jpeg', quality: 72, timeout: 240000 });
 const result = { widths: WIDTHS, take: {}, overlaps: {} };
 try {

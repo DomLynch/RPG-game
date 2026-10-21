@@ -62,7 +62,7 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once' | 'small-full' | 'small-stuck' | 'small-stuck-nocancel', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once' | 'small-full' | 'small-stuck' | 'small-stuck-nocancel' | 'cpu-inflight', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
@@ -74,6 +74,7 @@ else if (verb === 'cancel' && ${JSON.stringify(mode)} === 'small-stuck-nocancel'
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
 else if (verb === 'inspect' && ${JSON.stringify(mode)} === 'small-stuck-nocancel') { const f = ${JSON.stringify(join(dir, 'inspects'))}, n = (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0) + 1; fs.writeFileSync(f, String(n)); console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: n <= 4 ? 'SCHEDULING' : 'COMPLETED' } }])); }
 else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: (${JSON.stringify(mode)} === 'hangs' || ${JSON.stringify(mode)}.startsWith('small-stuck')) && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? (${JSON.stringify(mode)} === 'hangs' ? 'RUNNING' : 'SCHEDULING') : 'COMPLETED' } }]));
+else if (verb === 'ps' && ${JSON.stringify(mode)} === 'cpu-inflight') console.log(JSON.stringify([{ id: 'c'.repeat(24), flavor: 'cpu-upgrade', created_at: '2026-10-21 08:00:00+00:00', status: { stage: 'RUNNING' } }, { id: 'd'.repeat(24), flavor: 'cpu-basic', created_at: '2026-10-21 08:00:00+00:00', status: { stage: 'COMPLETED' } }]));
 else if (verb === 'ps') console.log(JSON.stringify(${JSON.stringify(mode)} === 'small-full' ? [1, 2, 3, 4].map(n => ({ id: String(n).repeat(24), flavor: 't4-small', created_at: '2026-10-21 08:00:0' + n + '+00:00', status: { stage: 'RUNNING' } })) : []));
 `);
   chmodSync(stub, 0o755);
@@ -100,6 +101,23 @@ test('a good run: the job is ledgered, the artifacts come back, the exit is the 
 });
 
 const GOOD_LOG = ['=== HEAD h TREE t ===', `=== RENDERER shell=${T4} | chrome=${T4} ===`, '=== RUN ===', 'smoke OK', '=== EXIT 0 ===', '=== COST seconds=180 ==='].join('\n');
+
+test('a GPU run beside a live CPU job warns and logs it beside the ledger, and still runs (default warn); a finished CPU job does not count', () => {
+  const t = setup('cpu-inflight', GOOD_LOG), r = t.runWith({ GPU_WITH_CPU_INFLIGHT: '' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /WARN a GPU job is being launched while CPU job\(s\) are in flight: c{24}\b/);
+  assert.doesNotMatch(r.stderr, /d{24}/);
+  assert.match(readFileSync(join(t.ledger, 'inflight.log'), 'utf8'), /t4-small launch for [0-9a-f]{8} with CPU job\(s\) in flight: c{24} \(mode warn\)/);
+  assert.ok(existsSync(join(t.dir, 'ran')), 'the job was launched');
+});
+
+test('GPU_WITH_CPU_INFLIGHT=refuse is opt-in: the run stops before launching and says why', () => {
+  const t = setup('cpu-inflight', GOOD_LOG), r = t.runWith({ GPU_WITH_CPU_INFLIGHT: 'refuse' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /refusing: a CPU job is in flight/);
+  assert.equal(existsSync(join(t.dir, 'ran')), false, 'no job was launched');
+  assert.match(readFileSync(join(t.ledger, 'inflight.log'), 'utf8'), /\(mode refuse\)/);
+});
 
 test('the capacity clause: no free t4-small slot in the wait -> t4-medium automatically, and the receipt line names why', () => {
   const t = setup('small-full', GOOD_LOG), r = t.runWith({ GPU_RUN_MAX_WAIT_S: '0' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');

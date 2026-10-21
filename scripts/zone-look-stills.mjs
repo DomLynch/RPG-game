@@ -2,6 +2,7 @@
 // (the hero a few metres off the zone's camp, idle, looking at it; the spawn view when the page has no camp) and `<name>-fight.png` (the nearest creature engaged, mid-fight; skipped
 // when the zone has no creatures). Server and page setup are the zone smoke's (scripts/origins-zone1-smoke.mjs). Writes artifacts/zone-stills/ and a receipt.json beside them.
 // Usage (draws, so on the T4: node scripts/gpu-run.mjs <sha> -- node scripts/zone-look-stills.mjs off=?region=1 dusk='?region=1&look=goblin&goblin=dusk' test='?zone=99&region=1')
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -26,7 +27,7 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const origin = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch(process.env.STILLS_SOFTWARE ? { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {});   // STILLS_SOFTWARE=1: no GPU (the VPS)
+const origin = `http://127.0.0.1:${server.address().port}`, browser = await launchBrowser(chromium, process.env.STILLS_SOFTWARE ? { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {});   // STILLS_SOFTWARE=1: no GPU (the VPS)
 const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }), receipts = [];
 try {
   for (const [name, query] of shots) {

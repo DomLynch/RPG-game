@@ -4,6 +4,7 @@
 // Shared box only (a real browser): ssh the VPS, `cd /root/frankendom-worktrees/sandbox && capture --prio 3 sandbox node scripts/special-look-clip.mjs --out out/special-look`
 //   [--base https://frankendom.com/preview/sandbox/] [--only cleave,stomp]. Frames land in <out>/<skill>/f%05d.jpg; the mp4 is encoded here with ffmpeg.
 /* global process, console, document, globalThis */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -15,7 +16,7 @@ const SPECIALS = ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp', 're
 const WEAPON = arg('weapon', 'longsword');   // --weapon knife|maul|...: the special's own clip (specialClip rows) plays only on the weapons src/assets/special-clips.json lists
 const TAG = WEAPON === 'longsword' ? '' : `-${WEAPON}`;
 const SECONDS = Number(arg('seconds', '3.8'));
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 
 for (const special of SPECIALS) {
   const dir = `${OUT}/${special}${TAG}`; await fs.rm(dir, { recursive: true, force: true }); await fs.mkdir(dir, { recursive: true });

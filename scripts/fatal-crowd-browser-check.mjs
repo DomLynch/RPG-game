@@ -2,6 +2,7 @@
 // has booted for real, the harness clock (scripts/lib/harness-clock.mjs) advances it frame by frame, so the duel that ends in
 // the player's defeat takes the same simulation ticks on a MacBook, a GPU-less VPS or a CI runner — the old wall-clock wait for
 // a Killed event (90 s) never arrived on ubuntu-latest, where the live loop crawls.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
@@ -10,7 +11,7 @@ import assert from 'node:assert/strict';
 import { MANIFEST } from '../src/audio/manifest.ts';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`); url.searchParams.set('debug', '1');
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, physicalPhone: false, errors: [], requests: [] };
 const out = 'artifacts/audio/fatal-browser'; await fs.mkdir(out, { recursive: true });
 try {

@@ -4,6 +4,7 @@
 // the sheet, Settings stays reachable, nothing scrolls sideways, every tap target is >= 44 px, the screen scrolls, and the sheet's text colours
 /* global process, console, document, localStorage */
 // keep 4.5:1 on its grounds. Stills: artifacts/stats-screen/. Guest only; serves this tree's build (run `npm run build` first).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const profile = { version: 1, id: 'stats-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: ['knight.Helmet', 'knight.Body'], equipped: { head: 'knight.Helmet', chest: 'knight.Body' } } };
 const card = { version: 1, rows: { veteran: { fights: 3, wins: 1, losses: 2, left: 0, last: [] }, goblin: { fights: 1, wins: 1, losses: 0, left: 0, last: [] } } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], screens: {}, contrast: {}, passed: false };
 // WCAG contrast of the sheet's text tokens (style.css #journal: --jf, --jm, --jg2 and the dimmed Pit tab) on its two grounds
 const lum = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };

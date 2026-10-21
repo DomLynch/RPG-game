@@ -6,6 +6,7 @@
 // --clip: record the page instead (Playwright recordVideo) and cut a few seconds round the cast to an mp4 (webm when ffmpeg is missing): <out>/<special>.mp4.
 // --sheet <dir> <dir>...: no browser; lay each dir's windup | strike | recover stills side by side, one row per dir, into <out>/sheet.png (needs ffmpeg).
 /* global process, console, document, globalThis */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 
@@ -33,7 +34,7 @@ async function serveDist(dir) {   // scripts/rank-look-check.mjs's static server
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
 const shots = [];
 try {
   await fs.mkdir(OUT, { recursive: true });

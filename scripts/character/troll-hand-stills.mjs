@@ -5,6 +5,7 @@
 // the claw keeps that distance as the arm moves; a weapon on a claw that does not follow hand_r drifts away from it ("slip" = change from the ready pose).
 //   node scripts/character/troll-hand-stills.mjs <before.glb> <after.glb> <out dir>
 // Serves three from node_modules; Chromium with software GL (works on the VPS).
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -81,7 +82,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await browser.newPage({ viewport: { width: 750, height: 812 } });
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 300))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });

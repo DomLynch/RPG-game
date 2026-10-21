@@ -1,6 +1,7 @@
 // A guest's build in Zone 1 (Lead 2026-10-17), as a player does it on a phone (375x812, software GL is fine, it is a layout and flow check): the HUD line offers "N points to place" (never a modal on its own), a tap opens the build dialog,
 // the guest places every point and confirms (in memory only), the dialog closes and the line is gone, and a RELOAD brings the points back (nothing was stored). Stills of each step go to <out dir>.
 //   node scripts/guest-build-check.mjs <out dir>      Serves artifacts/origins-preview (built here when missing). On the T4: scripts/gpu-run/guest-build.sh
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -23,7 +24,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { errors: [], requests: [] };
 try {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });

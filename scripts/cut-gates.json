@@ -23,7 +23,15 @@
       "blob": "1f592bcafee3343623b4c9f48f368dbf6fd34adc",
       "pr": 3468,
       "note": "Lead's written OK 2026-10-20 on #3468 (re-OK after the one-step jpegtran fix; it was 62bbc4cd2), on condition #3468 merges after #3467: a separate load-time-zone1 job (scripts/load-time-check.mjs --page zone1, base and head on one runner) whose result feeds browser-rows (status); the two pin tests gain its name. No new actions, secrets, permissions or triggers."
-    }
+    },
+    { "path": ".github/workflows/data-only.yml", "blob": "68e5e9772e79f910ce0b7d79a13a51cbb92089fd", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), all 8 workflow blobs at head 0530f2a36: CI-only dedupe, proved by A/A x2 + trunk control (runs 39612486544, 39612504465, 39612512354)." },
+    { "path": ".github/workflows/gpu-checks.yml", "blob": "b399ea98d6d86fbd7324964a07fcacf9f5cd74f6", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/pr-wording.yml", "blob": "e79e076ac0f4ed44de74e5fc3309b66fde997074", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/quality.yml", "blob": "af284ef400962ea4ba4ac440f6e9284ab34a9ada", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/release-checks.yml", "blob": "6deb1ebbd104a3d713582ab5e71fb764f138cfc5", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/release-train.yml", "blob": "4abd3f5a82d02c6fed2787474529655740c5d381", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/special-battery.yml", "blob": "a17c8d35054574627aa74eb223f1b57488364625", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/unit-ci.yml", "blob": "4b284bea8728359a1152bd42d37aca02d5429a30", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." }
   ],
   "noPrExempt": [
     {

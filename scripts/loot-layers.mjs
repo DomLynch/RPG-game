@@ -5,6 +5,7 @@
 // when the loader has put that id on the slot (`#slot-<key>[data-loot=...]`). Pieces are worn the way src/characters.ts wears them: a
 // `replace` piece hides the rig's own draws in that slot (a helmet hides the hair too), a mapless palette material takes the rig's
 // material of the same name. Run after every loot.glb change: `node scripts/loot-layers.mjs` (Playwright's Chromium, ~40 s).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -80,7 +81,7 @@ const server = createServer(async (req, res) => {
   try { res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' }); res.end(await readFile(file)); } catch { res.writeHead(404); res.end(); }
 });
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
-const port = server.address().port, browser = await chromium.launch(), page = await browser.newPage({ viewport: { width: 800, height: 1400 }, deviceScaleFactor: 1 });
+const port = server.address().port, browser = await launchBrowser(chromium), page = await browser.newPage({ viewport: { width: 800, height: 1400 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => { console.error('page error:', e.message); process.exitCode = 1; });
 await page.goto(`http://127.0.0.1:${port}/`); await page.waitForFunction(() => window.ready, null, { timeout: 90000 });
 const ready = await page.evaluate(() => window.ready);

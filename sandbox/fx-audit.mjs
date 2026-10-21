@@ -6,11 +6,12 @@
 // that are visible at once. OK = drawn at some sample, NOTHING = never drawn in the window.
 // CAVEAT (2026-10-16): headless swiftshader runs only ~30 game ticks a second, and a magic cast is a 120-tick windup, so the sample window must be at least ~8 s (done below);
 // the first run used 2.8 s and read NOTHING for effects that only draw late in the cast. A NOTHING after this window is a real gap; a few effects are dark-ink and subtle by design (blackfurrow).
+import { launchBrowser } from '../scripts/lib/harness-browser-launch.mjs';
 import { chromium } from '/root/frankendom-worktrees/sandbox/node_modules/playwright/index.mjs';
 import { readFileSync } from 'node:fs';
 const [, , si = '0', sc = '1'] = process.argv;
 const pairs = JSON.parse(readFileSync('/root/shots/fx-pairs.json', 'utf8')).filter((_, i) => i % +sc === +si);
-const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const b = await launchBrowser(chromium, { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 for (const { fx, spell, level } of pairs) {
   const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1 });
   const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 100)));

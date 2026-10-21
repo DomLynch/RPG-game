@@ -1,10 +1,11 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/grip-check.mjs "<url>"   // where each creature's weapon sits against its hand bone (reads mobs().grips)
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const [URL] = process.argv.slice(2);
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
 await page.goto(URL + `&v=gp${Date.now()}`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs.some((x) => x.loadout), null, { timeout: 150000, polling: 1000 });

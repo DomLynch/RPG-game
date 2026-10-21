@@ -8,6 +8,7 @@
 // between the six shipped outcomes from the kill event — so the harness runs the same passive duel across
 // seeds and captures the first death window each finisher actually draws, organic kills on the production path end-to-end:
 // selection, pose, clip, gore, dolly, severed head — nothing is presented as anything other than what the sim reported.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -297,7 +298,7 @@ const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logL
 }) } }] });
 await server.listen();
 const url = `${server.resolvedUrls.local[0]}finisher-preview.html${look ? `?ranklook=/looks/${look}.glb` : ''}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 const save = async (name, data) => { await fs.writeFile(`${dir}/${name}`, data); console.log(`  ${dir}/${name}`); };
 try {

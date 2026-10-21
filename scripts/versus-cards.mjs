@@ -6,6 +6,7 @@
 //   node scripts/versus-cards.mjs --yaw 0.9 --pitch 0.3 --gap 1.6   framing knobs (radians / metres), printed with each card
 //   node scripts/versus-cards.mjs --zoom 1.3                          field-of-view multiplier (1 = the game's 51°; 1.3 = ~30% wider, the shipped cards)
 // Portrait: the middle `crop` of a 1170×2535 frame (a 390×845 phone at 3×, as a viewport since the game caps its pixel ratio), WebP q0.72 encoded by Chromium itself (no native encoder needed). Deterministic: seeded duel, settled camera.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -52,7 +53,7 @@ window.__cards = {
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'versus-cards', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/versus-cards.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/versus-cards.html', PAGE)); }); } }] });
 await server.listen();
 const base = `${server.resolvedUrls.local[0]}versus-cards.html`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 try {
   await fs.mkdir('public/versus', { recursive: true });
   const page = await browser.newPage({ viewport: { width: 1170, height: 2535 }, deviceScaleFactor: 1 }), errors = [];   // the game caps its pixel ratio, so the resolution comes from the viewport: 3× a 390×845 phone

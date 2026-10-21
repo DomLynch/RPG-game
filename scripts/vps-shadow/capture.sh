@@ -54,17 +54,26 @@ max_load="${CAPTURE_MAX_LOAD:-12}"; loadavg="${CAPTURE_LOADAVG:-/proc/loadavg}";
 to_caller=0   # --spill-to-caller: the caller (scripts/capture-mac.sh) runs a spill on HF; set only by that wrapper
 spill_log="$home/capture.spill.log"
 load5() { awk '{ print $2 }' "$loadavg"; }
+# v10 (Lead 2026-10-21): the gate reads CPU PRESSURE, not the load average. Linux counts tasks stuck in D state (steamcmd writing over the sshfs box mount: 31 threads) in
+# loadavg, so load hit 39 with the CPU 72-89% idle and jobs queued for nothing. PSI "some avg60" is the share of the last minute in which a task waited for a CPU: it ignores IO
+# waits. A job starts only while it is under CAPTURE_MAX_CPU_PRESSURE (default 25 %). Where /proc/pressure/cpu is missing or unparsable the gate falls back to load5 / CAPTURE_MAX_LOAD.
+psi="${CAPTURE_PSI:-/proc/pressure/cpu}"; max_psi="${CAPTURE_MAX_CPU_PRESSURE:-25}"
+use_psi() { [[ -r "$psi" ]] && grep -q '^some .*avg60=' "$psi" 2>/dev/null; }
+gate_fig() { if use_psi; then awk '$1 == "some" { for (i = 2; i <= NF; i++) if ($i ~ /^avg60=/) { sub("avg60=", "", $i); print $i } }' "$psi"; else load5; fi; }
+gate_max() { if use_psi; then echo "$max_psi"; else echo "$max_load"; fi; }
+gate_name() { if use_psi; then echo "cpu-pressure"; else echo "load5"; fi; }
+gate_key() { if use_psi; then echo "cpu_pressure60"; else echo "load5"; fi; }
 # A release run owns the box (Deploy 2026-10-11): while a release marker exists under CAPTURE_RUNS_DIR (younger than 90 min, so a crashed release cannot hold it forever) no lane
 # job takes a slot, and a tagged job spills exactly as it does under load. blender-cpu runs through this script, so it is covered too.
 runs_dir="${CAPTURE_RUNS_DIR:-/run/frankendom-release}"   # one marker file per release run (scripts/lib/vps-unit.mjs runnerHead); /root/deploy-runs is root-only
 release_running() { [[ -n "$(find "$runs_dir" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | head -n 1)" ]]; }
-load_ok() { ! release_running && awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; }
+load_ok() { ! release_running && awk -v l="$(gate_fig)" -v m="$(gate_max)" 'BEGIN { exit !(l + 0 < m + 0) }'; }
 # Why a job within the first SLOTS still waits (empty when nothing blocks it): the wait line and --status say so. Without it a release run's marker looked like a stall
 # (World 2026-10-13: both slots FREE, load fine, the head 16 min silent; the line only said "load5 8 (starts under 12)").
 wait_reason() {
   local m; m=$(find "$runs_dir" -mindepth 1 -maxdepth 1 -mmin -90 -printf '%f\n' 2>/dev/null | head -n 1)
   if [[ -n "$m" ]]; then echo "a release run owns the box (marker $m; lane jobs wait until it ends, at most 90 min after it started)"
-  elif ! awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; then echo "load5 $(load5) is at or over $max_load"; fi
+  elif ! awk -v l="$(gate_fig)" -v m="$(gate_max)" 'BEGIN { exit !(l + 0 < m + 0) }'; then echo "$(gate_name) $(gate_fig) is at or over $(gate_max)"; fi
 }
 slot_lock() { [[ $1 -eq 1 ]] && echo "$lock" || echo "$lock.$1"; }
 slot_holder() { [[ $1 -eq 1 ]] && echo "$holder" || echo "$holder.$1"; }
@@ -93,7 +102,7 @@ if [[ "${1:-}" == "--status" ]]; then
     if exec 9<>"$(slot_lock "$k")" && flock -n 9; then echo "capture slot $k: FREE"; else echo "capture slot $k: HELD — $(cat "$(slot_holder "$k")" 2>/dev/null || echo unknown)"; fi
     exec 9>&-
   done
-  echo "load $(cut -d' ' -f1-3 "$loadavg") (a job starts only while the 5-min figure is under $max_load)$(r=$(wait_reason); [[ -z "$r" ]] || echo "; NOW BLOCKED: $r")"; echo "queue (lowest prio first, then first come, first served; the head holds or takes the lock next):"; show_queue; exit 0
+  echo "load $(cut -d' ' -f1-3 "$loadavg") (a job starts only while $(gate_name) $(gate_fig) is under $(gate_max))$(r=$(wait_reason); [[ -z "$r" ]] || echo "; NOW BLOCKED: $r")"; echo "queue (lowest prio first, then first come, first served; the head holds or takes the lock next):"; show_queue; exit 0
 fi
 while [[ "${1:-}" == "--prio" || "${1:-}" == "--hf-ok" || "${1:-}" == "--spill-to-caller" ]]; do
   if [[ "$1" == "--hf-ok" ]]; then hf_ok=1; shift; elif [[ "$1" == "--spill-to-caller" ]]; then to_caller=1; shift; else prio="${2:-}"; shift 2 || { echo "capture: --prio needs a number 1..4"; exit 2; }; fi
@@ -158,9 +167,9 @@ fi
 hand_off() {
   local waited=$1 load_seen=$2 sha; shift 2   # the rest is the job
   sha=$(git rev-parse HEAD)
-  printf '%s lane=%s stage=HANDED waited_s=%s load5=%s sha=%s cmd=%s\n' "$(date -u +%FT%TZ)" "$lane" "$waited" "$load_seen" "$sha" "$(printf '%q ' "$@")" >> "$spill_log"
+  printf '%s lane=%s stage=HANDED waited_s=%s %s=%s sha=%s cmd=%s\n' "$(date -u +%FT%TZ)" "$lane" "$waited" "$(gate_key)" "$load_seen" "$sha" "$(printf '%q ' "$@")" >> "$spill_log"
   leave_queue
-  echo "capture: $lane spills after ${waited}s waiting (load5 $load_seen over $max_load): handed to the caller for Hugging Face"
+  echo "capture: $lane spills after ${waited}s waiting ($(gate_name) $load_seen over $(gate_max)): handed to the caller for Hugging Face"
   echo "CAPTURE_SPILL log=$spill_log sha=$sha args=$(printf '%s\0' "$@" | base64 -w0)"
   exit 76
 }
@@ -189,15 +198,15 @@ while :; do
   if [[ $pos -eq 0 ]]; then flock -w 10 "$qlock" bash -c 'printf "%s\n" "$2" >> "$1"' _ "$queue" "$ticket"; echo "capture: $lane's ticket was gone (pruned by mistake?); re-queued at the back"; fi
   now=$(date +%s)
   if [[ "$hf_ok" == 1 && $spill_checked -eq 0 ]] && (( now - started >= spill_after )); then
-    spill_checked=1; seen_load=$(load5)
-    if load_ok; then echo "capture: $lane has waited $((now - started))s but load5 $seen_load is under $max_load now: it stays on the VPS"
+    spill_checked=1; seen_load=$(gate_fig)
+    if load_ok; then echo "capture: $lane has waited $((now - started))s but $(gate_name) $seen_load is under $(gate_max) now: it stays on the VPS"
     else hand_off "$((now - started))" "$seen_load" "$@"; fi
   fi
   if (( now - started >= wait_s )); then echo "capture: gave up waiting after ${wait_s}s at position $pos of $n"; exit 75; fi
   if [[ $pos -ne $last_pos ]] || (( now - last_said >= 60 )); then
     (( last_pos > 0 && pos > last_pos )) && echo "capture: $lane moved back from $last_pos to $pos: a higher-priority job joined the queue (prio $prio waits behind lower numbers)"
     h=$(cat "$holder" 2>/dev/null || echo unknown); [[ "$h" == released* ]] && h="free ($h); the head takes it next"
-    echo "capture: lock $( [[ "$h" == free* ]] && echo "$h" || echo "held by $h"); $lane is $pos of $n in the queue, load5 $(load5) $(r=$(wait_reason); if [[ -n "$r" ]]; then echo "WAITING: $r"; else echo "(starts under $max_load)"; fi) (prio $prio; lowest first, then first come; waiting up to ${wait_s}s, $((now - started))s so far)"
+    echo "capture: lock $( [[ "$h" == free* ]] && echo "$h" || echo "held by $h"); $lane is $pos of $n in the queue, $(gate_name) $(gate_fig) $(r=$(wait_reason); if [[ -n "$r" ]]; then echo "WAITING: $r"; else echo "(starts under $(gate_max))"; fi) (prio $prio; lowest first, then first come; waiting up to ${wait_s}s, $((now - started))s so far)"
     last_pos=$pos; last_said=$now
   fi
   sleep 2   # fd 9 is closed unless a slot was taken

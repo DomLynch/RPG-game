@@ -1,4 +1,5 @@
 // Landscape / portrait layout check (see below)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -18,7 +19,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 // Landscape / portrait layout check of the shared zone page (Dom, 2026-10-10: the menus and the HUD overlap on an iPhone in landscape). For each viewport and state (walk, fight, menu open): a still, and the rects of every visible
 // interactive element; two of them overlapping fails the run (an element counts only when it is shown and has a real box). Usage: AB_DIST=<built origins-preview dir> OUT=<dir> node scripts/landscape-check.mjs
 // [name, w, h, safe-area insets {l, r, t, b}]: the notch view is an iPhone on its side (sensor housing on the left, home bar at the bottom); its insets come from CDP Emulation.setSafeAreaInsetsOverride, and every box must stay inside them

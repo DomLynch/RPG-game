@@ -2,6 +2,7 @@
 // unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import test from 'node:test';
 import { readToken, RELAY, signToken, startRelay, supabaseAdmin, supabaseUser } from '../scripts/duel-relay.mjs';
 
@@ -258,4 +259,20 @@ test('duel relay: the room byte budget is charged per side: the side that floods
     assert.equal(relay.stats().sockets, 1);
     b.ws.close();
   } finally { await relay.close(); }
+});
+
+test('the service entry stamps every log line with an ISO time and leaves an exit line (signal, open rooms) so the next restart can be read (2026-10-21: NRestarts 73, no record)', async () => {
+  const child = spawn(process.execPath, ['scripts/duel-relay.mjs'], { env: { ...process.env, DUEL_RELAY_OPEN: '1', DUEL_RELAY_SECRET: SECRET, DUEL_RELAY_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
+  const exited = new Promise<{ code: number | null; signal: string | null }>((r) => child.on('exit', (code, signal) => r({ code, signal })));
+  try {
+    assert.ok(await until(() => /listening on/.test(out), 8000), out);
+    child.kill('SIGTERM');
+    const { code, signal } = await exited;
+    assert.equal(code, 0, `a SIGTERM stop is a clean exit 0 (signal ${signal}): ${out}`);
+    const lines = out.trim().split('\n');
+    for (const l of lines) assert.match(l, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z duel-relay/, `an untimed line: ${l}`);
+    assert.match(lines[0], / listening on 127\.0\.0\.1:\d+, minting for anyone pid \d+$/);
+    assert.match(lines[lines.length - 1], /duel-relay: received SIGTERM, exiting 0; open rooms 0 sockets 0 \(a restart drops them\)$/);
+  } finally { child.kill('SIGKILL'); }
 });

@@ -6,6 +6,7 @@
 // The page clock is fake and moved 1000/60 ms per step (scripts/lib/harness-clock.mjs), a picture every second step, so the mp4 plays at real speed however slow the renderer is. Runs on the VPS through `capture` (SwiftShader).
 // --dry prints the take's swing timings and blows (no browser).
 /* global process, console, document, URL */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
@@ -49,7 +50,7 @@ if (!DRY) {
     res.writeHead(200, { 'content-type': types[path.extname(file)] ?? 'application/octet-stream', 'content-encoding': 'gzip', 'content-length': gz.length, 'cache-control': 'no-store' }); res.end(gz);
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
-  const origin = `http://127.0.0.1:${srv.address().port}`, browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const origin = `http://127.0.0.1:${srv.address().port}`, browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   try {
     await fs.mkdir(OUT, { recursive: true });
     const text = await encodeRecord(take.record), context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }), page = await context.newPage();

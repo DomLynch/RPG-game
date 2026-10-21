@@ -16,7 +16,7 @@ import { dynamicRespawnS } from './dynamic-respawn.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS, decodeWorldRecord } from '../../src/fight/server.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, worldOpponentAt, weaponOf, CAPS, GAMBIT_ODDS, decodeWorldRecord } from '../../src/fight/server.ts';
 import { ROLL_BAND, DROP_REASONS } from '../../src/fight/server.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
@@ -46,7 +46,7 @@ const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
 const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained ? [m.chained.windup] : [])]));
 const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.recovery, ...(m.chained ? [m.chained.windup + m.chained.active + m.chained.recovery] : [])]));
-export const healthOf = (body: string, level: number): number | null => { const o = (OPPONENTS as Record<string, Parameters<typeof opponentAt>[0] | undefined>)[body]; return o ? opponentAt(o, level).health : null; };
+export const healthOf = (body: string, level: number): number | null => { const o = (OPPONENTS as Record<string, Parameters<typeof worldOpponentAt>[0] | undefined>)[body]; return o ? worldOpponentAt(o, level).health : null; };
 export const minHits = (hp: number): number => Math.max(1, Math.ceil(hp / maxHit()));
 export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * MS_PER_SECOND / TICKS_PER_SECOND * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
 const LIGHT_REACH = Math.max(...PLAYER_WEAPONS.map((w) => weaponOf(w).moves.light_right?.reach ?? 0));

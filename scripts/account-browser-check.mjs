@@ -1,4 +1,5 @@
 // Real SDK + rendered game. Provider transport is controlled; this is not a live Google login receipt.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { skipDraws, skipDrawsOnLoad } from './lib/harness-clock.mjs';
@@ -20,7 +21,7 @@ const csp = hostedCsp.replace(/https:\/\/[a-z0-9-]+\.supabase\.co/, api);
 assert.notEqual(csp, hostedCsp, 'hosted CSP must name a Supabase origin for the QA host to replace');
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0, headers: { 'Content-Security-Policy': csp } } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 let inspectedPage;
 // This row asserts on the DOM, never on pixels, and on software GL every painted frame is a ~0.5 s draw that starves the page's taps and loads: no draws unless `--draws` (the old pace).
 // A screenshot (evidence only) lifts the gate for two frames. The whole row has a ceiling under the 10-minute row cap, so a hang is a FAIL that names the last lap.

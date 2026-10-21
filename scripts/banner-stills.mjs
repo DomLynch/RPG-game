@@ -1,6 +1,7 @@
 // Zone 1 start area and gate at 375x812 on a built origins-preview page, with the renderer's draw cost: spawn.png (where a player starts), gate.png (8 m east of the gate torches, looking west: heading -pi/2), camp.png (the camp centre looking along its wall),
 // and renderInfo() (triangles, draw calls, programs) at each. Usage: node scripts/banner-stills.mjs <built origins-preview dist> <out dir>   (PIT_GL=1 = software GL)
 /* global process, console, window, document */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -11,7 +12,7 @@ const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 // the page's own files come from the dist at /preview/origins/; the shared models and pictures (/world/kit/*.glb, /arena, /weapons ...) are the repo's public/ folder, as nginx serves them
 const server = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let f = u.startsWith('/preview/origins/') ? path.join(path.resolve(dist), u.slice('/preview/origins/'.length)) : path.join(process.cwd(), 'public', u); if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html'); if (!fs.existsSync(f)) { res.statusCode = 404; res.end(); return; } res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res); });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await launchBrowser(chromium, { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 const result = { views: [] };
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();

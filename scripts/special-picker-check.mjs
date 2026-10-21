@@ -2,6 +2,7 @@
 // one SPECIAL 1 and one SPECIAL 2 button per entry. Walks: the list equals the row (ids, order, roles, names; none invented); Equip SPECIAL 1 keeps the pick (frankendom.special.slots.v1) and marks it; the same skill in SPECIAL 2 MOVES it
 // (never in both); a second press clears; the summary line says what each slot holds; no control under 44 px, off screen, text clipped or horizontal scroll, at 375 and 320. Stills: <OUT>/pick-*.png.
 // Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/special-picker-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises';
 import { chromium, devices, webkit } from 'playwright';
 import { existsSync } from 'node:fs';
@@ -17,7 +18,7 @@ const PICK = CUT.specialPick, ROLES = CUT.specialRoles, KEY = 'frankendom.specia
 const server = process.env.BASE_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });   // BASE_URL=https://frankendom.com checks the LIVE site (no local build)
 const origin = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/$/, '') : `http://127.0.0.1:${server.httpServer.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = ENGINE === 'webkit' ? await launchBrowser(webkit, { headless: true }) : await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 let blobDrops = 0;   // WebKit blob: fetch errors ignored after a reload (printed in the receipt)
 const fails = [], check = (ok, what) => { if (!ok) fails.push(what); };
 async function open(w, h) {

@@ -17,7 +17,7 @@ import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
 import { HAZARDS, TWISTS, loadRegion1, span, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
-import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
+import { OPPONENTS, worldOpponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { BETA_MAX_LOOT_RUNG, TIERS, type Tier } from '../../src/core/server.ts';
 import { rungOf as legendRung } from '../../src/fight/server.ts';
 
@@ -77,7 +77,7 @@ export type SetupOptions = { overlay?: readonly unknown[]; level?: number };
 
 const bodyHealth = (body: OpponentId, level: number): number | undefined => {
   const o = OPPONENTS[body];
-  return o ? opponentAt(o, level).health : undefined;
+  return o ? worldOpponentAt(o, level).health : undefined;
 };
 
 export function fightSetup(id: unknown, content: EncounterContent, opts: SetupOptions = {}): Result<FightSetup> {

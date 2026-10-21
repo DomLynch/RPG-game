@@ -5,6 +5,7 @@
 // figure and fitted into 900×1200 (centred, feet on a 30 px bottom margin), because a height-only camera fit clipped the Dwarf's hammer
 // and shrank wide crouches. Usage: `node scripts/opponent-portraits.mjs dwarf knight …` (ids = src/assets/<id>.glb; no ids = every roster
 // body missing a portrait; PORTRAIT_OUT renders elsewhere). Playwright's Chromium with the Mac GPU (software GL stalls on these bodies).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -64,7 +65,7 @@ const server = createServer(async (req, res) => {
   try { res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream' }); res.end(await readFile(file)); } catch { res.writeHead(404); res.end(); }
 }).listen(0, '127.0.0.1');
 await new Promise((resolve) => server.once('listening', resolve));
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser(chromium, { headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 try {
   for (const id of ids) {
     const page = await browser.newPage({ viewport: { width: 1200, height: 1600 } });
