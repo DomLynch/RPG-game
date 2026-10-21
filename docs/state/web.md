@@ -1,4 +1,33 @@
-## 2026-10-19 (+04) — Web: saved VPS web-asdata-ui work as a WIP branch
+## 2026-10-21 night (+04) — Web: Steam store asset plan (renders start 2026-10-22 09:00; nothing rendered yet)
+
+Sizes read 2026-10-21 from https://partner.steamgames.com/doc/store/assets (Steam says old sizes are no longer accepted: re-read the page before exporting). Owner: Web. Dom picks the art and the logo. No GPU/HF spend and no Mac renders while a release's rows run (check `~/.claude/state/deploy_hold`, load < 12, no other lane's browser, before EACH Mac run). Real-GPU stills and the clip run on the Mac (Dom 2026-10-17: Mac first); the log of the renderer string goes in every receipt (a Playwright run can fall back to SwiftShader).
+
+**Two looks, shot as stills first, Dom picks one:**
+- **A** = golden hour: the hero mid-swing against a Goblin in the arena, blade sun glint visible (Dom loves it; keep it in every look change). Scene: Zone 1 arena duel (`?opponent=goblin`), wide fight camera, sun low.
+- **B** = Nightborn: a creature-led moody shot in Zone 2 (Characters' skeleton/Nightborn world LODs, from their 09:00 slot; if they are not on trunk by then, B waits and A goes first).
+
+**Order of work (Lead):** 1) FRANKENDOM wordmark, 2-3 options as stills (there is NO logo on trunk; the capsules wait on Dom's pick); 2) the capsules and hero; 3) screenshots; 4) the clip.
+
+| Asset | Size | Logo | Scene / camera | Capture |
+|---|---|---|---|---|
+| Header capsule | 920x430 | yes | A: hero left, Goblin right, sun behind the blade, room at the top-left for the wordmark. B: creature close, face lit | one 1920x1080 still per look, cropped; wordmark composited in post |
+| Small capsule | 462x174 | yes | the header's composition, tighter; must read at thumbnail size | crop of the header master |
+| Main capsule | 1232x706 | yes | A: wide duel, both fighters in frame, wordmark top; B: creature wide | still at 1920x1080, crop 16:9 |
+| Vertical capsule | 748x896 | yes | portrait: the hero's swing, Goblin below | still shot in portrait (phone-shaped viewport 748x896 at dpr 1, or a 1080x1296 crop), wordmark on top |
+| Library capsule | 600x900 | yes | portrait, as the vertical, simpler | crop of the vertical master |
+| Library hero | 3840x1240 .png | NO | very wide: the arena or Zone 2 skyline, fighters off-centre so the library logo sits on the clear side | a 3840x1240 render (dpr 2 on a 1920x620 viewport, or a stitched crop); no UI |
+| Library logo | 1280 wide and/or 720 tall .png, transparent | is the logo | the wordmark alone | exported from the wordmark pick |
+| Page background | 1438x810 (optional) | no | A's arena wide, darkened at the edges | still crop |
+| Screenshots | 5+ at 1920x1080 | no | (1) Zone 1 golden-hour fight, (2) Pit duel, (3) Zone 2 Nightborn, (4) loot or gear sheet, (5) town or character screen; real HUD on, desktop layout | `scripts/*-stills.mjs` pattern (Playwright against `artifacts/origins-preview`, `creature-spot-stills.mjs` takes FROM/LOOK coordinates and a SETTLE wait) at a 1920x1080 viewport |
+| Trailer/clip | 1920x1080, about 30 s | n/a | real fights: Zone 1 plus a Pit duel, golden hour, blade glint visible | NOT `src/clip.ts` (it is a 13 s portrait kill replay at CLIP_WIDTH x CLIP_HEIGHT, rows 'clip-seconds', 'clip-tail', 'clip-finish-cap'; it stays untouched). A separate landscape capture of the live build on the Mac real GPU, cut to about 30 s |
+
+**Things to settle at 09:00 (not guessed here):**
+1. How to force golden hour and the sun angle in the live build. Look for the arena theme/sky rows (`src/arena-themes.json`, sky sun values) and the `?look=` flags before inventing a flag; if none exists, ask World & Audio for the row, do not add game code from this lane.
+2. How to hide the HUD for the hero and capsule art (no UI in those); the screenshots keep the HUD.
+3. Screen-recording route for the clip (Playwright `recordVideo` on a headed Mac Chromium, or a canvas MediaRecorder at 1080p); pick the one that holds 60 fps on the M5 and say which in the receipt.
+4. The wordmark: 2-3 options in the game's style (same pipeline as the art), Dom picks before any capsule is exported.
+
+**Receipt per asset:** the file path, its exact pixel size (`file`/`sips -g`), the renderer string, the commit sha of the build shot, and the Mac load figure.
 
 Branch `wip/web-asdata-ui-vps-2026-10-19` @5a38b8022, base 052f57d99 (web/port-dome-hooks merge): 31 files, unreviewed; the next Web session decides whether any of it is wanted. Saved before the folder moves to the 200 GB disk.
 
