@@ -4,7 +4,7 @@
 // application/octet-stream, which is every .glb; webp, audio and wasm go as they are: /etc/nginx/sites-available/frankendom.com,
 // read 2026-09-27). A fresh guest on a 393x852 mobile Chromium page, cache off, CDP network at 9 Mbps / 85 ms, seconds from
 // navigation start to #attack-button enabled (first playable; looks streamed in after it never count). RUNS each, interleaved
-// base, head, base, ...; medians compared. FAIL when head - base > DELTA_S, or when the head median is over LIMIT_S.
+// base, head, base, ...; medians compared. FAIL when head - base > DELTA_S, or when the head median is over the page's limitS.
 // Why a delta and not a bar (Lead's ruling (a)): the absolute time is CPU-bound on the runner's software GL and swung ~5 s
 // between two ubuntu runners on the same live site (16.9 s in CI 36304847884, 21.9 s in 36305661196); base and head on the
 // same runner cancel that. An intended rise needs Lead's ruling: the PR label `load-time-ruled` (LOAD_TIME_RULED=1, read live
@@ -17,8 +17,11 @@
 // What zone1 does NOT catch (Lead 2026-10-20): per-frame render cost. settledAt is load-bound on purpose, because the cover's own lift on software
 // GL is always its max hold (HF cpu-upgrade 6ad7a8345275124786e19cf7 + 6ad7aa6b5275124786e19e8e: 12 of 12 samples), so it timed the hold's jitter.
 // A render cost like the K6g lift (+4.6 s on Zone 1) shows in the Pit row, which runs the same shared lift module. Instead zone1 adds a byte
-// tripwire: after the stamp it keeps counting until the network is quiet (the whole load, ~28 MB / ~240 files on 2026-10-20) and fails when
-// head grows past base by more than the row's mbDelta or filesDelta, even when the time delta sits inside jitter.
+// tripwire that fails when head grows past base by more than the row's mbDelta or filesDelta, even when the time delta sits inside jitter. The
+// count is deterministic (Lead 2026-10-20): the zone build's files plus the site files the zone row names, sized on disk. A runtime count is not:
+// on CI a second load wave starts after a gap that moves with frame timing, so a "network quiet" window split the samples 12.25 MB / 149 files
+// against 19.1 MB / 204 on identical code (dispatch 39481901108). zone1's time delta is the median of the per-pair differences (head_i - base_i),
+// which cancels the box's drift over the run; the same run's difference of medians read -1.2 s on identical code.
 // Usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]
 /* global window */
 import { chromium } from 'playwright';
@@ -30,24 +33,27 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-const DELTA_S = 1.0, LIMIT_S = 30, RUNS_ENV = Number(process.env.RUNS) || null, RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
+const DELTA_S = 1.0, RUNS_ENV = Number(process.env.RUNS) || null, RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
 const out = 'artifacts/load-time';
 
 // The pages this gate can time. prefix: where the dist is mounted (its vite base). query: appended to the page address. spa: a path under the
 // prefix answered with the dist's index.html (live's /s/ share links), or null. publicFrom: the folder (relative to the dist) served at the site
 // root beside the prefix, or null (nothing outside the prefix). ready: runs in the page and returns { now, ready } (now in ms from navigation
-// start). receipt: its file under artifacts/load-time/. bytes: null, or the whole-load tripwire { quietMs: the network is done after this long with
-// no response finishing, capS: the longest it waits for that, mbDelta / filesDelta: how far head may grow past base }. runs: base/head pairs
-// (the RUNS env overrides it). alternate: each pair's order flips (pairOrder) so neither side always loads second on a warmed box.
+// start). receipt: its file under artifacts/load-time/. bytes: null, or the byte tripwire { row: the zone row (relative to the dist) whose
+// site-path strings are sized under publicFrom, mbDelta / filesDelta: how far head may grow past base }. runs: base/head pairs (the RUNS env
+// overrides it). alternate: each pair's order flips (pairOrder) so neither side always loads second on a warmed box. paired: the delta is the
+// median of the per-pair differences, not the difference of the two medians. limitS: the absolute tripwire on the head median (a runaway, not a
+// regression: the delta is the gate).
 export const PAGES = {
-  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false,
+  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false, paired: false, limitS: 30,
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
   // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
-    // quietMs 5000: at 3000 one of ten samples stopped mid-load in a parse gap (12.25 MB / 149 files against 19.1 MB / 204; HF 6ad7ad6b5275124786e1a0aa).
-    bytes: { quietMs: 5000, capS: 120, mbDelta: 1.0, filesDelta: 10 },
-    // runs 7 (Lead 2026-10-20): at 5, the same dist as base and head moved the median 0.99 s against the +1 s gate (HF 6ad7ad6b5275124786e1a0aa).
-    runs: 7, alternate: true,
+    bytes: { row: '../../origins/zone-rows/zone1.row.json', mbDelta: 1.0, filesDelta: 10 },
+    // runs 11, paired (Lead 2026-10-20): at 7 pairs CI's samples spread 21.8-24.9 s on identical code (dispatch 39481901108).
+    runs: 11, alternate: true, paired: true,
+    // limitS 45 (Lead 2026-10-21): identical code read 20.5 s on one CI runner and 34 s on another (dispatches 39484673851 / 39484695388); 30 s is the Pit's.
+    limitS: 45,
     ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
@@ -119,22 +125,15 @@ async function once(browser, url, spec) {
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
     const bytesPerSecond = (MBPS * 1e6) / 8;
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: LATENCY_MS, downloadThroughput: bytesPerSecond, uploadThroughput: bytesPerSecond });
-    let bytes = 0, files = 0, lastAt = Date.now();
-    cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength; files += 1; lastAt = Date.now(); });
-    // The whole load (spec.bytes): after the stamp, wait until no response has finished for quietMs (capS at most), then the totals.
-    const whole = async (r) => {
-      if (!spec.bytes) return r;
-      const cap = Date.now() + spec.bytes.capS * 1000;
-      while (Date.now() - lastAt < spec.bytes.quietMs && Date.now() < cap) await new Promise((ok) => setTimeout(ok, 200));
-      return { ...r, totalMb: +(bytes / MB).toFixed(2), totalFiles: files, ...(Date.now() >= cap ? { quietCapped: true } : {}) };
-    };
+    let bytes = 0, files = 0;
+    cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength; files += 1; });
     await page.goto(url, { waitUntil: 'commit', timeout: 120000 });
     // The page's own clock (performance.now() from navigation start, the figure ?perf=1 shows on a phone), polled from Node so a
     // busy renderer cannot hold the stamp back behind a rAF-driven wait.
     const deadline = Date.now() + 180000;
     for (;;) {
       const st = await page.evaluate(spec.ready).catch(() => null);
-      if (st?.ready) return await whole({ s: +(st.now / 1000).toFixed(2), mb: +(bytes / MB).toFixed(2), files });
+      if (st?.ready) return { s: +(st.now / 1000).toFixed(2), mb: +(bytes / MB).toFixed(2), files };
       if (Date.now() > deadline) throw new Error(`not playable within 180 s (${(bytes / MB).toFixed(2)} MB in ${files} files)`);
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -145,7 +144,7 @@ async function main() {
   const { page: pageName, dirs: [baseDir, headDir] } = parseArgs(process.argv.slice(2)), spec = PAGES[pageName];
   if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]');
   const sites = { base: await serveLikeLive(baseDir, spec), head: await serveLikeLive(headDir, spec) };
-  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs;
+  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs, LIMIT_S = spec.limitS;
   const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: LIMIT_S, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
   try {
     for (let i = 0; i < RUNS; i++) for (const side of pairOrder(i, spec.alternate)) {
@@ -154,9 +153,10 @@ async function main() {
     for (const side of ['base', 'head']) {
       const sorted = [...receipt[side].samples].sort((a, b) => a.s - b.s), mid = sorted[Math.floor(sorted.length / 2)];
       Object.assign(receipt[side], { medianS: mid.s, mb: mid.mb, files: mid.files });
-      if (spec.bytes) Object.assign(receipt[side], { totalMb: median(receipt[side].samples.map((x) => x.totalMb)), totalFiles: median(receipt[side].samples.map((x) => x.totalFiles)) });
+      if (spec.bytes) Object.assign(receipt[side], await staticBytes(receipt[side].dir, spec));
     }
-    receipt.deltaS = +(receipt.head.medianS - receipt.base.medianS).toFixed(2);
+    if (spec.paired) receipt.pairDeltasS = receipt.head.samples.map((h, i) => +(h.s - receipt.base.samples[i].s).toFixed(2));
+    receipt.deltaS = spec.paired ? pairedDelta(receipt.base.samples, receipt.head.samples) : +(receipt.head.medianS - receipt.base.medianS).toFixed(2);
     receipt.deltaFail = receipt.deltaS > DELTA_S && !RULED;
     receipt.limitFail = receipt.head.medianS > LIMIT_S;
     if (spec.bytes) Object.assign(receipt, bytesVerdict(spec.bytes, receipt.base, receipt.head, RULED));
@@ -167,17 +167,40 @@ async function main() {
     await browser.close(); await sites.base.close(); await sites.head.close();
   }
   const { base, head } = receipt;
-  console.log(`load-time-check: ${spec.label} first playable at ${receipt.profile}, median of ${RUNS}: base ${base.medianS} s (${base.mb} MB, ${base.files} files), head ${head.medianS} s (${head.mb} MB, ${head.files} files), delta ${receipt.deltaS >= 0 ? '+' : ''}${receipt.deltaS} s (limit +${DELTA_S} s; tripwire ${LIMIT_S} s)`);
+  console.log(`load-time-check: ${spec.label} first playable at ${receipt.profile}, median of ${RUNS}: base ${base.medianS} s (${base.mb} MB, ${base.files} files), head ${head.medianS} s (${head.mb} MB, ${head.files} files), ${spec.paired ? 'median paired ' : ''}delta ${receipt.deltaS >= 0 ? '+' : ''}${receipt.deltaS} s (limit +${DELTA_S} s; tripwire ${LIMIT_S} s)`);
   if (RULED) console.log(`load-time-check: label load-time-ruled is on this PR (Lead's ruling): the delta is report-only; the ${LIMIT_S} s tripwire still applies`);
   if (receipt.deltaFail) console.error(`load-time-check: FAIL, head is ${receipt.deltaS} s slower than base (over +${DELTA_S} s). An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
   if (receipt.limitFail) console.error(`load-time-check: FAIL, the head median ${head.medianS} s is over the ${LIMIT_S} s tripwire`);
-  if (spec.bytes) console.log(`load-time-check: ${spec.label} whole load, median: base ${base.totalMb} MB / ${base.totalFiles} files, head ${head.totalMb} MB / ${head.totalFiles} files (limit +${spec.bytes.mbDelta} MB, +${spec.bytes.filesDelta} files)`);
+  if (spec.paired) console.log(`load-time-check: ${spec.label} per-pair deltas (head - base, s): ${receipt.pairDeltasS.join(', ')}`);
+  if (spec.bytes) console.log(`load-time-check: ${spec.label} build + row files on disk: base ${base.totalMb} MB / ${base.totalFiles} files${base.missing.length ? ` (missing ${base.missing.join(', ')})` : ''}, head ${head.totalMb} MB / ${head.totalFiles} files (limit +${spec.bytes.mbDelta} MB, +${spec.bytes.filesDelta} files)`);
   if (receipt.bytesFail) console.error(`load-time-check: FAIL, head loads ${receipt.mbGrowth} MB / ${receipt.filesGrowth} files more than base. An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
   if (!receipt.passed) process.exit(1);
 }
 
 const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-/** The whole-load tripwire: head's totals against base's, failing past mbDelta or filesDelta unless ruled (the label makes it report-only, like the time delta). */
+/** The median of the per-pair differences (head_i - base_i): pair i's two samples ran back to back, so the box's drift over the run cancels. */
+export function pairedDelta(base, head) {
+  if (base.length !== head.length || !base.length) throw new Error(`load-time-check: ${base.length} base and ${head.length} head samples do not pair`);
+  return +median(head.map((h, i) => h.s - base[i].s)).toFixed(2);
+}
+/** Every site path ("/a/b.ext") a JSON value names, once each. */
+export function sitePaths(value) {
+  const found = new Set(), walk = (v) => { if (typeof v === 'string') { if (/^\/[\w./-]+\.\w+$/.test(v)) found.add(v); } else if (v && typeof v === 'object') for (const x of Object.values(v)) walk(x); };
+  walk(value); return [...found].sort();
+}
+/** The byte tripwire's deterministic count for one side: every file in the build, plus the site files its zone row names (under publicFrom); a
+ *  named file that is not there is listed in missing, not counted. */
+async function staticBytes(dir, spec) {
+  let size = 0, count = 0;
+  for (const e of await fs.readdir(dir, { recursive: true, withFileTypes: true })) if (e.isFile()) { size += (await fs.stat(path.join(e.parentPath ?? e.path, e.name))).size; count += 1; }
+  const missing = [];
+  for (const p of sitePaths(JSON.parse(await fs.readFile(path.resolve(dir, spec.bytes.row), 'utf8')))) {
+    const st = await fs.stat(path.join(path.resolve(dir, spec.publicFrom), p)).catch(() => null);
+    if (st?.isFile()) { size += st.size; count += 1; } else missing.push(p);
+  }
+  return { totalMb: +(size / MB).toFixed(2), totalFiles: count, missing };
+}
+/** The byte tripwire: head's totals against base's, failing past mbDelta or filesDelta unless ruled (the label makes it report-only, like the time delta). */
 export function bytesVerdict(limits, base, head, ruled) {
   const mbGrowth = +(head.totalMb - base.totalMb).toFixed(2), filesGrowth = head.totalFiles - base.totalFiles;
   return { mbGrowth, filesGrowth, bytesFail: (mbGrowth > limits.mbDelta || filesGrowth > limits.filesDelta) && !ruled };

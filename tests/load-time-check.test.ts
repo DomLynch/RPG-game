@@ -2,7 +2,7 @@
 // today's address, ready signal, routing and receipt; Zone 1 is the origins preview under its vite base, ready at the page's settled stamp, with a whole-load byte tripwire.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bytesVerdict, DEFAULT_PAGE, PAGES, pairOrder, parseArgs, routeOf } from '../scripts/load-time-check.mjs';
+import { bytesVerdict, DEFAULT_PAGE, PAGES, pairedDelta, pairOrder, parseArgs, routeOf, sitePaths } from '../scripts/load-time-check.mjs';
 
 test('load-time pages: pit and zone1 only, pit the default, one receipt each (pit keeps receipt.json)', () => {
   assert.deepEqual(Object.keys(PAGES), ['pit', 'zone1']);
@@ -25,7 +25,9 @@ test('load-time pages: the ready signals (pit #attack-button enabled; zone1 the 
 test('load-time bytes: the pit has no whole-load tripwire; zone1 fails a byte or file jump past base unless ruled', () => {
   assert.equal(PAGES.pit.bytes, null);
   const limits = PAGES.zone1.bytes;
-  assert.ok(limits.quietMs > 0 && limits.capS > 0 && limits.mbDelta > 0 && limits.filesDelta > 0);
+  assert.ok(limits.mbDelta > 0 && limits.filesDelta > 0);
+  assert.equal(limits.row, '../../origins/zone-rows/zone1.row.json', 'the zone row beside the build (artifacts/origins-preview -> the repo root)');
+  assert.equal('quietMs' in limits, false, 'no runtime network-quiet window: it split identical builds 12.25 MB against 19.1 MB on CI');
   const base = { totalMb: 28.3, totalFiles: 240 };
   assert.equal(bytesVerdict(limits, base, base, false).bytesFail, false);
   assert.equal(bytesVerdict(limits, base, { totalMb: 28.3 + limits.mbDelta, totalFiles: 240 + limits.filesDelta }, false).bytesFail, false, 'at the limit passes');
@@ -35,9 +37,25 @@ test('load-time bytes: the pit has no whole-load tripwire; zone1 fails a byte or
   assert.deepEqual(bytesVerdict(limits, base, { totalMb: 27.8, totalFiles: 238 }, false), { mbGrowth: -0.5, filesGrowth: -2, bytesFail: false });
 });
 
-test('load-time runs: the pit keeps 5 base-first pairs; zone1 runs 7 pairs, alternating which side loads first', () => {
+test('load-time paired delta: the median of head_i - base_i, not the difference of the medians; unequal sides throw', () => {
+  const s = (xs: number[]) => xs.map((x) => ({ s: x }));
+  // Box drift: both sides slow down over the run. The medians differ by 1 s; every pair is within 0.1 s.
+  assert.equal(pairedDelta(s([20, 21, 22, 23, 24]), s([20.1, 21.0, 21.9, 23.1, 24.0])), 0);
+  assert.equal(pairedDelta(s([20, 20, 20]), s([21.5, 21, 22])), 1.5);
+  assert.throws(() => pairedDelta(s([1, 2]), s([1])), /do not pair/);
+  assert.deepEqual([PAGES.pit.paired, PAGES.zone1.paired], [false, true]);
+  // The absolute tripwire per page (Lead 2026-10-21): the Pit keeps 30 s; Zone 1's identical code read 34 s on a slow CI runner.
+  assert.deepEqual([PAGES.pit.limitS, PAGES.zone1.limitS], [30, 45]);
+});
+
+test('load-time site paths: every "/x/y.ext" string in a row, once, sorted; the zone1 row names its kit', () => {
+  assert.deepEqual(sitePaths({ a: '/world/b.glb', b: ['/world/a.png', 'not/a/path.png', '/world/b.glb'], c: { d: 'zone1', e: 3 } }), ['/world/a.png', '/world/b.glb']);
+  assert.deepEqual(sitePaths({ url: '/preview/origins/', id: '/no-extension' }), []);
+});
+
+test('load-time runs: the pit keeps 5 base-first pairs; zone1 runs 11 pairs, alternating which side loads first', () => {
   assert.deepEqual([PAGES.pit.runs, PAGES.pit.alternate], [5, false]);
-  assert.deepEqual([PAGES.zone1.runs, PAGES.zone1.alternate], [7, true]);
+  assert.deepEqual([PAGES.zone1.runs, PAGES.zone1.alternate], [11, true]);
   assert.deepEqual([0, 1, 2].map((i) => pairOrder(i, false)), [['base', 'head'], ['base', 'head'], ['base', 'head']]);
   assert.deepEqual([0, 1, 2].map((i) => pairOrder(i, true)), [['base', 'head'], ['head', 'base'], ['base', 'head']]);
 });
