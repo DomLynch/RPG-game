@@ -22,6 +22,13 @@ test('the writer and presence install ssh calls run under net_bound with the ste
   assert.equal(/^\s*(writer|presence)_install=\$\(ssh /m.test(deploy), false, 'no install ssh call is left unbounded');
 });
 
+test('a failed writer install puts the writer back before exiting (the install may have finished on the box while the client hung: writer ahead of the site)', () => {
+  const branch = deploy.split('\n').find(l => l.includes('writer install failed for $revision')) ?? '';
+  assert.match(branch, /writer_back; exit 1; \}/);
+  const presence = deploy.split('\n').find(l => l.includes('presence install failed for $revision')) ?? '';
+  assert.match(presence, /writer_back; presence_back; exit 1/, 'the presence branch still rolls both back');
+});
+
 test('a hung ssh is killed at the ceiling and named; the callee exit code is not swallowed', () => {
   const run = (cmd: string) => spawnSync('bash', ['-c', `source scripts/lib/net-bound.sh; ${cmd}; echo "rc=$?"`], { encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' });
   const t0 = Date.now();
