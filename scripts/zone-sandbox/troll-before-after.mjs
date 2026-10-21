@@ -1,10 +1,11 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: LO=<loadout id> node scripts/zone-sandbox/troll-before-after.mjs <outDir> "<url>" <tag>   // ready crop + mid-fight screen for one troll; run with &fit=0 for the "before"
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const [OUT, URL, TAG] = process.argv.slice(2);   // TAG: before | after
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 await page.goto(URL + `&v=fr${Date.now()}`, { waitUntil: 'domcontentloaded' });

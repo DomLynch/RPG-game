@@ -3,6 +3,7 @@
 //   cancel : the same, but the return is ?error=access_denied -> the page stays on the arena, the stored wish is gone
 //   later  : after a cancel, an ordinary arena sign-in that succeeds does NOT jump to /zone1/
 // Usage: node scripts/zone1-signin-check.mjs [arena dist dir]   (built here from the repo when no dir is given, into a temp dir)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -28,7 +29,7 @@ const ARENA = `http://127.0.0.1:${server.address().port}`;
 const user = { id: '00000000-0000-4000-8000-000000000001', aud: 'authenticated', role: 'authenticated', email: 'stub@example.test', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const session = () => ({ access_token: 'stub-access', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'stub-refresh', user });
 const json = (body, status = 200) => ({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }, body: JSON.stringify(body) });
-const browser = await chromium.launch();
+const browser = await launchBrowser(chromium);
 const receipt = { cases: {} };
 async function run(name, returnQuery, steps) {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } }), page = await ctx.newPage();

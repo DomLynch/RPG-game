@@ -1,4 +1,5 @@
 // Material source-to-shipped check + actual GLB renders. --before <glb> also audits isolation and makes matched comparison PNGs.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -87,7 +88,7 @@ const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logL
 await server.listen();
 let browser;
 try {
-  browser = await chromium.launch({ headless: true });
+  browser = await launchBrowser(chromium, { headless: true });
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
   const errors = []; page.on('pageerror', e => errors.push(String(e)));
   page.on('console', message => { if(message.type()==='error')errors.push(message.text()); });

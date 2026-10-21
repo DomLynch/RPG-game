@@ -3,6 +3,7 @@
 // env: VIEW=844x390  SHOTS='[{"name":"s1-start","from":"start","look":[-119.4,-9.9]},{"name":"t2-road","from":[-110,-50],"look":[-124,-34]}]'  SETTLE=6000  PIT_GL=1 (software GL)
 // from: "start" = where the page drops the hero; else [x, z] in world metres. look: [x, z] the hero faces (heading 0 looks along +z, headingTo = atan2(dx, dz)).
 /* global process, console, window */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -18,7 +19,7 @@ const server = http.createServer((req, res) => {
   res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME || undefined, args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 try {
   const [w, h] = (process.env.VIEW || '844x390').split('x').map(Number);
   const shots = JSON.parse(process.env.SHOTS || '[]');

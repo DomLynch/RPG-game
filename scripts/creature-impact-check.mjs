@@ -1,4 +1,5 @@
 // Actual simulated hits through the real scene: Skeleton stays dry; its human opponent still bleeds.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createServer } from 'vite';
@@ -35,7 +36,7 @@ if (process.argv.includes('--simulation-only')) {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 } }); await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   const software = process.argv.includes('--software');
-  const browser = await chromium.launch({ headless: true, args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+  const browser = await launchBrowser(chromium, { headless: true, args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
   const receipt = { software, physicalPhone: false, checks: [], errors: [] };
   try {
     const page = await browser.newPage({ viewport: { width: 852, height: 393 } });

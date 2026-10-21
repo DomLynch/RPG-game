@@ -3,6 +3,7 @@
 // artifacts/audio/<label>/: exchange.wav, one WAV per cue probe, a BS.1770 loudness table and a report. Same script,
 // same seed, every iteration, so BEFORE/AFTER is like-for-like. Usage: node scripts/audio-preview.mjs [--label name] [--seed n] [--fallback]
 // (--fallback renders the synth path the game uses until the sprite has decoded.)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import fs from 'node:fs/promises';
@@ -34,7 +35,7 @@ const rendered = {}, flat = {}, REFERENCE = .5; let path_ = '';   // .5: linear 
 const probeLength = probe => probe.presentation?.override === 'opened' ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH;
 const checks = process.argv.includes('--check') ? {} : null;
 try {
-  browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+  browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
   const page = await browser.newPage();
   const pageErrors = []; page.on('pageerror', e => pageErrors.push(e.message));
   await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/fight/sound/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));

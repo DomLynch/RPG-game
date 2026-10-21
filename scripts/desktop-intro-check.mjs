@@ -9,6 +9,7 @@
 // at its centre and its lower third, the card and the HUD do not meet, #performance and #actions do not meet, then a real click/tap on
 // "Enter the arena" goes in; (3) the faded kill link shows the card with the same guarantees. Guest only; nothing sent anywhere.
 // QA_URL points it at a deployed site; unset, it serves this tree's build.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -21,7 +22,7 @@ const dir = process.env.DESKTOP_INTRO_RECEIPT_DIR || 'artifacts/desktop-intro'; 
 // chromium-headless-shell (old headless), the one row 46 build that lost two consecutive releases (runs G and H, 2026-09-28) — the game
 // renders the whole arena behind the intro card on every frame (main.ts frame → view.render, no pause gate), and at desktop sizes under
 // load the shell's compositor produced no frame for Page.captureScreenshot inside 60 s.
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, sizes: {}, errors: [], passed: false };
 const meet = (a, b) => !!a && !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 try {

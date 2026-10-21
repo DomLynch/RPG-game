@@ -1,11 +1,12 @@
 // Taps the REAL Zone 1 touch buttons (iPhone WebKit emulation, 375 wide) and reports the hero's combat phase after each tap.
 // Usage: node scripts/zone1-touch-buttons.mjs <page url> [out dir]   e.g. https://frankendom.com/zone1/
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import { webkit, devices } from 'playwright';
 
 const [url, out = ''] = process.argv.slice(2);
 if (out) fs.mkdirSync(out, { recursive: true });
-const browser = await webkit.launch();
+const browser = await launchBrowser(webkit);
 try {
   const page = await (await browser.newContext({ ...devices['iPhone 13'] })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e.stack ?? e).slice(0, 400)));

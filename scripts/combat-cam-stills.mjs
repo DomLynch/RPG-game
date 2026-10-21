@@ -1,6 +1,7 @@
 // The wide combat camera's stills (visual-pr-stills): Zone 1 at 375x812 as a guest, ready idle and then mid-fight against the nearest wolf, into <out dir>. `COMBATCAM=0` is the walking camera in a fight (the "before").
 //   node scripts/combat-cam-stills.mjs <out dir> [portrait|landscape]    (landscape = 812x375)
 // Serves artifacts/origins-preview (built here when missing). On the T4: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/combat-cam-stills.sh [before]
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -22,7 +23,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { shape, combatcam: process.env.COMBATCAM ?? 'default', extra: process.env.EXTRA ?? '', errors: [] };
 try {
   const ctx = await browser.newContext({ viewport: shape === 'landscape' ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true });

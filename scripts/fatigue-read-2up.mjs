@@ -6,6 +6,7 @@
 //   node scripts/fatigue-read-2up.mjs --dist dist --out artifacts/fread/on --look fatigue-read --frames artifacts/fread/off/frames.json [--clip]
 // --clip also films frames 60..480 (every 3rd at 60 fps stepping = 20 fps playback, 6 s): the fresh -> gassed run, as <out>/clip.mp4.
 /* global process, console, document */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -29,7 +30,7 @@ async function serveDist(dir) {
 }
 
 await fs.mkdir(`${OUT}/clip`, { recursive: true });
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message)); page.on('crash', () => console.log('PAGE CRASH'));

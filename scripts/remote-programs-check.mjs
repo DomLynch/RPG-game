@@ -1,6 +1,7 @@
 // How many NEW render programs does a remote player wearing each source kit add after [zone ready]? (the dressRemote warm-up proof; renderInfo().programKeys, the method of origins-seamless-check.mjs)
 // Usage (repo checkout, node_modules, built preview): node scripts/remote-programs-check.mjs <dist> <out dir>
 // Receipt: programsAtReady, then per kit the programs it added (name#id -> cacheKey, owners), and the unique new program keys over all kits. Exit 0 and the numbers are the result; GATE=1 exits 1 when any kit adds a program (the warm-up's acceptance: 0 new).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -20,7 +21,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = [], glbRequests = {}; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));

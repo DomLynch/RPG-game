@@ -3,6 +3,7 @@
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) from the first press on: every wait below is page time, so the
 // scripted duel lands on the same ticks on a loaded MacBook and on a software-GL CI runner (the real-time version hung in
 // locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and presentation setup stay on real time.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -22,7 +23,7 @@ const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=proces
 // The finishers this row can read from the held clip (The Quiet One left the game, Dom 2026-09-27; the file keeps its name for the release rows).
 assert.ok(['splitCrown','decapitation','opened'].includes(finisher), `--finisher ${finisher}: this row reads splitCrown, decapitation or opened`);
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'splitCrown' ? 'split-crown' : finisher}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage(); await quietDebug(page);
 // A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev

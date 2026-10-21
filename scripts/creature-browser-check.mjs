@@ -1,4 +1,5 @@
 // Real game routes: exact served GLBs, combat, phone layout, death/rematch and screenshots.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { ROSTER } from '../src/roster.ts';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ const server = process.env.QA_URL ? null : await preview({ preview: { host: '127
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.CREATURE_RECEIPT_DIR || 'artifacts/character/creatures/game';
 await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, physicalPhone: false, views: [], errors: [] };
 let inspectedPage;
 const hash = b => createHash('sha256').update(b).digest('hex');

@@ -2,6 +2,7 @@
 // VITE_SUPABASE_PUBLISHABLE_KEY=stub). Proves: the pencil shows for a signed-in session; the PATCH carries the new name at the revision read and the account's own marks and loot; a stale revision
 // (the first PATCH matches no row, the account moved on) is refused, the fighter is read again and the retry keeps the newer marks. Stills: artifacts/zone-rename/ (375x812).
 // Needs ZONE_DIST (the origins-preview build made with those two env vars) and a Chromium; PIT_GL=1 = the browser's own GL.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -21,7 +22,7 @@ const exp = Math.floor(Date.now() / 1000) + 3600, user = { id: 'user-rename-1', 
 const session = { access_token: `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: user.id, exp, role: 'authenticated' })}.sig`, refresh_token: 'stub', token_type: 'bearer', expires_in: 3600, expires_at: exp, user };
 const profile = { version: 1, id: 'career-fighter-0001', name: 'Aldren', career: { victoryMarks: 9 }, loot: { owned: [], equipped: {} } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], runs: {}, passed: false };
 
 async function before(name) {   // ZR_BEFORE=1 on the base build: the signed-in card has no pencil there

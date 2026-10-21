@@ -1,6 +1,7 @@
 // Zone 1's nearest kit boulder, read from the LIVE scene (no offline placement guesses): wait for the kit, take the instance of boulder_* nearest the hero's start, place the hero DIST m south of it facing it
 // (heading 0 looks along +z), shoot. Usage: node scripts/boulder-live-stills.mjs <built origins-preview dist> <out dir>   env: VIEW=844x390 DIST=4 SETTLE=8000 PIT_GL=1
 /* global process, console, window */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -11,7 +12,7 @@ const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const server = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let f = path.join(path.resolve(dist), u.replace(/^\/preview\/origins\//, '')); if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html'); if (!fs.existsSync(f)) f = path.join(path.resolve('public'), u.replace(/^\/preview\/origins\//, ''));   // the built page does not carry public/world/kit/zone1-kit.glb (production serves it from public/): read it from the repo, or the kit never loads
   if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; res.end(); return; } res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res); });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+const browser = await launchBrowser(chromium, { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
 try {
   const [w, h] = (process.env.VIEW || '844x390').split('x').map(Number), DIST = +(process.env.DIST || 4);
   const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';

@@ -1,5 +1,6 @@
 // Offline visual gate for both arms: front, weapon-side and rear views of the
 // shipped rigs at ready, gait, guard, wind-up, contact and recovery poses.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -9,7 +10,7 @@ const dir = process.env.POLEARM_POSE_DIR || 'artifacts/weapons/polearm-poses';
 await mkdir(dir, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser(chromium, { headless: true });
 const receipt = [], errors = [];
 try {
   for (const [id, prefix, cut] of [['veteran', 'Trident', 'Sweep'], ['executioner', 'Scythe', 'Reap']]) {

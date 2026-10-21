@@ -15,6 +15,7 @@
 // pass. The derivation is now right, and it is applied to a number that can actually fail for a real reason.
 //
 //   node scripts/guard-browser-check.mjs [--count 6] [--budget-ms 18] [--dir artifacts/character/guard]
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createServer } from 'vite';
@@ -26,7 +27,7 @@ await fs.mkdir(dir, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
 const url = `${server.resolvedUrls.local[0]}guard-preview.html?count=${count}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url, count, budgetMs: budget, errors: [] };
 try {
   const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });

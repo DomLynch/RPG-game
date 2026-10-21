@@ -10,6 +10,7 @@
 // four runs 2026-10-10: 284, 433, 561, 1124 ms, the 1124 with 0 ms of black), but the row passes on the first of its 3 attempts, so that noise and Deploy's loaded 530-570 ms clear 1200; at 1500 a 1.2-1.5 s freeze regression would pass.
 // The live site over the network reads 1.4-2.4 s (not this row). 1200 still fails a hang or Dom's 2 s.
 //   node scripts/next-fight-black-check.mjs        receipt: artifacts/next-fight/receipt.json
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { webkit } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
@@ -37,7 +38,7 @@ server?.httpServer.prependListener('request', (req, res) => { if (req.url.starts
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check).
 const profile = { version: 1, id: 'next-fight-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'WebKit (Playwright), 375x812 touch', exit: {}, errors: [] };
-const browser = await webkit.launch({ headless: true });
+const browser = await launchBrowser(webkit, { headless: true });
 
 async function fightTo(opponent, win) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

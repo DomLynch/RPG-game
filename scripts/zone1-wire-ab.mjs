@@ -1,6 +1,7 @@
 // Zone 1 world wiring evidence (#1845): 375-wide stills of the shipped state (relief + kit + day/night ON) and a frame-time A/B against
 // ?relief=0&kit=0&daynight=0, same run, Chromium on software GL (the numbers are RELATIVE; the Mac WebKit row is the real-GPU reading).
 // Serves artifacts/origins-preview (built here when missing). Output: $AB_OUT (default artifacts/zone1-wire-ab): *.jpg and receipt.json.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -23,7 +24,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`, base = `${origin}/preview/origins/?region=1`;
 // AB_BROWSER=webkit: Playwright WebKit (real GPU on the Mac). AB_ANGLE=metal: Chromium on the Mac GPU. Default: Chromium on software GL (the VPS), numbers relative only.
-const browser = process.env.AB_BROWSER === 'webkit' ? await webkit.launch() : await chromium.launch({ args: process.env.AB_ANGLE === 'metal' ? ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = process.env.AB_BROWSER === 'webkit' ? await launchBrowser(webkit) : await launchBrowser(chromium, { args: process.env.AB_ANGLE === 'metal' ? ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { origin, errors: [], stills: [], ab: {} };
 const open = async (query) => {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();

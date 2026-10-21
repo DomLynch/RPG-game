@@ -24,6 +24,7 @@
 // which cancels the box's drift over the run; the same run's difference of medians read -1.2 s on identical code.
 // Usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]
 /* global window */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -145,7 +146,7 @@ async function main() {
   const { page: pageName, dirs: [baseDir, headDir] } = parseArgs(process.argv.slice(2)), spec = PAGES[pageName];
   if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]');
   const sites = { base: await serveLikeLive(baseDir, spec), head: await serveLikeLive(headDir, spec) };
-  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs;
+  const browser = await launchBrowser(chromium, { headless: true }), RUNS = RUNS_ENV ?? spec.runs;
   const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: spec.limitS, limitRatio: spec.limitRatio, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
   try {
     for (let i = 0; i < RUNS; i++) for (const side of pairOrder(i, spec.alternate)) {

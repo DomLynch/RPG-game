@@ -1,10 +1,11 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/drop-look.mjs <outDir> "<url>" <loadout id>   // fell one creature, list which drop models are drawn, still of the drops
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');
 const [OUT, URL, LOADOUT] = process.argv.slice(2);
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
+const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 const warns = []; page.on('console', (m) => { if (['warning', 'error'].includes(m.type()) && !/404|Clock/.test(m.text())) warns.push(m.text().slice(0, 160)); });

@@ -2,6 +2,7 @@
 // own page as the unchanged control. Derived from scripts/zone-hit-stills.mjs (same creature pick, same page hooks). Chromium on software GL; run on the trunk build for "before" and on the PR build for "after".
 //   ZONE_DIST=<built origins preview> PIT_DIST=<built game dist> OUT=<dir> node scripts/zone-bars-stills.mjs     (either dist may be omitted)
 /* global process, console, window, document */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -23,7 +24,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { zone: [], pit: null };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 72, timeout: 240000 });
 try {

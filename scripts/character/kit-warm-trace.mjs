@@ -1,6 +1,7 @@
 // What the first kit's long tasks are made of (Lead 2026-10-17: parse or first program build?). Opens the built Origins preview (build it with `--minify false` so the functions have their names), starts a CDP CPU profile once the page has loaded,
 // waits for [zone ready] and for the kit warm to finish, then lists, for each long task the warm recorded (remoteKitsWarm().longTasks, offsets from the warm's start = [zone ready]), the functions that held the main thread in that window:
 // self time and inclusive time. Usage: node scripts/character/kit-warm-trace.mjs <dist>   (on the GPU job the software-GL flags are stripped by gpu-run).
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import { chromium } from 'playwright';
 import { serveOriginsPreview } from '../lib/origins-preview-harness.mjs';
@@ -8,7 +9,7 @@ import { serveOriginsPreview } from '../lib/origins-preview-harness.mjs';
 const dist = process.argv[2] ?? 'artifacts/origins-preview-trace';
 if (!fs.existsSync(`${dist}/index.html`)) throw new Error(`no build at ${dist}`);
 const { origin, close } = await serveOriginsPreview(dist);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(170000);

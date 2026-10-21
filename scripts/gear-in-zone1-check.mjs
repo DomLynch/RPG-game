@@ -1,5 +1,6 @@
 // The engine's gear screen IN Zone 1 (Web, 2026-10-09): the ☰ menu's Gear chip opens the Pit's own sheet over Zone 1's cut of the menu, the hero dressed in-zone, on a fake server ledger (page.route answers /origins/<op>).
 // Usage: node scripts/gear-in-zone1-check.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -30,7 +31,7 @@ const answer = (route) => {
   const result = op === 'open' ? { career: { total_credit: 0 }, characters: [{ id: 'c1', name: 'Dom' }], marks: 0 } : ledger;
   return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
 };
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();

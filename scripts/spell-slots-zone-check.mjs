@@ -5,6 +5,7 @@
 // coverage lives at node level (tests/spell-slots.test.ts, spell-equip.test.ts, world-cast.test.ts, origins/server/world-verify.test.ts with the cut lifted) and the spellsOff=0 path is the row. Prints the module state it read. Exit 1 on any miss.
 //   node scripts/spell-slots-zone-check.mjs      (starts its own vite dev server on :5199 and a loopback stub writer; run it on the VPS)
 /* global process, console, document, localStorage, performance */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -31,7 +32,7 @@ const WATCHDOG_S = 420, watchdog = setTimeout(() => { console.log(`FAIL: the che
 let log = ''; vite.stdout.on('data', (d) => (log += d)); vite.stderr.on('data', (d) => (log += d));
 for (let i = 0; i < 120 && !/Local:/.test(log); i++) await new Promise((r) => setTimeout(r, 500));
 console.log('vite:', log.replace(/\u001b\[[0-9;]*m/g, '').split('\n').filter((l) => /Local|error/i.test(l)).join(' | ').slice(0, 200));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript(([t, slots]) => { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'r', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer' })); localStorage.setItem('frankendom.spell.slots.v1', JSON.stringify(slots)); localStorage.setItem('frankendom.special.slots.v1', JSON.stringify(['lunge', 'stomp'])); }, [TOKEN, ['alvis', 'andvari']]);

@@ -4,6 +4,7 @@
 // stretch a screenshot, and a player, sees no new frame), the time spent inside WebGL compile/link/info-log/texture-upload calls, inside OffscreenCanvas
 // getImageData (src/fight/rank-tint.ts), and when the page reports ready. Medians over the reloads are printed; the raw rows go to artifacts/boot-trace/webkit.json.
 //   node scripts/boot-trace-webkit.mjs <dist dir> [reloads=5]
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { webkit } from 'playwright';
 import http from 'node:http';
 import path from 'node:path';
@@ -25,7 +26,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const profile = { version: 1, id: 'next-fight-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
-const browser = await webkit.launch({ headless: true });
+const browser = await launchBrowser(webkit, { headless: true });
 const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 await context.addInitScript((p) => {
   if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p));

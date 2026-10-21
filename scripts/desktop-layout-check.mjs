@@ -5,6 +5,7 @@
 // Sparring (its link). For every screen each listed element that is VISIBLE must lie inside the viewport (clipping) and no two listed
 // elements may intersect (overlap) unless the pair is in ALLOWED with the reason. Stills of every screen are the receipt.
 // DESKTOP_REPORT=1 asserts nothing and prints every intersection and clip it finds (for choosing what a new design allows).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { intersects } from './lib/thumb-row.mjs';
@@ -47,7 +48,7 @@ const ALLOWED = [
   ['#versus-still', '.versus-legend small', 'drawn on the still'], ['#versus-still', '.versus-legend p', 'drawn on the still'], ['#versus-still', '.versus-loading', 'drawn on the still'],
 ];
 const allowed = (a, b) => ALLOWED.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(90000);
 // A desktop has a mouse. Headless Chromium can answer (pointer:coarse), which dresses the page as a phone (touch grid, phone header):

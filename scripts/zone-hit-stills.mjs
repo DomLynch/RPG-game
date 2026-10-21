@@ -2,6 +2,7 @@
 // PROBE=1 instead records, for the first landed hit, the contact sparks' world position against the struck creature's (xz distance) in the same frame: the placement receipt (receipt.json zones[].probe).
 // KILL=1 keeps cutting until the creature is down and photographs that frame (zoneN-kill.jpg) instead of the first health drop (zoneN-hit.jpg).
 // Usage: AB_DIST=<built origins-preview dir> OUT=<dir> node scripts/zone-hit-stills.mjs   (run it on the trunk build for "before" and on the PR build for "after"). Chromium on software GL.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -21,7 +22,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { dist: built, zones: [] };
 try {
   for (const [id, query] of [['1', '?region=1'], ['2', '?region=1&zone=2']]) {

@@ -1,5 +1,6 @@
 // Real touch input and passive combat/animation observations; no simulation overrides. Page time is the gate's after boot
 // (scripts/lib/harness-clock.mjs), so the parry-then-counter presses land on the same ticks on any machine.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
@@ -14,7 +15,7 @@ const selected=only?COUNTERS.filter(([,move])=>move===only):COUNTERS;
 if(!selected.length) throw new Error(`COUNTER_ONLY=${only} matches no counter; expected one of: ${COUNTERS.map(([,m])=>m).join(', ')}`);
 const server=process.env.QA_URL?null:await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
 const url=new URL(process.env.QA_URL||`http://127.0.0.1:${server.httpServer.address().port}`);url.searchParams.set('debug','1');
-const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
+const browser=await launchBrowser(chromium, {headless:true,executablePath:chromium.executablePath()});
 const receipt={url:url.href,physicalPhone:false,only:only||null,counters:[],errors:[]};
 const dir='artifacts/weapons/counter-buttons';await fs.mkdir(dir,{recursive:true});
 try {

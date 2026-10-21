@@ -8,6 +8,7 @@
 //                                                                          wound mark); --free = three-quarter side view instead of the duel lock
 //   node scripts/impact-preview.mjs --label block-feedback --moments block,guardBreak --viewport 375x812 --full --frames 6,12
 //                                                                          block feedback mockups: a whole phone frame per cell (SCOPE item 7)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -99,7 +100,7 @@ await server.listen();
 const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}${full ? '&full' : ''}${finisher ? `&finisher=${finisher}` : ''}`;
 if (args.includes('--serve')) { console.log(`Impact preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 const dir = `artifacts/presentation/${label}`; await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }), errors = [];
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() }), errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: viewport[0], height: viewport[1] }, deviceScaleFactor: 2 });
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.text().startsWith('DBG')) console.log(m.text()); if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });

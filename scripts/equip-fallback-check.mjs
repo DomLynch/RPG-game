@@ -4,6 +4,7 @@
 // the fight must still run on the longsword. Then the route is lifted and the page reloaded: nothing was unequipped, so the estoc
 // is asked for again and drawn, with no line.
 // Guest only, nothing sent anywhere. QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -12,7 +13,7 @@ import { preview } from 'vite';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.EQUIP_FALLBACK_RECEIPT_DIR || 'artifacts/equip-fallback'; await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
 page.setDefaultTimeout(90000);
 const errors = [], estocFetches = []; page.on('pageerror', e => errors.push(String(e)));
