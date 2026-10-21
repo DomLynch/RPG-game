@@ -179,10 +179,10 @@
   {
    "id": "troll",
    "scale": 1.5,
-   "health": 680,
+   "health": 850,
    "poise": 16,
    "sheet": {
-    "attack": 45
+    "attack": 80
    },
    "profiles": {
     "easy": {
@@ -533,10 +533,13 @@
   {
    "id": "salamander",
    "scale": 0.8,
-   "health": 90,
+   "health": 150,
    "poise": 0,
    "regen": 1.4,
    "speed": 1.45,
+   "sheet": {
+    "attack": 20
+   },
    "profiles": {
     "easy": {
      "set": {

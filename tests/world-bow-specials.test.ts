@@ -58,7 +58,7 @@ test('a longsword world hero under RV83 (a record at 83) is unchanged: no share,
 });
 
 test('a record stamped 82 keeps the old hero: no share, the bow special press is the melee skill swing and no arrow flies; a world record below 83 is refused, not replayed under RV83', () => {
-  assert.equal(RECORD_VERSION, 86);
+  assert.equal(RECORD_VERSION, 87);
   const old = underRecord({ v: 82 }, () => {
     assert.equal(heroSheeted(player(ME, 0, 0, 0, 1, 'cleave', { weapon: 'bow' })).specialShare, undefined, 'v82: the bow hero has no share');
     return fight('bow', 'cleave', 4);
