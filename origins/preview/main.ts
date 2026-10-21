@@ -190,13 +190,14 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
 // A row whose asset is a ranged-model id (`bow`, ranged-model-defs.json) lies as the painted model the hand holds (the player/bow.glb equip file is a knife copy), with its matte and no hold.
 const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item), ranged = rangedModelOf(asset); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : ranged ? rangedModelUrl(ranged) : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
 const groundModelOf = (url: string): Promise<THREE.Object3D> => { const ranged = RANGED_MODELS.find((m) => rangedModelUrl(m) === url); return ranged ? sceneOf(url).then((loaded) => rangedGroundPartOf(loaded, ranged)) : sceneOf(url); };
-// On a phone no ground model is fetched or parsed before [zone ready] (loot.glb alone is 2 MB on the wire and 77k skinned vertices to parse; the weapons lying about add 0.7 MB more, all fetched at 5 s in the live K6l capture): the items appear when the zone is ready, or after groundDeferMax if it never settles. Desktop loads at once.
+// On a phone loot.glb (2 MB on the wire, 77k skinned vertices to parse, fetched at 5 s in the live K6l capture) is not fetched or parsed before [zone ready]: the loot pieces lying about appear when the zone is ready, or after groundDeferMax if it never settles. The weapons lying about (0.7 MB) still load at once: their materials (Steel, Antique brass, Wood, GladiusSteel) are programs the zone's own upload plan links before ready, and deferring them put 7 programs after ready (seamless-quiet stays green, but they would link at first sight). Desktop loads at once.
 let zoneReadyOpen!: () => void;
 const zoneReadyGate = new Promise<void>((resolve) => { zoneReadyOpen = resolve; });
 const afterReadyOnPhone = <T>(load: () => Promise<T>): Promise<T> => PHONE ? Promise.race([zoneReadyGate, new Promise<void>((resolve) => { setTimeout(resolve, previewRule('groundDeferMax')); })]).then(load) : load();
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => afterReadyOnPhone(() => groundModelOf(url)) });
+const isLootFile = (url: string) => url === GROUND_LOOT['../../src/assets/loot.glb'];
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => groundModelOf(url)) : groundModelOf(url) });
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
-const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => afterReadyOnPhone(() => sceneOf(url)) });
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url)) : sceneOf(url) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
