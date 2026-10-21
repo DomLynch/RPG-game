@@ -1,0 +1,21 @@
+{
+ "note": "ESLint max-lines-per-function for src/ (Dom's repo audit 2026-10-21, action 8): code lines only (blank lines and comments skipped). A function longer than `max` is red, except in the files below, each held at the length of its longest function on 2026-10-21 so it can only shrink. When a split brings a file under its number, lower it (or delete the entry once the file's longest function is under `max`) in the same PR. Never raise an entry.",
+ "max": 150,
+ "files": {
+  "src/arena.ts": 431,
+  "src/fight/ai.ts": 232,
+  "src/fight/camera.ts": 176,
+  "src/fight/characters.ts": 611,
+  "src/fight/duel.ts": 446,
+  "src/fight/fx.ts": 169,
+  "src/fight/gore.ts": 174,
+  "src/fight/hud.ts": 201,
+  "src/fight/input.ts": 441,
+  "src/fight/opened.ts": 191,
+  "src/fight/scene.ts": 941,
+  "src/fight/sound/feedback.ts": 173,
+  "src/fight/special-fx-goblin.ts": 164,
+  "src/fight/spell-vfx.ts": 190,
+  "src/main.ts": 247
+ }
+}
