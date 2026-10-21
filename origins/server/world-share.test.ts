@@ -49,6 +49,16 @@ test('a solo kill pays 100% and records its damage; the kill goes through the v2
   assert.equal(payload(s.kills[0]!.b).share, 1); assert.equal(payload(s.kills[0]!.b).record, 'verified');
 });
 
+test('pace flag: wall time is read when the report ARRIVES, so a slow verifier queue (30 s here) does not make an honest 20 s fight look slow; a client that really took 70 s for it is flagged', async () => {
+  for (const [arrival, ratio, slow] of [['2026-10-08T10:00:20Z', 1, false], ['2026-10-08T10:01:10Z', 3.5, true]] as const) {   // the engagement opened at 10:00:00Z; the record is 1200 ticks = 20 s of sim
+    let t = Date.parse(arrival);
+    const s = stub(), ops = mk(async () => { t += 30_000; return { ok: true, ticks: 1200, damage: wolf.hp }; }, { now: () => new Date(t) });
+    await (ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: 'r' }) as Promise<unknown>);
+    const pace = payload(s.kills[0]!.b).pace as { ratio: number; slow: boolean; tickS: number };
+    assert.equal(pace.tickS, 20); assert.equal(pace.ratio, ratio); assert.equal(pace.slow, slow);
+  }
+});
+
 test('kill steal: a report whose verified damage is 20% of the top share gets 20% of the CP, and loot only on the share', async () => {
   const whole = stub(); await mk(async () => verdict(wolf.hp)).kill_report!(ctx(whole.db), { token: TOKEN, hits: 50, record: 'r' });
   const steal = stub({ prior: [{ token: 'top-contributor-token-xx', damage: wolf.hp * 0.8, joined: false }] });

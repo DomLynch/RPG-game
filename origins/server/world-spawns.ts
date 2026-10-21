@@ -190,6 +190,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     throw new Refused(409, TOKEN_GONE, 'used', detail);
   };
   const killReport: Handler = async ({ db, account, where }, body) => {
+    const arrivedMs = now().getTime();   // read once: the verifier's queue and run time must not count as the client's wall time (pace flag, Auditor on #3522)
     const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!, recText = recordOf(body.record), drop = dropOf(body.drop, recText);
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
@@ -247,7 +248,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
         const rv = deps.heroOf ? (await decodeWorldRecord(recText).catch(() => null))?.rv : undefined;   // the claim's own record version: the worn set is held to the rules of the era the page recorded under, not this build's
         const limit = deps.heroOf ? await deps.heroOf(account, open.character, rv).catch(() => null) : null;
-        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / MS_PER_SECOND) });
+        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((arrivedMs - Date.parse(open.issuedAt)) / MS_PER_SECOND) });
         deps.tally?.add(v.ok ? 'verified' : v.reason, cohort);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;
@@ -282,7 +283,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true, ...(qa ? { qa: true } : {}) },
     };
-    const pace = verdict?.ok ? paceOf((now().getTime() - Date.parse(open.issuedAt)) / MS_PER_SECOND, verdict.ticks) : null;   // flag only (Lead + Strategy 2026-10-21): the wall/sim ratio rides the event, nothing is refused
+    const pace = verdict?.ok ? paceOf((arrivedMs - Date.parse(open.issuedAt)) / MS_PER_SECOND, verdict.ticks) : null;   // flag only (Lead + Strategy 2026-10-21): the wall/sim ratio rides the event, nothing is refused
     if (pace) Object.assign(event.payload as object, { pace });
     if (sharing) Object.assign(event.payload as object, { share, damage, joined: sharing.joined });   // the kill credit's own receipt in the event (only with damageShare)
     const commit = (wear: store.Json[]) => (sharing
