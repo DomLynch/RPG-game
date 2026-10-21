@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# The `hf` the train sees when scripts/lib/hf-submit.json says submit=vps (scripts/lib/hf-submit-path.sh puts this directory first on PATH).
+# It never touches a token: it sends the arguments (and a --secrets-file's contents, the three public VITE_ keys) to the VPS, where scripts/hf-vps/box.sh
+# runs the real hf with the box's own login and prints its stdout, stderr and exit code back. With submit=mac it just runs the Mac's hf.
+# Test hooks: HF_SUBMIT_JSON (the config row), HF_SUBMIT_SSH (the ssh binary; a stub runs the remote command locally), HF_SUBMIT_REAL_HF.
+set -uo pipefail
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cfg="${HF_SUBMIT_JSON:-$here/../../lib/hf-submit.json}"
+box="$here/../box.sh"
+field() { node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(c[process.argv[2]]??""))' "$cfg" "$1"; }
+
+if [[ "$(field submit)" != "vps" ]]; then
+  real="${HF_SUBMIT_REAL_HF:-}"
+  [[ -z "$real" && -x /opt/homebrew/bin/hf ]] && real=/opt/homebrew/bin/hf
+  if [[ -z "$real" ]]; then   # first hf on PATH that is not this shim
+    IFS=: read -ra dirs <<< "$PATH"
+    for d in "${dirs[@]}"; do [[ -x "$d/hf" && "$(cd "$d" && pwd)" != "$here" ]] && { real="$d/hf"; break; }; done
+  fi
+  [[ -n "$real" ]] || { echo "hf: no hf CLI on this Mac" >&2; exit 127; }
+  exec "$real" "$@"
+fi
+
+host=$(field host); key=$(field sshKey); key="${key/#\~/$HOME}"; cto=$(field sshConnectTimeoutS)
+ssh_bin="${HF_SUBMIT_SSH:-ssh}"
+payload=$(mktemp); trap 'rm -f "$payload"' EXIT
+{
+  printf '%s\n' "$#"
+  secrets=""; prev=""
+  for a in "$@"; do
+    printf '%s' "$a" | base64 | tr -d '\n'; echo
+    [[ "$prev" == "--secrets-file" && -r "$a" ]] && secrets=$(base64 < "$a" | tr -d '\n')
+    prev="$a"
+  done
+  printf '%s\n' "$secrets"
+} > "$payload"
+box_b64=$(base64 < "$box" | tr -d '\n')
+"$ssh_bin" -o BatchMode=yes -o "ConnectTimeout=${cto:-15}" -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -i "$key" "$host" \
+  "HF_VPS_LEDGER_DIR='$(field ledgerDir)' HF_VPS_REAP_SLACK_S='$(field reapSlackS)' bash -c \"\$(echo '$box_b64' | base64 -d)\" hf-box" < "$payload"
