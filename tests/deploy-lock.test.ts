@@ -197,3 +197,37 @@ test('deploy_order_verdict: only a forward publish from a PROVEN live ancestor g
   assert.equal(v('unknown', 'DEPLOY_ALLOW_UNKNOWN_LIVE=0 ').status, 3);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('early rows yield to a deploy (Strategy 2026-10-20, K6i waited 460 s on the next candidate\'s early rows): deploy_runs_live sees a live run, deploy_lock_yield_early stops ONLY a mac-rows-early holder', async () => {
+  const { dir, env, bash } = box();
+  assert.equal(bash('deploy_runs_live').status, 1, 'no run file: no live deploy');
+  mkdirSync(env.DEPLOY_RUNS_DIR);
+  writeFileSync(join(env.DEPLOY_RUNS_DIR, '1.json'), marker(deadPid(), 'dead'));
+  assert.equal(bash('deploy_runs_live').status, 1, 'a dead run does not count');
+  writeFileSync(join(env.DEPLOY_RUNS_DIR, '2.json'), marker(process.pid, 'live'));
+  const live = bash('deploy_runs_live');
+  assert.equal(live.status, 0);
+  assert.equal(live.stdout.trim(), String(process.pid));
+  // a fake early-rows run: a script NAMED mac-rows-early.sh that holds the rows lock (its pid in the lock dir) and has a child
+  const fake = join(dir, 'mac-rows-early.sh');
+  writeFileSync(fake, '#!/bin/bash\nsleep 120 &\nwait\n');
+  const early = spawn('bash', [fake, 'a'.repeat(40)], { stdio: 'ignore' });
+  await new Promise(resolve => setTimeout(resolve, 500));
+  mkdirSync(env.DEPLOY_ROWS_LOCK);
+  writeFileSync(join(env.DEPLOY_ROWS_LOCK, 'pid'), String(early.pid));
+  writeFileSync(join(env.DEPLOY_ROWS_LOCK, 'revision'), 'a'.repeat(40));
+  const yielded = bash('deploy_lock_yield_early "$DEPLOY_ROWS_LOCK"');
+  assert.equal(yielded.status, 0, yielded.stderr);
+  assert.match(yielded.stdout, /held by early rows for a+ \(pid \d+\); this deploy owns the Mac, stopping them/);
+  await new Promise(resolve => early.on('exit', resolve));
+  assert.ok(early.signalCode === 'SIGTERM' || early.exitCode !== null, 'the early run is gone');
+  // any other holder (a deploy.sh run's own rows) is left alone
+  const other = spawn('bash', ['-c', 'sleep 30'], { stdio: 'ignore' });
+  writeFileSync(join(env.DEPLOY_ROWS_LOCK, 'pid'), String(other.pid));
+  const left = bash('deploy_lock_yield_early "$DEPLOY_ROWS_LOCK"');
+  assert.equal(left.status, 0);
+  assert.equal(left.stdout, '', 'a non-early holder prints nothing and is not touched');
+  assert.doesNotThrow(() => process.kill(other.pid!, 0), 'the other holder is still alive');
+  other.kill();
+  rmSync(dir, { recursive: true, force: true });
+});

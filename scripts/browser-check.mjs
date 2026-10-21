@@ -5,11 +5,18 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { inflateSync } from 'node:zlib';
 const site=await serveDist(), url=site.url;
 // Machine-independent since 2026-09-20: the parry/kick steps used to be wall-clock touch timings that flaked under load and failed outright on
 // a GPU-less box; they now run on harness time. Boot and asset loads stay real-time (load waits, not behaviour waits).
 const browser=await launch();
 const receipt={url,physicalPhone:false,errors:[]};
+// The frame after a WebGL context restore is a real picture (#3436 follow-up): the lift's composer targets and the plain renderer both live through a restore, and a restore that left the canvas blank or one flat colour would pass every state check above.
+// Element screenshot of the canvas (the compositor's pixels), sampled on a grid: distinct colours and the luminance spread. A black, white or flat frame has a handful of colours and a spread near 0; the arena has hundreds and a spread of tens.
+// Decoded in node (the page's CSP forbids fetching a data: URL): an 8-bit RGB/RGBA PNG, the five scanline filters.
+const decodePng=(buf)=>{let p=8,w=0,h=0,ct=0;const idat=[];while(p<buf.length){const len=buf.readUInt32BE(p),type=buf.toString('latin1',p+4,p+8);if(type==='IHDR'){w=buf.readUInt32BE(p+8);h=buf.readUInt32BE(p+12);ct=buf[p+17];}if(type==='IDAT')idat.push(buf.subarray(p+8,p+8+len));p+=12+len;}const bpp=ct===6?4:3,stride=w*bpp,raw=inflateSync(Buffer.concat(idat)),out=Buffer.alloc(h*stride);for(let y=0;y<h;y++){const f=raw[y*(stride+1)];for(let x=0;x<stride;x++){const a=x>=bpp?out[y*stride+x-bpp]:0,b=y?out[(y-1)*stride+x]:0,c=x>=bpp&&y?out[(y-1)*stride+x-bpp]:0;let v=raw[y*(stride+1)+1+x];if(f===1)v+=a;else if(f===2)v+=b;else if(f===3)v+=(a+b)>>1;else if(f===4){const pp=a+b-c,pa=Math.abs(pp-a),pb=Math.abs(pp-b),pc=Math.abs(pp-c);v+=pa<=pb&&pa<=pc?a:pb<=pc?b:c;}out[y*stride+x]=v&255;}}return{w,h,bpp,data:out};};
+const frameStats=async(pg)=>{const {data,bpp}=decodePng(await pg.locator('#world').screenshot()),seen=new Set(),lum=[];for(let i=0;i<data.length;i+=bpp*97){seen.add(((data[i]>>3)<<10)|((data[i+1]>>3)<<5)|(data[i+2]>>3));lum.push(data[i]*.3+data[i+1]*.59+data[i+2]*.11);}const mean=lum.reduce((a,b)=>a+b,0)/lum.length;return{colours:seen.size,spread:+Math.sqrt(lum.reduce((a,b)=>a+(b-mean)**2,0)/lum.length).toFixed(1),samples:lum.length};};
+const assertRealFrame=(label,s)=>{console.log('RESTORE-FRAME '+label+' '+JSON.stringify(s));assert.ok(s.colours>=40&&s.spread>=8,label+': the frame after a context restore is blank or flat '+JSON.stringify(s));};
 try {
  const {page}=await phonePage(browser,{deviceScaleFactor:2,errors:receipt.errors});   // page errors land in receipt.errors; Sentry is blocked (deliberate GPU failures must not file incidents)
  page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')receipt.console=[...(receipt.console||[]).slice(-19),m.text().slice(0,300)];});   // diagnostics for a failing run: what the page said
@@ -33,6 +40,7 @@ try {
  await until(()=>document.querySelector('#message').textContent.startsWith('Restoring'),2000);
  await until(()=>document.querySelector('#message').hidden,15000);
  receipt.graphicsRestored=true; receipt.afterRestore=await snapshot();
+ await page.waitForTimeout(1000); receipt.frameAfterRestore=await frameStats(page); assertRealFrame('lift on (default)',receipt.frameAfterRestore);
  // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
  await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.dataset.threat==='true'){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{attributes:true,attributeFilter:['data-threat']});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
  await page.evaluate(()=>{window.__combat=[];window.addEventListener('frankendom:combat',e=>{window.__combat.push(e.detail);if(window.__combat.length>256)window.__combat.shift();});});
@@ -114,6 +122,14 @@ try {
   assert.equal(await fallback.locator('#attack-button').getAttribute('aria-disabled'),'true');
   assert.equal(errors.length,1);assert.match(errors[0],/^Error: THREE\.WebGLRenderer: Error creating WebGL context\.$/);receipt.unsupportedGPU={message:'Explicit fallback message and disabled combat; original renderer error retained with telemetry blocked',error:errors[0]};
  } finally {await unsupported.close();}
+ // The same restore with the lift opted out (?gfx=0): the plain renderer's frame survives too.
+ { const offErrors=[],{page:off}=await phonePage(browser,{deviceScaleFactor:2,errors:offErrors}),offUrl=new URL(url);offUrl.searchParams.set('gfx','0');
+  await off.goto(offUrl.href);await waitForGame(off);{ const enter = off.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap({timeout:120000}); }await off.waitForFunction(()=>document.querySelector('#welcome').hidden,null,{timeout:120000});await off.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});
+  await off.evaluate(()=>{const gl=document.querySelector('#world').getContext('webgl2'),extension=gl.getExtension('WEBGL_lose_context');if(!extension)throw Error('WebGL loss extension unavailable');extension.loseContext();setTimeout(()=>extension.restoreContext(),350);});
+  await off.waitForFunction(()=>document.querySelector('#message').textContent.startsWith('Restoring'),null,{timeout:5000});
+  await off.waitForFunction(()=>document.querySelector('#message').hidden,null,{timeout:20000});
+  await off.waitForTimeout(1000); receipt.frameAfterRestoreGfx0=await frameStats(off); assertRealFrame('?gfx=0',receipt.frameAfterRestoreGfx0);
+  assert.deepEqual(offErrors,[],'?gfx=0 restore: no page error'); await off.close(); }
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
 } catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,sim:receipt.sim,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await writeReceipt(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',receipt);await browser.close();await site.close();}

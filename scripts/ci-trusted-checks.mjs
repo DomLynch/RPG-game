@@ -146,6 +146,16 @@ try {
   const tree = git(['rev-parse', `${sha}^{tree}`]);
   const t0 = Date.now();
   let seen = look(tree);
+  // DISPATCH FIRST (Dom 2026-10-20 via Strategy: a resume head had no CI run, so every untrusted row ran on the Mac): with CI_DISPATCH_IF_MISSING=1 (deploy.sh sets it) and
+  // a wait window, a tree with no release-checks run gets ONE workflow_dispatch on the trunk ref (ref=<sha>, as post-publish does); the run is awaited and trusted below
+  // exactly like a PR's own run. A failed dispatch (GitHub HTTP 500 happened) changes nothing: every row runs locally, as before.
+  if (!seen && process.env.CI_DISPATCH_IF_MISSING === '1' && waitS > 0) {
+    try {
+      exec(gh, ['workflow', 'run', 'release-checks.yml', '--ref', process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1', '-f', `ref=${sha}`]);
+      say(`no release-checks run for tree ${tree.slice(0, 7)}: dispatched one on ${process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1'} (ref=${sha.slice(0, 9)}); waiting for it`);
+      for (let tries = 0; !seen && tries < 12 && Date.now() < deadline; tries++) { sleep(Math.max(1, Math.min(10, Math.ceil((deadline - Date.now()) / 1000)))); seen = look(tree); }   // GitHub lists the run a few seconds later
+    } catch (error) { say(`dispatch failed (${error.message}); all checks run locally`); }
+  }
   while (seen?.pending.length && Date.now() < deadline) {
     say(`waiting for ${seen.pending.filter(Boolean).length ? `CI row(s) [${seen.pending.filter(Boolean).join(',')}]` : 'the row matrix to start'} (${Math.round((Date.now() - t0) / 1000)}s of ${waitS}s)`);
     sleep(Math.max(1, Math.min(pollS, Math.ceil((deadline - Date.now()) / 1000))));

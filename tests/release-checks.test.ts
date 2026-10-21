@@ -121,6 +121,34 @@ test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   assert.equal(maxOverlap(root), 1, 'serial: never two checks alive at once');
 });
 
+test('SERIAL_ROWS (row-placement.mjs: WebKit rows, rows that fail off the Mac, timing gates) run alone after the concurrent rows, even at width 3', () => {
+  // rows 2 and 4 are in SERIAL_ROWS (MAC_ONLY); rows 1, 3, 5, 6 are not. The serial mocks log under another tag so the spans tell them apart.
+  const root = repo([
+    ['node', 'scripts/sleep.mjs', '500'], ['node', 'scripts/tagged.mjs', '300'], ['node', 'scripts/sleep.mjs', '500'],
+    ['node', 'scripts/tagged.mjs', '300'], ['node', 'scripts/sleep.mjs', '500'], ['node', 'scripts/sleep.mjs', '500'],
+  ]);
+  writeFileSync(join(root, 'scripts', 'tagged.mjs'), readFileSync(join(root, 'scripts', 'sleep.mjs'), 'utf8').replace('`sleep ', '`tagged '));
+  const result = run(root, { RELEASE_CHECK_CONCURRENCY: '3' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /2 serial row\(s\) run alone after the concurrent ones: 2,4/);
+  const all = spans(root), serial = all.filter(s => s.tag === 'tagged'), others = all.filter(s => s.tag === 'sleep');
+  assert.equal(serial.length, 2);
+  assert.ok(alive(root).filter(s => s.tag === 'tagged').every(s => s.n === 1), 'a serial row never has another row alive beside it');
+  assert.ok(Math.min(...serial.map(s => s.a)) >= Math.max(...others.map(s => s.b)), 'the serial rows start after every concurrent row has ended');
+  assert.ok(alive(root).filter(s => s.tag === 'sleep').some(s => s.n >= 2), 'the other rows do overlap (width 3)');
+  assert.ok(Math.max(...alive(root).filter(s => s.tag === 'sleep').map(s => s.n)) <= 3, 'never wider than the width');
+});
+
+test('with no RELEASE_CHECK_CONCURRENCY the width is row-placement.mjs LOCAL_CONCURRENCY (3) off CI, CI_CONCURRENCY (4) on GitHub', () => {
+  const off = (extra: Record<string, string>) => { const root = repo([['node', 'scripts/sleep.mjs', '20'], ['node', 'scripts/sleep.mjs', '20']]); return run(root, extra).stdout; };
+  const env = { ...clean() } as Record<string, string>;
+  delete env.GITHUB_ACTIONS;
+  const outside = spawnSync(process.execPath, [runner, repo([['node', 'scripts/sleep.mjs', '20']])], { encoding: 'utf8', env }).stdout;
+  assert.match(outside, /concurrency 3,/, 'off GitHub: LOCAL_CONCURRENCY');
+  assert.match(off({ GITHUB_ACTIONS: 'true' }), /concurrency 4,/, 'on GitHub: CI_CONCURRENCY');
+  assert.match(off({ RELEASE_CHECK_CONCURRENCY: '2' }), /concurrency 2,/, 'an explicit width still wins');
+});
+
 test('longest checks from the previous receipt start first; unknown checks sit at the median', () => {
   const root = repo([['node', 'scripts/sleep.mjs', '50'], ['node', 'scripts/sleep.mjs', '51'], ['node', 'scripts/sleep.mjs', '52'], ['node', 'scripts/sleep.mjs', '53']]);
   mkdirSync(join(root, 'artifacts'), { recursive: true });
@@ -408,9 +436,10 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
 });
 
-test('deploy.sh runs the Mac rows one at a time unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-10)', () => {
+test('deploy.sh leaves the Mac width to row-placement.mjs (LOCAL_CONCURRENCY, serial rows alone) unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-20, was width 1 since 2026-10-10)', () => {
   const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
-  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP=/, 'the Mac invocation defaults the width to 1 and keeps the caller\'s value');
+  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-\}" RELEASE_CHECKS_SKIP=/, 'no hard-coded width: the caller\'s value, else the data row');
+  assert.doesNotMatch(deploy, /RELEASE_CHECK_CONCURRENCY:-1\}/, 'the old fixed width 1 is gone');
 });
 
 test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full run (Strategy 2026-10-10: Y and Z each ran all 52 rows for two .webp files and for scripts/lib/data-only.mjs)', () => {
@@ -528,6 +557,6 @@ esac
   assert.match(r.stderr, /stopped waiting after 2s with CI row\(s\) \[3\] unfinished: they run locally/);
   assert.ok(Date.now() - t < 15_000, 'bounded');
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits');
+  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" CI_DISPATCH_IF_MISSING="\$\{CI_DISPATCH_IF_MISSING:-1\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits, and dispatches release-checks first when the tree has no CI run');
   assert.match(deploy, /early_trusted=\$\(node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the planning call stays instant');
 });

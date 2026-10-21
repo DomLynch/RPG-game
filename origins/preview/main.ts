@@ -106,7 +106,7 @@ import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneD
 import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
-import { gfxOn } from './gfx-flag.ts';
+import { gfxOn } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
@@ -115,6 +115,11 @@ import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
 // The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins). It is made FIRST, before the renderer
 // and the zone are touched: its max hold is a wall-clock timer, so a device with no WebGL or a throw anywhere below still fades the cover at the hold (and says why) instead of leaving it up for good.
 const settled = { hero: false, kit: false };
+// settledAt: the first moment nothing is missing (the hero and the kit have both settled), stamped for scripts/load-time-check.mjs --page zone1. A stamp only:
+// the cover still lifts at the next drawn frame. It is load-bound, not GPU-bound, so CI's software GL can time it; the cover's own lift on software GL is
+// the max hold (HF cpu-upgrade jobs 6ad7a8345275124786e19cf7, 6ad7aa6b5275124786e19e8e: 12 of 12 samples).
+let settledAt = -1;
+const stampSettled = (): void => { if (settledAt < 0 && Object.values(settled).every(Boolean)) settledAt = Math.round(performance.now()); };
 const coverEl = document.getElementById('cover');
 let playableNow!: () => void;
 const lookFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };   // the deferred look files wait this many frames (rows deferredLookFrames, deferredLookGapFrames) so none of their parse and upload lands on the player's first frames or taps
@@ -146,7 +151,7 @@ const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 // ?gfx=1 (gfx-lift.ts, Test Zone C16): height fog, half-res bloom, grade. Off = none of it is fetched. The chunk loads while the zone loads, so the fog patch lands before the first material compiles; until it is in, the frame is drawn plainly.
 let gfx: { render(): void; compile(): void; setSize(w: number, h: number): void } | null = null;
 const gfxWanted = gfxOn(location.search, fxNum('gfx.default') > 0);
-const gfxLoad: Promise<unknown> = gfxWanted ? import('./gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
+const gfxLoad: Promise<unknown> = gfxWanted ? import('../../src/fight/gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -198,7 +203,7 @@ let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadS
 if (frontier && frontierParts) {
   const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; stampSettled(); });   // a failed kit file only leaves the ground bare
   { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; modelsDrawn = !standing.length; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => { frontierGroup?.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { modelsDrawn = true; }); }   // (the new meshes: look again at once, the last look is stale) the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
   if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
@@ -270,7 +275,7 @@ function syncRigWeapon() {
     hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); syncSpell2Button();   /* a bow wielded: SPECIAL 1 / 2 take the bow's names */ void warmHero(next.player.anchor);
   }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
 }
-loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); }).finally(() => { settled.hero = true; });
+loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); }).finally(() => { settled.hero = true; stampSettled(); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -451,7 +456,7 @@ function step(dt: number) {
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true;
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, players: () => (shownOthers ?? []).map((o) => ({ x: o.x, z: o.z })), markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
@@ -1111,6 +1116,7 @@ function programOwners(): Record<string, string[]> {
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ acts: actionLog.slice(), hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe(), clip: warriors?.player.playing() ?? null }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
+  settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
   cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.

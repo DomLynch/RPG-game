@@ -28,16 +28,22 @@ _pp_dispatch() {
     n=$((n + 1)); sleep "$gap"
   done
 }
+# _pp_running_count <revision>: how many release-checks runs for this commit are not completed (queued or in progress). Env (tests): POST_PUBLISH_RUNNING_CMD.
+_pp_running_count() { gh run list --workflow release-checks.yml --commit "$1" --json status --jq '[.[] | select(.status != "completed")] | length'; }
 # A dispatch that failed every try leaves this file for the CI tail (scripts/release-train-postcheck.sh), which dispatches once more and, if that fails too, holds with "dispatch failed" instead of "not green".
 _pp_dispatch_failed_file() { echo "${RELEASE_TRAIN_STATE:-$HOME/.claude/state}/post-publish-dispatch-failed-${1:0:8}"; }
 post_publish_ci_start() {
-  local rev="$1" rows="$2" trusted left
+  local rev="$1" rows="$2" trusted left running
   local trust="${POST_PUBLISH_TRUSTED_CMD:-node scripts/ci-trusted-checks.mjs}" ref="${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"
   [[ -n "$rows" ]] || return 0
   if [[ "${POST_PUBLISH_CI:-on}" == off ]]; then printf '%s' "$rows"; return 0; fi
   trusted=$($trust "$rev" 2>/dev/null || true)
   left=$(_pp_left "$rows" "$trusted")
-  if [[ -n "$left" ]]; then
+  if [[ -n "$left" ]] && running=$(${POST_PUBLISH_RUNNING_CMD:-_pp_running_count} "$rev" 2>/dev/null) && [[ "$running" =~ ^[1-9][0-9]*$ ]]; then
+    # A release-checks run for this revision is still going (deploy.sh's dispatch-first one, or the PR's): all runs share the workflow's concurrency group with cancel-in-progress,
+    # so a second dispatch would CANCEL it and restart the matrix (Auditor on #3462). Wait for it (post_publish_ci_collect) instead.
+    echo "post-publish rows $left for $rev: a release-checks run for it is still in progress ($running); not dispatching a second one (it would cancel the first), waiting for it" >&2
+  elif [[ -n "$left" ]]; then
     echo "post-publish rows $left for $rev: not yet green on CI for this tree, dispatching release-checks on $ref (ref=$rev)" >&2
     if ! _pp_dispatch "$rev" "$ref"; then
       echo "post-publish: the release-checks dispatch failed every try; the Mac runs rows $left" >&2

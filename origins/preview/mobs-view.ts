@@ -20,6 +20,7 @@ const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
+import { pickDrawn } from './draw-pick.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
@@ -77,10 +78,10 @@ const RESPAWN = previewRule('clientRespawn');   // s
 const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
 const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSphereNamed') };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[] }): Mobs {
   const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
-  const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
+  const cap = opts.phone ? fxNum('mob-view.phone-cap') : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
   // One soft contact shadow under every creature (they cast no real shadow, for phone perf): a radial gradient that is darkest at the feet and gone before the rim, so no disc edge is ever visible (Dom 2026-10-08: "a circle stand that looks fake").
   const blobTexture = (() => { const N = 64, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d')!, gr = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2); gr.addColorStop(0, 'rgba(0,0,0,0.5)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, N, N); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
@@ -221,6 +222,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
+  const mustDraw = (): Set<number> => {   // drawn above the phone cap: the creatures fighting the hero (driven), his engaged foe, any hunting him, and any standing at another visible player (a party's or a bystander's fight)
+    const must = new Set<number>(driven.keys()), reach = fxNum('mob-view.player-reach'), others = opts.players?.() ?? [];
+    mobs.forEach((m, i) => { if (m.mode === 'aggro' || specs[i]!.id === engaged || others.some((p) => Math.hypot(m.x - p.x, m.z - p.z) <= reach)) must.add(i); });
+    return must;
+  };
   // Calmer drawn movement in a fight (mob-calm.ts; Dom 2026-10-17: "a twitch FPS"). `?mobsmooth=0` turns it off to compare.
   const backOff = new Map<number, { x: number; z: number }>();   // each creature's eased stand-back vector (see the reach shift in update)
   const calm = new Map<number, Calm>(), SMOOTH = typeof location !== 'undefined' && /[?&;]mobsmooth=1\b/.test(location.search);   // OFF by default now (Dom 2026-10-17: the drawn body trailing the engine's position felt floaty; Combat's #3056 is the real fix); ?mobsmooth=1 turns it on to compare
@@ -235,7 +241,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       lastHero = hero; zoneFinisher.update(dt);
       mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? m : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss stands where it is placed (it never wanders or chases: the player walks up and taps it)
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
-      shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
+      shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(keyOf(specs[i]!)); });

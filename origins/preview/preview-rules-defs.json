@@ -69,7 +69,7 @@
     { "id": "camLMaxBack", "value": 10, "unit": "m" },
     { "id": "camLShiftY", "value": 0.05, "unit": "screen" },
     { "id": "camLSide", "value": 0.9, "unit": "m" },
-    { "id": "camLZoom", "value": 0.85, "unit": "ratio" },
+    { "id": "camLZoom", "value": 1.25, "unit": "ratio" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
     { "id": "replanGap", "value": 3, "unit": "s" },

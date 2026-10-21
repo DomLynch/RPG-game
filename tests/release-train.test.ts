@@ -557,6 +557,21 @@ test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is nev
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
+test('publisher (Strategy 2026-10-20, K6k): an early run ended by a signal (a yield to a deploy, exit 143) is logged but leaves no failed marker', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.dir, 'bin', 'yielded-mac-rows'), '#!/usr/bin/env bash\nexit 143\n');
+    chmodSync(join(p.dir, 'bin', 'yielded-mac-rows'), 0o755);
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    const r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'yielded-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    const logFile = join(p.state, 'mac-rows-early.log');
+    for (let i = 0; i < 40 && !(existsSync(logFile) && /exit 143/.test(readFileSync(logFile, 'utf8'))); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.match(readFileSync(logFile, 'utf8'), /mac-rows-early ccccccccc: exit 143/, 'the exit code is still logged');
+    assert.equal(existsSync(join(p.state, 'mac-rows-early.failed-ccccccccc')), false, 'a yield is not a failure');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
 test('publisher (Lead 2026-10-19): the early Mac rows wait while a deploy.sh is running (it is the Mac\'s user) and start on the first tick after it ends', async () => {
   const p = publisher();
   try {
