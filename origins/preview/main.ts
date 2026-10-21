@@ -190,9 +190,15 @@ const sceneOf = (url: string): Promise<THREE.Object3D> => {
 // A row whose asset is a ranged-model id (`bow`, ranged-model-defs.json) lies as the painted model the hand holds (the player/bow.glb equip file is a knife copy), with its matte and no hold.
 const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item), ranged = rangedModelOf(asset); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : ranged ? rangedModelUrl(ranged) : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
 const groundModelOf = (url: string): Promise<THREE.Object3D> => { const ranged = RANGED_MODELS.find((m) => rangedModelUrl(m) === url); return ranged ? sceneOf(url).then((loaded) => rangedGroundPartOf(loaded, ranged)) : sceneOf(url); };
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: groundModelOf });
+// On a phone loot.glb (2 MB on the wire, 77k skinned vertices to parse, fetched at 5 s in the live K6l capture) is not fetched or parsed before [zone ready]: the loot pieces lying about appear when the zone is ready, or after groundDeferMax if it never settles. The weapons lying about (0.7 MB) still load at once: their materials (Steel, Antique brass, Wood, GladiusSteel) are programs the zone's own upload plan links before ready, and deferring them put 7 programs after ready (seamless-quiet stays green, but they would link at first sight). Desktop loads at once.
+let zoneReadyOpen!: () => void;
+const zoneReadyGate = new Promise<void>((resolve) => { zoneReadyOpen = resolve; });
+const afterReadyOnPhone = <T>(load: () => Promise<T>): Promise<T> => PHONE ? Promise.race([zoneReadyGate, new Promise<void>((resolve) => { setTimeout(resolve, previewRule('groundDeferMax')); })]).then(load) : load();
+const isLootFile = (url: string) => url === GROUND_LOOT['../../src/assets/loot.glb'];
+const compileLoot = (root: THREE.Object3D): THREE.Object3D => { void renderer.compileAsync(root, camera, scene).catch(() => {}); return root; };   // loot.glb arrives after [zone ready]: its materials' programs build off the draw path the moment it lands, not on the first draw of a loot item (right after a kill). Not awaited: an item that draws before it resolves still draws.
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => groundModelOf(url).then(compileLoot)) : groundModelOf(url) });
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
-const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: sceneOf });
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url).then(compileLoot)) : sceneOf(url) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -592,7 +598,7 @@ async function applySelf() {
   const dressed = dressedSet(base, outfit), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
   selfBusy++;
   try {
-    const pieces = await sharedLoot();
+    const pieces = mine.ids.length ? await sharedLoot() : [];   // a bare hero (the guest's default look) wears nothing, so loot.glb (2 MB on the wire) is not fetched before [zone ready]: `wear([])` below only undresses
     if (mine.ids.length) {
       const probe = secondActor(); probe.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(probe.anchor);
       try { dressRemote(probe, pieces, worn, mine.tiers, failed); await warmActor(renderer, camera, scene, cloneRig(probe.anchor), nextFrame); await nextFrame(); await nextFrame(); } finally { scene.remove(probe.anchor); }
@@ -712,7 +718,7 @@ function zoneReadyCheck() {
   { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
-  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
+  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail); zoneReadyOpen();
   void warmRemoteKitsAfterReady();   // off the critical path: [zone ready] is already logged
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit

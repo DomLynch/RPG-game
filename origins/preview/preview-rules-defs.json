@@ -72,6 +72,7 @@
     { "id": "camLZoom", "value": 1.25, "unit": "ratio" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
+    { "id": "groundDeferMax", "value": 30000, "unit": "ms" },
     { "id": "replanGap", "value": 3, "unit": "s" },
     { "id": "lateReplanGap", "value": 0.05, "unit": "s" },
     { "id": "legendReach", "value": 6, "unit": "m" },
