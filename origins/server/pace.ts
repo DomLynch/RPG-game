@@ -22,6 +22,6 @@ export function paceOf(wallS: number, ticks: number): Pace | null {
   const tickS = ticks / TICKS_PER_SECOND;
   if (tickS < PACE.minTickS) return null;
   const ratio = wallS / tickS;
-  const cents = (n: number): number => Number(n.toFixed(2));   // two decimals in the event
+  const cents = (n: number): number => Number(n.toFixed(PACE.decimals));   // decimals kept in the event
   return { wallS: cents(wallS), tickS: cents(tickS), ratio: cents(ratio), slow: ratio >= PACE.slowRatio };
 }

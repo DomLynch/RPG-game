@@ -7,7 +7,7 @@ const TPS = 60;
 
 test('pace rows: slow at 3x wall against sim, never under 3 s of sim time, 5000 starts kept', () => {
   const r = SERVER_RULES.pace[0]!;
-  assert.deepEqual([r.slowRatio, r.minTickS, r.startsKept], [3, 3, 5000]);
+  assert.deepEqual([r.slowRatio, r.minTickS, r.startsKept, r.decimals], [3, 3, 5000, 2]);
 });
 
 test('an honest 60 fps fight (wall = sim) is not flagged', () => {

@@ -37,7 +37,8 @@
       "slowRatio": 3,
       "minTickS": 3,
       "startsKept": 5000,
-      "note": "the slow-motion flag on a verified kill (flag only, nothing is refused): a kill is flagged slow when its wall time was at least this many times its sim time (a client under about a third of its speed), a fight under this many seconds of sim time is never flagged (too short to tell), and the writer remembers this many encounter start times in memory (oldest dropped; a restart forgets them and those settles carry no flag)"
+      "decimals": 2,
+      "note": "the slow-motion flag on a verified kill (flag only, nothing is refused): a kill is flagged slow when its wall time was at least this many times its sim time (a client under about a third of its speed), a fight under this many seconds of sim time is never flagged (too short to tell), the decimals the event keeps, and the writer remembers this many encounter start times in memory (oldest dropped; a restart forgets them and those settles carry no flag)"
     }
   ],
   "fightLimit": [

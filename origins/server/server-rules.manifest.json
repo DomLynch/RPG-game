@@ -50,6 +50,7 @@
         "slowRatio": "number",
         "minTickS": "number",
         "startsKept": "integer",
+        "decimals": "integer",
         "note": "string"
       }
     },
