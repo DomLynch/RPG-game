@@ -1,5 +1,6 @@
 {
   "note": "Data for the cut's two pre-launch hard stops (scripts/cut-release.mjs, Strategy 2026-10-15 after the four unreviewed commits on trunk). Gate 1: every commit in <live>..<candidate base> must belong to a PR (GitHub commits/<sha>/pulls non-empty) unless it is listed in noPrExempt. Gate 2: the cut may not change any path under watchedPaths. watchedAllow lists { path, blob, pr, note }: a changed watched file passes gate 2 only at that exact reviewed blob. It starts empty; an entry goes in only through its own PR with Lead's written OK.",
+  "vpsDisk": { "path": "/", "warnPct": 80, "refusePct": 90, "sshTimeoutS": 15 },
   "watchedPaths": [
     ".github/workflows",
     ".vscode",

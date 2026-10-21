@@ -137,6 +137,16 @@ export async function applyLabels({ repo, token, number, labels, fetchImpl = fet
 /** The two pre-launch hard stops (Strategy 2026-10-15, after four unreviewed commits reached trunk). Their data (watched paths, the exempt shas) lives in scripts/cut-gates.json. */
 export const loadGates = (file = new URL('./cut-gates.json', import.meta.url)) => JSON.parse(readFileSync(file, 'utf8'));
 
+/** VPS root disk pre-check (Strategy 2026-10-21, after the VPS stalled at 95%). `dfOut` is the stdout of `df -P <path>` on the VPS, or null when ssh failed or timed out.
+ *  Returns { level: 'ok' | 'warn' | 'refuse', pct, reason }: >= refusePct refuses the cut, >= warnPct warns, an unreadable answer or a dead ssh is a WARN (never a block: the box may just be busy). */
+export function vpsDiskVerdict(dfOut, { warnPct, refusePct } = loadGates().vpsDisk) {
+  const pct = Number((/(\d+)%/.exec(String(dfOut || '').split('\n').slice(1).join('\n')) || [])[1]);
+  if (!Number.isFinite(pct)) return { level: 'warn', pct: null, reason: 'could not read the VPS disk usage (ssh failed or timed out)' };
+  if (pct >= refusePct) return { level: 'refuse', pct, reason: `VPS disk at ${pct}% (refuse at ${refusePct}%): clear space with vps-scratch-sweep first` };
+  if (pct >= warnPct) return { level: 'warn', pct, reason: `VPS disk at ${pct}% (warn at ${warnPct}%)` };
+  return { level: 'ok', pct, reason: `VPS disk at ${pct}%` };
+}
+
 /** Gate 1: every commit in live..base must belong to a PR. git(args) -> { status, stdout }; pullsOf(sha) -> the PR numbers GitHub lists for the commit (throws if it cannot ask).
  *  A commit whose sha starts with an exempt entry is skipped. Fails closed: no live sha, an unreadable range or a failed lookup is a stop with the reason, not a pass.
  *  Returns { ok: true, checked } or { ok: false, reason, missing }. */
@@ -205,6 +215,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const space = run('bash', ['scripts/lib/free-space.sh', process.env.FREE_GIB_MIN || '20'], { timeout: 60_000 });   // a candidate cut on a full disk fails mid-install
   if (space.status !== 0) { console.error(`cut-release: refusing to cut, ${space.stdout || ''}${space.stderr || ''}${space.error ? ` (${space.error.message})` : ''}${space.signal ? ` (killed by ${space.signal})` : ''}`.trim()); process.exit(2); }   // a timeout or kill is a refusal too (status null)
   console.log(space.stdout.trim());
+  const dg = loadGates().vpsDisk;
+  const vdf = run('ssh', ['-o', 'BatchMode=yes', '-o', `ConnectTimeout=${dg.sshTimeoutS}`, '-i', join(process.env.HOME, '.ssh/binance_futures_tool'), 'root@49.12.7.18', `df -P ${dg.path}`], { timeout: (dg.sshTimeoutS + 10) * 1000 });
+  const vd = vpsDiskVerdict(vdf.status === 0 ? vdf.stdout : null);
+  console.error(`cut-release: ${vd.level === 'ok' ? 'vps disk ok: ' : vd.level === 'warn' ? 'WARN, ' : 'refusing to cut, '}${vd.reason}`);
+  if (vd.level === 'refuse') process.exit(2);
   git(['fetch', '-q', 'origin']);
   if (!noVerify) for (const { pr, head } of specs) {
     const comments = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[] | {body, authorAssociation}]']).stdout || '[]');
