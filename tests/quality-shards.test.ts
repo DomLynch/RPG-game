@@ -11,12 +11,10 @@ import { steps as expand } from './lib/npm-script.ts';
 const text = readFileSync('.github/workflows/quality.yml', 'utf8');
 const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts as Record<string, string>;
 const jobBlock = (name: string) => { const i = text.indexOf(`\n  ${name}:\n`); assert.ok(i >= 0, `quality.yml has no job ${name}`); const rest = text.slice(i + 1); const next = rest.slice(1).search(/\n {2}[\w-]+:\n/); return next < 0 ? rest : rest.slice(0, next + 1); };
-const steps = (s: string) => s.split(' && ');
 
 test('quality:static + test:all is exactly quality:ci, so the shards run the same checks (a step added to one but not the other fails here)', () => {
-  const ci = expand(scripts, 'quality:ci'), stat = expand(scripts, 'quality:static');   // what each runs, through quality:lint and quality:checks
-  assert.deepEqual([...stat].sort(), ci.filter((s) => s !== 'npm run test:all').sort());
-  assert.equal(ci.filter((s) => s === 'npm run test:all').length, 1, 'quality:ci runs test:all once');
+  // What each runs, through quality:lint / quality:checks and test:all's own chain (Dom's audit 2026-10-21: the scripts compose, not repeat).
+  assert.deepEqual(expand(scripts, 'quality:ci'), [...expand(scripts, 'quality:static'), ...expand(scripts, 'test:all')]);
 });
 
 test('quality.yml runs quality:static and the database checks, and no test:all shard (unit-ci.yml owns the suite)', () => {
