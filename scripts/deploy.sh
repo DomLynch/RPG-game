@@ -323,6 +323,14 @@ if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
     echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
   fi
 fi
+# Look-test folders (/preview/<name>/ with an index.html, e.g. rv86) are carried forward but are NOT production (Lead 2026-10-21): one that does not serve after the switch is NAMED, never fatal.
+# (/zone1/ and /preview/origins/ above are the production pages: those stop the train.)
+look_missing=""
+for _lt in $(ssh "${ssh_options[@]}" "$host" 'cd /var/www/frankendom/current/preview 2>/dev/null && for d in */; do [ -f "${d}index.html" ] && echo "${d%/}"; done' 2>/dev/null || true); do
+  [[ "$_lt" == origins ]] && continue
+  [[ "$(curl --silent --output /dev/null --max-time 15 --write-out '%{http_code}' "https://frankendom.com/preview/$_lt/" || true)" == 200 ]] || look_missing="$look_missing $_lt"
+done
+[[ -z "$look_missing" ]] || echo "look-test previews missing:$look_missing" >&2
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
 nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
 if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
