@@ -51,7 +51,7 @@ deploy_scope_apply() {
   echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
 }
 # The waterfall (Dom 2026-10-09: "max out the VPS, the HF CPU and the T4"): every row a remote box may vouch for is launched NOW, so it overlaps the
-# quality gate, minus the rows CI already proved and the rows out of this release's scope. T4 wall rows: scripts/hf-wall-rows.mjs (one t4-medium job, its
+# quality gate, minus the rows CI already proved and the rows out of this release's scope. T4 wall rows: scripts/hf-wall-rows.mjs (one t4-small job, its
 # GPU guard); CPU rows: launch.mjs cpu (cpu-upgrade shards, 20 m each). The Mac runs the Mac-only list (scripts/lib/row-placement.mjs) and every row no
 # receipt proves for this tree. No switch: the list is the only config. The first line says where every row goes.
 out_of_scope=""

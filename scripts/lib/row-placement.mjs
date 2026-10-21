@@ -25,7 +25,7 @@ export const MAC_ONLY = [
 // t4: jobs 6ac93783/6ac93785/6ac93786 (row 13: 6ac93a4b, after job.sh installs postgresql); cpu: cpu-upgrade width 1, one job per row (row 13 cannot: initdb
 // refuses root; rows 5 and 34 still running at 35 min, they hit the 1500 s ceiling before); vps: capture, 3-wide, as frankrows (600 = hit the 600 s row ceiling at load 41;
 // row 9's 474 is the 4-wide run; the run was stopped once the T4 had won every row). null = not measured on that box.
-export const T4_JOBS = 4;   // the T4 leg runs as this many parallel t4-medium jobs, 4-wide each (Dom 2026-10-09: "max out the GPU, it's cheap"; Lead: ~2-3 min instead of ~9)
+export const T4_JOBS = 4;   // the T4 leg runs as this many parallel t4-small jobs, 4-wide each (Dom 2026-10-09: "max out the GPU, it's cheap"; Lead: ~2-3 min instead of ~9)
 export const ON_T4 = [
   { row: 5, t4_s: 90, cpu_s: null, vps_s: 600, mac_s: 167 }, { row: 7, t4_s: 23, cpu_s: 689, vps_s: 600, mac_s: 67 },
   { row: 9, t4_s: 21, cpu_s: 369, vps_s: 474, mac_s: 222 }, { row: 13, t4_s: 4, cpu_s: null, vps_s: null, mac_s: 16 },
@@ -38,9 +38,9 @@ export const ON_T4 = [
 // (release-checks.yml on every candidate) and the CPU waterfall. Row 13 is not here: its CPU gap is initdb refusing root, not the renderer (a runner is not root).
 export const ROW_CEILING_S = 600;
 export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
-// The T4 leg's job cap, which the HF cost ledger also BOOKS as the job's cost at launch (hf-ledger.mjs: timeout x $0.60/h), whatever the job really uses. Measured 2026-10-13: a gpu-only job runs 166-167 s
+// The T4 leg's job cap, which the HF cost ledger also BOOKS as the job's cost at launch (hf-ledger.mjs: timeout x the flavor's rate, $0.40/h on the default t4-small, $0.60/h on medium), whatever the job really uses. Measured 2026-10-13: a gpu-only job runs 166-167 s
 // (about $0.03); with the old 45 m cap it booked $0.45, four jobs per candidate = $1.80, so the $5/day T4 stop was crossed by 06:41Z after ~3 candidates and every later candidate ran the GPU rows on the
-// Mac (DV: rows 5,7,16,21,28,34,36, ~8 min). 15 m = 5x the measured run, books $0.15 a job ($0.60 a candidate, 8 candidates under the stop).
+// Mac (DV: rows 5,7,16,21,28,34,36, ~8 min). 15 m = 5x the measured run, books $0.10 a job on t4-small ($0.15 on medium; $0.40 a candidate at 4 jobs, 37 candidates under the $15/day stop).
 export const T4_JOB_TIMEOUT = '15m';
 // Every MAC_ONLY row, the list deploy.sh's placement uses: CI never vouches for one (ci-trusted-checks.mjs) and never schedules one (release-checks.yml
 // plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");

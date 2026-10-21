@@ -26,7 +26,9 @@ test('HF CPU: 4 in all, a lane stops at 3 so the 4th slot stays free for the dep
   assert.equal(slotDecision('t4-medium', live('t4-medium', 3), true).ok, true);
   assert.equal(slotDecision('t4-medium', live('t4-medium', 4), true).ok, false);
   assert.throws(() => slotDecision('cpu-basic', [], true));
-  assert.equal(tierOf('cpu-upgrade'), 'hf-cpu'); assert.equal(tierOf('t4-medium'), 'hf-t4');
+  assert.equal(tierOf('cpu-upgrade'), 'hf-cpu'); assert.equal(tierOf('t4-medium'), 'hf-t4'); assert.equal(tierOf('t4-small'), 'hf-t4');
+  assert.equal(CAPS['t4-small'].total, CAPS['t4-medium'].total, 't4-small has the same cap as medium');
+  assert.equal(slotDecision('t4-small', live('t4-small', 3), true).ok, true); assert.equal(slotDecision('t4-small', live('t4-small', 4), true).ok, false);
   assert.equal(tierLine('cpu-upgrade', 2, 3.4), 'tier=hf-cpu slot=2 queued=3s');
 });
 
@@ -50,7 +52,7 @@ test('launch.mjs job: cpu-upgrade by default, --gfx is the only way to a T4, the
   const b64 = cpu.args[cpu.args.indexOf(cpu.args.find((a: string) => a.startsWith('JOB_ARGV_B64='))!)].slice('JOB_ARGV_B64='.length);
   assert.equal(Buffer.from(b64, 'base64').toString(), 'node scripts/x.mjs --flag');
   assert.match(cpu.args.join(' '), /timeout 300 apt-get update.*timeout 300 git fetch.*lap checkout/);
-  assert.equal(genericJobArgs([sha, '--gfx', '--', 'node', 'still.mjs']).flavor, 't4-medium');
+  assert.equal(genericJobArgs([sha, '--gfx', '--', 'node', 'still.mjs']).flavor, 't4-small', 'a --gfx lane job gets the 40-cent T4 (Dom 2026-10-21)');
   assert.throws(() => genericJobArgs(['abc', '--', 'x']), /40-hex/);
   assert.throws(() => genericJobArgs([sha, 'x']), /usage/);
   assert.throws(() => genericJobArgs([sha, '--flavor', 't4-medium', '--', 'x']), /unknown flag/);
@@ -78,7 +80,7 @@ test('CLI: a lane job prints the tier line and the job id and goes in the lane l
   // LAUNCH_TARGET=hf: on a Mac that can reach the VPS the unit command would otherwise run the real suite there (waterfall target vps).
   const unit = cli(['unit', sha], live('cpu-upgrade', 3), { LAUNCH_UNIT_ANY: '1', LAUNCH_TARGET: 'hf' });
   assert.equal(unit.code, 0, unit.err); assert.match(unit.out, /^tier=hf-cpu slot=4 queued=0s/);
-  const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-medium', 2)]);
+  const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-small', 2), ...live('t4-medium', 3)]);   // slots count per flavor: two small are live (ours is the 3rd), the medium ones are another pool
   assert.equal(gfx.code, 0, gfx.err); assert.match(gfx.out, /^tier=hf-t4 slot=3 queued=0s/);
 });
 

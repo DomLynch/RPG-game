@@ -2,7 +2,7 @@
 // one Mac, so the caps are counted from `hf jobs ps` (the truth) under a Mac-local lock, not from anything a lane remembers:
 //   hf-cpu (cpu-upgrade): at most 4 live jobs in all; a lane's generic job stops at 3, so one slot is always free for the deploy lane's unit/rows jobs
 //                         (the release is what waits on them).
-//   hf-t4  (t4-medium)  : at most 4 live jobs; graphics work only (stills, clips, Blender, browser rows); CPU work never gets a T4.
+//   hf-t4  (t4-small, or t4-medium on a stated reason): at most 4 live jobs per flavor; graphics work only (stills, clips, Blender, browser rows); CPU work never gets a T4.
 // `hf jobs ps` is the ONLY source of truth, so the same code works from the Mac and from the VPS lane runner. The mkdir lock below only serialises launchers on ONE host;
 // across hosts a rank check after the launch settles a race: the live jobs of the flavor sorted by (created_at, id), and a launcher whose own job ranks beyond its limit cancels it
 // and queues again (the youngest excess job backs off, so two simultaneous launchers cannot both keep the last slot).
@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { record, t4Refusal, taggedReason } from './hf-ledger.mjs';
 
-export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };
+export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-small': { total: 4, generic: 4, tier: 'hf-t4' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };   // t4-small is the default (Dom 2026-10-21); same cap as medium
 const LIVE = /^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/;
 export const tierOf = flavor => CAPS[flavor]?.tier ?? null;
 export const tierLine = (flavor, slot, queuedS) => `tier=${tierOf(flavor)} slot=${slot} queued=${Math.round(queuedS)}s`;

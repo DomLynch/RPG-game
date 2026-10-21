@@ -36,10 +36,10 @@ export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
   if (isWebKitRow(command) || /\bwebkit\b/i.test(code) || /clock\s*\.\s*resume/.test(code)) return false;
   return allowWall || timingOf(source) !== 'wall';
 };
-// Receipts come ONLY from Hugging Face jobs (a fresh container each run, Dom's hardware rule 2026-10-08: cpu-upgrade or t4-medium, never another
+// Receipts come ONLY from Hugging Face jobs (a fresh container each run, Dom's hardware rule 2026-10-08: cpu-upgrade or a T4 (t4-small by default, Dom 2026-10-21; t4-medium allowed), never another
 // GPU). The flavor is never read off the receipt: the job it names is looked up (`hf jobs inspect <id>`, scripts/vps-receipt-trust.mjs does the I/O)
 // and must be COMPLETED, on an allowed flavor, with the run's sha in its own environment (-e SHA=...). `jobs` = { <id>: inspect record }.
-export const FLAVORS = ['cpu-upgrade', 't4-medium'];
+export const FLAVORS = ['cpu-upgrade', 't4-small', 't4-medium'];
 // The job's own command must be the canonical runner invocation for this sha (jobCommand below), so a job that merely sets SHA=<sha> and runs some
 // other script is not a receipt. The runner it executes is the file inside the checked-out tree, whose sha256 the receipt carries (boundToTree).
 // Setup steps are capped at 300 s each (S attempt 1, 2026-10-10: unit job 6ac9b126 sat 15+ min in apt-get and the release fell to the Mac suite): a wedged setup fails the job in 5 min, not at its 40 m cap.
@@ -70,7 +70,7 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
   return (receipt.rows || [])
     .filter(row => Number.isInteger(row.index) && row.status === 'pass' && row.exit === 0)   // strict: a missing, null or negative exit is never a pass
     .filter(row => commands[row.index - 1]?.join(' ') === row.command)   // a renumbered or edited row is never trusted by number
-    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, info.flavor === 't4-medium'))   // only the inspected T4 may vouch for wall-clock rows
+    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, /^t4-(small|medium)$/.test(info.flavor)))   // only the inspected T4 may vouch for wall-clock rows
     .map(row => row.index).sort((a, b) => a - b);
 }
 

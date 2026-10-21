@@ -1,5 +1,5 @@
 // The T4 wall-row box, the I/O half (scripts/lib/hf-wall-rows.mjs is the rules). Sourced into the release by scripts/lib/deploy-hf.sh:
-//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
+//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-small by default, 4-wide) for the wall rows; prints the job id
 //   node scripts/hf-wall-rows.mjs collect                           waits for it, prints the trusted rows "1,3" (empty = trust nothing)
 //   node scripts/hf-wall-rows.mjs table                             the side-by-side after the Mac's rows (artifacts/release-checks.json)
 // The job clones the public repo at the sha and prints its own `git rev-parse HEAD` + tree, so a receipt binds to what it built, not to
@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
-import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
+import { T4_FALLBACK_FLAVOR, capacityReason, costLine, mayFallBack, parseJobLog, selectWallRows, splitRows, t4Flavor, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
 import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-placement.mjs';
 
@@ -24,7 +24,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || (existsSync('/opt/homebrew/bin/hf') ? '/opt/homebrew/bin/hf' : 'hf');
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
-const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
+const flavor = t4Flavor(process.env.HF_WALL_ROWS_FLAVOR, process.env.HF_REASON, message => process.stderr.write(`hf-wall-rows: ${message}\n`)), width =process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
 const num = (name, fallback) => (process.env[name] === undefined || process.env[name] === '' ? fallback : Number(process.env[name]));
 const scheduleMaxS = num('HF_WALL_ROWS_SCHEDULE_MAX_S', 600), waitMaxS = num('HF_WALL_ROWS_WAIT_MAX_S', 1500), pollS = num('HF_WALL_ROWS_POLL_S', 20);
 const say = message => process.stderr.write(`hf-wall-rows: ${message}\n`);
@@ -55,16 +55,23 @@ function launch(sha, rowsArg, skipArg) {
   try {
     for (const group of groups) {
       const skip = commands.map((_, i) => i + 1).filter(i => !group.includes(i));
-      const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`,
+      let jobFlavor = flavor, fellBack = '';
+      const args = ['jobs', 'run', '--detach', '--flavor', jobFlavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`,
         ...(secrets ? ['--secrets-file', secrets] : []), 'mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh'];
       // Work waterfall: the release's T4 jobs take their slots under the shared cap (scripts/lib/hf-slots.mjs), waiting up to 5 min for a lane's graphics job to finish.
-      const slot = withSlot({ hf, flavor, generic: false, maxWaitS: 300, launch: () => run(args), cost: { timeout, reason: 'gpu-only' } });
-      if (!slot.ok) { say(`${slot.refused || `no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`}: rows [${group.join(',')}] run on the Mac`); continue; }
-      say(tierLine(flavor, slot.slot, slot.queuedS));
+      const wait = () => withSlot({ hf, flavor: jobFlavor, generic: false, maxWaitS: 300, launch: () => run(args), cost: { timeout, reason: ['gpu-only', fellBack].filter(Boolean).join(';') } });
+      let slot = wait();
+      if (!slot.ok && !slot.refused && mayFallBack(jobFlavor) && !fellBack) {   // no t4-small slot in the wait: this group goes to medium, said and receipted (Dom 2026-10-21)
+        fellBack = capacityReason(slot.queuedS); jobFlavor = T4_FALLBACK_FLAVOR; args[args.indexOf('--flavor') + 1] = jobFlavor;
+        say(`WARN ${fellBack}: rows [${group.join(',')}] go to ${jobFlavor}`);
+        slot = wait();
+      }
+      if (!slot.ok) { say(`${slot.refused || `no ${jobFlavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`}: rows [${group.join(',')}] run on the Mac`); continue; }
+      say(tierLine(jobFlavor, slot.slot, slot.queuedS));
       const result = slot.value, id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
       if (result.status !== 0 || !id) { say(`hf jobs run failed for rows [${group.join(',')}] (they run on the Mac): ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`); continue; }
       ledger(id, sha, timeout);   // scripts/hf-cleanup.mjs cancels it on deploy.sh's EXIT if it is still running and counts its cost
-      jobs.push({ id, rows: group });
+      jobs.push({ id, rows: group, flavor: jobFlavor, ...(fellBack ? { fellBack } : {}) });
     }
   } finally { if (secrets) rmSync(dirname(secrets), { recursive: true, force: true }); }
   if (!jobs.length) throw new Error('hf jobs run failed for every T4 job');
@@ -72,7 +79,7 @@ function launch(sha, rowsArg, skipArg) {
   mkdirSync(dirname(state), { recursive: true });
   rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this run's (deploy-hf.sh's cancel checks for it)
   writeFileSync(state, JSON.stringify({ jobId: ids, jobs, sha, rows: placed, flavor, width, launchedAt: Date.now() }) + '\n');
-  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; reason=${rowsArg ? 'explicit-rows' : 'gpu-only'}; the other ${commands.length - placed.length} rows are not on the T4`);
+  say(`${jobs.length} job(s) ${ids} launched on ${[...new Set(jobs.map(j => j.flavor))].join('+')} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]${j.fellBack ? ` (${j.flavor}: ${j.fellBack})` : ''}`).join(' ')}; reason=${rowsArg ? 'explicit-rows' : 'gpu-only'}; the other ${commands.length - placed.length} rows are not on the T4`);
   process.stdout.write(`${ids}\n`);
 }
 
@@ -119,7 +126,7 @@ function collect() {
   const results = jobs.map(j => {
     if (errors.has(j.id)) return { ...j, parsed: null, error: errors.get(j.id) };
     const parsed = parseJobLog(run(['jobs', 'logs', j.id], { maxBuffer: 1 << 26, timeout: 300_000 }).stdout || '');
-    if (parsed.seconds !== null) say(costLine(parsed.seconds, j.id, saved.flavor));
+    if (parsed.seconds !== null) say(costLine(parsed.seconds, j.id, j.flavor ?? saved.flavor, undefined, j.fellBack));
     const error = stages.get(j.id) !== 'COMPLETED' ? `job ended ${stages.get(j.id)}` : parsed.blocker ? `blocker: ${parsed.blocker}`
       : parsed.sha !== sha ? `the job built ${parsed.sha ? parsed.sha.slice(0, 8) : 'nothing'}, not ${sha.slice(0, 8)}` : null;
     return { ...j, parsed, error };

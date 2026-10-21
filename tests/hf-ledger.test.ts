@@ -15,10 +15,12 @@ const NOON = Date.parse('2026-10-12T12:00:00Z');
 const box = () => { const dir = mkdtempSync(join(tmpdir(), 'hf-ledger-')); return { dir, path: join(dir, 'ledger.tsv') }; };
 const job = (n: number) => n.toString(16).padStart(24, '0');
 
-test('the thresholds are one constant: alarm $6, T4 stop $10; prices come from hf-cleanup USD_PER_HOUR', () => {
-  assert.deepEqual({ ...HF_COST }, { alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });
+test('the thresholds are one constant: alarm $6, T4 stop $15 (Dom 2026-10-21: GPU stop across all tiers); prices come from hf-cleanup USD_PER_HOUR', () => {
+  assert.deepEqual({ ...HF_COST }, { alarmUsdPerDay: 6, t4StopUsdPerDay: 15 });
   assert.ok(Object.isFrozen(HF_COST));
-  assert.equal(USD_PER_HOUR['t4-medium'], 0.6);
+  assert.equal(USD_PER_HOUR['t4-medium'], 0.6); assert.equal(USD_PER_HOUR['t4-small'], 0.4);
+  const small = record({ id: job(7), flavor: 't4-small', timeout: '15m', reason: 'gpu-only' }, { path: join(mkdtempSync(join(tmpdir(), 'hf-small-')), 'ledger'), now: NOON, say: () => {} });
+  assert.ok(Math.abs(small.usd - 0.1) < 1e-9, 'a 15 m t4-small job books $0.10');
   assert.deepEqual(['45m', '2h', '600s', '600', 'x'].map(timeoutSeconds), [2700, 7200, 600, 600, NaN]);
 });
 
@@ -46,22 +48,23 @@ test('the alarm fires once, the first time the day passes $6: an ALARM line, a s
   for (let i = 0; i < 13; i++) assert.equal(record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts).alarm, false, `$${(0.45 * (i + 1)).toFixed(2)}`);
   const crossing = record({ id: job(13), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts);   // 14 x 0.45 = 6.30
   assert.equal(crossing.alarm, true);
-  assert.match(said.join('\n'), /HF COST ALARM: \$6\.30 on HF today \(UTC 2026-10-12\) passed \$6; the T4 stops at \$10/);
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'hf-cost-alarm-2026-10-12.json'), 'utf8')), { day: '2026-10-12', usd: 6.3, alarmAt: 6, t4StopAt: 10, lastJob: job(13) });
+  assert.match(said.join('\n'), /HF COST ALARM: \$6\.30 on HF today \(UTC 2026-10-12\) passed \$6; the T4 stops at \$15/);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'hf-cost-alarm-2026-10-12.json'), 'utf8')), { day: '2026-10-12', usd: 6.3, alarmAt: 6, t4StopAt: 15, lastJob: job(13) });
   assert.equal(record({ id: job(14), flavor: 'cpu-upgrade', timeout: '20m', reason: 'x' }, opts).alarm, false, 'once a day');
   assert.equal(readFileSync(path, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1);
 });
 
-test('at $10 a day no new T4 job; CPU jobs continue', () => {
+test('at $15 a day no new T4 job (either T4 flavor); CPU jobs continue', () => {
   const { path } = box();
-  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t1000\t10.0000\tgpu-only\n`);
-  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, /\$10\.00 spent on HF today \(UTC 2026-10-12\), at or over the \$10 T4 stop/);
+  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t1000\t15.0000\tgpu-only\n`);
+  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, /\$15\.00 spent on HF today \(UTC 2026-10-12\), at or over the \$15 T4 stop/);
+  assert.match(t4Refusal('t4-small', { path, now: NOON })!, /at or over the \$15 T4 stop/, 't4-small is under the same stop');
   assert.equal(t4Refusal('cpu-upgrade', { path, now: NOON }), null);
-  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t999\t9.9900\tgpu-only\n`);
-  assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, '$9.99: still allowed');
+  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t999\t14.9900\tgpu-only\n`);
+  assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, '$14.99: still allowed');
 });
 
-test('a one-day raise (T4_STOP_BY_DAY) applies on its UTC day only, then the $10 stop is back', () => {
+test('a one-day raise (T4_STOP_BY_DAY) applies on its UTC day only, then the default stop is back', () => {
   const { path } = box(), on = Date.parse('2026-10-16T18:00:00Z'), next = Date.parse('2026-10-17T01:00:00Z');
   assert.equal(t4StopOn(on), 15);
   assert.equal(t4StopOn(next), HF_COST.t4StopUsdPerDay);
@@ -69,8 +72,8 @@ test('a one-day raise (T4_STOP_BY_DAY) applies on its UTC day only, then the $10
   assert.equal(t4Refusal('t4-medium', { path, now: on }), null, '$12 on the raised day: allowed');
   writeFileSync(path, `2026-10-16T10:00:00.000Z\t${job(1)}\tt4-medium\t1000\t15.0000\tgpu-only\n`);
   assert.match(t4Refusal('t4-medium', { path, now: on })!, /at or over the \$15 T4 stop/);
-  writeFileSync(path, `2026-10-17T00:30:00.000Z\t${job(2)}\tt4-medium\t1000\t12.0000\tgpu-only\n`);
-  assert.match(t4Refusal('t4-medium', { path, now: next })!, /at or over the \$10 T4 stop/, 'the next day is back to $10');
+  writeFileSync(path, `2026-10-17T00:30:00.000Z\t${job(2)}\tt4-medium\t1000\t15.0000\tgpu-only\n`);
+  assert.match(t4Refusal('t4-medium', { path, now: next })!, /at or over the \$15 T4 stop/, 'the next day uses the default stop (also $15 since 2026-10-21)');
 });
 
 test('withSlot({ cost }) is the one place: a T4 over the stop is refused before launch, a launched job is recorded, no cost records nothing', () => {
@@ -94,8 +97,8 @@ test('withSlot({ cost }) is the one place: a T4 over the stop is refused before 
 
 test('every HF launcher passes cost, with its reason, and says why when the stop refuses it', () => {
   const src = (f: string) => readFileSync(f, 'utf8');
-  assert.match(src('scripts/hf-wall-rows.mjs'), /cost: \{ timeout, reason: 'gpu-only' \}/);
-  assert.match(src('scripts/gpu-run.mjs'), /cost: \{ timeout: args\.timeout, reason: process\.env\.HF_REASON \|\| 'gpu-run' \}/);
+  assert.match(src('scripts/hf-wall-rows.mjs'), /cost: \{ timeout, reason: \['gpu-only', fellBack\]\.filter\(Boolean\)\.join\(';'\) \}/, 'the reason, then the capacity fallback reason when medium was a fallback');
+  assert.match(src('scripts/gpu-run.mjs'), /cost: \{ timeout: args\.timeout, reason: \[process\.env\.HF_REASON \|\| 'gpu-run', fellBack\]\.filter\(Boolean\)\.join\(';'\) \}/);
   assert.match(src('scripts/vps-shadow/launch.mjs'), /cost: \{ timeout: args\[args\.indexOf\('--timeout'\) \+ 1\], reason: process\.env\.HF_REASON \|\| \(lane \? `lane-\$\{cmd\}` : cmd\) \}/);
   for (const f of ['scripts/hf-wall-rows.mjs', 'scripts/gpu-run.mjs', 'scripts/vps-shadow/launch.mjs']) assert.match(src(f), /slot\.refused \|\|/, `${f} prints the refusal`);
 });
@@ -118,8 +121,8 @@ test('Auditor HOLD on #2329: ONE ledger for the account: VPS root, the VPS lanes
   for (let i = 0; i < 6; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
   assert.equal(t4Refusal('t4-medium', { store: lanes, now: NOON }), null, '$2.70: under the stop');
   assert.equal(spentOn(readFileSync(shared, 'utf8'), NOON).toFixed(2), '2.70');
-  for (let i = 6; i < 23; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
-  assert.match(t4Refusal('t4-medium', { store: root, now: NOON })!, /\$10\.35 spent on HF today/, 'the day total spans both launchers');
+  for (let i = 6; i < 34; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
+  assert.match(t4Refusal('t4-medium', { store: root, now: NOON })!, /\$15\.30 spent on HF today/, 'the day total spans both launchers (34 x 0.45)');
   assert.equal(readFileSync(shared, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1, 'one alarm for the account, not one per launcher');
   // fail closed: the shared directory not set up, or the VPS unreachable
   const missing = localStore(join(dir, 'nodir', 'x.tsv'), { shared: true });

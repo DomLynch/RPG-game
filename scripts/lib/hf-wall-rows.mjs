@@ -5,7 +5,23 @@
 // leaves the row to the Mac, which retries a failed row once alone as it always has.
 import { isWebKitRow, rowSet } from '../vps-shadow/rows-lib.mjs';
 
-export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-09-30; the bill is the receipt
+export const T4_SMALL_USD_PER_HOUR = 0.40;    // Hugging Face list price (4 vCPU / 15 GB); the bill is the receipt
+export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-09-30 (8 vCPU / 30 GB)
+export const T4_USD_PER_HOUR = { 't4-small': T4_SMALL_USD_PER_HOUR, 't4-medium': T4_MEDIUM_USD_PER_HOUR };
+// Dom 2026-10-21: "T4 small.. we should use wherever possible" (the 40 cents GPU, not the 60 cents). Every T4 launcher takes its flavor from here;
+// medium stays selectable by the launcher's env override but says so out loud and wants a reason (HF_REASON).
+export const T4_DEFAULT_FLAVOR = 't4-small';
+// The capacity clause (Dom 2026-10-21, final wording): t4-medium ONLY when small does not work or is AT CAPACITY (a small job that would not start within 10 min). The launcher
+// falls back to medium by itself on capacity and writes the reason into the receipt line; an OOM or any other measured failure on small is NOT retried on medium (a human chooses).
+export const SMALL_CAPACITY_S = 600;
+export const T4_FALLBACK_FLAVOR = 't4-medium';
+export const capacityReason = seconds => `small at capacity (${Math.round(seconds)} s)`;
+export const mayFallBack = (flavor, env = process.env) => flavor === T4_DEFAULT_FLAVOR && env.HF_T4_NO_FALLBACK !== '1';   // HF_T4_NO_FALLBACK=1: measure small honestly (the A/A)
+export function t4Flavor(chosen, reason, say) {
+  const flavor = chosen || T4_DEFAULT_FLAVOR;
+  if (flavor === 't4-medium') say(reason ? `t4-medium chosen (HF_REASON=${reason}); t4-small is the default` : 'WARN t4-medium chosen without HF_REASON: t4-small ($0.40/h) is the default (Dom 2026-10-21); set HF_REASON=<why medium> or drop the flavor override');
+  return flavor;
+}
 // Rows the T4 never takes, by script name so a renumbering cannot move a hold. Empty today: row 22 (arena-audio-check) was held until it
 // ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30). A hold is a one-line edit here.
 export const HELD_ROWS = [];
@@ -57,8 +73,8 @@ export function splitRows(rows, n, weight = () => 1) {
   return jobs.filter(j => j.rows.length).map(j => j.rows.sort((a, b) => a - b));
 }
 
-export const costLine = (seconds, jobId, flavor = 't4-medium', rate = T4_MEDIUM_USD_PER_HOUR) =>
-  `hf-wall-rows: job ${jobId} ran ${seconds} s on ${flavor} ≈ $${(seconds / 3600 * rate).toFixed(2)} at $${rate.toFixed(2)}/h`;
+export const costLine = (seconds, jobId, flavor = T4_DEFAULT_FLAVOR, rate = T4_USD_PER_HOUR[flavor] ?? T4_MEDIUM_USD_PER_HOUR, why = '') =>
+  `hf-wall-rows: job ${jobId} ran ${seconds} s on ${flavor} ≈ $${(seconds / 3600 * rate).toFixed(2)} at $${rate.toFixed(2)}/h${why ? ` [${flavor} because ${why}]` : ''}`;
 
 // How long collect may wait for the job, in seconds, inside the whole-deploy ceiling (scripts/lib/deploy-ceiling.sh, 50 min): the plain cap
 // (25 min), or less when the deploy has already used time — the Mac keeps `macBudgetS` (20 min) to run every row itself if the T4 vouches

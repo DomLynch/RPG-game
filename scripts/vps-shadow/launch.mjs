@@ -1,7 +1,7 @@
 // The ONE place a receipt job is launched and read back (the verifier, scripts/lib/vps-receipts.mjs jobVerified, compares the job's command with jobCommand()).
-//   node scripts/vps-shadow/launch.mjs unit|rows <full sha> [cpu-upgrade|t4-medium] [rows e.g. 31,33] [width 1-8, RELEASE_CHECK_CONCURRENCY; default 4]   -> prints the Hugging Face job id
+//   node scripts/vps-shadow/launch.mjs unit|rows <full sha> [cpu-upgrade|t4-small|t4-medium] [rows e.g. 31,33] [width 1-8, RELEASE_CHECK_CONCURRENCY; default 4]   -> prints the Hugging Face job id
 //   node scripts/vps-shadow/launch.mjs fetch <job id> <full sha>                      -> writes artifacts/vps-shadow/<sha>/unit.json | rows-<job>.json
-// Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
+// Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade, t4-small (the T4 default, Dom 2026-10-21) or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
 import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';

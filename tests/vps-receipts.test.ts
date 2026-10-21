@@ -74,6 +74,8 @@ test('a receipt is refused unless its HF job verifies (completed, allowed flavor
   const cpu: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade'), TREES);
   const t4: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-medium'), TREES);
   assert.ok(t4.length > cpu.length && cpu.every(i => t4.includes(i)));
+  const t4small: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-small'), TREES);
+  assert.deepEqual(t4small, t4, 'the default t4-small may vouch for exactly the rows t4-medium may');
   for (const name of ['double-tap-browser-check', 'next-fight-black-check']) assert.ok(!t4.includes(commands.findIndex((c: string[]) => c.join(' ').includes(name)) + 1), `${name}: WebKit stays on the Mac`);
 });
 
