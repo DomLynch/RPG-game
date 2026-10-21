@@ -3,7 +3,7 @@
 // load-dependent frame) and the order the bodies arrived (the dress phase drew Math.random in that order). Under the flag the sim is HELD at tick 0 (every frame
 // is drawn with dt 0) and only moves when the harness calls advance(n): n fixed ticks of captureStep seconds. A still is then a pure function of (build, ticks).
 // Donor: a fixed-tick simulation stepped by tick number, as 2004Scape's and EQEmu's world loops are (the sim never reads wall time).
-import { mixSeed, nextRandom, TUNING } from '../../src/core/server.ts';
+import { mixSeed, nextRandom, TUNING } from './mobs.ts';   // the door the creatures already use (core-boundary C1: only the listed files import src/core/server.ts)
 import { seedOf } from '../world/relief.ts';
 import { previewRule } from './preview-rules.ts';
 
