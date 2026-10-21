@@ -41,7 +41,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string; ranked?: boolean; farOff?: THREE.Object3D[] };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string; ranked?: boolean; farOff?: THREE.Object3D[]; skinOff?: boolean };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
 
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -224,8 +224,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
   const FAR_OFF = typeof location !== 'undefined' && /[?&;]fardetail=0\b/.test(location.search);   // look test only: `?fardetail=0` draws every piece at every range, to compare the stills
+  const SKIN_OFF = typeof location !== 'undefined' && /[?&;]skinhide=1\b/.test(location.search);   // look test only: `?skinhide=1` hides the bare Skin under a rank look (the face close-up check)
   const rankPieces = (v: View): THREE.Mesh[] => { const found: THREE.Mesh[] = []; v.model?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.userData.rankLook) found.push(o as THREE.Mesh); }); const size = (m: THREE.Mesh) => m.geometry.getAttribute('position').count; found.sort((a, b) => size(b) - size(a)); return found.slice(1); };   // a rank look's draws but its biggest (the body): the armour pieces a far creature need not draw
   const farDetail = (v: View, d: number, matters: boolean) => {   // a phone draws a far creature's rank-look body only (its arms, gloves, greaves and helmet are a few pixels at that range); back at once when it fights, hunts or is engaged. Only the pieces that were shown are touched, so a bake that turned one off is not undone.
+    if (SKIN_OFF && v.ranked && !v.skinOff && rankPieces(v).length) { v.model?.traverse((o) => { if (o.name === 'Skin') o.visible = false; }); v.skinOff = true; }
     if (!v.ranked || FAR_OFF) return;
     const far = farHide(d, matters, fxNum('mob-view.piece-range'));
     if (far && !v.farOff) { const pieces = rankPieces(v); if (!pieces.length) return; v.farOff = pieces.filter((p) => p.visible); for (const p of v.farOff) p.visible = false; }
