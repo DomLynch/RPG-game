@@ -208,7 +208,7 @@ host=root@49.12.7.18
 key="$HOME/.ssh/binance_futures_tool"
 release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
+ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
 # The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
 # forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.
@@ -243,10 +243,11 @@ presence_back() {
   [[ -n "$presence_prev" ]] || return 0
   ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence nginx)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
 }
-writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && $(net_remote_fetch_cmd "$revision") && $(net_remote_checkout_cmd "$revision") && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
+# A dead connection fails in ~45 s (ServerAlive above); net_bound is the step ceiling behind it (K6q11, 2026-10-21 17:38: the remote install finished, the ssh client sat 12 min on a dead path).
+writer_install=$(net_bound "${INSTALL_STEP_MAX_S:-600}" "writer install ssh" ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && $(net_remote_fetch_cmd "$revision") && $(net_remote_checkout_cmd "$revision") && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; writer_back; exit 1; }
 printf '%s\n' "$writer_install"
 if [[ -n "$presence_prev" ]]; then
-  presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
+  presence_install=$(net_bound "${INSTALL_STEP_MAX_S:-600}" "presence install ssh" ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
   printf '%s\n' "$presence_install"
 fi
 # The replay verifiers flip with the site too (Auditor, 2026-10-18: verify-daily ran JD's rules against JE for two minutes because the install came after the switch; on an RV bump
