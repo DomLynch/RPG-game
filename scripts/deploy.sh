@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Playwright browsers live in ~/Developer/.ms-playwright, not ~/Library/Caches (macOS emptied ms-playwright on 10-16 and 10-21 and every Mac row died at launch); an explicit PLAYWRIGHT_BROWSERS_PATH wins, and a Mac without the folder keeps Playwright's default.
+if [[ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "$HOME/Developer/.ms-playwright" ]]; then export PLAYWRIGHT_BROWSERS_PATH="$HOME/Developer/.ms-playwright"; fi
 [[ -z "$(git status --porcelain)" ]] || { echo 'Refusing a dirty release'; exit 1; }
 # One deployer, one Mac: while this runs, the Claude hooks refuse other sessions' browser checks, test suites and bakes
 # (the BUSY/FREE handshake, made mechanical). The lock names the revision, the start and this pid; it goes on any exit, and
