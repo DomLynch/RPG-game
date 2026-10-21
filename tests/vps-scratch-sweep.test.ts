@@ -555,3 +555,20 @@ test('archive_then_delete copies with SWEEP_EXCLUDES and writes the bundle befor
   assert.ok(src.indexOf('sweep_unpushed_bundle "$s" "$bundle"') < src.indexOf('rm -rf -- "$s"; say "archived+deleted'), 'the bundle is written before anything is removed');
 });
 
+// sweep_linked (Lead 2026-10-21): a dir that a symlink from OUTSIDE it points into is never swept (the shared node_modules case: bowspec <- char-livebow), but a link whose own location is inside the
+// dir it points into goes with the dir and no longer blocks it (lead-row46's old/node_modules -> ../RPG-game/node_modules). Needs GNU find (-printf) and realpath: a Linux box.
+test('sweep_linked: an outside link makes its target a link target; a link inside its own dir does not; a link from work/ itself still does', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-linked-')), work = join(root, 'shadow', 'work');
+  try {
+    for (const d of ['self/RPG-game/node_modules', 'self/old', 'bowspec/node_modules', 'char-livebow', 'shared', 'rootlinked/node_modules']) mkdirSync(join(work, d), { recursive: true });
+    symlinkSync('../RPG-game/node_modules', join(work, 'self', 'old', 'node_modules'));                 // relative, inside its own dir: ignored
+    symlinkSync(join(work, 'self', 'RPG-game', 'node_modules'), join(work, 'self', 'abs-inside'));      // absolute, inside its own dir: ignored
+    symlinkSync(join(work, 'bowspec', 'node_modules'), join(work, 'char-livebow', 'node_modules'));    // from another dir: bowspec is a link target
+    symlinkSync(join(work, 'shared'), join(work, 'shared-link'));                                       // from work/ itself: shared is a link target
+    symlinkSync(join(work, 'rootlinked', 'node_modules'), join(work, 'self', 'x-node_modules'));        // from self into rootlinked: rootlinked is a link target
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_linked "$1" "$2"', 'x', join(root, 'shadow'), work], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.stdout.trim().split('\n'), [join(work, 'bowspec'), join(work, 'rootlinked'), join(work, 'shared')], 'bowspec, rootlinked and shared are held; self is not, for its own links');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
