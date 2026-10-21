@@ -26,7 +26,8 @@ import { mobBatch, respawnMsOf } from './mob-rewards.ts';
 import { shares } from './damage-share.ts';
 import { qaOf } from './qa-account.ts';
 import { killWearLines, settleWithWear } from './wear-settle.ts';
-import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
+import { paceOf } from './pace.ts';
+import { ticksFor,MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './units.ts';
@@ -281,6 +282,8 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true, ...(qa ? { qa: true } : {}) },
     };
+    const pace = verdict?.ok ? paceOf((now().getTime() - Date.parse(open.issuedAt)) / MS_PER_SECOND, verdict.ticks) : null;   // flag only (Lead + Strategy 2026-10-21): the wall/sim ratio rides the event, nothing is refused
+    if (pace) Object.assign(event.payload as object, { pace });
     if (sharing) Object.assign(event.payload as object, { share, damage, joined: sharing.joined });   // the kill credit's own receipt in the event (only with damageShare)
     const commit = (wear: store.Json[]) => (sharing
       ? store.spawnKillShared(db, account, token, minKillMs(spawn.hp), respawnS, [event, ...paid.batch, ...wear], { reach }, damage, SHARE.joinWindowS)

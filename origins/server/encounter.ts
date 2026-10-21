@@ -19,6 +19,8 @@ import { careerState, levelOfCredit } from '../../src/core/server.ts';
 import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
 import { qaOf } from './qa-account.ts';
+import { paceOf, startLog } from './pace.ts';
+import { MS_PER_SECOND } from './units.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
@@ -84,6 +86,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
   if (!deps) return { encounter_start: notInstalled, encounter_touch: notInstalled, encounter_settle: notInstalled };
   const { resolve, verify } = deps;
 
+  const starts = startLog();   // pace flag: when each open encounter began (in memory; the run view carries no created_at)
   const start: Handler = async ({ db, account }, body) => {
     const { character, encounter } = body;
     if (typeof character !== 'string' || !CHARACTER.test(character)) throw new BadRequest('character: a character id');
@@ -99,6 +102,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance }); }
     catch (e) { if (e instanceof DbError && e.code === 'O0014') throw new Conflict(e.message); throw e; }
     if (!run) throw new Refused(503, 'encounters are not installed yet');
+    starts.note(token, (deps.now ?? Date.now)());
     return view(run);
   };
 
@@ -131,12 +135,13 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (!verdict.ok && verdict.kitMismatch) throw new Refused(422, verdict.reason, 'kit-mismatch');   // not a loss and not consumed: the token is left to the sweep ('abandoned', nothing paid)
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
     const eventId = `enc:${token}`;
+    const startedMs = starts.take(token), pace = verdict.ok && startedMs !== undefined ? paceOf(((deps.now ?? Date.now)() - startedMs) / MS_PER_SECOND, ticks) : null;   // flag only: how slow the client ran this fight
     const fight = fightOfToken(token);
     const qaState = await qaOf(db, account);   // the QA account (fighter_profiles.is_test): the fight is checked and settled as for anyone, but its rewards are not persisted
     const rewards = verdict.ok && result === 'won' && deps.rewards && qaState !== 'yes' ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
     // `fight` and `paid` are what origins_last_paid_kill (202610080006) reads back: the respawn window is the time since this account's last PAID kill of this fight,
     // and it commits in this same transaction, so a settle that aborts leaves no window behind.
-    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(qaState === 'yes' ? { qa: true } : {}), ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) } }, ...rewards];
+    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(pace ? { pace } : {}),...(qaState === 'yes' ? { qa: true } : {}), ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, RECORD_RULE.reasonChars) }) } }, ...rewards];
     // Practice (migration 0026): only a VERIFIED win practises the weapon's skill; the lines ride this one settle, so a retry pays once (key practice:enc:<token>:<skill>).
     let practice: store.Json[] = [];
     if (verdict.ok && result === 'won') {

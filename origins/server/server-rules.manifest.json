@@ -42,6 +42,18 @@
       }
     },
     {
+      "table": "pace",
+      "file": "server-rules.json",
+      "at": "pace",
+      "key": "id",
+      "required": {
+        "slowRatio": "number",
+        "minTickS": "number",
+        "startsKept": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "fightLimit",
       "file": "server-rules.json",
       "at": "fightLimit",
