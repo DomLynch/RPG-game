@@ -21,4 +21,4 @@ export function createCaptureClock(step: number = previewRule('captureStep')): C
 }
 
 // A creature's idle phase (0..3 s) from its id: the same number whichever body arrived first.
-export const dressPhase = (id: string): number => nextRandom(mixSeed(TUNING.seed, seedOf(`dress:${id}`)))[0] * 3;
+export const dressPhase = (id: string): number => nextRandom(mixSeed(TUNING.seed, seedOf(`dress:${id}`)))[0] * previewRule('dressPhaseSpan');
