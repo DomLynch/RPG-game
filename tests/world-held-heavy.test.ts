@@ -36,7 +36,7 @@ test('under a record below 85 the held bit is ignored: the heavy is the uncharge
 });
 
 test('the held bit rides the world record: a step packs and unpacks with it, and a step without it is byte for byte as before', () => {
-  assert.equal(WORLD_SIM_VERSION, 68);
+  assert.equal(WORLD_SIM_VERSION, 69);
   const steps = [{ pose: { x: 0, z: 0, f: 0 }, guard: false, gd: null, attack: 'heavy' as const, roll: null, held: true as const }, { pose: null, guard: false, gd: null, attack: null, roll: null }];
   const rec = { rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { level: 1, weapon: 'longsword', health: 100, stamina: 100, posture: 0, exhausted: false }, joins: [], releases: [], steps } as unknown as WorldRecord;
   const back = unpackWorldRecord(packWorldRecord(rec));
