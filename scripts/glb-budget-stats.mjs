@@ -1,7 +1,8 @@
-// Per-GLB phone-budget numbers, read from the file alone (no renderer): triangles, vertices, skinned vertices, joints, influences, draw calls (one per primitive), materials, textures with size and format, bytes raw and gzipped.
-// Usage: node scripts/glb-budget-stats.mjs <file.glb>...   -> one JSON line per file
+// Per-GLB phone-budget numbers, read from the file alone (no renderer): triangles, vertices, skinned vertices, joints, influences, draw calls (one per primitive and node), materials, textures with size and format, bytes raw and gzipped.
+// CLI: node scripts/glb-budget-stats.mjs <file.glb>...   -> one JSON line per file.   Module: import { glbStats } from './glb-budget-stats.mjs' (scripts/check-phone-budget.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 
 function imageInfo(buf) {   // width, height, format from the first bytes (png, jpeg, webp, ktx2)
@@ -12,9 +13,10 @@ function imageInfo(buf) {   // width, height, format from the first bytes (png, 
   return { w: 0, h: 0, fmt: 'unknown' };
 }
 
-for (const file of process.argv.slice(2)) {
+/** The numbers of one GLB file (see the header). `textures` are { w, h, fmt, bytes? } per distinct image a used material points at. */
+export function glbStats(file) {
   const buf = fs.readFileSync(file);
-  if (buf.readUInt32LE(0) !== 0x46546c67) { console.log(JSON.stringify({ file: path.basename(file), error: 'not a GLB' })); continue; }
+  if (buf.readUInt32LE(0) !== 0x46546c67) return { file: path.basename(file), error: 'not a GLB' };
   const jlen = buf.readUInt32LE(12), json = JSON.parse(buf.slice(20, 20 + jlen).toString()), binAt = 20 + jlen + 8;
   const acc = (i) => json.accessors[i];
   let tris = 0, verts = 0, skinnedVerts = 0, draws = 0, influences = 0;
@@ -33,5 +35,9 @@ for (const file of process.argv.slice(2)) {
   const texOf = (t) => { if (!t) return; const tex = json.textures?.[t.index]; if (!tex) return; const src = tex.source ?? tex.extensions?.KHR_texture_basisu?.source ?? tex.extensions?.EXT_texture_webp?.source; if (src === undefined || textures.has(src)) return; const img = json.images[src]; let info = { w: 0, h: 0, fmt: img.mimeType ?? 'external' }; if (img.bufferView !== undefined) { const bv = json.bufferViews[img.bufferView], start = binAt + (bv.byteOffset ?? 0); info = imageInfo(buf.slice(start, start + bv.byteLength)); info.bytes = bv.byteLength; } else if (img.uri && !img.uri.startsWith('data:')) { const p = path.join(path.dirname(file), decodeURIComponent(img.uri)); if (fs.existsSync(p)) { const b = fs.readFileSync(p); info = imageInfo(b); info.bytes = b.length; } else info.fmt = 'external:' + path.extname(img.uri); } textures.set(src, info); };
   for (const mi of matsUsed) { const m = json.materials?.[mi] ?? {}; const pb = m.pbrMetallicRoughness ?? {}; [pb.baseColorTexture, pb.metallicRoughnessTexture, m.normalTexture, m.occlusionTexture, m.emissiveTexture].forEach(texOf); }
   const joints = Math.max(0, ...(json.skins ?? []).map((s) => s.joints.length));
-  console.log(JSON.stringify({ file: path.basename(file), kb: Math.round(buf.length / 1024), gzKb: Math.round(zlib.gzipSync(buf).length / 1024), tris: Math.round(tris), verts, skinnedVerts, joints, influences, draws, materials: matsUsed.size, meshopt: !!json.extensionsUsed?.includes('EXT_meshopt_compression'), textures: [...textures.values()].map((t) => `${t.w}x${t.h} ${t.fmt}${t.bytes ? ' ' + Math.round(t.bytes / 1024) + 'KB' : ''}`) }));
+  return { file: path.basename(file), kb: Math.round(buf.length / 1024), gzKb: Math.round(zlib.gzipSync(buf).length / 1024), tris: Math.round(tris), verts, skinnedVerts, joints, influences, draws, materials: matsUsed.size, meshopt: !!json.extensionsUsed?.includes('EXT_meshopt_compression'), textures: [...textures.values()] };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  for (const file of process.argv.slice(2)) { const s = glbStats(file); console.log(JSON.stringify(s.textures ? { ...s, textures: s.textures.map((t) => `${t.w}x${t.h} ${t.fmt}${t.bytes ? ' ' + Math.round(t.bytes / 1024) + 'KB' : ''}`) } : s)); }
 }

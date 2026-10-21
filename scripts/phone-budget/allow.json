@@ -1,0 +1,1441 @@
+{
+ "note": "Phone-budget debts (scripts/check-phone-budget.mjs): today's value per breached metric and the PR that fixes it. Only shrinks: an entry whose file passes now is stale and must go; a worse value is red.",
+ "entries": [
+  {
+   "file": "public/looks/dwarf-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 30737,
+    "skinnedVerts": 31462
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 36124,
+    "skinnedVerts": 48208,
+    "draws": 16
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38531,
+    "skinnedVerts": 43500,
+    "gzKb": 1685
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38530,
+    "skinnedVerts": 47363,
+    "gzKb": 1869
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38531,
+    "skinnedVerts": 44489
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38530,
+    "skinnedVerts": 46982
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38530,
+    "skinnedVerts": 46817
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 38531,
+    "skinnedVerts": 45668
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43722,
+    "skinnedVerts": 58796,
+    "gzKb": 2073
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/dwarf-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 36126,
+    "skinnedVerts": 50570,
+    "draws": 16
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 47458,
+    "skinnedVerts": 57889,
+    "textureSide": 2048,
+    "gzKb": 1970
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46247,
+    "skinnedVerts": 55526
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44056,
+    "skinnedVerts": 45869
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44057,
+    "skinnedVerts": 47319
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44052,
+    "skinnedVerts": 48381
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43485,
+    "skinnedVerts": 52489
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44058,
+    "skinnedVerts": 48067
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43810,
+    "skinnedVerts": 52799
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45498,
+    "skinnedVerts": 54646,
+    "draws": 12
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/executioner-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46249,
+    "skinnedVerts": 56812
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L10.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 32675,
+    "skinnedVerts": 39413,
+    "draws": 13,
+    "gzKb": 2092
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L2.glb",
+   "class": "ranked-creature",
+   "over": {
+    "skinnedVerts": 32502,
+    "gzKb": 1745
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L3.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 40770,
+    "skinnedVerts": 52654,
+    "draws": 13,
+    "gzKb": 1657
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L4.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 30527,
+    "skinnedVerts": 36754,
+    "draws": 12,
+    "gzKb": 2000
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L5.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 30611,
+    "skinnedVerts": 36646,
+    "draws": 12,
+    "gzKb": 1915
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L6.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 32018,
+    "skinnedVerts": 38712,
+    "draws": 12,
+    "gzKb": 1985
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L7.glb",
+   "class": "ranked-creature",
+   "over": {
+    "skinnedVerts": 37018,
+    "draws": 12,
+    "gzKb": 2012
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L8.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 31071,
+    "skinnedVerts": 36914,
+    "draws": 13,
+    "gzKb": 2027
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/goblin-L9.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 31513,
+    "skinnedVerts": 37074,
+    "draws": 13,
+    "gzKb": 1921
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46258,
+    "skinnedVerts": 49288
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46373,
+    "skinnedVerts": 49827,
+    "gzKb": 1555
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45502,
+    "skinnedVerts": 50511,
+    "gzKb": 1641
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45509,
+    "skinnedVerts": 51940,
+    "gzKb": 1667
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46129,
+    "skinnedVerts": 51588,
+    "gzKb": 1610
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45806,
+    "skinnedVerts": 53912,
+    "gzKb": 1535
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46257,
+    "skinnedVerts": 50618
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46259,
+    "skinnedVerts": 46660,
+    "gzKb": 1788
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46260,
+    "skinnedVerts": 55362,
+    "gzKb": 1913
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/knight-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45969,
+    "skinnedVerts": 59051,
+    "gzKb": 1568
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45467,
+    "skinnedVerts": 50251
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50423,
+    "skinnedVerts": 52364,
+    "draws": 18
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39963,
+    "skinnedVerts": 51331
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39975,
+    "skinnedVerts": 50678,
+    "draws": 11
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39980,
+    "skinnedVerts": 51584,
+    "draws": 12
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39993,
+    "skinnedVerts": 51900,
+    "draws": 14
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39981,
+    "skinnedVerts": 49520,
+    "draws": 12
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39987,
+    "skinnedVerts": 51283,
+    "draws": 13
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50402,
+    "skinnedVerts": 50536,
+    "draws": 18
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/nightborn-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 51530,
+    "skinnedVerts": 53462,
+    "draws": 18
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 55157,
+    "skinnedVerts": 57399,
+    "textureSide": 1408,
+    "gzKb": 1822
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45200,
+    "skinnedVerts": 46837
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56346,
+    "skinnedVerts": 55286
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56345,
+    "skinnedVerts": 54628,
+    "gzKb": 1565
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56345,
+    "skinnedVerts": 52781,
+    "gzKb": 1552
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56345,
+    "skinnedVerts": 54134,
+    "gzKb": 1564
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56346,
+    "skinnedVerts": 56487,
+    "gzKb": 1593
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 56346,
+    "skinnedVerts": 54410,
+    "gzKb": 1554
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45200,
+    "skinnedVerts": 51844
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/pitborn-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 45200,
+    "skinnedVerts": 48237
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 39186,
+    "skinnedVerts": 45109
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 42540,
+    "skinnedVerts": 40423
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43627,
+    "skinnedVerts": 41428
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43863,
+    "skinnedVerts": 42352
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43995,
+    "skinnedVerts": 42454
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43516,
+    "skinnedVerts": 39899
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43168,
+    "skinnedVerts": 41567
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43900,
+    "skinnedVerts": 42581
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43872,
+    "skinnedVerts": 43675
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/plaguedoctor-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43182,
+    "skinnedVerts": 42402
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 47583,
+    "skinnedVerts": 52139,
+    "textureSide": 1408,
+    "gzKb": 1542
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46973,
+    "skinnedVerts": 49186
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50199,
+    "skinnedVerts": 54835
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50200,
+    "skinnedVerts": 55411,
+    "gzKb": 1536
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50199,
+    "skinnedVerts": 56347,
+    "gzKb": 1745
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50200,
+    "skinnedVerts": 53944,
+    "gzKb": 1660
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50199,
+    "skinnedVerts": 57630,
+    "gzKb": 1780
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50200,
+    "skinnedVerts": 59977,
+    "gzKb": 1782
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46974,
+    "skinnedVerts": 51703
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/shieldmaiden-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46974,
+    "skinnedVerts": 49016
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 51334,
+    "skinnedVerts": 58900,
+    "draws": 14,
+    "gzKb": 1723
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 46843,
+    "skinnedVerts": 51835,
+    "draws": 14
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 48937,
+    "skinnedVerts": 55615,
+    "draws": 14,
+    "gzKb": 1685
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 48424,
+    "skinnedVerts": 54264,
+    "draws": 14,
+    "gzKb": 1514
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50311,
+    "skinnedVerts": 59117,
+    "draws": 14,
+    "gzKb": 1622
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 51225,
+    "skinnedVerts": 57339,
+    "draws": 14,
+    "gzKb": 1634
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 50909,
+    "skinnedVerts": 58918,
+    "draws": 14,
+    "gzKb": 1632
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/veteran-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 49189,
+    "skinnedVerts": 56919,
+    "draws": 15,
+    "gzKb": 1608
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L1-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 51777,
+    "skinnedVerts": 55586,
+    "gzKb": 2023
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L10-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 43999,
+    "skinnedVerts": 45161
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L2-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44337,
+    "skinnedVerts": 47995
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L3-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44337,
+    "skinnedVerts": 43750
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L4-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44338,
+    "skinnedVerts": 48593
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L5-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44337,
+    "skinnedVerts": 45995
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L6-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44337,
+    "skinnedVerts": 45822
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L7-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44337,
+    "skinnedVerts": 46360
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L8-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44000,
+    "skinnedVerts": 45448
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/looks/witch-L9-phone.glb",
+   "class": "ranked-creature",
+   "over": {
+    "tris": 44000,
+    "skinnedVerts": 43629
+   },
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
+  },
+  {
+   "file": "public/weapons/ranged/staff-v1.glb",
+   "class": "weapon",
+   "over": {
+    "draws": 14
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/cleaver-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1012,
+    "png": 992
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/cleaver-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1309,
+    "png": 1264
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/cleaver-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 965,
+    "png": 953
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-cane-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 669,
+    "png": 650
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-cane-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 780,
+    "png": 732
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-cane-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 695,
+    "png": 687
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1007,
+    "png": 988
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1244,
+    "png": 1183
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/estoc-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 841,
+    "png": 833
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/gladius-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1248,
+    "png": 1205
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/gladius-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 940,
+    "png": 926
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/knife-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1160,
+    "png": 1125
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/knife-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1286,
+    "png": 1236
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/knife-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1013,
+    "png": 998
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/longsword-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1188,
+    "png": 1123
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/longsword-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "tris": 4148,
+    "gzKb": 1391,
+    "png": 1318
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/longsword-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1005,
+    "png": 978
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/maul-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 859,
+    "png": 838
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/reaper-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 638,
+    "png": 603
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/reaper-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 748,
+    "png": 696
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/reaper-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 657,
+    "png": 641
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/scythe-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 949,
+    "png": 912
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/scythe-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1086,
+    "png": 1022
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/scythe-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 754,
+    "png": 742
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/trident-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 745,
+    "png": 717
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/trident-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 936,
+    "png": 888
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/trident-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 762,
+    "png": 750
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/warhammer-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 816,
+    "png": 785
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/warhammer-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 1013,
+    "png": 943
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/warhammer-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 685,
+    "png": 672
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/witch-staff-crafted.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 616,
+    "png": 587
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/witch-staff-ornate.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 987,
+    "png": 915
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/weapons/shapes/witch-staff-plain.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 790,
+    "png": 760
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "public/world/bear.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 18879
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/boar.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 17225
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/cave-troll.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 14743,
+    "gzKb": 802
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/giant-salamander.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 17050
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/goblin.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 12100
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/kit/dungeon-kit.glb",
+   "class": "kit-prop",
+   "over": {
+    "tris": 20999,
+    "draws": 3,
+    "gzKb": 1097
+   },
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
+  },
+  {
+   "file": "public/world/kit/goblin_hut.glb",
+   "class": "kit-prop",
+   "over": {
+    "gzKb": 533
+   },
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
+  },
+  {
+   "file": "public/world/kit/zone1-kit.glb",
+   "class": "kit-prop",
+   "over": {
+    "draws": 14,
+    "png": 2
+   },
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
+  },
+  {
+   "file": "public/world/knight.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 15289,
+    "gzKb": 854
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/town/buildings.glb",
+   "class": "kit-prop",
+   "over": {
+    "draws": 28,
+    "png": 2
+   },
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
+  },
+  {
+   "file": "public/world/town/clothes.glb",
+   "class": "kit-prop",
+   "over": {
+    "skinnedVerts": 536,
+    "joints": 65,
+    "draws": 8,
+    "png": 1
+   },
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
+  },
+  {
+   "file": "public/world/witch.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 17073,
+    "gzKb": 811
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "public/world/wolf.glb",
+   "class": "plain-creature",
+   "over": {
+    "skinnedVerts": 17893
+   },
+   "fix": "owed: creature body trim pass (Characters)"
+  },
+  {
+   "file": "src/assets/loot.glb",
+   "class": "gear-library",
+   "over": {
+    "tris": 104605,
+    "skinnedVerts": 77831,
+    "draws": 99,
+    "textureSide": 2048,
+    "gzKb": 3021
+   },
+   "fix": "PR 3b: loot.glb split per worn piece (Characters, owed; its fetch before ready is already gone in the loot-defer PR)"
+  },
+  {
+   "file": "src/assets/warrior.glb",
+   "class": "hero",
+   "over": {
+    "tris": 63572,
+    "draws": 19,
+    "gzKb": 2789,
+    "png": 162
+   },
+   "fix": "owed: measure the drawn hero set, then trim unworn pieces from the file (Characters)"
+  },
+  {
+   "file": "src/assets/weapons/player/gladius.glb",
+   "class": "weapon",
+   "over": {
+    "draws": 10
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "src/assets/weapons/player/maul.glb",
+   "class": "weapon",
+   "over": {
+    "draws": 12,
+    "gzKb": 460
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "src/assets/weapons/player/scythe.glb",
+   "class": "weapon",
+   "over": {
+    "draws": 7,
+    "gzKb": 465
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "src/assets/weapons/player/staff.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 379
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "src/assets/weapons/player/trident.glb",
+   "class": "weapon",
+   "over": {
+    "gzKb": 379
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  },
+  {
+   "file": "src/assets/weapons/player/warhammer.glb",
+   "class": "weapon",
+   "over": {
+    "draws": 15,
+    "gzKb": 424
+   },
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+  }
+ ]
+}
