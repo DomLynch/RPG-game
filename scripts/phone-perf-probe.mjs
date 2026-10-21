@@ -12,7 +12,7 @@ import { chromium } from 'playwright';
 const argv = process.argv.slice(2), out = argv[0], mode = argv[1], opt = (n, d) => { const i = argv.indexOf(`--${n}`); return i > 0 ? argv[i + 1] : d; };
 const dist = opt('dist', null), THROTTLES = opt('throttle', '1').split(',').map(Number), ORIENTS = opt('orient', 'portrait,landscape').split(','), PROFILE = argv.includes('--profile');
 const SIZE = { portrait: [390, 844], landscape: [844, 390] }, UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
-const IDLE_MS = 5000, WALK_MS = 30000, FIGHT_MS = 15000;
+const IDLE_MS = Number(opt('idle', 5000)), WALK_MS = 30000, FIGHT_MS = 15000, FULL = opt('phases', 'idle,walk,fight').includes('walk');   // --idle 60000 --phases idle: just stand still (the idle-hitch hunt)
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.webp': 'image/webp', '.wasm': 'application/wasm' };
 let base = 'https://frankendom.com', close = async () => {};
@@ -67,6 +67,9 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     W('linkProgram', () => { window.__perf.links++; });
     const loop = (t) => { const p = window.__perf; p.fr.push([p.ph, t - last, p.calls, Math.round(p.tris)]); p.calls = 0; p.tris = 0; last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__perf.lt.push([window.__perf.ph, Math.round(e.startTime), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: true }); } catch { /* no longtask API */ }
+    // Long animation frames (Chromium 123+): WHO ran in a stalled frame: the callback kind (timer, rAF, promise, event), the function and where it lives (minified file + char position on the live page).
+    window.__perf.loaf = [];
+    try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (window.__perf.loaf.length < 400) window.__perf.loaf.push({ ph: window.__perf.ph, at: Math.round(e.startTime), dur: Math.round(e.duration), block: Math.round(e.blockingDuration || 0), style: Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0), scripts: (e.scripts || []).map((s) => ({ kind: s.invokerType, invoker: String(s.invoker).slice(0, 80), fn: s.sourceFunctionName, file: String(s.sourceURL).split('/').pop().slice(0, 50), pos: s.sourceCharPosition, ms: Math.round(s.duration) })).sort((a, b) => b.ms - a.ms).slice(0, 4) }); }).observe({ type: 'long-animation-frame', buffered: true }); } catch { /* no LoAF */ }
   });
   await cdp.send('Network.enable'); let bytes = 0, requests = 0; cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength || 0; requests++; });
   if (thr > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: thr });
@@ -94,7 +97,8 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     };
     await page.waitForTimeout(1500);
     await phase('idle', IDLE_MS, (ms) => page.waitForTimeout(ms));
-    // Walk: a real touch held on the joystick, dragged round a small circle (so the hero keeps walking and the camera turns).
+    if (FULL) {
+    // Walk: a real touch held on the joystick, in long straight legs with turns (so the hero keeps walking and the camera turns).
     const stickAt = await page.evaluate(() => { const b = document.getElementById('joystick').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2, b.width / 2]; });
     const p0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
     await phase('walk', WALK_MS, async (ms) => {
@@ -118,6 +122,9 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     const atk = await page.evaluate(() => { const b = document.getElementById('attack-button').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
     await phase('fight', FIGHT_MS, async (ms) => { const t1 = Date.now() + ms; while (Date.now() < t1) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: atk[0], y: atk[1], id: 2 }] }); await page.waitForTimeout(60); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(440); } });
     run.fightInfight = await page.evaluate(() => document.body.classList.contains('infight'));
+    }
+    run.longTasksAll = await page.evaluate(() => window.__perf.lt.filter((x) => x[2] > 50).slice(0, 300));   // [phase, start ms, duration ms]: the period of a recurring stall is the gap between these
+    run.loaf = await page.evaluate(() => window.__perf.loaf);
   } catch (e) { run.error = String(e).slice(0, 300); }
   run.zoneReadyByEnd = await page.evaluate(() => !!window.__zoneReady).catch(() => null); run.zoneReadyLogAtMs = readyLog.atMs; run.console = said;
   run.errors = errors; results.push(run);
