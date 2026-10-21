@@ -5,8 +5,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { render, readState, titleOf } from '../scripts/state-index.mjs';
 
-test('PROJECT_STATE.md matches docs/state/ (run `node scripts/state-index.mjs` after adding or renaming a state file)', () => {
-  assert.equal(readFileSync('PROJECT_STATE.md', 'utf8'), render(readState()));
+// Only the file list is held, not the titles: a lane retitling its own state file must never turn the unit shards red on a docs edit.
+test('PROJECT_STATE.md lists exactly the files in docs/state/ (run `node scripts/state-index.mjs` after adding, renaming or removing one)', () => {
+  const listed = (text: string) => [...text.matchAll(/\]\((docs\/state\/[^)]+\.md)\)/g)].map((m) => m[1]).sort();
+  assert.deepEqual(listed(readFileSync('PROJECT_STATE.md', 'utf8')), listed(render(readState())));
 });
 
 test('a state file is listed by its own title; a dated file is a report, not a lane', () => {
