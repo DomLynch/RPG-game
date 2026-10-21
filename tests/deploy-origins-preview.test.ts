@@ -26,7 +26,9 @@ test('DEPLOY_ORIGINS_PREVIEW=off skips the publish', () => {
 });
 
 test('the preview script runs through bash on a clean artifact folder, and an nginx conf drift fails the run loudly (Release I: no exec bit, stale build, /zone/ alias never installed)', () => {
-  assert.match(deploy, /rm -rf artifacts\/origins-preview[^\n]*\n\s*bash scripts\/publish-origins-preview\.sh/);
+  // Re-pinned (K6o2, 2026-10-21): the publish is now tried up to 3 times (a transient ssh timeout in this step left /zone1/ stale), so comment lines and the retry loop sit between the clean-up and the
+  // publish line. The intent is unchanged: the artifact folder is removed BEFORE the first attempt, and the publish runs through bash.
+  assert.match(deploy, /rm -rf artifacts\/origins-preview[^\n]*\n(?:\s*#[^\n]*\n)*\s*for _pv_try in 1 2 3; do\n\s*if bash scripts\/publish-origins-preview\.sh; then previews_ok=1; break; fi/);
   assert.match(deploy, /bash scripts\/provision\.sh --dry-run[\s\S]{0,400}previews_ok=0/);
 });
 
