@@ -5,7 +5,7 @@ import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sa
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -45,6 +45,46 @@ test('a call that finishes in time passes its output and exit through; git carri
   assert.match(g.stdout, /rc=0 why=\[\]/);
   const h = stub('gh', 'ok').run('net_gh 30 pr view 7; echo "rc=$?"');
   assert.match(h.stdout, /ARGS:pr view 7 LS:\/ N:\nrc=0/);
+});
+// net_fetch_local_first (Strategy 2026-10-21, the box's 14:15 to 14:32 outbound outage): stub git (cat-file answers HAVE, fetch is logged) and stub curl (fails its first FAIL calls).
+const fetchWorld = (have: boolean, curlFails: number) => {
+  const dir = mkdtempSync(join(tmpdir(), 'net-fetch-')), bin = join(dir, 'bin'), log = join(dir, 'calls'); mkdirSync(bin);
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\ncase "$*" in *cat-file*) exit ${have ? 0 : 1};; *fetch*) echo fetch >> '${log}'; exit 0;; esac\nexit 0\n`);
+  writeFileSync(join(bin, 'curl'), `#!/bin/sh\necho curl >> '${log}'\nn=$(grep -c curl '${log}')\n[ "$n" -le ${curlFails} ] && exit 7\nexit 0\n`);
+  chmodSync(join(bin, 'git'), 0o755); chmodSync(join(bin, 'curl'), 0o755);
+  const run = (script: string) => spawnSync('bash', ['-c', `source '${lib}'\nexport NET_RETRY_SLEEP=0 NET_CONNECT_S=1\n${script}`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  const calls = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []);
+  return { run, calls };
+};
+test('net_fetch_local_first: a commit already in the local store never touches the network', () => {
+  const w = fetchWorld(true, 99), r = w.run('net_fetch_local_first /repo abc123; echo "rc=$?"');
+  assert.match(r.stdout, /rc=0/); assert.deepEqual(w.calls(), [], 'no curl probe, no fetch');
+});
+test('net_fetch_local_first: GitHub unreachable on all 3 attempts is a named failure with exit 1 and no fetch', () => {
+  const w = fetchWorld(false, 99), r = w.run('net_fetch_local_first /repo abc123; echo "rc=$? why=[$NET_WHY]"');
+  assert.match(r.stdout, /rc=1 why=\[github\.com unreachable \(no connection in 1s, attempt 3 of 3\)\]/);
+  assert.deepEqual(w.calls(), ['curl', 'curl', 'curl'], 'three probes, git fetch never started');
+  assert.match(r.stderr, /net-bound: github\.com unreachable/);
+});
+test('net_fetch_local_first: a blip that clears on the 2nd attempt fetches once and succeeds', () => {
+  const w = fetchWorld(false, 1), r = w.run('net_fetch_local_first /repo abc123; echo "rc=$? why=[$NET_WHY]"');
+  assert.match(r.stdout, /rc=0 why=\[\]/); assert.deepEqual(w.calls(), ['curl', 'curl', 'fetch']);
+});
+test('net_fetch_local_first: an empty sha has no local shortcut (the plain fetch of every ref)', () => {
+  const w = fetchWorld(true, 0), r = w.run('net_fetch_local_first /repo ""; echo "rc=$?"');
+  assert.match(r.stdout, /rc=0/); assert.deepEqual(w.calls(), ['curl', 'fetch']);
+});
+test('net_retry: the last failure code passes through after N tries; an early success stops it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'net-retry-')), n = join(dir, 'n');
+  const r = spawnSync('bash', ['-c', `source '${lib}'\nexport NET_RETRY_SLEEP=0\ntry(){ echo x >> '${n}'; return 7; }\nnet_retry 3 try; echo "rc=$?"; wc -l < '${n}'\nok(){ return 0; }\nnet_retry 3 ok; echo "rc=$?"`], { encoding: 'utf8' });
+  assert.match(r.stdout, /rc=7\s+3\s+rc=0/);
+});
+test('the VPS job runners reach GitHub only through the bounded, local-first paths', () => {
+  const unit = readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8'), rows = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), vu = readFileSync('scripts/lib/vps-unit.mjs', 'utf8'), vr = readFileSync('scripts/lib/vps-receipts.mjs', 'utf8');
+  for (const s of [unit, rows]) { assert.match(s, /net_fetch_local_first "\$home\/repo" "\$sha"/); assert.doesNotMatch(s, /^git fetch -q origin$|; git fetch -q origin;/m, 'no unbounded fetch left'); }
+  assert.match(vu, /cat-file -e '\$\{sha\}\^\{commit\}'/, 'vps-unit: local store first'); assert.match(vu, /--connect-timeout 30 --max-time 45 https:\/\/github\.com/);
+  assert.match(vu, /curl -fsSL --connect-timeout 30 --retry 3/, 'the node tarball curl is bounded and retried');
+  assert.doesNotMatch(vr, /timeout 300 git fetch/); assert.equal((vr.match(/for i in 1 2 3; do timeout 120 git fetch -q origin/g) ?? []).length, 2, 'both container job commands retry the fetch');
 });
 test('the callee\'s own failure code survives; its own 124 is not mistaken for a timeout', () => {
   const s = stub('git', 'ok');

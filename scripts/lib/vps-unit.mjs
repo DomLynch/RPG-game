@@ -33,12 +33,18 @@ trap 'rm -rf "$RUN" "$MARK"' EXIT
 mkdir -p "$RUN" || exit 90
 ${release ? `mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK" || echo 'release marker not set: lane jobs are not locked out of this run' >&2   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them` : `# a lane receipt run: no release marker (lane jobs keep the box)`}
 cd "$RUN" || exit 90
-curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
+curl -fsSL --connect-timeout 30 --retry 3 --retry-delay 5 "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
 tar --no-same-owner -xJf node.tar.xz || exit 93
 PATH="$RUN/node-${NODE_PIN.version}-linux-x64/bin:/usr/bin:/bin"
 hash -r
-git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96
+git -C '${SHADOW_REPO}' cat-file -e '${sha}^{commit}' < /dev/null 2>/dev/null || {   # GitHub only when the commit is not already in the box's object store; 3 attempts, each behind a 30 s connect probe (the 2026-10-21 14:15 to 14:32 outbound outage hung every call for 135 s)
+  got=0; for i in 1 2 3; do
+    curl -sS -o /dev/null --connect-timeout 30 --max-time 45 https://github.com < /dev/null 2>/dev/null && timeout 180 git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null && { got=1; break; }
+    [ "$i" = 3 ] || sleep $((i * 5))
+  done
+  [ "$got" = 1 ] || { echo 'github.com unreachable or the fetch failed after 3 attempts' >&2; exit 96; }
+}
 BOXTREE=$(git -C '${SHADOW_REPO}' rev-parse '${sha}^{tree}')
 [ "$BOXTREE" = '${tree}' ] || exit 97
 git clone -q --shared --no-checkout '${SHADOW_REPO}' "$RUN/src" < /dev/null || exit 98

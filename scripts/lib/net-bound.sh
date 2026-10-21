@@ -33,3 +33,35 @@ net_git() {
     net_bound "$secs" "git $op" git "$op" "$@"
 }
 net_gh() { local secs=$1 a=$2 b=${3:-}; shift 1; net_bound "$secs" "gh $a $b" gh "$@"; }
+
+# GitHub reachability for the VPS job runners (Strategy 2026-10-21): the box lost outbound TCP 443 to github.com for ~17 minutes (14:15 to 14:32) and a git/curl with no connect timeout sat the
+# default 135 s per call. A job whose commit is already in the box's own object store never needs GitHub at all; one that does connects within 30 s or retries, then stops with a NAMED reason.
+#   net_github_probe                 curl to github.com with a 30 s connect limit (NET_CONNECT_S) and a 45 s ceiling; 0 = reachable.
+#   net_retry TRIES cmd...           run cmd up to TRIES times, NET_RETRY_SLEEP s * attempt apart (default 5); the last exit code passes through.
+#   net_fetch_local_first DIR SHA [REFSPEC]   0 at once when DIR already holds SHA as a commit (no network). Otherwise up to 3 attempts of probe + `git fetch -q origin [REFSPEC]` (net_git, 180 s); a final failure
+#                                    sets NET_WHY ("github.com unreachable ..." or the fetch's own) and returns 1. SHA may be empty or a ref name: then there is no local shortcut.
+NET_CONNECT_S=${NET_CONNECT_S:-30}
+net_github_probe() { curl -sS -o /dev/null --connect-timeout "$NET_CONNECT_S" --max-time $((NET_CONNECT_S + 15)) "${NET_PROBE_URL:-https://github.com}" < /dev/null 2>/dev/null; }
+net_retry() {
+  local tries=$1 i=1 rc=0; shift
+  while :; do
+    "$@"; rc=$?
+    [ "$rc" = 0 ] && return 0
+    [ "$i" -ge "$tries" ] && return "$rc"
+    sleep $(( ${NET_RETRY_SLEEP:-5} * i )); i=$((i + 1))
+  done
+}
+net_fetch_local_first() {
+  local dir=$1 sha=${2:-} refspec=${3:-} i=1
+  NET_WHY=
+  if [ -n "$sha" ] && git -C "$dir" cat-file -e "$sha^{commit}" 2>/dev/null; then return 0; fi
+  while [ "$i" -le 3 ]; do
+    if ! net_github_probe; then NET_WHY="github.com unreachable (no connection in ${NET_CONNECT_S}s, attempt $i of 3)"
+    elif (cd "$dir" && net_git 180 fetch -q origin $refspec); then NET_WHY=; return 0
+    else NET_WHY="git fetch from origin failed or timed out (attempt $i of 3)"
+    fi
+    [ "$i" -lt 3 ] && sleep $(( ${NET_RETRY_SLEEP:-5} * i ))
+    i=$((i + 1))
+  done
+  echo "net-bound: $NET_WHY" >&2; return 1
+}

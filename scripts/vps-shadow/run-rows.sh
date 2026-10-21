@@ -17,8 +17,10 @@ home="${SHADOW_HOME:-/opt/frankendom-shadow}"
 bin="$(cd "$(dirname "$0")" && pwd)"
 export PLAYWRIGHT_BROWSERS_PATH="$home/ms-playwright"
 export PG_BIN="${PG_BIN:-$(pg_config --bindir 2>/dev/null || true)}"
+# GitHub only when the commit is not already in the local store, and a bounded, named failure when it is unreachable (Strategy 2026-10-21; scripts/lib/net-bound.sh). Without the lib beside this script: the plain fetch.
+lib="$bin/../lib/net-bound.sh"; if [ -f "$lib" ]; then . "$lib"; else net_fetch_local_first() { git -C "$1" fetch -q origin; }; fi
+net_fetch_local_first "$home/repo" "$sha" || { echo "fetch failed: ${NET_WHY:-github unreachable}"; exit 5; }
 cd "$home/repo"
-git fetch -q origin
 full=$(git rev-parse --verify -q "$sha^{commit}") || { echo "unknown sha $sha"; exit 2; }
 git checkout -q --detach "$full"
 git reset -q --hard && git clean -fdq   # a scratch checkout: no lane work lives here; node_modules is ignored and stays
