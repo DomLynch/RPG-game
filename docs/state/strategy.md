@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-21 21:0x Dubai — running entry (no clear, Dom: "continue"): K6q15b LIVE 08070eb67
+
+**Now.** LIVE 08070eb67 = K6q15b (#3555 duel-relay SIGTERM fix; Auditor PASS 20:59:17, train merged 21:00:14, release.json read by me 21:05; train Published line lags a tick). Backend restarted the relay 21:04:10 at 0 rooms, "signal handlers armed", NRestarts=0 (Lead's read). Trunk open for merges after Deploy's Published line. K6q16 = #3553 World ?capture=seed + Web's tick-based duel-bot fix (rows 37/38); Lead + Auditor: if row 37 reds on K6q16, #3553 drops and Web's fix ships alone (Auditor withdrew its #3553 suspicion). Web's cause receipt (due 21:15) not seen at 21:02; one re-ask at the 21:18 sweep, no chase. Lead, Deploy, Characters, World, Combat restarted ~20:58 (Dom's clears). Re-armed: 15-min sweep cron 997ede0b, train Monitor; Haiku managers NOT respawned (one publish does not need them; spawn if the queue runs past ~22:00). Lessons page + town letter + Steam $100 still Dom's.
+
 ## 2026-10-21 20:5x Dubai — handoff at Dom's clear (K6q15b green, waits on the Auditor restart; rows 37/38 cause with Web; cross-game lessons page proposed)
 
 **READ FIRST:** memory `session-handoff-2026-10-21-evening` is superseded by the entries below plus today's memories `ruling-pit-live-zone-pvp-duels-2026-10-21`, `ruling-town-backdrop-zone2-nightborn-2026-10-21`, `ruling-opentrident-hf-per-game-jobs-2026-10-21`. Restart line: "Project Strategy, read the handoff." Re-arm: 15-min sweep cron `3,18,33,48 * * * *` (checkin prompt), train Monitor on ~/.claude/state/release-train.log, THREE Haiku 5.5 high managers (release line with Lead + Deploy, OpenTrident, Auditor) per `feedback-delivery-managers-brief-2026-10-21`, ~70 min / ~200k tokens each then re-spawn.
