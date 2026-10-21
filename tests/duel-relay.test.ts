@@ -266,13 +266,15 @@ test('the service entry stamps every log line with an ISO time and leaves an exi
   let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
   const exited = new Promise<{ code: number | null; signal: string | null }>((r) => child.on('exit', (code, signal) => r({ code, signal })));
   try {
-    assert.ok(await until(() => /listening on/.test(out), 8000), out);
+    assert.ok(await until(() => /signal handlers armed/.test(out) && /listening on/.test(out), 30000), out);   // both lines are printed after the handlers are registered (scripts/duel-relay.mjs): SIGTERM on seeing them always meets a handler
     child.kill('SIGTERM');
     const { code, signal } = await exited;
-    assert.equal(code, 0, `a SIGTERM stop is a clean exit 0 (signal ${signal}): ${out}`);
     const lines = out.trim().split('\n');
+    // Assert the HANDLED stop line, not the exit code: a run killed by the default signal action leaves no such line, and that is what this must catch.
+    assert.match(lines[lines.length - 1], /duel-relay: received SIGTERM, exiting 0; open rooms 0 sockets 0/, `no handled stop line (code ${code}, signal ${signal}): ${out}`);
     for (const l of lines) assert.match(l, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z duel-relay/, `an untimed line: ${l}`);
-    assert.match(lines[0], / listening on 127\.0\.0\.1:\d+, minting for anyone pid \d+$/);
+    assert.match(lines[0], / duel-relay: signal handlers armed \(SIGTERM, SIGINT, uncaught exception, unhandled rejection\)$/, 'the handlers are armed before anything else is logged');
+    assert.match(lines[1], / listening on 127\.0\.0\.1:\d+, minting for anyone pid \d+$/, 'and the listening line comes after them');
     assert.match(lines[lines.length - 1], /duel-relay: received SIGTERM, exiting 0; open rooms 0 sockets 0 \(a restart drops them\)$/);
   } finally { child.kill('SIGKILL'); }
 });

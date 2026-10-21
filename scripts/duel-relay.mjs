@@ -207,9 +207,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // untimed 'listening' lines, so the cause of the restarts could not be read). Counts only, as before: no payloads, tokens or IPs.
   const stamped = (/** @type {string} */ line) => console.log(`${new Date().toISOString()} ${line}`);
   const relay = await startRelay({ admit: open ? null : supabaseAdmin(url, anonKey), players: everyone ? supabaseUser(url, anonKey) : null, log: stamped });
-  stamped(`duel-relay listening on 127.0.0.1:${relay.port}, minting ${open ? 'for anyone' : everyone ? 'for signed-in players (capped) and admins' : 'for admins only'} pid ${process.pid}`);
   const ending = (/** @type {string} */ why) => { const s = relay.stats(); stamped(`duel-relay: ${why}; open rooms ${s.rooms} sockets ${s.sockets} (a restart drops them)`); };
   for (const signal of /** @type {const} */ (['SIGTERM', 'SIGINT'])) process.on(signal, () => { ending(`received ${signal}, exiting 0`); process.exit(0); });
   process.on('uncaughtException', (err) => { ending(`uncaught exception ${err?.stack ?? err}`); process.exit(1); });
   process.on('unhandledRejection', (err) => { ending(`unhandled rejection ${err instanceof Error ? err.stack : err}`); process.exit(1); });
+  // The ready lines come LAST, after the handlers: a supervisor (or the test) that signals on seeing either must hit a handled exit, never the default signal death (K6q14, two red runs of the #3545 test).
+  stamped('duel-relay: signal handlers armed (SIGTERM, SIGINT, uncaught exception, unhandled rejection)');
+  stamped(`duel-relay listening on 127.0.0.1:${relay.port}, minting ${open ? 'for anyone' : everyone ? 'for signed-in players (capped) and admins' : 'for admins only'} pid ${process.pid}`);
 }
