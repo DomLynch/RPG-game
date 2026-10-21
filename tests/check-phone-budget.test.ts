@@ -25,7 +25,7 @@ function run(tris: number, prims: number, groups: { fix: string; entries: Entry[
   return { code: r.status, out: r.stdout };
 }
 const FILE = 'public/weapons/shapes/axe-crafted.glb';
-const figures = (tris: number, draws = 1) => ({ tris, skinnedVerts: 0, joints: 0, draws, textureSide: 0, gzKb: 1, pngKb: 0 });
+const figures = (tris: number, draws = 1) => ({ tris, skinnedVerts: 0, joints: 0, draws, textureSide: 0, bytes: glb(tris, draws).length, pngBytes: 0 });
 const group = (tris: number, draws = 1, fix = 'PR 9999 trims it') => [{ fix, entries: [{ file: FILE, class: 'weapon', over: { tris }, figures: figures(tris, draws) }] }];
 
 test('an asset inside its class budget passes with no allow-list', () => { const r = run(3000, 1, null); assert.equal(r.code, 0, r.out); });
@@ -35,4 +35,13 @@ test('an allowed offender that grows on the metric it is over on fails', () => {
 test('an allowed offender that grows on a metric still within budget fails too (the recorded figure is the ceiling)', () => { const r = run(4500, 2, group(4500, 1)); assert.equal(r.code, 1); assert.match(r.out, /WORSE .*draws 1 -> 2/); });
 test('an allowed offender that shrinks but stays over passes (the entry can be lowered)', () => { const r = run(4200, 1, group(4500)); assert.equal(r.code, 0, r.out); });
 test('an allow entry whose file now passes is stale and fails: the list only shrinks', () => { const r = run(3000, 1, group(4500)); assert.equal(r.code, 1); assert.match(r.out, /STALE .*tris is within budget now/); });
+test('the figures it records are the same on every run and every machine: two runs on the same tree print the same report (no gzip in the gate)', () => {
+  const a = run(4500, 1, group(4500)), b = run(4500, 1, group(4500));
+  assert.equal(a.out, b.out); assert.equal(a.code, b.code);
+  assert.equal(run(4500, 1, group(4500)).code, 0, 'an entry recorded from the same bytes passes');
+});
+test('a growth of one byte on an allowed asset fails (bytes are exact, not rounded KB)', () => {
+  const g = group(4500); g[0]!.entries[0]!.figures.bytes -= 1;
+  const r = run(4500, 1, g); assert.equal(r.code, 1); assert.match(r.out, /WORSE .*bytes/);
+});
 test('an allow group with no fix PR named fails', () => { const r = run(4500, 1, group(4500, 1, 'TODO name the PR that fixes this file')); assert.equal(r.code, 1); assert.match(r.out, /NOFIX/); });

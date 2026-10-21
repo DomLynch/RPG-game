@@ -27,8 +27,9 @@ function* glbs(dir) {
     if (e.isDirectory()) { if (!['node_modules', '.git', 'dist'].includes(e.name)) yield* glbs(rel); } else if (e.name.endsWith('.glb')) yield rel;
   }
 }
-const METRICS = ['tris', 'skinnedVerts', 'joints', 'draws', 'textureSide', 'gzKb'];
-const figuresOf = (s) => ({ tris: s.tris, skinnedVerts: s.skinnedVerts, joints: s.joints, draws: s.draws, textureSide: Math.max(0, ...s.textures.map((t) => Math.max(t.w, t.h))), gzKb: s.gzKb, pngKb: s.textures.filter((t) => t.fmt === 'png').reduce((n, t) => n + Math.round((t.bytes ?? 0) / 1024), 0) });
+// Only numbers that read the same on every machine: counts from the file's JSON, texture pixels, and raw bytes (the gzip size differs between Node/zlib versions, so it is report-only elsewhere).
+const METRICS = ['tris', 'skinnedVerts', 'joints', 'draws', 'textureSide'];
+const figuresOf = (s) => ({ tris: s.tris, skinnedVerts: s.skinnedVerts, joints: s.joints, draws: s.draws, textureSide: Math.max(0, ...s.textures.map((t) => Math.max(t.w, t.h))), bytes: s.bytes, pngBytes: s.textures.filter((t) => t.fmt === 'png').reduce((n, t) => n + (t.bytes ?? 0), 0) });
 
 const seen = new Map();   // file -> { class, figures, over }
 let checked = 0;
@@ -41,7 +42,8 @@ for (const dir of ['public', 'src/assets']) {
     checked++;
     const figures = figuresOf(s), over = {};
     for (const m of METRICS) if (figures[m] > cls[m]) over[m] = figures[m];
-    if (cls.png === false && figures.pngKb > 0) over.pngKb = figures.pngKb;
+    if (figures.bytes > cls.kb * 1024) over.bytes = figures.bytes;
+    if (cls.png === false && figures.pngBytes > 0) over.pngBytes = figures.pngBytes;
     seen.set(file, { class: cls.id, figures, over });
   }
 }
