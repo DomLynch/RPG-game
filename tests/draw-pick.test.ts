@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { pickDrawn } from '../origins/preview/draw-pick.ts';
+import { fetchKinds, pickDrawn } from '../origins/preview/draw-pick.ts';
 
 const hero = { x: 0, z: 0 }, RANGE = 60, at = (...d: number[]) => d.map((x) => ({ x, z: 0 }));
 
@@ -25,4 +25,13 @@ test('the phone cap is 3 and a player\'s reach is a row (desktop keeps TUNING.ca
   const v = (id: string) => rows.find((r) => r.id === id)?.fields.value;
   assert.equal(v('mob-view.phone-cap'), 3);
   assert.equal(v('mob-view.player-reach'), 8);
+  assert.equal(v('mob-view.preready-kinds'), 3);   // a phone's kinds fetched before [zone ready]: the nearest creatures' (= the phone cap), deliberate (#defer-bodies)
+});
+
+test("fetchKinds: before [zone ready] a phone fetches only its nearest creatures' kinds, after it every near kind, closest first", () => {
+  const field = [{ x: 30, z: 0, kind: 'salamander' }, { x: 5, z: 0, kind: 'goblin@L4' }, { x: 8, z: 0, kind: 'goblin@L4' }, { x: 12, z: 0, kind: 'goblin' }, { x: 90, z: 0, kind: 'troll' }];
+  assert.deepEqual(fetchKinds(field, hero, 60, true, 3), ['goblin@L4', 'goblin'], 'the three nearest creatures are two goblin looks: the salamander waits');
+  assert.deepEqual(fetchKinds(field, hero, 60, false, 3), ['goblin@L4', 'goblin', 'salamander'], 'ready: every in-range kind, nearest creature first; the troll is out of range');
+  assert.deepEqual(fetchKinds(field, hero, 60, true, 0), [], 'a first-K of 0 fetches nothing before ready');
+  assert.deepEqual(fetchKinds([], hero, 60, true, 3), []);
 });

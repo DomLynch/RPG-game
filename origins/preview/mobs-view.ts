@@ -20,7 +20,7 @@ const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
-import { pickDrawn } from './draw-pick.ts';
+import { fetchKinds, pickDrawn } from './draw-pick.ts';
 import { farHide } from './far-detail.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
@@ -80,7 +80,7 @@ const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed aft
 const RING = { width: previewRule('ringWidth'), segments: previewRule('ringSegments'), opacityCalm: previewRule('ringOpacityCalm'), opacityAggro: previewRule('ringOpacityAggro'), colorCalm: previewRule('ringColorCalm'), colorAggro: previewRule('ringColorAggro') };   // the creature's aggro-radius ring on the ground (rows; colours are 0xrrggbb numbers): the look it had as literals, so no change to the picture
 const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSphereNamed') };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[] }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[]; zoneReady?: () => boolean }): Mobs {
   const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? fxNum('mob-view.phone-cap') : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -254,7 +254,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
-      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(keyOf(specs[i]!)); });
+      for (const kind of fetchKinds(mobs.map((m, i) => ({ x: m.x, z: m.z, kind: keyOf(specs[i]!) })), hero, fetchRange, !!opts.phone && !!opts.zoneReady && !opts.zoneReady(), fxNum('mob-view.preready-kinds'))) fetchBody(kind);   // a phone fetches only its nearest creatures' kinds before [zone ready], then the rest closest first (Dom: the phone is slow; the salamander's 705 KB sat in front of the ready)
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
@@ -263,7 +263,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(keyOf(s));
         if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(keyOf(s))) dress(v, s, body);
-        v.group.visible = !hiddenInFight(s.id, engaged); v.ring.visible = v.group.visible && (opts.markers?.ring ?? true);
+        v.group.visible = !hiddenInFight(s.id, engaged) && !(opts.phone && !v.model && !body && urlOfKey(keyOf(s)));   // a deferred kind (its body not asked for yet) stays invisible, never a capsule at a visible distance
+        v.ring.visible = v.group.visible && (opts.markers?.ring ?? true);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
         const look = mobVariant(s.character, s.id), ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;
