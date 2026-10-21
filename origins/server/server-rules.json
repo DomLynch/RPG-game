@@ -33,7 +33,7 @@
   ],
   "pace": [
     {
-      "id": "pace",
+      "id": "killTiming",
       "slowRatio": 3,
       "minTickS": 3,
       "startsKept": 5000,
