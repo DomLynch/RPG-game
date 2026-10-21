@@ -4,6 +4,8 @@
 
 **UPDATE 2026-10-21 ~10:35 +04:** #3485 WebKit receipt PASS posted (pull/3485#issuecomment-6309370802), Lead accepted. #3488 gfx-ON phone-tier loot-draw posted (pull/3488#issuecomment-6309463423): trunk 1 new program at the first loot draw (#98), head 1 (#101), no worse; Lead accepted. Both ride K6q with #3486, waiting on the Auditor's PASS. LATER ITEM (not now, Lead): trunk itself still links 1 program at the first loot draw (#98 on trunk; which material is unidentified: list programNames diff in `loot-draw-programs.mjs`, then pre-compile it with the loot root in the scene). Proof scripts: /srv/dev-jobs/char-webp/loot-draw-programs-gfx.mjs (`?gfx=1`) on the VPS. Creature bare-body item (a) waits for someone to do the face close-up check; I am idle otherwise.
 
+**HARNESS-ONLY (10-21 ~11:05 +04):** "[zone ready] never fires on the Mac real GPU, warmup stuck player ~20 s" was MY harness: Playwright Chromium on this Mac reports `ANGLE ... SwiftShader` (software GL) even without the swiftshader flags, so the 20 s compile bound trips; Web measured live /zone1/ on a real iPhone-UA run with ready at 10-20 s and 0 stuck lines. The bare-skin stills (docs/evidence/bare-skin on char/evidence-bare-skin) are therefore SOFTWARE GL stills: geometry/visibility verdict (Skin hidden = legs, forearms, neck gone) is unaffected, lighting is not a real-GPU look. Item (a) DROPPED. Probe: `.scratch-zr.mjs <url> <phone|desktop>` (untracked).
+
 **Merged / live**: #3474 far-detail merged (head 364a94157). #3457, #3463 live earlier (see #10).
 
 **Open PRs (all mine, auditor:ready)**
