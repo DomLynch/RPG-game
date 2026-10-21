@@ -1,0 +1,66 @@
+// ?capture=seed replay-twice row (World lane): the same build, loaded twice from cold, must put every creature in the same place after advance(N), and a flag-off load must carry no capture hook.
+// Usage: node scripts/capture-seed-check.mjs <built origins-preview dist> [out.json]   env: TICKS=300 SPOT=-97.05,3.7 PIT_GL=1 (software GL: --disable-gpu, the VPS/HF CPU path)
+// Per run: wait originsPreview.capture.ready(), place the hero at SPOT, wait ready() again, advance(TICKS), read originsPreview.mobs() (id, x, z, mode of every creature) and hash a screenshot.
+// Exit 0 = both runs' creature lists are identical (the screenshot hash equality is reported, not gated: software GL may differ in the last bit); 1 = they differ; 3 = never ready.
+/* global process, console, window */
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
+
+const [dist, out] = process.argv.slice(2), TICKS = +(process.env.TICKS || 300), [sx, sz] = (process.env.SPOT || '-97.05,3.7').split(',').map(Number);
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ogg': 'audio/ogg', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
+const server = http.createServer((req, res) => {
+  const u = decodeURIComponent(req.url.split('?')[0]); let f = path.join(path.resolve(dist), u.replace(/^\/preview\/origins\//, ''));
+  if (!fs.existsSync(f) && fs.existsSync(path.join(path.resolve('public'), u))) f = path.join(path.resolve('public'), u);   // the built page does not carry public/ (the kit, the bodies): read it from the repo
+  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
+  if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; res.end(); return; }
+  res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
+});
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const MAC_GL = process.env.MAC_GL === '1';   // the Mac M5: Google Chrome on Metal (Playwright's own headless shell can fall back to SwiftShader there); the renderer string is logged either way
+const browser = await launchBrowser(chromium, MAC_GL ? { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] } : { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
+const base = `${/^https?:/.test(dist) ? dist.replace(/\/$/, '') : `http://127.0.0.1:${server.address().port}`}/preview/origins/?region=1&zone=1&presence=0`;   // <dist> may be a running dev server's origin (http://127.0.0.1:5191) instead of a built folder
+const readyWait = (page) => page.waitForFunction(() => window.originsPreview?.capture?.ready?.(), null, { timeout: 600000, polling: 500 }).catch(async (error) => {   // never ready: say which half is missing
+  const diag = await page.evaluate(() => { const d = window.originsPreview?.mobs?.(); return { zoneReady: !!window.__zoneReady, ticks: window.originsPreview?.capture?.ticks?.(), gates: window.originsPreview?.capture?.gates?.(), drawn: d?.mobs?.filter((m) => m.drawn).length, modelled: d?.mobs?.filter((m) => m.drawn && m.model).length, bodies: d?.bodies }; }).catch(() => null);
+  throw new Error(`${String(error).slice(0, 80)} diag=${JSON.stringify(diag)}`);
+});
+
+let shots = 0;   // SHOTS=<dir> writes each flag-on run's still (replay-0.png, replay-1.png)
+async function run(flag) {
+  const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+  try {
+    await page.goto(flag ? `${base}&capture=seed` : base, { waitUntil: 'load' });
+    if (!flag) {   // flag off: no capture hook; and the control for the replays: how long this renderer takes to reach [zone ready] with the live loop
+      const t0 = Date.now(); await page.waitForFunction(() => window.originsPreview, null, { timeout: 600000 });
+      const capture = await page.evaluate(() => window.originsPreview.capture ?? null);
+      const zoneMs = await page.waitForFunction(() => window.__zoneReady, null, { timeout: 600000 }).then(() => Date.now() - t0, () => -1);
+      return { capture, zoneReadyMs: zoneMs };
+    }
+    await readyWait(page);
+    await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [sx, sz]);
+    await page.waitForTimeout(500); await readyWait(page);
+    const ticks = await page.evaluate((n) => window.originsPreview.capture.advance(n), TICKS);
+    await page.waitForTimeout(1500);   // two drawn frames at dt 0 (the held walk) so the screenshot is the state at `ticks`
+    const mobs = await page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => [m.id, m.x, m.z, m.mode, m.drawn, m.model]));
+    const png = await page.screenshot(), shot = crypto.createHash('sha256').update(png).digest('hex').slice(0, 16);
+    if (process.env.SHOTS) { fs.mkdirSync(process.env.SHOTS, { recursive: true }); fs.writeFileSync(path.join(process.env.SHOTS, `replay-${shots++}.png`), png); }
+    const renderer = await page.evaluate(() => { const c = document.createElement('canvas').getContext('webgl'); const e = c && c.getExtension('WEBGL_debug_renderer_info'); return e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : null; });
+    return { ticks, mobs, shot, renderer };
+  } finally { await page.context().close(); }
+}
+
+let code = 0; const result = { ticks: TICKS, spot: [sx, sz] };
+try {
+  const off = await run(false); result.flagOff = off;
+  if (off.capture !== null) { console.log('FAIL: flag-off load carries a capture hook'); code = 1; }
+  const a = await run(true), b = await run(true); result.a = a; result.b = b;
+  const same = JSON.stringify(a.mobs) === JSON.stringify(b.mobs) && a.ticks === b.ticks && a.ticks === TICKS;
+  result.positionsIdentical = same; result.stillIdentical = a.shot === b.shot;
+  if (!same) { const diff = a.mobs.filter((m, i) => JSON.stringify(m) !== JSON.stringify(b.mobs[i])).slice(0, 8); result.diff = diff; code = 1; }
+  console.log(JSON.stringify({ positionsIdentical: same, stillIdentical: result.stillIdentical, creatures: a.mobs.length, ticks: a.ticks, flagOffCapture: off.capture }));
+} catch (error) { console.log(`FAIL: ${String(error).slice(0, 300)}`); code = 3; }
+finally { if (out) fs.writeFileSync(out, JSON.stringify(result, null, 1)); await browser.close(); server.close(); }
+process.exit(code);

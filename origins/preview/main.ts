@@ -1,4 +1,5 @@
 import './zone-guard.ts';
+import { captureOn, createCaptureClock } from './capture.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
@@ -466,7 +467,7 @@ function step(dt: number) {
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true;
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, zoneReady: () => zoneReadyAt >= 0, players: () => (shownOthers ?? []).map((o) => ({ x: o.x, z: o.z })), markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, zoneReady: () => zoneReadyAt >= 0, players: () => (shownOthers ?? []).map((o) => ({ x: o.x, z: o.z })), markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready, seeded: !!CAPTURE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
@@ -729,11 +730,12 @@ let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (g
 // The frame clamp's rate: how many frames the clamp below bound and the game speed (sim s / wall s). Always counted (a few additions a frame); mirrored on #debug only with ?debug (clamp-rate.ts).
 const clampRate = createClampRate(previewRule('clampPauseS'), /[?&]debug\b/.test(location.search) ? document.getElementById('debug') : null);
 (window as unknown as { __clampRate: typeof clampRate.snapshot }).__clampRate = clampRate.snapshot;   // window.__clampRate() -> { frames, clamped, paused, wallMs, simMs, clampedShare, gameSpeed }: cumulative, a harness subtracts two reads
-const walkLoop = () => {
-  const rawDt = clock.getDelta(), dt = Math.min(rawDt, previewRule('frameDtMax')), time = clock.elapsedTime;
+const CAPTURE = captureOn(location.search) ? createCaptureClock() : null;   // ?capture=seed: the walk is HELD (dt 0 every drawn frame) and moves only through originsPreview.capture.advance(n), n fixed ticks (capture.ts)
+const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) => {   // loadTime: the upload plan's re-look gap is paced by it; under ?capture=seed it is the real clock (the held `time` would never reach uploadNext and the zone would never go ready)
+  const dt = Math.min(rawDt, previewRule('frameDtMax'));
   clampRate.frame(rawDt, dt);
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); warmUpload(loadTime); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
@@ -741,9 +743,11 @@ const walkLoop = () => {
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
   zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
+  if (!draw) return;   // a capture tick between shots steps the world and draws nothing
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
+const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true, clock.getElapsedTime()); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
 renderer.setAnimationLoop(walkLoop);
 
 // The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.
@@ -1134,6 +1138,9 @@ function programOwners(): Record<string, string[]> {
   clampRate: clampRate.snapshot,   // the same read as window.__clampRate(), for the browser checks
   settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
   cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
+  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), gates: () => ({ selfSettled: selfSettled(), allWarmed: allWarmed(), cleanPlan, queue: uploadQueue.length, programsInFlight: !!programsInFlight, uploadTotal, domeDrawn, gfxDrawn, modelsDrawn: !!modelsDrawn }),   // what [zone ready] is still waiting for (a held-walk diagnosis)
+ advance: (n: number) => CAPTURE.advance(n, (dt, time) => walkFrame(dt, time, false)),   // ?capture=seed (capture.ts): the harness waits ready(), places the hero, waits ready() again, then advance(n) and shoots
+    ready: () => { const d = ((window as unknown as { originsPreview: { mobs: () => unknown } }).originsPreview.mobs() ?? undefined) as { mobs: { drawn: boolean; model: boolean }[]; bodies: Record<string, string> } | undefined; return !!(window as unknown as { __zoneReady?: unknown }).__zoneReady && !!d && d.mobs.every((m) => !m.drawn || m.model) && Object.values(d.bodies).every((b) => b === 'ready' || b === 'failed'); } },
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
