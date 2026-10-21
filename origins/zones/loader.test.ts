@@ -109,7 +109,7 @@ test('Zone 2 world is pinned: the same pieces, solids, creature homes and plan z
   const plan = frontierPlan(false, '2'), b = frontierBuild(plan), specs = mobSpecs(plan, b, loadZone('2').spawns.rows);
   const h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
   assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids), specs.length, h(specs.map((m) => ({ id: m.id, zone: m.zone, home: m.home, spawn: m.spawn, body: m.body }))), h([plan.zones])],
-    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 16, '0807473c6c4e24a7', '3fc4d31cf1bf4c5e']);   // Zone 2 creatures draft: 16 creatures (the 10 below + a skeleton camp of 5 at reach-skeletons + the Pale duelist); was 10 creatures, creature-homes hash re-pinned 2026-10-10 (pack balance): the cairn pack is two wolves (campSize [2,2]), the ruin gets a four-wolf camp (reach-pack-a/b); pieces, solids and plan zones unchanged
+    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 15, '4ad02016117f8115', '3fc4d31cf1bf4c5e']);   // Zone 2 creatures draft: 15 creatures (the 10 below + a skeleton camp of 4 [3,4] at reach-skeletons + the Pale duelist); was 10 creatures, creature-homes hash re-pinned 2026-10-10 (pack balance): the cairn pack is two wolves (campSize [2,2]), the ruin gets a four-wolf camp (reach-pack-a/b); pieces, solids and plan zones unchanged
 });
 
 // Proof 3 needs a camp where three can really join one player (#1943: up to 3). A creature's home is walkable by construction (mobSpecs places it with stand()), so standing at one is a real spot.

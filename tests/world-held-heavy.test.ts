@@ -23,7 +23,7 @@ function heavy(holdTicks: number, ticks = 500): PitEvent[] {
 const hit = (evs: PitEvent[]): PitEvent | undefined => evs.find((e) => e.type === 'Hit');
 
 test('a held heavy in the world chambers and charges: it lands later and harder than the uncharged heavy', () => {
-  assert.equal(RECORD_VERSION, 89);
+  assert.equal(RECORD_VERSION, 90);
   const tap = hit(heavy(0)), held = hit(heavy(RULES.charge.max + 40));
   assert.ok(tap?.damage && held?.damage, `both heavies land (tap ${JSON.stringify(tap)}, held ${JSON.stringify(held)})`);
   assert.ok(held!.tick! > tap!.tick!, `the held heavy chambers, so it lands later (${held!.tick} > ${tap!.tick})`);
