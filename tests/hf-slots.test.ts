@@ -51,7 +51,7 @@ test('launch.mjs job: cpu-upgrade by default, --gfx is the only way to a T4, the
   assert.equal(cpu.flavor, 'cpu-upgrade'); assert.deepEqual(cpu.args.slice(0, 5), ['jobs', 'run', '--flavor', 'cpu-upgrade', '--timeout']);
   const b64 = cpu.args[cpu.args.indexOf(cpu.args.find((a: string) => a.startsWith('JOB_ARGV_B64='))!)].slice('JOB_ARGV_B64='.length);
   assert.equal(Buffer.from(b64, 'base64').toString(), 'node scripts/x.mjs --flag');
-  assert.match(cpu.args.join(' '), /timeout 300 apt-get update.*timeout 300 git fetch.*lap checkout/);
+  assert.match(cpu.args.join(' '), /timeout 300 apt-get update.*for i in 1 2 3; do timeout 120 git fetch -q origin .*lap checkout/);   // the fetch is 3 attempts of at most 120 s (Strategy 2026-10-21: a GitHub outage must retry, not hang 300 s once); apt keeps its 300 s cap
   assert.equal(genericJobArgs([sha, '--gfx', '--', 'node', 'still.mjs']).flavor, 't4-small', 'a --gfx lane job gets the 40-cent T4 (Dom 2026-10-21)');
   assert.throws(() => genericJobArgs(['abc', '--', 'x']), /40-hex/);
   assert.throws(() => genericJobArgs([sha, 'x']), /usage/);
