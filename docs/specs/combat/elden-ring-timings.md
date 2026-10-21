@@ -66,5 +66,23 @@ Heavy taps (knife 44 / 7 / 31, longsword 58 / 5 / 41, cleaver 58 / 5 / 44, scyth
 
 - The id reading (which clip is R1, R2, R2 alt) is inferred; 8 of 49 clips fail the hand-speed check and are excluded; only 1 clip stands behind each R2 figure and 2 behind the thrust.
 - ER's one-handed and two-handed grips, running and rolling attacks and weapon arts are not measured.
-- Fairness is untested: the weapon-fairness and ladder sweeps run before and after on HF CPU once Lead picks A or B.
 - Provenance: derived from the local Steam install's animation events and skeleton on the private reference host; nothing from it is committed or deployed.
+
+## 6. What shipped (RV86 / WSV65) and why only the longsword
+
+Lead ruled Proposal B on lights and thrusts, heavy taps held (2026-10-21). The first build applied B to eight weapon rows (knife, longsword, gladius, cleaver, maul, warhammer, scythe, estoc). The fairness A/B (same tree, same seeds, only the era flipped: `scripts/er86-ab.mjs`, 24 seeds, every ladder rung at normal and hard, the battery's strategies) showed that this is not safe: **the wardens fight with those same weapon rows** (goblin knife, pitborn / cave troll / werewolf cleaver, executioner scythe, minotaur / knight maul, dwarf warhammer, nightborn / plague doctor estoc, shieldmaiden gladius), so retiming a row retimes the warden too. About 70 pairings moved by more than 0.06 and several crossed the caps (knife vs pitborn thrust-from-range 0 to 16 and 18 of 24; maul and warhammer vs dwarf kick-only 0 to 15 of 24). Wardens would need their own tuning, which is not this PR's job.
+
+**So the PR retimes only the longsword**, the default weapon, which no warden carries. Maul was in the table above (hammer class) and stays out for the same reason (the minotaur and the knight fight with it). The overlay (`weapon-defs.json`, longsword row, key `rv86`, era-keyed so a record below 86 replays the old numbers):
+
+| Move | Now | RV86 |
+|---|---|---|
+| light (right and left) | 20 / 8 / 22, chained 16 / 8 / 18 | 20 / 5 / 25, chained 16 / 5 / 20 |
+| thrust | 16 / 5 / 21 | 19 / 6 / 16 |
+
+Fairness, longsword-only build (24 seeds, 9 weapons x every ladder rung x normal and hard): mean player win share 0.013 to 0.013, rank 7 to 7, one pairing over the 0.06 tolerance (witch normal, thrust-from-range 6 to 4 of 24: the thrust got slightly worse, not better); every other weapon's share is identical (+0.000), so no warden moved. Whiff rate (light and thrust swings that found nothing): player 44.9% to 38.4%, warden 0.3% to 0.4%. The thrust recovery stays at 16 (the 19 to 21 fallback is not needed: no thrust-heavy pairing jumped).
+
+The other weapon classes wait for a per-side timing mechanism (a warden-only row set or a warden retune); their values stay in section 4.
+
+## 7. Gap page
+
+The reference viewer's gap page and fight mode use the `a02` movement clips as "attacks" (section 1). That viewer lives off-repo on the private reference host (a temporary hobby page): nothing in the game or the repo uses those ids. It is filed for Strategy and the sandbox owner, not changed here.
