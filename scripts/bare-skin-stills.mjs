@@ -25,8 +25,12 @@ const VIEWS = [['p375', { width: 375, height: 812 }], ['l844', { width: 844, hei
 async function session(label, viewport, query, steps) {
   const page = await (await browser.newContext({ viewport, isMobile: true, hasTouch: true, userAgent: IPHONE, deviceScaleFactor: 2 })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
+  page.on('response', (r) => { if (r.status() >= 400) console.log(label, r.status(), r.url().slice(0, 140)); });
+  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning' || /zone ready/.test(m.text())) console.log(label, 'console:', m.text().slice(0, 200)); });
   await page.goto(`http://127.0.0.1:${port}/preview/origins/?region=1&zone=1&presence=0${query}`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__zoneReady, null, { timeout: 240000 });
+  // Real GPU in headless Chromium on the Mac: the page's warm-up can stick ("warmup stuck player") and [zone ready] never fires, so wait for the creatures instead and give the models time to land.
+  await page.waitForFunction(() => window.originsPreview?.mobs?.()?.mobs?.length > 0, null, { timeout: 240000 });
+  await page.waitForTimeout(25000);
   // stand `d` metres south of the creature (matching `re`) nearest the camp's middle, and say which one
   const standAt = (re, d) => page.evaluate(([src, dist]) => { const rx = new RegExp(src, 'i'); const ms = window.originsPreview.mobs().mobs.filter((m) => rx.test(m.id)); if (!ms.length) return null; const cx = ms.reduce((s, b) => s + b.x, 0) / ms.length, cz = ms.reduce((s, b) => s + b.z, 0) / ms.length; const t = ms.sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0]; window.originsPreview.place(t.x, t.z - dist, 0); return t.id; }, [re, d]);
   const skinDrawn = () => page.evaluate(() => window.originsPreview.mobs().meshesOf.filter((r) => r.rows.some((x) => /L\d+_Body/.test(x))).map((r) => r.rows.filter((x) => /^skin/.test(x) && /Skin/.test(x)).join(',')));
