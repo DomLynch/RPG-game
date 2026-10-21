@@ -1,14 +1,15 @@
-# The live-PvP relay (scripts/duel-relay.mjs): WebRTC signalling plus the fallback packet path, on 127.0.0.1:8787 behind nginx.
+# The live-PvP relay (scripts/duel-relay.mjs): WebRTC signalling plus the fallback packet path, behind nginx. One instance per shard row
+# of ops/duel-relay.json (frankendom-duel-relay@0, @1, ...): the instance number is the row, and the row gives its loopback port.
 # Frankendom comes first on this shared box (Lead 2026-09-29): a higher CPU weight and I/O priority than the default slice, and a
 # slightly raised scheduling priority, so a busy neighbour cannot starve a live duel. It never reads or writes anything but its socket.
 [Unit]
-Description=Frankendom duel relay
+Description=Frankendom duel relay shard %i
 After=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/frankendom-relay/current
-Environment=DUEL_RELAY_PORT=8787
+Environment=DUEL_RELAY_SHARD=%i
 # DUEL_RELAY_SECRET: generated on the box by ops/install-duel-relay.sh (root 0600); read by systemd, never in git or a log.
 EnvironmentFile=/etc/frankendom/duel-relay.env
 ExecStart=/usr/bin/env node scripts/duel-relay.mjs
