@@ -1,1441 +1,2693 @@
 {
- "note": "Phone-budget debts (scripts/check-phone-budget.mjs): today's value per breached metric and the PR that fixes it. Only shrinks: an entry whose file passes now is stale and must go; a worse value is red.",
- "entries": [
-  {
-   "file": "public/looks/dwarf-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 30737,
-    "skinnedVerts": 31462
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 36124,
-    "skinnedVerts": 48208,
-    "draws": 16
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38531,
-    "skinnedVerts": 43500,
-    "gzKb": 1685
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38530,
-    "skinnedVerts": 47363,
-    "gzKb": 1869
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38531,
-    "skinnedVerts": 44489
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38530,
-    "skinnedVerts": 46982
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38530,
-    "skinnedVerts": 46817
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 38531,
-    "skinnedVerts": 45668
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43722,
-    "skinnedVerts": 58796,
-    "gzKb": 2073
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/dwarf-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 36126,
-    "skinnedVerts": 50570,
-    "draws": 16
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 47458,
-    "skinnedVerts": 57889,
-    "textureSide": 2048,
-    "gzKb": 1970
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46247,
-    "skinnedVerts": 55526
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44056,
-    "skinnedVerts": 45869
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44057,
-    "skinnedVerts": 47319
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44052,
-    "skinnedVerts": 48381
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43485,
-    "skinnedVerts": 52489
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44058,
-    "skinnedVerts": 48067
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43810,
-    "skinnedVerts": 52799
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45498,
-    "skinnedVerts": 54646,
-    "draws": 12
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/executioner-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46249,
-    "skinnedVerts": 56812
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L10.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 32675,
-    "skinnedVerts": 39413,
-    "draws": 13,
-    "gzKb": 2092
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L2.glb",
-   "class": "ranked-creature",
-   "over": {
-    "skinnedVerts": 32502,
-    "gzKb": 1745
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L3.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 40770,
-    "skinnedVerts": 52654,
-    "draws": 13,
-    "gzKb": 1657
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L4.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 30527,
-    "skinnedVerts": 36754,
-    "draws": 12,
-    "gzKb": 2000
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L5.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 30611,
-    "skinnedVerts": 36646,
-    "draws": 12,
-    "gzKb": 1915
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L6.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 32018,
-    "skinnedVerts": 38712,
-    "draws": 12,
-    "gzKb": 1985
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L7.glb",
-   "class": "ranked-creature",
-   "over": {
-    "skinnedVerts": 37018,
-    "draws": 12,
-    "gzKb": 2012
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L8.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 31071,
-    "skinnedVerts": 36914,
-    "draws": 13,
-    "gzKb": 2027
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/goblin-L9.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 31513,
-    "skinnedVerts": 37074,
-    "draws": 13,
-    "gzKb": 1921
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46258,
-    "skinnedVerts": 49288
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46373,
-    "skinnedVerts": 49827,
-    "gzKb": 1555
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45502,
-    "skinnedVerts": 50511,
-    "gzKb": 1641
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45509,
-    "skinnedVerts": 51940,
-    "gzKb": 1667
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46129,
-    "skinnedVerts": 51588,
-    "gzKb": 1610
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45806,
-    "skinnedVerts": 53912,
-    "gzKb": 1535
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46257,
-    "skinnedVerts": 50618
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46259,
-    "skinnedVerts": 46660,
-    "gzKb": 1788
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46260,
-    "skinnedVerts": 55362,
-    "gzKb": 1913
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/knight-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45969,
-    "skinnedVerts": 59051,
-    "gzKb": 1568
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45467,
-    "skinnedVerts": 50251
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50423,
-    "skinnedVerts": 52364,
-    "draws": 18
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39963,
-    "skinnedVerts": 51331
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39975,
-    "skinnedVerts": 50678,
-    "draws": 11
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39980,
-    "skinnedVerts": 51584,
-    "draws": 12
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39993,
-    "skinnedVerts": 51900,
-    "draws": 14
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39981,
-    "skinnedVerts": 49520,
-    "draws": 12
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39987,
-    "skinnedVerts": 51283,
-    "draws": 13
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50402,
-    "skinnedVerts": 50536,
-    "draws": 18
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/nightborn-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 51530,
-    "skinnedVerts": 53462,
-    "draws": 18
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 55157,
-    "skinnedVerts": 57399,
-    "textureSide": 1408,
-    "gzKb": 1822
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45200,
-    "skinnedVerts": 46837
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56346,
-    "skinnedVerts": 55286
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56345,
-    "skinnedVerts": 54628,
-    "gzKb": 1565
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56345,
-    "skinnedVerts": 52781,
-    "gzKb": 1552
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56345,
-    "skinnedVerts": 54134,
-    "gzKb": 1564
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56346,
-    "skinnedVerts": 56487,
-    "gzKb": 1593
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 56346,
-    "skinnedVerts": 54410,
-    "gzKb": 1554
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45200,
-    "skinnedVerts": 51844
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/pitborn-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 45200,
-    "skinnedVerts": 48237
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 39186,
-    "skinnedVerts": 45109
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 42540,
-    "skinnedVerts": 40423
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43627,
-    "skinnedVerts": 41428
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43863,
-    "skinnedVerts": 42352
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43995,
-    "skinnedVerts": 42454
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43516,
-    "skinnedVerts": 39899
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43168,
-    "skinnedVerts": 41567
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43900,
-    "skinnedVerts": 42581
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43872,
-    "skinnedVerts": 43675
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/plaguedoctor-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43182,
-    "skinnedVerts": 42402
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 47583,
-    "skinnedVerts": 52139,
-    "textureSide": 1408,
-    "gzKb": 1542
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46973,
-    "skinnedVerts": 49186
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50199,
-    "skinnedVerts": 54835
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50200,
-    "skinnedVerts": 55411,
-    "gzKb": 1536
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50199,
-    "skinnedVerts": 56347,
-    "gzKb": 1745
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50200,
-    "skinnedVerts": 53944,
-    "gzKb": 1660
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50199,
-    "skinnedVerts": 57630,
-    "gzKb": 1780
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50200,
-    "skinnedVerts": 59977,
-    "gzKb": 1782
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46974,
-    "skinnedVerts": 51703
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/shieldmaiden-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46974,
-    "skinnedVerts": 49016
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 51334,
-    "skinnedVerts": 58900,
-    "draws": 14,
-    "gzKb": 1723
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 46843,
-    "skinnedVerts": 51835,
-    "draws": 14
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 48937,
-    "skinnedVerts": 55615,
-    "draws": 14,
-    "gzKb": 1685
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 48424,
-    "skinnedVerts": 54264,
-    "draws": 14,
-    "gzKb": 1514
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50311,
-    "skinnedVerts": 59117,
-    "draws": 14,
-    "gzKb": 1622
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 51225,
-    "skinnedVerts": 57339,
-    "draws": 14,
-    "gzKb": 1634
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 50909,
-    "skinnedVerts": 58918,
-    "draws": 14,
-    "gzKb": 1632
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/veteran-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 49189,
-    "skinnedVerts": 56919,
-    "draws": 15,
-    "gzKb": 1608
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L1-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 51777,
-    "skinnedVerts": 55586,
-    "gzKb": 2023
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L10-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 43999,
-    "skinnedVerts": 45161
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L2-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44337,
-    "skinnedVerts": 47995
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L3-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44337,
-    "skinnedVerts": 43750
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L4-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44338,
-    "skinnedVerts": 48593
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L5-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44337,
-    "skinnedVerts": 45995
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L6-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44337,
-    "skinnedVerts": 45822
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L7-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44337,
-    "skinnedVerts": 46360
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L8-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44000,
-    "skinnedVerts": 45448
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/looks/witch-L9-phone.glb",
-   "class": "ranked-creature",
-   "over": {
-    "tris": 44000,
-    "skinnedVerts": 43629
-   },
-   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)"
-  },
-  {
-   "file": "public/weapons/ranged/staff-v1.glb",
-   "class": "weapon",
-   "over": {
-    "draws": 14
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/cleaver-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1012,
-    "png": 992
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/cleaver-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1309,
-    "png": 1264
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/cleaver-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 965,
-    "png": 953
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-cane-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 669,
-    "png": 650
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-cane-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 780,
-    "png": 732
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-cane-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 695,
-    "png": 687
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1007,
-    "png": 988
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1244,
-    "png": 1183
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/estoc-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 841,
-    "png": 833
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/gladius-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1248,
-    "png": 1205
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/gladius-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 940,
-    "png": 926
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/knife-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1160,
-    "png": 1125
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/knife-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1286,
-    "png": 1236
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/knife-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1013,
-    "png": 998
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/longsword-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1188,
-    "png": 1123
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/longsword-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "tris": 4148,
-    "gzKb": 1391,
-    "png": 1318
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/longsword-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1005,
-    "png": 978
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/maul-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 859,
-    "png": 838
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/reaper-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 638,
-    "png": 603
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/reaper-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 748,
-    "png": 696
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/reaper-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 657,
-    "png": 641
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/scythe-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 949,
-    "png": 912
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/scythe-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1086,
-    "png": 1022
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/scythe-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 754,
-    "png": 742
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/trident-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 745,
-    "png": 717
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/trident-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 936,
-    "png": 888
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/trident-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 762,
-    "png": 750
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/warhammer-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 816,
-    "png": 785
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/warhammer-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 1013,
-    "png": 943
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/warhammer-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 685,
-    "png": 672
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/witch-staff-crafted.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 616,
-    "png": 587
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/witch-staff-ornate.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 987,
-    "png": 915
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/weapons/shapes/witch-staff-plain.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 790,
-    "png": 760
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "public/world/bear.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 18879
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/boar.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 17225
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/cave-troll.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 14743,
-    "gzKb": 802
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/giant-salamander.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 17050
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/goblin.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 12100
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/kit/dungeon-kit.glb",
-   "class": "kit-prop",
-   "over": {
-    "tris": 20999,
-    "draws": 3,
-    "gzKb": 1097
-   },
-   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
-  },
-  {
-   "file": "public/world/kit/goblin_hut.glb",
-   "class": "kit-prop",
-   "over": {
-    "gzKb": 533
-   },
-   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
-  },
-  {
-   "file": "public/world/kit/zone1-kit.glb",
-   "class": "kit-prop",
-   "over": {
-    "draws": 14,
-    "png": 2
-   },
-   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
-  },
-  {
-   "file": "public/world/knight.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 15289,
-    "gzKb": 854
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/town/buildings.glb",
-   "class": "kit-prop",
-   "over": {
-    "draws": 28,
-    "png": 2
-   },
-   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
-  },
-  {
-   "file": "public/world/town/clothes.glb",
-   "class": "kit-prop",
-   "over": {
-    "skinnedVerts": 536,
-    "joints": 65,
-    "draws": 8,
-    "png": 1
-   },
-   "fix": "owed: kit prop texture and triangle pass (Characters / World)"
-  },
-  {
-   "file": "public/world/witch.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 17073,
-    "gzKb": 811
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "public/world/wolf.glb",
-   "class": "plain-creature",
-   "over": {
-    "skinnedVerts": 17893
-   },
-   "fix": "owed: creature body trim pass (Characters)"
-  },
-  {
-   "file": "src/assets/loot.glb",
-   "class": "gear-library",
-   "over": {
-    "tris": 104605,
-    "skinnedVerts": 77831,
-    "draws": 99,
-    "textureSide": 2048,
-    "gzKb": 3021
-   },
-   "fix": "PR 3b: loot.glb split per worn piece (Characters, owed; its fetch before ready is already gone in the loot-defer PR)"
-  },
-  {
-   "file": "src/assets/warrior.glb",
-   "class": "hero",
-   "over": {
-    "tris": 63572,
-    "draws": 19,
-    "gzKb": 2789,
-    "png": 162
-   },
-   "fix": "owed: measure the drawn hero set, then trim unworn pieces from the file (Characters)"
-  },
-  {
-   "file": "src/assets/weapons/player/gladius.glb",
-   "class": "weapon",
-   "over": {
-    "draws": 10
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "src/assets/weapons/player/maul.glb",
-   "class": "weapon",
-   "over": {
-    "draws": 12,
-    "gzKb": 460
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "src/assets/weapons/player/scythe.glb",
-   "class": "weapon",
-   "over": {
-    "draws": 7,
-    "gzKb": 465
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "src/assets/weapons/player/staff.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 379
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "src/assets/weapons/player/trident.glb",
-   "class": "weapon",
-   "over": {
-    "gzKb": 379
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
-  },
-  {
-   "file": "src/assets/weapons/player/warhammer.glb",
-   "class": "weapon",
-   "over": {
-    "draws": 15,
-    "gzKb": 424
-   },
-   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)"
+ "note": "Phone-budget debts (scripts/check-phone-budget.mjs), grouped by the PR that fixes them. Each entry records the asset's figures: red if any grows, red if a metric it was over on is within budget now (lower or remove the entry). Only shrinks.",
+ "groups": [
+  {
+   "fix": "owed: rank-look decimation pass per set; the bare Skin waits on the face close-up (Characters)",
+   "count": 97,
+   "entries": [
+    {
+     "file": "public/looks/dwarf-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 30737,
+      "skinnedVerts": 31462
+     },
+     "figures": {
+      "tris": 30737,
+      "skinnedVerts": 31462,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 905,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 36124,
+      "skinnedVerts": 48208,
+      "draws": 16
+     },
+     "figures": {
+      "tris": 36124,
+      "skinnedVerts": 48208,
+      "joints": 65,
+      "draws": 16,
+      "textureSide": 1024,
+      "gzKb": 1422,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38531,
+      "skinnedVerts": 43500,
+      "gzKb": 1685
+     },
+     "figures": {
+      "tris": 38531,
+      "skinnedVerts": 43500,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1685,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38530,
+      "skinnedVerts": 47363,
+      "gzKb": 1869
+     },
+     "figures": {
+      "tris": 38530,
+      "skinnedVerts": 47363,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1869,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38531,
+      "skinnedVerts": 44489
+     },
+     "figures": {
+      "tris": 38531,
+      "skinnedVerts": 44489,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1316,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38530,
+      "skinnedVerts": 46982
+     },
+     "figures": {
+      "tris": 38530,
+      "skinnedVerts": 46982,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1369,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38530,
+      "skinnedVerts": 46817
+     },
+     "figures": {
+      "tris": 38530,
+      "skinnedVerts": 46817,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1357,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 38531,
+      "skinnedVerts": 45668
+     },
+     "figures": {
+      "tris": 38531,
+      "skinnedVerts": 45668,
+      "joints": 65,
+      "draws": 4,
+      "textureSide": 1024,
+      "gzKb": 1342,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43722,
+      "skinnedVerts": 58796,
+      "gzKb": 2073
+     },
+     "figures": {
+      "tris": 43722,
+      "skinnedVerts": 58796,
+      "joints": 65,
+      "draws": 6,
+      "textureSide": 1024,
+      "gzKb": 2073,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/dwarf-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 36126,
+      "skinnedVerts": 50570,
+      "draws": 16
+     },
+     "figures": {
+      "tris": 36126,
+      "skinnedVerts": 50570,
+      "joints": 65,
+      "draws": 16,
+      "textureSide": 1024,
+      "gzKb": 1339,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 47458,
+      "skinnedVerts": 57889,
+      "textureSide": 2048,
+      "gzKb": 1970
+     },
+     "figures": {
+      "tris": 47458,
+      "skinnedVerts": 57889,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 2048,
+      "gzKb": 1970,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46247,
+      "skinnedVerts": 55526
+     },
+     "figures": {
+      "tris": 46247,
+      "skinnedVerts": 55526,
+      "joints": 65,
+      "draws": 10,
+      "textureSide": 1024,
+      "gzKb": 1373,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44056,
+      "skinnedVerts": 45869
+     },
+     "figures": {
+      "tris": 44056,
+      "skinnedVerts": 45869,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1163,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44057,
+      "skinnedVerts": 47319
+     },
+     "figures": {
+      "tris": 44057,
+      "skinnedVerts": 47319,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1243,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44052,
+      "skinnedVerts": 48381
+     },
+     "figures": {
+      "tris": 44052,
+      "skinnedVerts": 48381,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1359,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43485,
+      "skinnedVerts": 52489
+     },
+     "figures": {
+      "tris": 43485,
+      "skinnedVerts": 52489,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1371,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44058,
+      "skinnedVerts": 48067
+     },
+     "figures": {
+      "tris": 44058,
+      "skinnedVerts": 48067,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1275,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43810,
+      "skinnedVerts": 52799
+     },
+     "figures": {
+      "tris": 43810,
+      "skinnedVerts": 52799,
+      "joints": 65,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 1438,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45498,
+      "skinnedVerts": 54646,
+      "draws": 12
+     },
+     "figures": {
+      "tris": 45498,
+      "skinnedVerts": 54646,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 1388,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/executioner-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46249,
+      "skinnedVerts": 56812
+     },
+     "figures": {
+      "tris": 46249,
+      "skinnedVerts": 56812,
+      "joints": 65,
+      "draws": 10,
+      "textureSide": 1024,
+      "gzKb": 1347,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L10.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 32675,
+      "skinnedVerts": 39413,
+      "draws": 13,
+      "gzKb": 2092
+     },
+     "figures": {
+      "tris": 32675,
+      "skinnedVerts": 39413,
+      "joints": 65,
+      "draws": 13,
+      "textureSide": 1024,
+      "gzKb": 2092,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L2.glb",
+     "class": "ranked-creature",
+     "over": {
+      "skinnedVerts": 32502,
+      "gzKb": 1745
+     },
+     "figures": {
+      "tris": 27451,
+      "skinnedVerts": 32502,
+      "joints": 65,
+      "draws": 10,
+      "textureSide": 1024,
+      "gzKb": 1745,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L3.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 40770,
+      "skinnedVerts": 52654,
+      "draws": 13,
+      "gzKb": 1657
+     },
+     "figures": {
+      "tris": 40770,
+      "skinnedVerts": 52654,
+      "joints": 65,
+      "draws": 13,
+      "textureSide": 1024,
+      "gzKb": 1657,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L4.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 30527,
+      "skinnedVerts": 36754,
+      "draws": 12,
+      "gzKb": 2000
+     },
+     "figures": {
+      "tris": 30527,
+      "skinnedVerts": 36754,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 2000,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L5.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 30611,
+      "skinnedVerts": 36646,
+      "draws": 12,
+      "gzKb": 1915
+     },
+     "figures": {
+      "tris": 30611,
+      "skinnedVerts": 36646,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 1915,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L6.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 32018,
+      "skinnedVerts": 38712,
+      "draws": 12,
+      "gzKb": 1985
+     },
+     "figures": {
+      "tris": 32018,
+      "skinnedVerts": 38712,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 1985,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L7.glb",
+     "class": "ranked-creature",
+     "over": {
+      "skinnedVerts": 37018,
+      "draws": 12,
+      "gzKb": 2012
+     },
+     "figures": {
+      "tris": 29343,
+      "skinnedVerts": 37018,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 2012,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L8.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 31071,
+      "skinnedVerts": 36914,
+      "draws": 13,
+      "gzKb": 2027
+     },
+     "figures": {
+      "tris": 31071,
+      "skinnedVerts": 36914,
+      "joints": 65,
+      "draws": 13,
+      "textureSide": 1024,
+      "gzKb": 2027,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/goblin-L9.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 31513,
+      "skinnedVerts": 37074,
+      "draws": 13,
+      "gzKb": 1921
+     },
+     "figures": {
+      "tris": 31513,
+      "skinnedVerts": 37074,
+      "joints": 65,
+      "draws": 13,
+      "textureSide": 1024,
+      "gzKb": 1921,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46258,
+      "skinnedVerts": 49288
+     },
+     "figures": {
+      "tris": 46258,
+      "skinnedVerts": 49288,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1437,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46373,
+      "skinnedVerts": 49827,
+      "gzKb": 1555
+     },
+     "figures": {
+      "tris": 46373,
+      "skinnedVerts": 49827,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1555,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45502,
+      "skinnedVerts": 50511,
+      "gzKb": 1641
+     },
+     "figures": {
+      "tris": 45502,
+      "skinnedVerts": 50511,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1641,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45509,
+      "skinnedVerts": 51940,
+      "gzKb": 1667
+     },
+     "figures": {
+      "tris": 45509,
+      "skinnedVerts": 51940,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1667,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46129,
+      "skinnedVerts": 51588,
+      "gzKb": 1610
+     },
+     "figures": {
+      "tris": 46129,
+      "skinnedVerts": 51588,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1610,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45806,
+      "skinnedVerts": 53912,
+      "gzKb": 1535
+     },
+     "figures": {
+      "tris": 45806,
+      "skinnedVerts": 53912,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1535,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46257,
+      "skinnedVerts": 50618
+     },
+     "figures": {
+      "tris": 46257,
+      "skinnedVerts": 50618,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1450,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46259,
+      "skinnedVerts": 46660,
+      "gzKb": 1788
+     },
+     "figures": {
+      "tris": 46259,
+      "skinnedVerts": 46660,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1788,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46260,
+      "skinnedVerts": 55362,
+      "gzKb": 1913
+     },
+     "figures": {
+      "tris": 46260,
+      "skinnedVerts": 55362,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1913,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/knight-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45969,
+      "skinnedVerts": 59051,
+      "gzKb": 1568
+     },
+     "figures": {
+      "tris": 45969,
+      "skinnedVerts": 59051,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1568,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45467,
+      "skinnedVerts": 50251
+     },
+     "figures": {
+      "tris": 45467,
+      "skinnedVerts": 50251,
+      "joints": 65,
+      "draws": 8,
+      "textureSide": 1024,
+      "gzKb": 1349,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50423,
+      "skinnedVerts": 52364,
+      "draws": 18
+     },
+     "figures": {
+      "tris": 50423,
+      "skinnedVerts": 52364,
+      "joints": 65,
+      "draws": 18,
+      "textureSide": 1024,
+      "gzKb": 1379,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39963,
+      "skinnedVerts": 51331
+     },
+     "figures": {
+      "tris": 39963,
+      "skinnedVerts": 51331,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1235,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39975,
+      "skinnedVerts": 50678,
+      "draws": 11
+     },
+     "figures": {
+      "tris": 39975,
+      "skinnedVerts": 50678,
+      "joints": 65,
+      "draws": 11,
+      "textureSide": 1024,
+      "gzKb": 1247,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39980,
+      "skinnedVerts": 51584,
+      "draws": 12
+     },
+     "figures": {
+      "tris": 39980,
+      "skinnedVerts": 51584,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 1403,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39993,
+      "skinnedVerts": 51900,
+      "draws": 14
+     },
+     "figures": {
+      "tris": 39993,
+      "skinnedVerts": 51900,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1491,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39981,
+      "skinnedVerts": 49520,
+      "draws": 12
+     },
+     "figures": {
+      "tris": 39981,
+      "skinnedVerts": 49520,
+      "joints": 65,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 1324,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39987,
+      "skinnedVerts": 51283,
+      "draws": 13
+     },
+     "figures": {
+      "tris": 39987,
+      "skinnedVerts": 51283,
+      "joints": 65,
+      "draws": 13,
+      "textureSide": 1024,
+      "gzKb": 1424,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50402,
+      "skinnedVerts": 50536,
+      "draws": 18
+     },
+     "figures": {
+      "tris": 50402,
+      "skinnedVerts": 50536,
+      "joints": 65,
+      "draws": 18,
+      "textureSide": 1024,
+      "gzKb": 1268,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/nightborn-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 51530,
+      "skinnedVerts": 53462,
+      "draws": 18
+     },
+     "figures": {
+      "tris": 51530,
+      "skinnedVerts": 53462,
+      "joints": 65,
+      "draws": 18,
+      "textureSide": 1024,
+      "gzKb": 1306,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 55157,
+      "skinnedVerts": 57399,
+      "textureSide": 1408,
+      "gzKb": 1822
+     },
+     "figures": {
+      "tris": 55157,
+      "skinnedVerts": 57399,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1408,
+      "gzKb": 1822,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45200,
+      "skinnedVerts": 46837
+     },
+     "figures": {
+      "tris": 45200,
+      "skinnedVerts": 46837,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1451,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56346,
+      "skinnedVerts": 55286
+     },
+     "figures": {
+      "tris": 56346,
+      "skinnedVerts": 55286,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1500,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56345,
+      "skinnedVerts": 54628,
+      "gzKb": 1565
+     },
+     "figures": {
+      "tris": 56345,
+      "skinnedVerts": 54628,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1565,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56345,
+      "skinnedVerts": 52781,
+      "gzKb": 1552
+     },
+     "figures": {
+      "tris": 56345,
+      "skinnedVerts": 52781,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1552,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56345,
+      "skinnedVerts": 54134,
+      "gzKb": 1564
+     },
+     "figures": {
+      "tris": 56345,
+      "skinnedVerts": 54134,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1564,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56346,
+      "skinnedVerts": 56487,
+      "gzKb": 1593
+     },
+     "figures": {
+      "tris": 56346,
+      "skinnedVerts": 56487,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1593,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 56346,
+      "skinnedVerts": 54410,
+      "gzKb": 1554
+     },
+     "figures": {
+      "tris": 56346,
+      "skinnedVerts": 54410,
+      "joints": 65,
+      "draws": 9,
+      "textureSide": 1024,
+      "gzKb": 1554,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45200,
+      "skinnedVerts": 51844
+     },
+     "figures": {
+      "tris": 45200,
+      "skinnedVerts": 51844,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1423,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/pitborn-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 45200,
+      "skinnedVerts": 48237
+     },
+     "figures": {
+      "tris": 45200,
+      "skinnedVerts": 48237,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1432,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 39186,
+      "skinnedVerts": 45109
+     },
+     "figures": {
+      "tris": 39186,
+      "skinnedVerts": 45109,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1336,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 42540,
+      "skinnedVerts": 40423
+     },
+     "figures": {
+      "tris": 42540,
+      "skinnedVerts": 40423,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1242,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43627,
+      "skinnedVerts": 41428
+     },
+     "figures": {
+      "tris": 43627,
+      "skinnedVerts": 41428,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1057,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43863,
+      "skinnedVerts": 42352
+     },
+     "figures": {
+      "tris": 43863,
+      "skinnedVerts": 42352,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1289,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43995,
+      "skinnedVerts": 42454
+     },
+     "figures": {
+      "tris": 43995,
+      "skinnedVerts": 42454,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1247,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43516,
+      "skinnedVerts": 39899
+     },
+     "figures": {
+      "tris": 43516,
+      "skinnedVerts": 39899,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1309,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43168,
+      "skinnedVerts": 41567
+     },
+     "figures": {
+      "tris": 43168,
+      "skinnedVerts": 41567,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1265,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43900,
+      "skinnedVerts": 42581
+     },
+     "figures": {
+      "tris": 43900,
+      "skinnedVerts": 42581,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1341,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43872,
+      "skinnedVerts": 43675
+     },
+     "figures": {
+      "tris": 43872,
+      "skinnedVerts": 43675,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1376,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/plaguedoctor-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43182,
+      "skinnedVerts": 42402
+     },
+     "figures": {
+      "tris": 43182,
+      "skinnedVerts": 42402,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1318,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 47583,
+      "skinnedVerts": 52139,
+      "textureSide": 1408,
+      "gzKb": 1542
+     },
+     "figures": {
+      "tris": 47583,
+      "skinnedVerts": 52139,
+      "joints": 65,
+      "draws": 6,
+      "textureSide": 1408,
+      "gzKb": 1542,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46973,
+      "skinnedVerts": 49186
+     },
+     "figures": {
+      "tris": 46973,
+      "skinnedVerts": 49186,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1400,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50199,
+      "skinnedVerts": 54835
+     },
+     "figures": {
+      "tris": 50199,
+      "skinnedVerts": 54835,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1452,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50200,
+      "skinnedVerts": 55411,
+      "gzKb": 1536
+     },
+     "figures": {
+      "tris": 50200,
+      "skinnedVerts": 55411,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1536,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50199,
+      "skinnedVerts": 56347,
+      "gzKb": 1745
+     },
+     "figures": {
+      "tris": 50199,
+      "skinnedVerts": 56347,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1745,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50200,
+      "skinnedVerts": 53944,
+      "gzKb": 1660
+     },
+     "figures": {
+      "tris": 50200,
+      "skinnedVerts": 53944,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1660,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50199,
+      "skinnedVerts": 57630,
+      "gzKb": 1780
+     },
+     "figures": {
+      "tris": 50199,
+      "skinnedVerts": 57630,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1780,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50200,
+      "skinnedVerts": 59977,
+      "gzKb": 1782
+     },
+     "figures": {
+      "tris": 50200,
+      "skinnedVerts": 59977,
+      "joints": 65,
+      "draws": 5,
+      "textureSide": 1024,
+      "gzKb": 1782,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46974,
+      "skinnedVerts": 51703
+     },
+     "figures": {
+      "tris": 46974,
+      "skinnedVerts": 51703,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1359,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/shieldmaiden-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46974,
+      "skinnedVerts": 49016
+     },
+     "figures": {
+      "tris": 46974,
+      "skinnedVerts": 49016,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1442,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 51334,
+      "skinnedVerts": 58900,
+      "draws": 14,
+      "gzKb": 1723
+     },
+     "figures": {
+      "tris": 51334,
+      "skinnedVerts": 58900,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1723,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 46843,
+      "skinnedVerts": 51835,
+      "draws": 14
+     },
+     "figures": {
+      "tris": 46843,
+      "skinnedVerts": 51835,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1493,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 48937,
+      "skinnedVerts": 55615,
+      "draws": 14,
+      "gzKb": 1685
+     },
+     "figures": {
+      "tris": 48937,
+      "skinnedVerts": 55615,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1685,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 48424,
+      "skinnedVerts": 54264,
+      "draws": 14,
+      "gzKb": 1514
+     },
+     "figures": {
+      "tris": 48424,
+      "skinnedVerts": 54264,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1514,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50311,
+      "skinnedVerts": 59117,
+      "draws": 14,
+      "gzKb": 1622
+     },
+     "figures": {
+      "tris": 50311,
+      "skinnedVerts": 59117,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1622,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 51225,
+      "skinnedVerts": 57339,
+      "draws": 14,
+      "gzKb": 1634
+     },
+     "figures": {
+      "tris": 51225,
+      "skinnedVerts": 57339,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1634,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 50909,
+      "skinnedVerts": 58918,
+      "draws": 14,
+      "gzKb": 1632
+     },
+     "figures": {
+      "tris": 50909,
+      "skinnedVerts": 58918,
+      "joints": 65,
+      "draws": 14,
+      "textureSide": 1024,
+      "gzKb": 1632,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/veteran-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 49189,
+      "skinnedVerts": 56919,
+      "draws": 15,
+      "gzKb": 1608
+     },
+     "figures": {
+      "tris": 49189,
+      "skinnedVerts": 56919,
+      "joints": 65,
+      "draws": 15,
+      "textureSide": 1024,
+      "gzKb": 1608,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L1-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 51777,
+      "skinnedVerts": 55586,
+      "gzKb": 2023
+     },
+     "figures": {
+      "tris": 51777,
+      "skinnedVerts": 55586,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 2023,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L10-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 43999,
+      "skinnedVerts": 45161
+     },
+     "figures": {
+      "tris": 43999,
+      "skinnedVerts": 45161,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1453,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L2-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44337,
+      "skinnedVerts": 47995
+     },
+     "figures": {
+      "tris": 44337,
+      "skinnedVerts": 47995,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1278,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L3-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44337,
+      "skinnedVerts": 43750
+     },
+     "figures": {
+      "tris": 44337,
+      "skinnedVerts": 43750,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1298,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L4-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44338,
+      "skinnedVerts": 48593
+     },
+     "figures": {
+      "tris": 44338,
+      "skinnedVerts": 48593,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1347,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L5-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44337,
+      "skinnedVerts": 45995
+     },
+     "figures": {
+      "tris": 44337,
+      "skinnedVerts": 45995,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1364,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L6-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44337,
+      "skinnedVerts": 45822
+     },
+     "figures": {
+      "tris": 44337,
+      "skinnedVerts": 45822,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1403,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L7-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44337,
+      "skinnedVerts": 46360
+     },
+     "figures": {
+      "tris": 44337,
+      "skinnedVerts": 46360,
+      "joints": 65,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1419,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L8-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44000,
+      "skinnedVerts": 45448
+     },
+     "figures": {
+      "tris": 44000,
+      "skinnedVerts": 45448,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1305,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/looks/witch-L9-phone.glb",
+     "class": "ranked-creature",
+     "over": {
+      "tris": 44000,
+      "skinnedVerts": 43629
+     },
+     "figures": {
+      "tris": 44000,
+      "skinnedVerts": 43629,
+      "joints": 65,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 1316,
+      "pngKb": 0
+     }
+    }
+   ]
+  },
+  {
+   "fix": "owed: weapon texture pass 2, PNG -> WebP and 512 maps (Characters; scripts/glb-png-to-webp.py, the gladius-crafted and bow-v1 pass is #3485)",
+   "count": 40,
+   "entries": [
+    {
+     "file": "public/weapons/ranged/staff-v1.glb",
+     "class": "weapon",
+     "over": {
+      "draws": 14
+     },
+     "figures": {
+      "tris": 2864,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 14,
+      "textureSide": 0,
+      "gzKb": 22,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/weapons/shapes/cleaver-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1012,
+      "pngKb": 992
+     },
+     "figures": {
+      "tris": 1162,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1012,
+      "pngKb": 992
+     }
+    },
+    {
+     "file": "public/weapons/shapes/cleaver-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1309,
+      "pngKb": 1264
+     },
+     "figures": {
+      "tris": 2646,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1309,
+      "pngKb": 1264
+     }
+    },
+    {
+     "file": "public/weapons/shapes/cleaver-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 965,
+      "pngKb": 953
+     },
+     "figures": {
+      "tris": 886,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 965,
+      "pngKb": 953
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-cane-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 669,
+      "pngKb": 650
+     },
+     "figures": {
+      "tris": 1566,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 669,
+      "pngKb": 650
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-cane-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 780,
+      "pngKb": 732
+     },
+     "figures": {
+      "tris": 3112,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 780,
+      "pngKb": 732
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-cane-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 695,
+      "pngKb": 687
+     },
+     "figures": {
+      "tris": 798,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 695,
+      "pngKb": 687
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1007,
+      "pngKb": 988
+     },
+     "figures": {
+      "tris": 1132,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1007,
+      "pngKb": 988
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1244,
+      "pngKb": 1183
+     },
+     "figures": {
+      "tris": 3300,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1244,
+      "pngKb": 1183
+     }
+    },
+    {
+     "file": "public/weapons/shapes/estoc-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 841,
+      "pngKb": 833
+     },
+     "figures": {
+      "tris": 814,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 841,
+      "pngKb": 833
+     }
+    },
+    {
+     "file": "public/weapons/shapes/gladius-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1248,
+      "pngKb": 1205
+     },
+     "figures": {
+      "tris": 2388,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1248,
+      "pngKb": 1205
+     }
+    },
+    {
+     "file": "public/weapons/shapes/gladius-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 940,
+      "pngKb": 926
+     },
+     "figures": {
+      "tris": 1122,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 940,
+      "pngKb": 926
+     }
+    },
+    {
+     "file": "public/weapons/shapes/knife-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1160,
+      "pngKb": 1125
+     },
+     "figures": {
+      "tris": 2126,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1160,
+      "pngKb": 1125
+     }
+    },
+    {
+     "file": "public/weapons/shapes/knife-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1286,
+      "pngKb": 1236
+     },
+     "figures": {
+      "tris": 2780,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1286,
+      "pngKb": 1236
+     }
+    },
+    {
+     "file": "public/weapons/shapes/knife-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1013,
+      "pngKb": 998
+     },
+     "figures": {
+      "tris": 1174,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1013,
+      "pngKb": 998
+     }
+    },
+    {
+     "file": "public/weapons/shapes/longsword-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1188,
+      "pngKb": 1123
+     },
+     "figures": {
+      "tris": 3938,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1188,
+      "pngKb": 1123
+     }
+    },
+    {
+     "file": "public/weapons/shapes/longsword-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "tris": 4148,
+      "gzKb": 1391,
+      "pngKb": 1318
+     },
+     "figures": {
+      "tris": 4148,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1391,
+      "pngKb": 1318
+     }
+    },
+    {
+     "file": "public/weapons/shapes/longsword-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1005,
+      "pngKb": 978
+     },
+     "figures": {
+      "tris": 1930,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1005,
+      "pngKb": 978
+     }
+    },
+    {
+     "file": "public/weapons/shapes/maul-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 859,
+      "pngKb": 838
+     },
+     "figures": {
+      "tris": 1444,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 859,
+      "pngKb": 838
+     }
+    },
+    {
+     "file": "public/weapons/shapes/reaper-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 638,
+      "pngKb": 603
+     },
+     "figures": {
+      "tris": 2014,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 638,
+      "pngKb": 603
+     }
+    },
+    {
+     "file": "public/weapons/shapes/reaper-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 748,
+      "pngKb": 696
+     },
+     "figures": {
+      "tris": 2914,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 748,
+      "pngKb": 696
+     }
+    },
+    {
+     "file": "public/weapons/shapes/reaper-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 657,
+      "pngKb": 641
+     },
+     "figures": {
+      "tris": 1044,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 657,
+      "pngKb": 641
+     }
+    },
+    {
+     "file": "public/weapons/shapes/scythe-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 949,
+      "pngKb": 912
+     },
+     "figures": {
+      "tris": 2088,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 949,
+      "pngKb": 912
+     }
+    },
+    {
+     "file": "public/weapons/shapes/scythe-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1086,
+      "pngKb": 1022
+     },
+     "figures": {
+      "tris": 3598,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1086,
+      "pngKb": 1022
+     }
+    },
+    {
+     "file": "public/weapons/shapes/scythe-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 754,
+      "pngKb": 742
+     },
+     "figures": {
+      "tris": 912,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 754,
+      "pngKb": 742
+     }
+    },
+    {
+     "file": "public/weapons/shapes/trident-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 745,
+      "pngKb": 717
+     },
+     "figures": {
+      "tris": 1832,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 745,
+      "pngKb": 717
+     }
+    },
+    {
+     "file": "public/weapons/shapes/trident-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 936,
+      "pngKb": 888
+     },
+     "figures": {
+      "tris": 3120,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 936,
+      "pngKb": 888
+     }
+    },
+    {
+     "file": "public/weapons/shapes/trident-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 762,
+      "pngKb": 750
+     },
+     "figures": {
+      "tris": 818,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 762,
+      "pngKb": 750
+     }
+    },
+    {
+     "file": "public/weapons/shapes/warhammer-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 816,
+      "pngKb": 785
+     },
+     "figures": {
+      "tris": 1942,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 816,
+      "pngKb": 785
+     }
+    },
+    {
+     "file": "public/weapons/shapes/warhammer-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 1013,
+      "pngKb": 943
+     },
+     "figures": {
+      "tris": 3934,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 1013,
+      "pngKb": 943
+     }
+    },
+    {
+     "file": "public/weapons/shapes/warhammer-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 685,
+      "pngKb": 672
+     },
+     "figures": {
+      "tris": 1026,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 685,
+      "pngKb": 672
+     }
+    },
+    {
+     "file": "public/weapons/shapes/witch-staff-crafted.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 616,
+      "pngKb": 587
+     },
+     "figures": {
+      "tris": 1550,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 616,
+      "pngKb": 587
+     }
+    },
+    {
+     "file": "public/weapons/shapes/witch-staff-ornate.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 987,
+      "pngKb": 915
+     },
+     "figures": {
+      "tris": 3946,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 987,
+      "pngKb": 915
+     }
+    },
+    {
+     "file": "public/weapons/shapes/witch-staff-plain.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 790,
+      "pngKb": 760
+     },
+     "figures": {
+      "tris": 1714,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 790,
+      "pngKb": 760
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/gladius.glb",
+     "class": "weapon",
+     "over": {
+      "draws": 10
+     },
+     "figures": {
+      "tris": 1162,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 10,
+      "textureSide": 0,
+      "gzKb": 34,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/maul.glb",
+     "class": "weapon",
+     "over": {
+      "draws": 12,
+      "gzKb": 460
+     },
+     "figures": {
+      "tris": 916,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 12,
+      "textureSide": 1024,
+      "gzKb": 460,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/scythe.glb",
+     "class": "weapon",
+     "over": {
+      "draws": 7,
+      "gzKb": 465
+     },
+     "figures": {
+      "tris": 495,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 7,
+      "textureSide": 1024,
+      "gzKb": 465,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/staff.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 379
+     },
+     "figures": {
+      "tris": 3998,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 379,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/trident.glb",
+     "class": "weapon",
+     "over": {
+      "gzKb": 379
+     },
+     "figures": {
+      "tris": 3998,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 2,
+      "textureSide": 1024,
+      "gzKb": 379,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "src/assets/weapons/player/warhammer.glb",
+     "class": "weapon",
+     "over": {
+      "draws": 15,
+      "gzKb": 424
+     },
+     "figures": {
+      "tris": 460,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 15,
+      "textureSide": 1024,
+      "gzKb": 424,
+      "pngKb": 0
+     }
+    }
+   ]
+  },
+  {
+   "fix": "owed: creature body trim pass (Characters)",
+   "count": 8,
+   "entries": [
+    {
+     "file": "public/world/bear.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 18879
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 18879,
+      "joints": 31,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 552,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/boar.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 17225
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 17225,
+      "joints": 31,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 643,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/cave-troll.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 14743,
+      "gzKb": 802
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 14743,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 802,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/giant-salamander.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 17050
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 17050,
+      "joints": 31,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 690,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/goblin.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 12100
+     },
+     "figures": {
+      "tris": 7999,
+      "skinnedVerts": 12100,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 691,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/knight.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 15289,
+      "gzKb": 854
+     },
+     "figures": {
+      "tris": 7999,
+      "skinnedVerts": 15289,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 854,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/witch.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 17073,
+      "gzKb": 811
+     },
+     "figures": {
+      "tris": 7999,
+      "skinnedVerts": 17073,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 811,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/wolf.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 17893
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 17893,
+      "joints": 31,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 602,
+      "pngKb": 0
+     }
+    }
+   ]
+  },
+  {
+   "fix": "owed: kit prop texture and triangle pass (Characters / World)",
+   "count": 5,
+   "entries": [
+    {
+     "file": "public/world/kit/dungeon-kit.glb",
+     "class": "kit-prop",
+     "over": {
+      "tris": 20999,
+      "draws": 3,
+      "gzKb": 1097
+     },
+     "figures": {
+      "tris": 20999,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 3,
+      "textureSide": 1024,
+      "gzKb": 1097,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/kit/goblin_hut.glb",
+     "class": "kit-prop",
+     "over": {
+      "gzKb": 533
+     },
+     "figures": {
+      "tris": 9000,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 1,
+      "textureSide": 1024,
+      "gzKb": 533,
+      "pngKb": 0
+     }
+    },
+    {
+     "file": "public/world/kit/zone1-kit.glb",
+     "class": "kit-prop",
+     "over": {
+      "draws": 14,
+      "pngKb": 2
+     },
+     "figures": {
+      "tris": 2310,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 14,
+      "textureSide": 256,
+      "gzKb": 73,
+      "pngKb": 2
+     }
+    },
+    {
+     "file": "public/world/town/buildings.glb",
+     "class": "kit-prop",
+     "over": {
+      "draws": 28,
+      "pngKb": 2
+     },
+     "figures": {
+      "tris": 2907,
+      "skinnedVerts": 0,
+      "joints": 0,
+      "draws": 28,
+      "textureSide": 256,
+      "gzKb": 31,
+      "pngKb": 2
+     }
+    },
+    {
+     "file": "public/world/town/clothes.glb",
+     "class": "kit-prop",
+     "over": {
+      "skinnedVerts": 536,
+      "joints": 65,
+      "draws": 8,
+      "pngKb": 1
+     },
+     "figures": {
+      "tris": 670,
+      "skinnedVerts": 536,
+      "joints": 65,
+      "draws": 8,
+      "textureSide": 128,
+      "gzKb": 31,
+      "pngKb": 1
+     }
+    }
+   ]
+  },
+  {
+   "fix": "PR 3b: loot.glb split per worn piece (Characters, owed; its fetch before ready is already gone in the loot-defer PR)",
+   "count": 1,
+   "entries": [
+    {
+     "file": "src/assets/loot.glb",
+     "class": "gear-library",
+     "over": {
+      "tris": 104605,
+      "skinnedVerts": 77831,
+      "draws": 99,
+      "textureSide": 2048,
+      "gzKb": 3021
+     },
+     "figures": {
+      "tris": 104605,
+      "skinnedVerts": 77831,
+      "joints": 65,
+      "draws": 99,
+      "textureSide": 2048,
+      "gzKb": 3021,
+      "pngKb": 0
+     }
+    }
+   ]
+  },
+  {
+   "fix": "owed: measure the drawn hero set, then trim unworn pieces from the file (Characters)",
+   "count": 1,
+   "entries": [
+    {
+     "file": "src/assets/warrior.glb",
+     "class": "hero",
+     "over": {
+      "tris": 63572,
+      "draws": 19,
+      "gzKb": 2789,
+      "pngKb": 162
+     },
+     "figures": {
+      "tris": 63572,
+      "skinnedVerts": 33669,
+      "joints": 65,
+      "draws": 19,
+      "textureSide": 1024,
+      "gzKb": 2789,
+      "pngKb": 162
+     }
+    }
+   ]
   }
  ]
 }
