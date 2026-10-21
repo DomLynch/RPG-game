@@ -1,4 +1,5 @@
-bow-v1.glb  (647,332 bytes; sha256 79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd, pinned in tests/ranged-model.test.ts)
+bow-v1.glb  (240,404 bytes; sha256 ff14366e9a62fcfd43a309f797806480aeedc6ef01158bf2d6d76ba4f0967b94, pinned in tests/ranged-model.test.ts)
+  2026-10-21 (Characters, phone budgets): the sandbox's file with its one PNG texture re-encoded as WebP (scripts/glb-png-to-webp.py, q88): 647,332 -> 240,404 bytes; geometry byte-identical. Was sha256 79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd, 647,332 bytes.
 
 The painted bow of the combat sandbox, ported to the game (CS23, Dom's blanket approval 2026-10-18 "port all of it"; Lead's ruling (b) 2026-10-19: the model, its loader and its row, dormant).
 Origin: Dom's own pick, the concept image bow-concept-s71 (his word at the time: the picks bow-concept-s71 / crossbow-concept-top-s71). Mesh by TRELLIS.2 from that concept, fitted and exported by Characters & Art
