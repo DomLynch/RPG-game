@@ -48,11 +48,11 @@ test('a call that finishes in time passes its output and exit through; git carri
 });
 // net_fetch_local_first (Strategy 2026-10-21, the box's 14:15 to 14:32 outbound outage): stub git (cat-file answers HAVE, fetch is logged) and stub curl (fails its first FAIL calls).
 const fetchWorld = (have: boolean, curlFails: number) => {
-  const dir = mkdtempSync(join(tmpdir(), 'net-fetch-')), bin = join(dir, 'bin'), log = join(dir, 'calls'); mkdirSync(bin);
+  const dir = mkdtempSync(join(tmpdir(), 'net-fetch-')), bin = join(dir, 'bin'), log = join(dir, 'calls'), repo = join(dir, 'repo'); mkdirSync(bin); mkdirSync(repo);
   writeFileSync(join(bin, 'git'), `#!/bin/sh\ncase "$*" in *cat-file*) exit ${have ? 0 : 1};; *fetch*) echo fetch >> '${log}'; exit 0;; esac\nexit 0\n`);
   writeFileSync(join(bin, 'curl'), `#!/bin/sh\necho curl >> '${log}'\nn=$(grep -c curl '${log}')\n[ "$n" -le ${curlFails} ] && exit 7\nexit 0\n`);
   chmodSync(join(bin, 'git'), 0o755); chmodSync(join(bin, 'curl'), 0o755);
-  const run = (script: string) => spawnSync('bash', ['-c', `source '${lib}'\nexport NET_RETRY_SLEEP=0 NET_CONNECT_S=1\n${script}`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  const run = (script: string) => spawnSync('bash', ['-c', `source '${lib}'\nexport NET_RETRY_SLEEP=0 NET_CONNECT_S=1\n${script.replaceAll('/repo', repo)}`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []);
   return { run, calls };
 };
