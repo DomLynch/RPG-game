@@ -39,13 +39,15 @@ try {
   const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
   const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA })).newPage();
   await page.addInitScript(() => {
-    const rec = { on: false, frame: 0, frames: [], fbo: null, vp: [0, 0] };
+    const rec = { on: false, frame: 0, frames: [], fbo: null, vp: [0, 0], prog: 0, progs: new WeakMap(), nextProg: 1, switches: [], binds: [] };
     window.__draws = rec;
-    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1]]); };
+    const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); };
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       const orig = (n) => proto[n];
       const wrap = (name, fn) => { const o = orig(name); if (!o) return; proto[name] = function (...a) { fn(a); return o.apply(this, a); }; };
       wrap('bindFramebuffer', (a) => { if (a[0] === 36009 || a[0] === 36160) rec.fbo = a[1]; });
+      wrap('useProgram', (a) => { if (a[0] && !rec.progs.has(a[0])) rec.progs.set(a[0], rec.nextProg++); rec.prog = a[0] ? rec.progs.get(a[0]) : 0; if (rec.on) (rec.switches[rec.frame] ??= []).push(rec.prog); });
+      wrap('bindTexture', () => { if (rec.on) rec.binds[rec.frame] = (rec.binds[rec.frame] ?? 0) + 1; });
       wrap('viewport', (a) => { rec.vp = [a[2], a[3]]; });
       wrap('drawElements', (a) => note('e', a[1], 1)); wrap('drawArrays', (a) => note('a', a[2], 1));
       wrap('drawElementsInstanced', (a) => note('ei', a[1], a[4])); wrap('drawArraysInstanced', (a) => note('ai', a[2], a[4])); wrap('drawRangeElements', (a) => note('e', a[4], 1));
@@ -58,15 +60,16 @@ try {
   const sample = async (name, extra = {}) => {
     await page.evaluate(() => { window.__draws.frames = []; window.__draws.frame = 0; window.__draws.on = true; });
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
-    const frames = await page.evaluate(() => { window.__draws.on = false; return window.__draws.frames.slice(2, -2); });
-    const full = frames.filter(Boolean), n = full.length || 1, groups = {}, shapes = {};
-    for (const f of full) for (const [kind, count, inst, fbo, vw, vh] of f) {
+    const got = await page.evaluate(() => { window.__draws.on = false; return { f: window.__draws.frames.slice(2, -2), sw: window.__draws.switches.slice(2, -2), bd: window.__draws.binds.slice(2, -2) }; });
+    const full = got.f.filter(Boolean), n = full.length || 1, groups = {}, shapes = {}, uniq = {};
+    for (const f of full) for (const [kind, count, inst, fbo, vw, vh, prog] of f) {
+      (uniq[fbo ? 'offscreen' : 'screen'] ??= new Set()).add(prog);
       const g = fbo ? `offscreen ${vw}x${vh}` : `screen ${vw}x${vh}`; groups[g] = (groups[g] ?? 0) + 1;
       const k = `${g} | ${kind} count=${count} inst=${inst}`; shapes[k] = (shapes[k] ?? 0) + 1;
     }
     const top = Object.entries(shapes).map(([k, v]) => [k, +(v / n).toFixed(2)]).sort((a, b) => b[1] - a[1]);
     const label = (k) => { const m = /count=(\d+) inst=(\d+)/.exec(k); return m && expected.has(+m[1]) && m[2] === '1' ? expected.get(+m[1]) : (m && +m[2] > 1 ? 'instanced (kit/crowd/fx)' : ''); };
-    result.scenarios[name] = { frames: n, ...extra, drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
+    result.scenarios[name] = { frames: n, ...extra, uniqueProgramsByTarget: Object.fromEntries(Object.entries(uniq).map(([k, v]) => [k, v.size])), programSwitchesPerFrame: +(got.sw.reduce((s, f) => s + (f?.length ?? 0), 0) / n).toFixed(1), textureBindsPerFrame: +(got.bd.reduce((s, v) => s + (v || 0), 0) / n).toFixed(1), drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
       staticDressingMergedPerFrame: +top.filter(([k]) => label(k).startsWith('frontier')).reduce((s, [, v]) => s + v, 0).toFixed(1), instancedPerFrame: +top.filter(([k]) => /inst=(?!1\b)/.test(k)).reduce((s, [, v]) => s + v, 0).toFixed(1) };
   };
   await sample('opening-view', { at: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })) });
@@ -81,5 +84,5 @@ try {
     await sample('fight-camera', { target: target.id, infight: await page.evaluate(() => document.body.classList.contains('infight')) });
   }
   fs.writeFileSync(outFile, JSON.stringify(result, null, 1));
-  for (const [name, s] of Object.entries(result.scenarios)) console.log(name, JSON.stringify({ frames: s.frames, byTarget: s.drawsPerFrameByTarget, staticDressingMergedPerFrame: s.staticDressingMergedPerFrame, instancedPerFrame: s.instancedPerFrame, infight: s.infight }));
+  for (const [name, s] of Object.entries(result.scenarios)) console.log(name, JSON.stringify({ frames: s.frames, byTarget: s.drawsPerFrameByTarget, programs: s.uniqueProgramsByTarget, switches: s.programSwitchesPerFrame, binds: s.textureBindsPerFrame, staticDressingMergedPerFrame: s.staticDressingMergedPerFrame, instancedPerFrame: s.instancedPerFrame, infight: s.infight }));
 } finally { await browser.close(); server.close(); }
