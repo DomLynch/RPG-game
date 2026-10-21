@@ -2,6 +2,16 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-21 09:5x Dubai — handoff at Dom's clear (K6n2 live, dome publish retry, Lead's 7-item table, Wicked done)
+
+**READ FIRST:** memory `session-handoff-2026-10-21-morning` in the Strategy lane key (targets, PR heads, chaser re-spawn brief, Dom owes, re-arm list).
+
+**Now.** Live K6n2 7f320da52 at 07:19 (my curl): phone far-detail creatures, iPad HUD backing, trunk combat-check fix. K6o2 #3490 (sky dome without banners + rocks tint) is on its publish RETRY after the 09:30 transfer broke (Mac-side network blip; live host verified whole). Then K6p2 (#3489 creature-ring settings + #3491 faster release check), then rv86 longsword #3487 (Dom: keep it). Owed by lanes: #3488 phone 2 MB-less Zone 1 load (Web), #3485 weapon WebP with the Mac row 54 receipt (Web), field06 preview slowdown cause (World, #3492 held), trolls/salamanders distance + lead-in (World). Wicked extraction DONE on the box 07:4x (52 characters, 912 armour, 151 rigs, scenes sample); Dota 2 heroes extracting on HF; the Wicked-in-viewer step waits on Dom's login decision (the opentrident viewer is public; restore the login first).
+
+**Open.** Dom: viewer login (Steam dev's chat), literal "delete" for the 40 GB HF raw repo (same chat), Steam library claims, the 10-09 app scratch-workspace, iPad bird's-eye screenshot, QA Smoke account. Lanes: as under Now; Zone 1 creature difficulty target (Lead, from Dom's "goblins feel weak").
+
+**Gotchas.** Never clear ~/Library/Caches/ms-playwright or ~/Developer/.ms-playwright (train stopped 2 h today); downloads and deletes need Dom's own words in the acting lane's chat, a relay does not count; cancelled duplicate CI runs and the checks-9 600 s ceiling are false reds, read per-run check-runs at the head; the train is a launchd interval job (no process between ticks); chasers are disposable (2 h, silent between changes, re-spawn fresh).
+
 ## 2026-10-20 23:4x Dubai — handoff at Dom's lid-close (25 releases today; the 21:3x six-item list live except the sky dome)
 
 **READ FIRST:** memory `session-handoff-2026-10-20-midnight` in the Strategy lane key (Wicked job ids, Steam queue, Once Human state, re-arm list). Lead [7fc0a5] and the Steam dev [ba1373] both restarted 23:37-23:40 with their own handoffs.
