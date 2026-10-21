@@ -26,13 +26,15 @@ test('the hero cuts a level-1 wolf dead on the LIVE rules from some swinging gap
 });
 
 // Strategy's rule (2026-10-21): a first-timer who only mashes (attack every 0.5 s, never moves) must beat an L1 creature at >= 80 % of the 21 gaps 0.6-2.6 m (>= 17 of 21), and the L2 wolf must still punish mashing (<= 50 %, <= 10 of 21).
-// Measured by scripts/zone1-fairness-masher-sweep.ts at RV88: wolf L1 18, wolf L2 6, giant salamander L1 17. The goblin (1 of 21 at L1) is NOT in this rule yet: its row is the Pit's Goblin too and waits for the per-level rows (RV89).
-test('the masher sweep on the LIVE rules: an L1 wolf and an L1 giant salamander die to a masher at >= 17 of 21 gaps; the L2 wolf at <= 10 of 21', () => {
+// Measured by scripts/zone1-fairness-masher-sweep.ts at RV88: wolf L1 18, wolf L2 6, giant salamander L1 17. The goblin joins at RV89: its archetype row is the Goblin in the Pit client too, so its L1 fix is a WORLD level row (world-level-defs.json, goblin:1 = 45 hp): L1 18 of 21, L2 1 of 21 (untouched).
+test('the masher sweep on the LIVE rules: an L1 wolf, an L1 giant salamander and an L1 goblin die to a masher at >= 17 of 21 gaps; the L2 wolf and the L2 goblin at <= 10 of 21', () => {
   const gaps = Array.from({ length: 21 }, (_, i) => Math.round((0.6 + i * 0.1) * 10) / 10);
   const passes = (body: string, level: number) => gaps.filter((gap) => { const r = fight(body, level, gap); return r.kills.length === 1 && !r.heroDead; }).length;
   assert.ok(passes('wolf', 1) >= 17, 'wolf L1');
   assert.ok(passes('giant-salamander', 1) >= 17, 'giant salamander L1');
+  assert.ok(passes('goblin', 1) >= 17, 'goblin L1 (the world row)');
   assert.ok(passes('wolf', 2) <= 10, 'wolf L2 still punishes mashing');
+  assert.ok(passes('goblin', 2) <= 10, 'goblin L2 still punishes mashing');
 });
 
 test('the live-rules loop engages the Zone 1 creatures: a troll and a salamander at 6 m reach the hero (he is hurt within 60 s of standing still)', () => {
