@@ -3,7 +3,7 @@
 //   node scripts/goblin-fit-stills.mjs --dist dist --out artifacts/goblin-fit [--only looks|weapons] [--dpr 2] [--clip x,y,w,h] [--swing-at 10]
 // Writes <out>/<set>-<name>-idle.jpg and -swing.jpg plus <out>/fit.json (the phases and the goblin's bounding height read off the page). Never part of the build. Drawn on the Mac GPU; the VPS draws the same pixels on SwiftShader, slowly.
 /* global process, console, document, globalThis */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';

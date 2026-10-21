@@ -5,7 +5,7 @@
 // record lists the fought opponent first with no autopsy sub-row; a rematch clears the rank line. Mirrors tests/graphics.test.ts
 // "fight end: …" through the live DOM.
 // Never overrides combat state; the fight is the real one, on harness time, so it lands on the same tick on any machine.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { AUTOPSY_CAUSE as CAUSE } from './lib/autopsy-cause.mjs';   // plain moves and a special's name (RV80)

@@ -2,7 +2,7 @@
 // The stored session is a stub token; nothing reaches Supabase or the live writer. Walks: a guest opens the book and is told to sign in; a signed-in account with an empty book sees "Beat a legend to take their spell";
 // a book of five (real catalogue legends, one the catalogue does not know) lists NOTHING while the beta cut has spells off (the listing, sort, chip and Equip walks are node tests); no control under 44 px, off screen,
 // clipped text or horizontal scroll. Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/grimoire-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS). Stills: <OUT>/book-*.png.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import { chromium, webkit } from 'playwright';

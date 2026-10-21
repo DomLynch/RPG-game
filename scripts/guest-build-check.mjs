@@ -1,7 +1,7 @@
 // A guest's build in Zone 1 (Lead 2026-10-17), as a player does it on a phone (375x812, software GL is fine, it is a layout and flow check): the HUD line offers "N points to place" (never a modal on its own), a tap opens the build dialog,
 // the guest places every point and confirms (in memory only), the dialog closes and the line is gone, and a RELOAD brings the points back (nothing was stored). Stills of each step go to <out dir>.
 //   node scripts/guest-build-check.mjs <out dir>      Serves artifacts/origins-preview (built here when missing). On the T4: scripts/gpu-run/guest-build.sh
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

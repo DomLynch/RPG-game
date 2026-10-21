@@ -1,5 +1,5 @@
 // Read-only browser receipt: the real Nightborn route loads the baked rig and fights on a phone viewport.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';

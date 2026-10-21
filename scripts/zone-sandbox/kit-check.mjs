@@ -1,6 +1,6 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/kit-check.mjs <outDir> "<url>" [body]   // every creature with a loadout: built or CAPSULE, plus the warnings
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
-import { launchBrowser } from '../lib/browser-launch.mjs';
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');

@@ -4,7 +4,7 @@
 // Usage: node scripts/zone1-special-presentation-check.mjs <built origins-preview dist> <built game dist> <out dir>      env: PAIRS="lunge:ironrush,pommel:shove,cleave:stomp" (slot 1 : slot 2), PIT=0 to skip the Pit
 // Build first: npx vite build --config origins/preview/vite.config.mjs && npx vite build      (software GL: the launch flags below)
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

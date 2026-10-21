@@ -1,6 +1,6 @@
 // Real touch input and passive combat/animation observations; no simulation overrides. Page time is the gate's after boot
 // (scripts/lib/harness-clock.mjs), so the parry-then-counter presses land on the same ticks on any machine.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';

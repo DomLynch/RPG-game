@@ -1,7 +1,7 @@
 // One universal "your character exists" rule, in a browser (src/core/open.ts): the Pit, /zone1/ and /zone/2/ each load with a stored sign-in against a stand-in writer, and each page asks the writer's
 // `open` exactly once, with no page or console error. Serves dist/ (the Pit, `npm run build`) and artifacts/origins-preview (the zone page, `npx vite build --config origins/preview/vite.config.mjs`) the way nginx
 // does (deploy/frankendom.com.conf: /zone1/ and /zone/<n>/ are the preview page). Usage: node scripts/open-once-smoke.mjs   Exit 1 with the counts and errors on a miss; receipt to artifacts/open-once-smoke.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

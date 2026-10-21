@@ -4,7 +4,7 @@
 // Usage: node scripts/zone1-world-special-probe.mjs <built origins-preview dist> <out dir>     env: SKILL=cleave
 // Build first: npx vite build --config origins/preview/vite.config.mjs      (software GL: the launch flags below)
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

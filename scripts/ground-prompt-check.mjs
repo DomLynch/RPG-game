@@ -5,7 +5,7 @@
 //   - a GUEST (no session, no stub; Dom 2026-10-16): the same prompt "Take the ..." on the static row, the take puts it in the session bag, the "Sign in to keep it" line, the item hidden.
 //   node scripts/ground-prompt-check.mjs [--dist <built origins preview>] [--out artifacts/ground-prompt]     (no --dist: builds origins/preview)
 /* global process, console, document, window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';

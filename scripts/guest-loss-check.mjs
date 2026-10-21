@@ -2,7 +2,7 @@
 // something (a take or a kill: originsPreview.guestTake, the same call the ground pickup makes) the one plain line from kill-text.json appears under it, before the tap, and the Sign in link is still there; a toast that
 // used to promise "sign in to keep it" no longer does. Stills before (empty bag) and after (holding) go to <out dir>.
 //   node scripts/guest-loss-check.mjs <out dir>        Serves artifacts/origins-preview (built here when missing). ENGINE=webkit: Safari's engine as an iPhone.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

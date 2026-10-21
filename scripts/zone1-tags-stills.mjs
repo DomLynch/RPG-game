@@ -1,6 +1,6 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) for the name-tag clamp (#1902): ready idle, then mid-fight (the foe engaged, the others still in view).
 // Usage: node scripts/zone1-tags-stills.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

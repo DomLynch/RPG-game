@@ -5,7 +5,7 @@
 // figure and fitted into 900×1200 (centred, feet on a 30 px bottom margin), because a height-only camera fit clipped the Dwarf's hammer
 // and shrank wide crouches. Usage: `node scripts/opponent-portraits.mjs dwarf knight …` (ids = src/assets/<id>.glb; no ids = every roster
 // body missing a portrait; PORTRAIT_OUT renders elsewhere). Playwright's Chromium with the Mac GPU (software GL stalls on these bodies).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';

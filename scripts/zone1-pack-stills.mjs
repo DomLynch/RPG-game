@@ -1,6 +1,6 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) for a pack of up to three joined creatures (#1958): ready idle, then mid-fight; prints the card text, how many creatures are aggro and body.infight.
 // Usage: node scripts/zone1-pack-stills.mjs <built origins-preview dist> <out dir> [zone id]   (software GL is fine: it is a layout check). A zone id (3) stills /zone/3/ instead of Zone 1.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

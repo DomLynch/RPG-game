@@ -1,5 +1,5 @@
 // Real SDK + rendered game. Provider transport is controlled; this is not a live Google login receipt.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { skipDraws, skipDrawsOnLoad } from './lib/harness-clock.mjs';

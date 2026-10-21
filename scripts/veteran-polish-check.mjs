@@ -1,5 +1,5 @@
 // Material source-to-shipped check + actual GLB renders. --before <glb> also audits isolation and makes matched comparison PNGs.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';

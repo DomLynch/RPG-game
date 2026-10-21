@@ -4,7 +4,7 @@
 // the fight must still run on the longsword. Then the route is lifted and the page reloaded: nothing was unequipped, so the estoc
 // is asked for again and drawn, with no line.
 // Guest only, nothing sent anywhere. QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

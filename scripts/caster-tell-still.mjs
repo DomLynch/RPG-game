@@ -4,7 +4,7 @@
 // Same deterministic clock as special-clip.mjs (scripts/lib/harness-clock.mjs): one 16 ms frame at a time, so a frame number is a sim tick on any machine.
 // Writes <out>/ready.jpg, <out>/cast-<frame>.jpg every --every frames through the 120-tick wind-up, mid.jpg (about 70 % of the wind-up), late.jpg (about 92 %, the flashing roll window) and meta.json.
 /* global process, console, document, URL */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';

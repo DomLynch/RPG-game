@@ -1,7 +1,7 @@
 // The gear sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack | Arena as a tab bar under the header (Dom via Strategy 2026-10-01: top, not
 // the foot) at 375x812 touch. The Pit tab went with the Pit room (2026-10-08). Stats is a header link and Gear & pack returns; Arena closes the sheet.
 // Stills: artifacts/gear-sheet/nav-*.png. Guest only; serves this tree's build (run `npm run build` first).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';

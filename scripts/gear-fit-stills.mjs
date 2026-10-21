@@ -1,7 +1,7 @@
 // Gear fit check (Characters, 2026-10-09; for Web's gear screen in Zone 1): the Zone 1 hero wearing each loot piece through the engine's wear(pieces) path (gear-fit.html).
 //   node scripts/gear-fit-stills.mjs --out <dir> [--stills goblin] [--width 375 --height 812]
 // Writes <out>/fit.json (every loot id: did wear throw, skinned, sits on the body, height ratio) and a still per id whose name starts with --stills (default: none). Never part of the build.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

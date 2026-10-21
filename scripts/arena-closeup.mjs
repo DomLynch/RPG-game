@@ -6,7 +6,7 @@
 //   node scripts/arena-preview.mjs --serve                 keep a dev server up for manual review
 // Every capture uses the same camera and exposure; changing them here to flatter the set is a failed iteration. The lock views settle
 // the camera before capturing (the lead's 7.6 % lesson: an unsettled camera is not a before/after).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

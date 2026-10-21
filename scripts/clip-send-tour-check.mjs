@@ -14,7 +14,7 @@
 // frame); the row tests what happens after the kill, not the fight. receipt.pageMs holds each stepped phase's page time. From the
 // death to the tour the WebGL draws are skipped (skipDraws: same sim, DOM and timers, no painting): the clip re-play alone took 708 s
 // on CI (run 36333230742, ~0.9 s a frame), and the stubbed recorder never looks at the pixels. The tour still is painted.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

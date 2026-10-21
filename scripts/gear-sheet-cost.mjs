@@ -2,7 +2,7 @@
 // touch, counting WebGL draw calls and triangles per rendered frame (the draw functions wrapped before the page loads) and the rAF interval
 // p50 / p95, at 1x and 4x CPU throttle (CDP; a phone's CPU stand-in, NOT its GPU: a Mac GPU under ANGLE/Metal is far faster than a phone's).
 //   node scripts/gear-sheet-cost.mjs   (this tree's build; run `npm run build` first)  → artifacts/gear-sheet/cost.json + one line per row
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

@@ -2,7 +2,7 @@
 // duels over every weapon) runs in Node, then in Chromium and WebKit — the engines behind Android Chrome and iOS Safari — served from
 // this tree by vite dev. Every fight's fingerprint chain must be identical in all three; one differing fight fails the check.
 // CI only (quality.yml `net-engines`); `NET_FIGHTS=<n>` sets the count (default 1,000: Dom, 2026-09-29). Receipt: artifacts/net-engines/receipt.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fightStateAt, fightTrace, fixtureChains } from '../src/net/fixture.ts';
 

@@ -9,7 +9,7 @@
 // at its centre and its lower third, the card and the HUD do not meet, #performance and #actions do not meet, then a real click/tap on
 // "Enter the arena" goes in; (3) the faded kill link shows the card with the same guarantees. Guest only; nothing sent anywhere.
 // QA_URL points it at a deployed site; unset, it serves this tree's build.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

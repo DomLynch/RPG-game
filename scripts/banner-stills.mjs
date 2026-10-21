@@ -1,7 +1,7 @@
 // Zone 1 start area and gate at 375x812 on a built origins-preview page, with the renderer's draw cost: spawn.png (where a player starts), gate.png (8 m east of the gate torches, looking west: heading -pi/2), camp.png (the camp centre looking along its wall),
 // and renderInfo() (triangles, draw calls, programs) at each. Usage: node scripts/banner-stills.mjs <built origins-preview dist> <out dir>   (PIT_GL=1 = software GL)
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

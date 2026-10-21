@@ -2,7 +2,7 @@
 // (src/core/account-entry.ts), which a local preview lacks, so it is shown by hand the way the live guest state reads. Checks the mannequin stays
 // whole when the block pushes the stage down (gear-room refits when the stage box moves) and that Continue with Google reads (text vs plate).
 //   node scripts/gear-sheet-guest-still.mjs  -> artifacts/gear-sheet/after-guest-block.png   (run `npm run build` first)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';

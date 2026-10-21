@@ -1,6 +1,6 @@
 // 375-wide stills of Zone 1 (?region=1) on the Mac GPU (Metal), one dist per run: node scripts/zone1-stills-mac.mjs <dist dir> <out dir> [query] [x,z ...]
 // The dist is a vite build of origins/preview (built by the caller). Prints the GL renderer so the receipt shows it was a real GPU, not SwiftShader.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

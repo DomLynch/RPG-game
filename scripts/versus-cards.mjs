@@ -6,7 +6,7 @@
 //   node scripts/versus-cards.mjs --yaw 0.9 --pitch 0.3 --gap 1.6   framing knobs (radians / metres), printed with each card
 //   node scripts/versus-cards.mjs --zoom 1.3                          field-of-view multiplier (1 = the game's 51°; 1.3 = ~30% wider, the shipped cards)
 // Portrait: the middle `crop` of a 1170×2535 frame (a 390×845 phone at 3×, as a viewport since the game caps its pixel ratio), WebP q0.72 encoded by Chromium itself (no native encoder needed). Deterministic: seeded duel, settled camera.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

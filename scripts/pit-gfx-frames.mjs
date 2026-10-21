@@ -1,6 +1,6 @@
 // A burst of Pit stills for a look comparison (the foot-dust discs under the lift): the built main game at <dist dir>, 375x812, the sparring Pit page, the hero walks in and strikes, one screenshot every STEP_MS for FRAMES frames into <out dir>/<prefix>-NN.png.
 // Usage: node scripts/pit-gfx-frames.mjs <dist dir> <out dir> <prefix> [gfx0]   (gfx0 = ?gfx=0, the plain frame). REAL_GPU=1 for the machine's own GPU.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

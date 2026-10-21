@@ -2,7 +2,7 @@
 // Shared box only (a real browser): ssh the VPS, `cd /root/frankendom-worktrees/sandbox && capture --prio 3 sandbox node scripts/special-weapon-sheet.mjs --weapon maul --out out/sheets`
 //   [--base https://frankendom.com/preview/sandbox/] [--only cleave,stomp] [--wait 260]. Writes <out>/sheet-<weapon>.jpg (rows in the order of --only) plus the stills beside it.
 /* global process, console, document, globalThis */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

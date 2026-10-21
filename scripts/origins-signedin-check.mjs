@@ -5,7 +5,7 @@
 // -> the server's answer is applied: the kill toast shows what the writer paid and the saved career's CP rose by it (the result is saved server-side by the real writer; the stub proves the page asks for it).
 //   SIGNEDIN_ZONE=2     the same path on Zone 2 (default 1)       SIGNEDIN_TARGET=wolves-1   a creature id (default: first drawn wolf, else first drawn)
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the receipt on a miss; receipt: artifacts/origins-signedin.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

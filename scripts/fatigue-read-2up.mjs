@@ -6,7 +6,7 @@
 //   node scripts/fatigue-read-2up.mjs --dist dist --out artifacts/fread/on --look fatigue-read --frames artifacts/fread/off/frames.json [--clip]
 // --clip also films frames 60..480 (every 3rd at 60 fps stepping = 20 fps playback, 6 s): the fresh -> gassed run, as <out>/clip.mp4.
 /* global process, console, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

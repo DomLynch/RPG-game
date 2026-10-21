@@ -4,7 +4,7 @@
 // back; Wear this swaps through the pack (the replaced piece takes the pack place); a worn slot's Store moves it into the pack; the empty
 // pack says where gear comes from; closing the sheet mid-try reverts. Stills of each state are the receipt (artifacts/gear-sheet).
 // QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

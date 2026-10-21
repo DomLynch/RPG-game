@@ -1,5 +1,5 @@
 // Actual simulated hits through the real scene: Skeleton stays dry; its human opponent still bleeds.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createServer } from 'vite';

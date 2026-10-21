@@ -3,7 +3,7 @@
 // its program when the hero is dressed, or when the duel starts, is a stall in the player's hand (the program list is originsPreview.renderInfo().programNames, as the remote-heroes row reads it).
 // Stub writer on loopback, stub session, no credentials (same shape as scripts/origins-signedin-check.mjs). Serves artifacts/origins-preview (built here when missing).
 // Exit 1 with the receipt on a miss; receipt: artifacts/origins-signedin-gear.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

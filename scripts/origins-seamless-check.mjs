@@ -3,7 +3,7 @@
 //   world live during the fight: the creatures other than the foe keep moving while the duel draws
 //   engage hitch budget (4x the walk's median on software GL, PROVISIONAL until the Mac Metal / real-device reading; a real GPU gets the 200 ms floor): the worst frame gap from the tap on is at most max(200 ms, 4x the walk's median gap) in the first 5 s after the tap: a first number to tighten (software GL runs ~3 fps, so the floor alone could never hold there)
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the numbers on a miss; a receipt goes to artifacts/origins-seamless.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

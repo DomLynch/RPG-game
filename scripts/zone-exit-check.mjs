@@ -1,7 +1,7 @@
 // Zone exit gate (the beta dungeon's door, zones/exit-rows.json): on the built origins preview at 375 wide, touch, step onto the cave mouth in Zone 1, cross to the Bone Hollow (Zone 5) and back through the
 // hollow gate. Asserts: each crossing lands the walker inside the far landmark (3 m, outside the door), [zone ready] fires on arrival, and NOTHING compiles after [zone ready] on either side of the crossing
 // (renderInfo programNames before and after a settle). Stills of the mouth and the gate go to artifacts/zone-exit/. Serves artifacts/origins-preview (built here when missing). Receipt: artifacts/zone-exit.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

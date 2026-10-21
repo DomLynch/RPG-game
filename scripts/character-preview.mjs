@@ -9,7 +9,7 @@
 //                                                            camera on a plain flat background, for a silhouette/reskin measurement
 //   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
 //                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

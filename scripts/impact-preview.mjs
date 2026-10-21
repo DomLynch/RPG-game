@@ -8,7 +8,7 @@
 //                                                                          wound mark); --free = three-quarter side view instead of the duel lock
 //   node scripts/impact-preview.mjs --label block-feedback --moments block,guardBreak --viewport 375x812 --full --frames 6,12
 //                                                                          block feedback mockups: a whole phone frame per cell (SCOPE item 7)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

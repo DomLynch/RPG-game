@@ -4,7 +4,7 @@
 // the sheet, Settings stays reachable, nothing scrolls sideways, every tap target is >= 44 px, the screen scrolls, and the sheet's text colours
 /* global process, console, document, localStorage */
 // keep 4.5:1 on its grounds. Stills: artifacts/stats-screen/. Guest only; serves this tree's build (run `npm run build` first).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';

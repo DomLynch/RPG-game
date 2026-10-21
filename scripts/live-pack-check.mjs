@@ -3,7 +3,7 @@
 // Reports `joined` (everyone who entered the world fight, wolves and the others counted separately) and `peak engaged` (creatures in a duel with the hero at one sample), and FAILS if
 // peak engaged > MAX_ATTACKERS (src/fight/attackers.ts) or fewer than MIN_JOINED joined: "6 joined" must never mean 6 attacking at once. The page needs `fighters[].duel` (world-combat debug).
 // Software GL is fine (it reads the engine's state, not frames). Run on the VPS: capture --prio 3 <lane> env HOME=/home/lanes node scripts/live-pack-check.mjs /tmp/pack-live
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { MAX_ATTACKERS } from '../src/fight/attackers.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

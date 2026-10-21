@@ -5,7 +5,7 @@
 //   ninth  nine bots in range after [zone ready]: eight or more figures are drawn (the warmed pool plus one) and the page's render programs do not grow (0 compiles after zone ready)
 //   gone   a bot that leaves (closes) is no longer drawn within the expiry
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the numbers on a miss; a receipt goes to artifacts/origins-remote-heroes.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';

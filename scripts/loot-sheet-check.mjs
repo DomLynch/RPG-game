@@ -2,7 +2,7 @@
 // (what #3052's rarity shift makes common) beside the worn starter set. Opens menu > Gear and asserts: each pack row names its own rung and shows its own line ("RES n" / "No bonus"), trying one on shows that
 // copy's rung and a strip delta, and Wear this equips THAT server piece (the second copy, not the first). 375x812; stills of ready idle, the pack, and the try-on go to <out dir>.
 //   node scripts/loot-sheet-check.mjs <out dir>        Serves artifacts/origins-preview (built here when missing). Stub writer on loopback, stub session, no credentials.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

@@ -1,7 +1,7 @@
 // The second fight's first frame at 375x812 (the standoff draw-in must replay on a rematch): boots the guest, lets the first standoff finish, presses
 // the next-fight button in place, steps one frame and takes the still. Run it once per tree (before = trunk, after = this branch).
 //   node scripts/standoff-rematch-stills.mjs <label>     stills + receipt: artifacts/combat/standoff-rematch/<label>-*.png
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';

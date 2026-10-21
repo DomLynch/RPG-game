@@ -5,7 +5,7 @@
 // Player-path engage trace on the LIVE build, real GPU. Fresh page load per run; wait idle; start rAF gap log + longtask observer + CPU profile >= 1 s BEFORE engage;
 // place the hero 14 m from an untouched creature facing it, WALK in (hold W) until it notices, press STAB (#thrust-button tap); capture 5 s after.
 // STILLS=1 takes the idle + mid-fight 375 stills; a screenshot read-back costs 66-300 ms of frame time (receipt.shots lists each one's [start, end] on the gap log's clock, and the gaps line up with them), so it is OFF by default and STILLS=1 skips the gap check. Exit 1 on a failed run, a program added after [zone ready], or (real GPU) a gap >= 200 ms.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs'; import os from 'node:os'; import { execSync } from 'node:child_process'; import { chromium } from 'playwright';
 const quiet = async () => { for (let i = 0; i < 60; i++) { let q = 'busy'; try { q = execSync("ps -Ao command | grep -c '[q]uality-stop' || true", { timeout: 5000 }).toString().trim(); } catch { /* a ps that cannot answer counts as not quiet */ } if (os.loadavg()[0] < 10 && q === '0') return { load1: +os.loadavg()[0].toFixed(1), qs: 0, waitedS: i * 5 }; await new Promise((r) => setTimeout(r, 5000)); } return { load1: +os.loadavg()[0].toFixed(1), qs: 'busy', waitedS: 300 }; };
 import http from 'node:http'; import path from 'node:path';

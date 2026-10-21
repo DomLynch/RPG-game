@@ -1,7 +1,7 @@
 // Checks the on-phone crowd page (?crowd=N, origins/preview/crowd-demo.ts): loads Zone 1 at 375x812 touch with ?crowd=N, waits for [zone ready] and for the fps readout, and asserts it shows N drawn
 // figures; saves a still and the readout text. Usage: SERVE=1 OUT=/tmp/crowd-page N=16 node scripts/origins-crowd-page-check.mjs (build first: `npx vite build --config origins/preview/vite.config.mjs`).
 // On the T4: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/crowd-page.sh
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path'; import { chromium } from 'playwright';
 const OUT = process.env.OUT || '/tmp/crowd-page', N = +(process.env.N || 16); fs.mkdirSync(OUT, { recursive: true });
 const root = process.cwd(), roots = { '/preview/origins/': path.join(root, 'artifacts/origins-preview') + '/' };   // the same static server as scripts/origins-crowd-fps.mjs

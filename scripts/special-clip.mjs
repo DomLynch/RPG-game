@@ -7,7 +7,7 @@
 // Writes <out>/clip.mp4, <out>/peak.jpg (the frame at PEAK ticks after the strike), <out>/windup.jpg, build/payoff/aftermath.jpg (a still sheet's frames) and <out>/meta.json.
 // --pre may be negative: the clip then starts that many ticks INTO the windup (the Executioner clips start 60 in, the last second of a 2 s windup).
 /* global process, console, document, URL */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

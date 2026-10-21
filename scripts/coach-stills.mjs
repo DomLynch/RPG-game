@@ -1,7 +1,7 @@
 /* global process, console, document */
 // Stills for the Coach UI (TOP10 row 8, Web): the live "Coached" tag mid-fight, the menu chip, and the "Coached win" mark after a coached kill; before = the same page with the Coach off.
 //   node scripts/coach-stills.mjs --dist dist --out artifacts/coach [--widths 375,1280]
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';

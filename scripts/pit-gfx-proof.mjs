@@ -1,7 +1,7 @@
 // The Pit's better-graphics lift, before and after (visual-pr-stills + the cost read): the built main game (dist/) at 375x812, the sparring Pit page, with the lift (the default) and with ?gfx=0, N runs each INTERLEAVED.
 // Per run: first playable (the load card gone: the first-frame mark exists and #art-status is empty), median and p5 fps over a fight window (the hero walks in and strikes), the WebGL programs linked after first playable (the lift must add none), page errors.
 // The first run of each mode also writes a mid-fight still. REAL_GPU=1: the machine's own GPU (no software-GL flags); CPU_RATE=4: CDP CPU throttling. Usage: node scripts/pit-gfx-proof.mjs <out dir> [runs]
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

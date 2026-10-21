@@ -2,7 +2,7 @@
 // VITE_SUPABASE_PUBLISHABLE_KEY=stub). Proves: the pencil shows for a signed-in session; the PATCH carries the new name at the revision read and the account's own marks and loot; a stale revision
 // (the first PATCH matches no row, the account moved on) is refused, the fighter is read again and the retry keeps the newer marks. Stills: artifacts/zone-rename/ (375x812).
 // Needs ZONE_DIST (the origins-preview build made with those two env vars) and a Chromium; PIT_GL=1 = the browser's own GL.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

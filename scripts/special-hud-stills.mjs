@@ -1,7 +1,7 @@
 // HUD and menu stills at 375x812 of a brand-new guest in Zone 1 on a built origins-preview page (before/after pairs for the specials PRs): hud.png (the fight HUD in a camp fight) and menu.png (the burger menu open).
 // Usage: node scripts/special-hud-stills.mjs <built origins-preview dist> <out dir>   (PIT_GL=1 = software GL)
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

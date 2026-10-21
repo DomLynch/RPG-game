@@ -6,7 +6,7 @@
 // --clip: record the page instead (Playwright recordVideo) and cut a few seconds round the cast to an mp4 (webm when ffmpeg is missing): <out>/<special>.mp4.
 // --sheet <dir> <dir>...: no browser; lay each dir's windup | strike | recover stills side by side, one row per dir, into <out>/sheet.png (needs ffmpeg).
 /* global process, console, document, globalThis */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 

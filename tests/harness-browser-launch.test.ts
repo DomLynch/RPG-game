@@ -1,4 +1,4 @@
-// Ratchet: every script starts its browser through scripts/lib/browser-launch.mjs (Lead 2026-10-21). On the shared VPS that helper runs Chromium in a low-weight
+// Ratchet: every script starts its browser through scripts/lib/harness-browser-launch.mjs (Lead 2026-10-21). On the shared VPS that helper runs Chromium in a low-weight
 // systemd scope under nice, with software GL; a script that calls <type>.launch( itself skips all of it and was how four raised-priority Chromiums ran in one day.
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
@@ -7,11 +7,11 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileS
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { launchBrowser, onVps, processTree, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
+import { launchBrowser, onVps, processTree, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/harness-browser-launch.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // The helper itself, and the two job scripts that run INSIDE Hugging Face jobs as node snippets (HF behaviour stays unchanged, not the VPS).
-const EXEMPT = new Set(['scripts/lib/browser-launch.mjs', 'scripts/gpu-run/job-tail.sh', 'scripts/hf-wall-rows/job.sh', 'tests/browser-launch.test.ts']);
+const EXEMPT = new Set(['scripts/lib/harness-browser-launch.mjs', 'scripts/gpu-run/job-tail.sh', 'scripts/hf-wall-rows/job.sh', 'tests/harness-browser-launch.test.ts']);
 const DIRECT = /\b(?:playwright\.)?(?:chromium|webkit|firefox|engine|type|browserType)\.launch\(/;
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -34,7 +34,7 @@ test('no script calls a Playwright browserType.launch( directly', () => {
       if (DIRECT.test(readFileSync(file, 'utf8'))) offenders.push(rel);
     }
   }
-  assert.deepEqual(offenders, [], `use launchBrowser(chromium, options) from scripts/lib/browser-launch.mjs instead of calling .launch( directly: ${offenders.join(', ')}`);
+  assert.deepEqual(offenders, [], `use launchBrowser(chromium, options) from scripts/lib/harness-browser-launch.mjs instead of calling .launch( directly: ${offenders.join(', ')}`);
 });
 
 test('the VPS gets a low-weight, niced scope and software GL; its own GL choice is kept', () => {
@@ -79,7 +79,7 @@ test('VPS: every Chromium process of a helper launch is inside the CPUWeight=20 
     assert.ok(pids.length >= 3, `a browser plus its helpers (${pids.length})`);
     for (const p of pids) {
       let cg = ''; try { cg = readFileSync(`/proc/${p}/cgroup`, 'utf8').trim(); } catch { continue; }   // a short-lived helper may be gone
-      assert.match(cg, /\/system\.slice\/run-[0-9a-f]+\.scope$/, `pid ${p} is in a run scope, not ${cg}`);
+      assert.match(cg, /\/system\.slice\/run-r?[0-9a-f]+\.scope$/, `pid ${p} is in a run scope, not ${cg}`);
       assert.doesNotMatch(cg, /app-org\.chromium/, `pid ${p} escaped into a Chromium scope`);
       seen.add(cg.split('/').pop()!);
     }

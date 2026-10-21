@@ -4,7 +4,7 @@
 // Usage: URL=https://frankendom.com/ OUT=/tmp/trace RUNS=3 node scripts/duel-frame-trace.mjs   (SERVE=<dist dir> serves a local build instead).
 // Honesty: on software GL (SwiftShader, the VPS) the rasteriser runs on the CPU and stretches EVERY frame, so a gap there is not a hitch by itself. The row that separates them is
 // `busyMs`: the main thread's own long task / profile time inside the gap. A gap with busyMs near 0 is a GPU wait; a gap with a busy main thread names real JS.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises'; import http from 'node:http'; import path from 'node:path'; import zlib from 'node:zlib';
 import { chromium } from 'playwright';
 const URL_ = process.env.URL || 'https://frankendom.com/', OUT = process.env.OUT || 'artifacts/duel-frame-trace', RUNS = Number(process.env.RUNS || 1), GAP = Number(process.env.GAP_MS || 100);

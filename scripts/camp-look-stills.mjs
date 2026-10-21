@@ -1,7 +1,7 @@
 // Stills of the Cinder Fields goblin camp and the rusty sword lying in it, at 375x812, for Dom's call on the camp look (the camp is the landmark_camp of zone1-kit.glb with the four-scavenger group; the sword
 // is the ground row ground:zone1.rusty-sword-1, today at the centre of the place with no offset). Views: wide from the road side (14 m south of the sword, facing it), mid (7 m), close (3 m), and a side
 // view. Serves artifacts/origins-preview (built here); on the T4: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/camp-look-stills.sh   Env: OUT (default artifacts/camp-look), SWORD_X/SWORD_Z (-102, 30).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path'; import { chromium } from 'playwright';
 const OUT = process.env.OUT || 'artifacts/camp-look', SX = +(process.env.SWORD_X ?? -102), SZ = +(process.env.SWORD_Z ?? 30); fs.mkdirSync(OUT, { recursive: true });
 const root = process.cwd(), roots = { '/preview/origins/': path.join(root, 'artifacts/origins-preview') + '/' };   // the same static server as scripts/origins-crowd-fps.mjs

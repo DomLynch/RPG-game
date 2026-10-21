@@ -7,7 +7,7 @@
 // (the slot's height differs between worn and empty), so a green here means the figure is decoupled, not that nothing moved.
 // Guest only: a ledger is seeded straight into localStorage, nothing is sent anywhere. QA_URL points it at a deployed site; unset, it
 // serves this tree's build (run `npm run build` first). Stills of the tab in each state are the receipt.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

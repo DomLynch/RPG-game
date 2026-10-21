@@ -6,7 +6,7 @@
 // the page replays it from its first tick: the ready idle, then the first exchanges) and the KILL (the whole record, replayed from the page's tail window).
 // Writes <out>/<take>-<feel>.mp4, <take>-<feel>-idle.jpg, <take>-<feel>-hit.jpg (3 frames after the first blow on the opponent), <take>-compare.mp4 (feels side by side).
 /* global process, console, document, URL, window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

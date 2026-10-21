@@ -1,6 +1,6 @@
 // Offline visual gate for both arms: front, weapon-side and rear views of the
 // shipped rigs at ready, gait, guard, wind-up, contact and recovery poses.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';

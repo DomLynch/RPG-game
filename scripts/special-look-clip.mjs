@@ -4,7 +4,7 @@
 // Shared box only (a real browser): ssh the VPS, `cd /root/frankendom-worktrees/sandbox && capture --prio 3 sandbox node scripts/special-look-clip.mjs --out out/special-look`
 //   [--base https://frankendom.com/preview/sandbox/] [--only cleave,stomp]. Frames land in <out>/<skill>/f%05d.jpg; the mp4 is encoded here with ffmpeg.
 /* global process, console, document, globalThis */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

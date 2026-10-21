@@ -1,5 +1,5 @@
 // Actual browser audio graph: optional bank, lifecycle, variation and mixed-output QC.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { createServer, preview } from 'vite';
 import fs from 'node:fs/promises';

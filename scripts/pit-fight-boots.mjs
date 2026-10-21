@@ -4,7 +4,7 @@
 // (worn-loot-check.mjs's way: `equipped` by paperdoll key), nothing sent.
 //   node scripts/pit-fight-boots.mjs                                  this tree   → artifacts/pit/boots/fight-boots-tree.png
 //   BOOTS_ROOT=<trunk checkout> BOOTS_LABEL=trunk node scripts/pit-fight-boots.mjs  → artifacts/pit/boots/fight-boots-trunk.png
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';

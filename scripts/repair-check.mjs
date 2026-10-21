@@ -2,7 +2,7 @@
 // Checks, signed in against a stand-in writer (gear_wear lists two worn pieces with a quote; gear_repair repairs one): a line per worn piece with the writer's durability and quote (no id, no computed cost), the Repair click sends
 // ids only (character, op, instance), the receipt is shown and the list is read again (the repaired piece leaves it); an empty list says nothing is worn; a guest sees "Sign in to see your gear's wear." and no lines; nothing
 // clips or scrolls sideways, controls are 44 px, Close closes it. Usage: node scripts/repair-check.mjs <built origins-preview dist> [--engine webkit]   (OUT=<dir> for the stills).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

@@ -2,7 +2,7 @@
 // reading what follows from the world sim: the hero's phases (a heavy's windup is longer than a light's) and the foe's hp drop (a heavy hits harder). REAL_GPU=1 so page time is real time.
 // Usage: node scripts/zone1-heavy-hold-probe.mjs <built origins-preview dist> <out dir>     env: HOLD_MS=400 SLIDE=1 (a slow slide left: down, wait HOLD_MS, slide 40 px left, up)
 /* global process, console, window, document, performance */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

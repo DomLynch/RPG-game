@@ -24,7 +24,7 @@
 // which cancels the box's drift over the run; the same run's difference of medians read -1.2 s on identical code.
 // Usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]
 /* global window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';

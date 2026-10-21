@@ -4,7 +4,7 @@
 // the flag survives a reload (rematch-to-next-rung and the weapon-swap rematch are location.reload()) and the journal's loot screen;
 // a refused value (`?hero=/assets/...`, a full URL) boots warrior.glb with no page or console error.
 //   node scripts/hero-preview-check.mjs [/herolook/legionary.glb]      receipt: artifacts/hero-preview/receipt.json
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { webkit } from 'playwright';
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';

@@ -1,7 +1,7 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight): the hero MID-EXCHANGE against a creature, once per weapon (default knife and longsword), the same scripted frame (his cut in its windup/active), with a 2x crop of the hero so the
 // blade length reads. Prints the weapon the rig holds and the sim swings. Usage: WEAPONS=knife,longsword node scripts/zone1-weapon-fight-stills.mjs <built origins-preview dist> <out dir>
 // (GPU: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/weapon-fight-still.sh)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

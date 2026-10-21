@@ -3,7 +3,7 @@
 // Usage: node scripts/special-pick-check.mjs <built origins-preview dist> <out dir> [--first lunge] [--second stomp] [--zone 1]   (Mac GL by default; PIT_GL=1 = software GL for a loaded box)
 //   build first: npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

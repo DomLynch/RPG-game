@@ -1,6 +1,6 @@
 // Phone-tier network capture of the live Zone 1 page: every request the page makes in its first N seconds, with the bytes that crossed the wire (CDP encodedDataLength, so the CDN's compression counts).
 // Usage: node scripts/phone-budget-capture.mjs <page url> <seconds> <out json>   (iPhone UA + coarse pointer, 375 wide; no sign-in, presence off)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import { chromium } from 'playwright';
 

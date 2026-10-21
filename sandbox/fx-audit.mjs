@@ -6,7 +6,7 @@
 // that are visible at once. OK = drawn at some sample, NOTHING = never drawn in the window.
 // CAVEAT (2026-10-16): headless swiftshader runs only ~30 game ticks a second, and a magic cast is a 120-tick windup, so the sample window must be at least ~8 s (done below);
 // the first run used 2.8 s and read NOTHING for effects that only draw late in the cast. A NOTHING after this window is a real gap; a few effects are dark-ink and subtle by design (blackfurrow).
-import { launchBrowser } from '../scripts/lib/browser-launch.mjs';
+import { launchBrowser } from '../scripts/lib/harness-browser-launch.mjs';
 import { chromium } from '/root/frankendom-worktrees/sandbox/node_modules/playwright/index.mjs';
 import { readFileSync } from 'node:fs';
 const [, , si = '0', sc = '1'] = process.argv;

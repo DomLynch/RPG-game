@@ -5,7 +5,7 @@
 //   node scripts/fatigue-clip.mjs --dist dist --out artifacts/fatigue [--record file] [--opponent veteran] [--level 3] [--every 3] [--dpr 2] [--side 0]
 // Stills are keyed by sim tick (meta.json `stills`: name -> tick). Writes <out>/clip.mp4, <out>/<band>.jpg for the first tick of each band the hero reaches (+ --after ticks, default 40, so the blend has settled), <out>/record.txt and <out>/meta.json.
 /* global process, console, document, URL, window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';

@@ -1,7 +1,7 @@
 // Zone 1's nearest kit boulder, read from the LIVE scene (no offline placement guesses): wait for the kit, take the instance of boulder_* nearest the hero's start, place the hero DIST m south of it facing it
 // (heading 0 looks along +z), shoot. Usage: node scripts/boulder-live-stills.mjs <built origins-preview dist> <out dir>   env: VIEW=844x390 DIST=4 SETTLE=8000 PIT_GL=1
 /* global process, console, window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

@@ -15,7 +15,7 @@
 // pass. The derivation is now right, and it is applied to a number that can actually fail for a real reason.
 //
 //   node scripts/guard-browser-check.mjs [--count 6] [--budget-ms 18] [--dir artifacts/character/guard]
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createServer } from 'vite';

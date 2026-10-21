@@ -8,7 +8,7 @@
 // TRAP (it hid the answer once): `equipped` is keyed by PAPERDOLL key (legs, chest), not slot name (Greaves, Body); cleanLoot silently
 // drops a slot-named key and then NOTHING draws — so the seeded ledger is read back and asserted.
 // Guest only, nothing sent anywhere. QA_URL points it at a deployed site; unset, it serves this tree's build (run `npm run build` first).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';

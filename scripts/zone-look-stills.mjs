@@ -2,7 +2,7 @@
 // (the hero a few metres off the zone's camp, idle, looking at it; the spawn view when the page has no camp) and `<name>-fight.png` (the nearest creature engaged, mid-fight; skipped
 // when the zone has no creatures). Server and page setup are the zone smoke's (scripts/origins-zone1-smoke.mjs). Writes artifacts/zone-stills/ and a receipt.json beside them.
 // Usage (draws, so on the T4: node scripts/gpu-run.mjs <sha> -- node scripts/zone-look-stills.mjs off=?region=1 dusk='?region=1&look=goblin&goblin=dusk' test='?zone=99&region=1')
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

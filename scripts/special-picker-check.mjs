@@ -2,7 +2,7 @@
 // one SPECIAL 1 and one SPECIAL 2 button per entry. Walks: the list equals the row (ids, order, roles, names; none invented); Equip SPECIAL 1 keeps the pick (frankendom.special.slots.v1) and marks it; the same skill in SPECIAL 2 MOVES it
 // (never in both); a second press clears; the summary line says what each slot holds; no control under 44 px, off screen, text clipped or horizontal scroll, at 375 and 320. Stills: <OUT>/pick-*.png.
 // Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/special-picker-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises';
 import { chromium, devices, webkit } from 'playwright';
 import { existsSync } from 'node:fs';

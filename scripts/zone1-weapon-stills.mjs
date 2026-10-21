@@ -1,7 +1,7 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) with the hero wielding a picked-up weapon (gear in the world, Dom 2026-10-17): ready idle, then mid-fight. Prints the weapon the rig holds and the
 // weapon the sim swings (they are one variable), so a still of a knife in hand is also proof the fight swings a knife.
 // Usage: WEAPON=knife node scripts/zone1-weapon-stills.mjs <built origins-preview dist> <out dir>   (GPU: node scripts/gpu-run.mjs <sha> -- bash scripts/gpu-run/weapon-still.sh knife)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

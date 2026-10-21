@@ -2,7 +2,7 @@
 // Deterministic version of the race: ?holdCompile=1 keeps the scene-material compiles open, so the plan's last look is clean while programsInFlight > 0; originsPreview.injectLate() then adds one fresh mesh and
 // freezes the 3 s re-plan (only zoneReadyCheck can still see it); releaseCompiles() lets the zone go ready. Pass = at [zone ready] the late material is already uploaded. Exit 1 otherwise.
 // Serves artifacts/origins-preview (built here when missing); receipt to artifacts/origins-late-stream.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

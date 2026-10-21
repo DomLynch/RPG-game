@@ -8,7 +8,7 @@
 // between the six shipped outcomes from the kill event — so the harness runs the same passive duel across
 // seeds and captures the first death window each finisher actually draws, organic kills on the production path end-to-end:
 // selection, pose, clip, gore, dolly, severed head — nothing is presented as anything other than what the sim reported.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

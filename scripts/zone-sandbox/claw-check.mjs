@@ -1,6 +1,6 @@
 // Zone sandbox check (see scripts/zone-sandbox/README.md). Usage: node scripts/zone-sandbox/claw-check.mjs "<url>"   // per-bone skin counts and claw/hand-bone distances for a goblin and a troll (reads mobs().handMesh)
 // Needs playwright resolvable from PW_ROOT (default: the current directory) and a Mac GPU: it launches chromium with --use-angle=metal.
-import { launchBrowser } from '../lib/browser-launch.mjs';
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire((process.env.PW_ROOT ?? process.cwd()) + '/');
 const { chromium } = require('playwright');

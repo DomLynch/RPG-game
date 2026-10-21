@@ -1,5 +1,5 @@
 // Cold returning-player startup, with the optional arena download deliberately unavailable.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import assert from 'node:assert/strict';

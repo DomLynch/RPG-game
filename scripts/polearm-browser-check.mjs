@@ -1,6 +1,6 @@
 // Actual game playback, no pose/simulation overrides. The rig test checks anatomy;
 // this receipt checks routing, loaded bytes, gait/attack selection and browser errors.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import fs from 'node:fs/promises';

@@ -1,5 +1,5 @@
 // Emitted-byte provenance plus actual Chromium/WebKit decoding under the deployment CSP.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';

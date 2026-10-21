@@ -1,6 +1,6 @@
 // Review stills for a static family body (docs/specs/origins/body-families.md): four azimuths at 375 wide and the numbers the QA caps read.
 //   node scripts/family-turntable.mjs --glb src/assets/source/creatures/giant-hrungnir.glb --name giant --out <dir> [--h 1.8]
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

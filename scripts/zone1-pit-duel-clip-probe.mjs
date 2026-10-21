@@ -1,7 +1,7 @@
 // Which clip a SPECIAL 1 / SPECIAL 2 press plays in the Pit duel opened from Zone 1 ("Fight in the Pit", pit-duel.ts), a fresh guest, 375 wide, on a BUILT origins preview. REAL_GPU=1 for the T4.
 // Usage: node scripts/zone1-pit-duel-clip-probe.mjs <built origins-preview dist> <out dir>. ?debug=1 exposes __view (pit-duel.ts) and __specials (the fx / cue counters).
 /* global process, console, window, document, globalThis, performance */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

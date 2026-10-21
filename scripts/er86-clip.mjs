@@ -6,7 +6,7 @@
 // The page clock is fake and moved 1000/60 ms per step (scripts/lib/harness-clock.mjs), a picture every second step, so the mp4 plays at real speed however slow the renderer is. Runs on the VPS through `capture` (SwiftShader).
 // --dry prints the take's swing timings and blows (no browser).
 /* global process, console, document, URL */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';

@@ -3,7 +3,7 @@
 // taps land on an attack button, just outside it (the arena canvas) and on a HUD gap. For each pair the first touchend must go through (a
 // single tap keeps working) and the second must be refused at the document (main.ts's double-tap guard); the page scale must stay 1.
 // Then the journal's Sound toggle, off the fight surface: a quick double tap there must click twice.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import { harnessClock } from './lib/harness-clock.mjs';

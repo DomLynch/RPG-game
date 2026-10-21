@@ -1,7 +1,7 @@
 // Zone 1 fight camera with a CLOSE foe at 375x812 (Web's live audit: the over-shoulder camera puts the hero's body over a foe at melee range): the hero is placed DIST m (default 1.4) south of a camp creature, a light press starts the fight, the camera eases in, and fight.png is taken
 // once it has settled; camView() (the lens the page applies) is printed. Usage: node scripts/cam-close-stills.mjs <built origins-preview dist> <out dir>   env: DIST=1.4  WAIT=5000  PIT_GL=1 (software GL)
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

@@ -3,7 +3,7 @@
 //   ZONE=2 shoots another zone (?region=1&zone=2&worldfight, the way zone-hit-stills reaches it); TAGS_TARGET=<id or id prefix> picks the foe;
 //   LONE=1 adds &lone (one foe instead of the pack, so the hero is not overwhelmed and KILL=1 can land the kill);
 //   KILL=1 then cuts until the foe's health is 0 and adds kill.png. Defaults (Zone 1, no kill) are unchanged.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

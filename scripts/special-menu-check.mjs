@@ -2,7 +2,7 @@
 // (Skull Crack, Whirlwind), Equip SPECIAL 1 on Ground Slam moves it in, a skill already in the other slot moves (never in both), the HUD's two buttons wear the new names, the pick is kept in this device's store, and a reload keeps it.
 // Usage: node scripts/special-menu-check.mjs <built origins-preview dist> <out dir>   (PIT_GL=1 = software GL)   receipt: <out>/receipt.json   stills: menu-open.png picker-defaults.png picker-swapped.png hud-swapped.png
 /* global process, console, window, document, localStorage */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

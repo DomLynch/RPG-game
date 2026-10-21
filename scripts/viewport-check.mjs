@@ -4,7 +4,7 @@
 // Chromium does not, so this check plays iOS: it makes innerWidth/innerHeight report a 2.5× zoomed visual viewport and fires resize,
 // then asserts the canvas still covers the layout viewport and its drawing buffer keeps the layout's aspect; then it zooms back out
 // and asserts the same. A phone context; no fight, the canvas is sized at boot. Stills land in the receipt directory.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

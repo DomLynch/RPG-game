@@ -3,7 +3,7 @@
 // Walks: a guest sees nothing; a level-3 character gets the dialog on load with 3 points; + stops when none are left; Confirm POSTs the placement and the dot goes; taking back is free; at level 12 with the
 // rank spent the - buttons are off; a build that moved under the player is read again with the sentence. Fails on a control under 44 px, off screen, text clipped or horizontal scroll.
 // Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/build-point-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS). Stills: <OUT>/point-*.png.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import { chromium, webkit } from 'playwright';

@@ -1,7 +1,7 @@
 // The daily board screen at a phone (Web, top-30 #20): the built origins page (?region=1&worldfight), the ☰ menu's Board entry, the dialog. Stills: <OUT>/board-*.png.
 // Checks: the entry exists in the ☰, the dialog opens with the rule's slots as task cards, every line is words (no id), the reset line is there, nothing clips, scrolls sideways or sits under the screen edge, controls are 44 px,
 // and Close closes it. Usage: node scripts/board-check.mjs <built origins-preview dist> [--engine webkit]   (OUT=<dir> for the stills; software GL is fine: it is a layout check).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

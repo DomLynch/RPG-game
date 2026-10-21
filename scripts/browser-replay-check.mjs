@@ -31,7 +31,7 @@
 //                                                                        the fights whose outcome flips between the engines; exit 1 if any.
 // Receipt: artifacts/browser-replay-check/receipt.json. Exits 1 on any disagreement, page error or refused record.
 /* global document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';

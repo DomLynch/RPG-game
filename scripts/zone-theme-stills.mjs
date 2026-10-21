@@ -1,6 +1,6 @@
 // Zone page stills at 375x812 for zones 1 and 3 (?zone=<id> on the origins-preview build): the first view at spawn, then the hub (the Pit and the Exchange, placed at the start) the walk starts from.
 // ?daynight=0 pins the light so a before and an after of the same zone are comparable. Reads the zone the page reports and its ambience preset. Needs ZONE_DIST (the origins-preview build). Stills: artifacts/zone-theme/.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';

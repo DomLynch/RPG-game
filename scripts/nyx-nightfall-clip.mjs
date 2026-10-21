@@ -6,7 +6,7 @@
 // VPS capture lock, `capture world node scripts/nyx-nightfall-clip.mjs --dist dist --arena c --out out/nyx-c`, then encode the frames dir:
 //   ffmpeg -framerate 60 -i out/nyx-c/f%05d.jpg -vf scale=376:812,setsar=1 -c:v libx264 -pix_fmt yuv420p -crf 20 nyx-c.mp4
 /* global process, console, document, URL */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';

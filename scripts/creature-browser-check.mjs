@@ -1,5 +1,5 @@
 // Real game routes: exact served GLBs, combat, phone layout, death/rematch and screenshots.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { ROSTER } from '../src/roster.ts';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';

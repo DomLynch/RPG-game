@@ -2,7 +2,7 @@
 // (GLTFLoader + MeshoptDecoder), plays Idle then Walk on an AnimationMixer, and the skinned mesh visibly moves between two Walk times
 // (a body that ignores its rig fails: the unskinned knight/witch of the first world_body.py would). Prints one line per body; exit 1 on any miss.
 //   node scripts/world-body-browser-check.mjs [--dir public/world] [--shot artifacts/world-bodies.png]
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, readdir, mkdir } from 'node:fs/promises';

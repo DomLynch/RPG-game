@@ -20,7 +20,7 @@
 //   came before the last step and forced the rest (drained), and the finisher clock's steps, so a catch-up jump shows against the median.
 // Row 4 is the worst frame from the look's fetch end (its warm-up: compile, one map upload per frame) to 300 ms after the swap; it also reports its p90 and, for the worst run, the long tasks (PerformanceObserver) that overlap the worst frame.
 // Receipt: artifacts/herolook/<label>/receipt.json. Guest only; nothing is sent anywhere. Never part of the build or the runtime.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';

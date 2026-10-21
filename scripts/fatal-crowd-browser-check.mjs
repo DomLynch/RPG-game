@@ -2,7 +2,7 @@
 // has booted for real, the harness clock (scripts/lib/harness-clock.mjs) advances it frame by frame, so the duel that ends in
 // the player's defeat takes the same simulation ticks on a MacBook, a GPU-less VPS or a CI runner — the old wall-clock wait for
 // a Killed event (90 s) never arrived on ubuntu-latest, where the live loop crawls.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';

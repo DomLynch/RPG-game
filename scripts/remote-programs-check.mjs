@@ -1,7 +1,7 @@
 // How many NEW render programs does a remote player wearing each source kit add after [zone ready]? (the dressRemote warm-up proof; renderInfo().programKeys, the method of origins-seamless-check.mjs)
 // Usage (repo checkout, node_modules, built preview): node scripts/remote-programs-check.mjs <dist> <out dir>
 // Receipt: programsAtReady, then per kit the programs it added (name#id -> cacheKey, owners), and the unique new program keys over all kits. Exit 0 and the numbers are the result; GATE=1 exits 1 when any kit adds a program (the warm-up's acceptance: 0 new).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

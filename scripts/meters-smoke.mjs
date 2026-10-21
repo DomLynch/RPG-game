@@ -3,7 +3,7 @@
 // createZoneBars would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir smoke-build/pit`.
 //   node scripts/meters-smoke.mjs [--build] [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
 // Stills are 375x812 CSS pixels (gpu-run returns only small files, ~2.5 MB in all). --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import http from 'node:http';

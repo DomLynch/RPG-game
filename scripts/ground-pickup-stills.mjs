@@ -7,7 +7,7 @@
 //   BEFORE=1 films a build WITHOUT the feature (trunk) through the same stub: the same spot, nothing drawn, no prompt.
 //   ZONE_DIST=<built origins preview> OUT=<dir> LABEL=<before|after> WIDTHS=375,320 node scripts/ground-pickup-stills.mjs
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';

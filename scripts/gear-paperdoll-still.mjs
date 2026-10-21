@@ -1,6 +1,6 @@
 // Stills of the Pit's Gear tab (the paper-doll look: tier-tinted slot cards, the selected slot, the stat strip) with six pieces worn at different rungs, at 375x812 and 812x375.
 // Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own GL (the VPS). Out: artifacts/gear-paperdoll/.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

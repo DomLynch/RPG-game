@@ -2,7 +2,7 @@
 // persists, 2026-09-26). At a phone size (375x812) and a desktop size (1280x800): a fresh fighter fights at level 1 and has no Sparring tab
 // (Dom 2026-09-29: the rank decides; admins and ?debug get the tab's 46 levels), an old stored 'hard' is ignored after a reload, and 15 wins fight at level 16. A still of the player's journal (no Sparring tab) is the receipt. Guest only; nothing sent anywhere.
 // QA_URL points it at a deployed site; unset, it serves this tree's build.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

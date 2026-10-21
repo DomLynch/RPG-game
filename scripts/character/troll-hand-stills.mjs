@@ -5,7 +5,7 @@
 // the claw keeps that distance as the arm moves; a weapon on a claw that does not follow hand_r drifts away from it ("slip" = change from the ready pose).
 //   node scripts/character/troll-hand-stills.mjs <before.glb> <after.glb> <out dir>
 // Serves three from node_modules; Chromium with software GL (works on the VPS).
-import { launchBrowser } from '../lib/browser-launch.mjs';
+import { launchBrowser } from '../lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

@@ -1,6 +1,6 @@
 // 375-wide still of the Zone 1 top HUD with the Sign in link: prints its box (the 44 px tap target, Web 2026-10-09).
 // Usage: node scripts/zone1-signin-stills.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

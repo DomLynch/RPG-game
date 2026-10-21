@@ -6,7 +6,7 @@
 //   4. no page errors anywhere.
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) while the fight plays out, and frames are not painted (skipDraws) because the
 // check reads state, not pixels. QA_URL points it at a built page instead of starting `vite preview`.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';

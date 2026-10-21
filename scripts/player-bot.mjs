@@ -1,5 +1,5 @@
 // A local-only browser player: real keyboard input, seeded opponents, full-fight video and event receipts.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';

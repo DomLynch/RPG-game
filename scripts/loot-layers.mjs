@@ -5,7 +5,7 @@
 // when the loader has put that id on the slot (`#slot-<key>[data-loot=...]`). Pieces are worn the way src/characters.ts wears them: a
 // `replace` piece hides the rig's own draws in that slot (a helmet hides the hair too), a mapless palette material takes the rig's
 // material of the same name. Run after every loot.glb change: `node scripts/loot-layers.mjs` (Playwright's Chromium, ~40 s).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';

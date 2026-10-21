@@ -5,7 +5,7 @@
 // coverage lives at node level (tests/spell-slots.test.ts, spell-equip.test.ts, world-cast.test.ts, origins/server/world-verify.test.ts with the cut lifted) and the spellsOff=0 path is the row. Prints the module state it read. Exit 1 on any miss.
 //   node scripts/spell-slots-zone-check.mjs      (starts its own vite dev server on :5199 and a loopback stub writer; run it on the VPS)
 /* global process, console, document, localStorage, performance */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import http from 'node:http';
 import { spawn } from 'node:child_process';

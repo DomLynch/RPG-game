@@ -2,7 +2,7 @@
 // walk.jpg at the start, then the hero is placed 3 m and 1.4 m south of the first drawn creature, a tap starts the fight, fight.jpg. Used for the boulder tint before/after.
 // Usage: node scripts/boulder-start-stills.mjs <built origins-preview dist> <out dir>   env: VIEW=844x390 PIT_GL=1 (software GL)
 /* global process, console, window */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

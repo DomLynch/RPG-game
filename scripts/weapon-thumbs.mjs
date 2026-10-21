@@ -4,7 +4,7 @@
 // diagonal, under loot-layers' own lights and exposure, then loot-layers' thumbnail crop (alpha bounds, squared at 1.12, 96 px, webp .82)
 // to public/game/img/loot/<id>.thumb.webp for every weapon id in src/core/loot.ts LOOT. Run after an equip file changes:
 // `node scripts/weapon-thumbs.mjs` (Playwright's Chromium, a few seconds).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';

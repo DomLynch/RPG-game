@@ -3,7 +3,7 @@
 //   cancel : the same, but the return is ?error=access_denied -> the page stays on the arena, the stored wish is gone
 //   later  : after a cancel, an ordinary arena sign-in that succeeds does NOT jump to /zone1/
 // Usage: node scripts/zone1-signin-check.mjs [arena dist dir]   (built here from the repo when no dir is given, into a temp dir)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

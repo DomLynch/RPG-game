@@ -3,7 +3,7 @@
 // time). Behaviour here is exactly what browser-check.mjs and roster-browser-check.mjs did inline; a script that needs
 // something else passes it in rather than forking the boot. Dev-server previews (vite createServer) join when the first
 // one migrates; nothing speculative lives here.
-import { launchBrowser } from './browser-launch.mjs';
+import { launchBrowser } from './harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

@@ -1,6 +1,6 @@
 // 375-wide still of Zone 1's ☰ menu with the temporary Gear button (Web, 2026-10-09): prints whether #menu-gear is there and its box.
 // Usage: node scripts/zone1-gear-button-still.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

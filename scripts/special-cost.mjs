@@ -4,7 +4,7 @@
 // stand-in, NOT its GPU: a Mac GPU under ANGLE/Metal is far faster than a phone's). Each row runs REPS times; the line prints the median p50 / p95 and the share of frames over 20 ms (a single dropped frame spikes a rep's p95 on either side, so p95 alone is noisy).
 //   node scripts/special-cost.mjs [--special typhon] [--reps 3]   (this tree's build; run `npm run build` first)  → artifacts/special-cost/<kind>.json + one line per row
 /* global process, console, document, window, performance, requestAnimationFrame, WebGL2RenderingContext, WebGLRenderingContext */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

@@ -3,7 +3,7 @@
 // a control under 44 px, or text clipped by its own box (scrollWidth > clientWidth on a non-scrolling element). Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own GL (the VPS).
 // Usage: PIT_STILLS=<state regex> OUT=<dir> node scripts/pit-landscape-check.mjs [--engine webkit]. --engine webkit is the Mac release row (Safari's engine, Dom's iPhone): WebKit has no safe-area emulation, so
 // the notch view runs as a plain 844x390 there (overlap, off screen, tab wrap, clipped text, 44 px tabs still apply). The profile wears six pieces at rungs 2..10, so the Gear tab is the paper-doll (tinted slots, the stat strip), and a still/row asserts both. Stills: artifacts/pit-landscape/.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium, webkit } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';

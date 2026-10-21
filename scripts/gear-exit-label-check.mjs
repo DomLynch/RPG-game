@@ -2,7 +2,7 @@
 // Boots Zone 1's page, opens the ☰ on the gear sheet at 375 wide, sets the exit label to each name given, and measures: the exit button's box ends before the Gear tab starts, the
 // Gear tab's box and the cog's box do not intersect, nothing leaves the viewport, and the full name is the button's aria-label.
 // Usage: node scripts/gear-exit-label-check.mjs <built origins-preview dist> <out dir> ["Back to <name>" ...]   (default names: the registry's longest + a 40-character fixture)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

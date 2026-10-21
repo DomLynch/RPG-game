@@ -1,7 +1,7 @@
 // The stats screen at a phone (Web, critical four item 3): the built origins page (?region=1&worldfight), the ☰ menu's Stats entry, the dialog. Stills: <OUT>/stats-*.png.
 // Checks, signed in against a stand-in writer: the level and the points placed against the budget, one named line per dial and skill (no id), the placed points from the stored build, NO effective number (the writer's sheet is not supplied yet);
 // a guest sees "Sign in to see your stats." and no rows; nothing clips or scrolls sideways, controls are 44 px, Close closes it. Usage: node scripts/stats-check.mjs <built origins-preview dist> [--engine webkit]   (OUT=<dir> for the stills).
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

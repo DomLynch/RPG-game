@@ -1,5 +1,5 @@
 // Two actors dressed through dressRemote, 375 wide (scripts/dress-remote-still.html on a vite dev server). Usage: node scripts/dress-remote-still.mjs <out dir>   (GL: software on the VPS; the GPU job passes its own flags)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';

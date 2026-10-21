@@ -1,6 +1,6 @@
 // The engine's gear screen IN Zone 1 (Web, 2026-10-09): the ☰ menu's Gear chip opens the Pit's own sheet over Zone 1's cut of the menu, the hero dressed in-zone, on a fake server ledger (page.route answers /origins/<op>).
 // Usage: node scripts/gear-in-zone1-check.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

@@ -3,7 +3,7 @@
 // artifacts/audio/<label>/: exchange.wav, one WAV per cue probe, a BS.1770 loudness table and a report. Same script,
 // same seed, every iteration, so BEFORE/AFTER is like-for-like. Usage: node scripts/audio-preview.mjs [--label name] [--seed n] [--fallback]
 // (--fallback renders the synth path the game uses until the sprite has decoded.)
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import fs from 'node:fs/promises';

@@ -1,7 +1,7 @@
 // Zone 1 world wiring evidence (#1845): 375-wide stills of the shipped state (relief + kit + day/night ON) and a frame-time A/B against
 // ?relief=0&kit=0&daynight=0, same run, Chromium on software GL (the numbers are RELATIVE; the Mac WebKit row is the real-GPU reading).
 // Serves artifacts/origins-preview (built here when missing). Output: $AB_OUT (default artifacts/zone1-wire-ab): *.jpg and receipt.json.
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';

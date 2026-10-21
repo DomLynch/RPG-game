@@ -5,7 +5,7 @@
 //   build first: npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview
 //   encode:      ffmpeg -framerate 60 -i <out>/f%05d.jpg -vf scale=376:812,setsar=1 -c:v libx264 -pix_fmt yuv420p -crf 20 <out>/clip.mp4
 /* global process, console, window, document */
-import { launchBrowser } from './lib/browser-launch.mjs';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
