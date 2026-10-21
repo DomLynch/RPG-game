@@ -7,7 +7,7 @@
 // DESKTOP_REPORT=1 asserts nothing and prints every intersection and clip it finds (for choosing what a new design allows).
 import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
-import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
+import { harnessClock, skipDraws, READ_TICK } from './lib/harness-clock.mjs';
 import { intersects } from './lib/thumb-row.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -152,7 +152,25 @@ try {
     await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000);
     let elapsed = 0;
     trace(`duel attempt ${attempt}`);
-    const step = async ms => { await run(ms); elapsed += ms; if (elapsed % 2000 < ms) trace(`elapsed ${elapsed}`); };
+    // The bot's clock is the SIM TICK, not page time (Web 2026-10-21, rows 37/38 failed 5x in a day: "three duels fought, none killed"). The harness clock is
+    // virtual, but one fake 16 ms frame is not one 1/60 s tick: the sim ticked 0 or 1 time per frame and, under load, a run reached the same page-ms with 1-3 ticks
+    // more or fewer than another (VPS under CPU burners: tick 239 vs 241 at the same page 2220 ms, identical inputs up to there). A bot that waits in page-ms then
+    // meets every parry window a tick or two off, and the duel it wins undisturbed (34812 ms, hp 37) it loses. So a step is `ms` worth of TICKS: frames are run one
+    // at a time until the sim has ticked that many times (a frame ticks at most once), and every press lands on a tick boundary. `elapsed` is sim time.
+    const TICK_MS = 1000 / 60;
+    let traced = 0;
+    const step = async ms => {
+      const want = Math.max(1, Math.round(ms / TICK_MS)), first = await page.evaluate(READ_TICK);
+      if (Number.isNaN(first)) { await run(ms); elapsed += ms; return; }   // no #debug tick (never with ?debug=1): fall back to page time
+      let ticked = 0, still = 0;
+      while (ticked < want) {
+        await run(16);
+        const now = await page.evaluate(READ_TICK);
+        if (now > first + ticked) { ticked = now - first; still = 0; } else if ((still += 16) >= 5000) break;   // a standing sim (paused, graphics lost): give the loop back its decision rather than spin
+      }
+      elapsed += ticked * TICK_MS;
+      if (elapsed - traced >= 2000) { traced = elapsed; trace(`elapsed ${Math.round(elapsed)}`); }
+    };
     const enabled = async id => (await page.locator('#' + id).getAttribute('aria-disabled')) === 'false';
     while (elapsed < 90000) {
       const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false' }));
