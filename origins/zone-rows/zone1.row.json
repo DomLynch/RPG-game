@@ -734,6 +734,11 @@
             "u": 0.5,
             "v": 1,
             "facing": 0
+          },
+          "fell-spot": {
+            "u": 0.05,
+            "v": 0.95,
+            "facing": 90
           }
         },
         "connections": {
@@ -858,6 +863,11 @@
             "u": 0.5,
             "v": 0.85,
             "facing": 90
+          },
+          "pool-spot": {
+            "u": 0.83,
+            "v": 0.67,
+            "facing": 90
           }
         },
         "connections": {
@@ -918,6 +928,16 @@
             "u": 0.75,
             "v": 0.95,
             "facing": -90
+          },
+          "sedge-spot": {
+            "u": 0.16,
+            "v": 0.39,
+            "facing": 0
+          },
+          "pier-spot": {
+            "u": 0.25,
+            "v": 0.86,
+            "facing": 0
           }
         },
         "connections": {
@@ -1138,6 +1158,10 @@
       "hold-road",
       "troll-cave",
       "cave-mouth",
+      "pool-spot",
+      "fell-spot",
+      "sedge-spot",
+      "pier-spot",
       "landing-shore",
       "reed-bank",
       "mere-hollow",
@@ -1299,6 +1323,34 @@
         "at": "ruin-gate",
         "characters": [
           "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "salamander-pool-spot",
+        "at": "pool-spot",
+        "characters": [
+          "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "salamander-sedge-spot",
+        "at": "sedge-spot",
+        "characters": [
+          "character:giant-salamander"
+        ]
+      },
+      {
+        "id": "cave-troll-fell-spot",
+        "at": "fell-spot",
+        "characters": [
+          "character:cave-troll"
+        ]
+      },
+      {
+        "id": "cave-troll-pier-spot",
+        "at": "pier-spot",
+        "characters": [
+          "character:cave-troll"
         ]
       }
     ]
