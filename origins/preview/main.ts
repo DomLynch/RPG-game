@@ -301,6 +301,7 @@ function crossZone(row: ExitRow) {   // fade to black, close presence (its close
 }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
+let viewH = innerHeight;   // read once per resize, not per frame
 let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
 const measureHud = () => {
   const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
@@ -542,7 +543,7 @@ function applyCombatView() {
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; viewH = h; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -759,7 +760,7 @@ const walkLoop = () => {
   lap('loop.remote');   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
   lap('loop.ambience+smoke');
-  zoneDome?.follow(camera); camera.updateMatrixWorld(); lap('loop.dome+camMatrix'); mobs?.clampLabels(camera, labelFloor, innerHeight); lap('cl.mobsRest'); remote?.clampLabels(camera, labelFloor, innerHeight); lap('loop.clampLabels');
+  zoneDome?.follow(camera); camera.updateMatrixWorld(); lap('loop.dome+camMatrix'); mobs?.clampLabels(camera, labelFloor, viewH); lap('cl.mobsRest'); remote?.clampLabels(camera, labelFloor, viewH); lap('loop.clampLabels');
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   lap('loop.render');
   if (!cover.lifted()) cover.frame();
