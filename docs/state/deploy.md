@@ -1,5 +1,9 @@
 # Deploy lane — state
 
+## 2026-10-21 21:3x (+04) — K6q15b LIVE 08070eb67 (train publish), closed
+
+Published 08070eb67ce0fce5b45779ec67b0298abf18d55b at 21:02 (+04): K6q15b #3559 = #3555 (duel-relay handlers armed before the ready lines). The train picked it up on the 21:00 tick once "Auditor: PASS @08070eb67" (16:59:17Z) and candidate:pass were both present (my first check at ~20:58 ran before the PASS landed). Verified release.json, VPS current, health 200, NRestarts 0, trunk == 08070eb67. Mac row 9 passed (125 s). CI tail run 39640579023 SUCCESS, 13/13 groups (rows 37 and 38 green). deploy_hold cleared. Sweep-tool drift WARN fixed by Backend 21:07. Next: K6q16 = #3553 + Web's row 37/38 fix once it has a PASS; no Web PR by 22:00 = #3553 alone; row 37 red = drop #3553. No trunk merge between a cut and its Published line. The handoff #8 entry below is superseded for LIVE and IN FLIGHT.
+
 ## 2026-10-21 20:5x (+04) — HANDOFF #8 before /clear (Dom). READ FIRST, then memory `project_deploy_handoff_2026-10-21c.md`
 
 **LIVE (curl 20:57): K6q14 `1b96e0cbfa4eb39de017ca20561fb9bf11e19c10`** = PR #3554 (published 19:47:42; it carried K6q13's content too, because #3551's own publish was stopped by my #3552 merge). No deploy_hold, no stop file; both CI tails (K6q12 cbb80860a, K6q13+14 1b96e0cbf) are GREEN, markers cleared. Day: K6q8 0d972c63a, K6q9b b09bd0a09, K6q10 4c8a9349a, K6q11 ed79766be (hung writer ssh, killed by PID, resumed), K6q12 cbb80860a, K6q13+14 1b96e0cbf.
