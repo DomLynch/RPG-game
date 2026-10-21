@@ -1,0 +1,107 @@
+{
+  "engine": "webkit",
+  "sides": {
+    "base": {
+      "renderer": "Apple GPU",
+      "steps": [
+        {
+          "name": "portrait",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        },
+        {
+          "name": "toolbar-shown",
+          "w": 375,
+          "h": 700,
+          "inner": [
+            375,
+            700
+          ]
+        },
+        {
+          "name": "toolbar-hidden",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        },
+        {
+          "name": "landscape",
+          "w": 844,
+          "h": 390,
+          "inner": [
+            844,
+            390
+          ]
+        },
+        {
+          "name": "back",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "head": {
+      "renderer": "Apple GPU",
+      "steps": [
+        {
+          "name": "portrait",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        },
+        {
+          "name": "toolbar-shown",
+          "w": 375,
+          "h": 700,
+          "inner": [
+            375,
+            700
+          ]
+        },
+        {
+          "name": "toolbar-hidden",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        },
+        {
+          "name": "landscape",
+          "w": 844,
+          "h": 390,
+          "inner": [
+            844,
+            390
+          ]
+        },
+        {
+          "name": "back",
+          "w": 375,
+          "h": 812,
+          "inner": [
+            375,
+            812
+          ]
+        }
+      ],
+      "errors": []
+    }
+  }
+}
