@@ -35,4 +35,4 @@ payload=$(mktemp); trap 'rm -f "$payload"' EXIT
 } > "$payload"
 box_b64=$(base64 < "$box" | tr -d '\n')
 "$ssh_bin" -o BatchMode=yes -o "ConnectTimeout=${cto:-15}" -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -i "$key" "$host" \
-  "HF_VPS_LEDGER_DIR='$(field ledgerDir)' HF_VPS_REAP_SLACK_S='$(field reapSlackS)' bash -c \"\$(echo '$box_b64' | base64 -d)\" hf-box" < "$payload"
+  "HF_VPS_LEDGER_DIR='$(field ledgerDir)' HF_VPS_REAP_SLACK_S='$(field reapSlackS)' GPU_WITH_CPU_INFLIGHT='$(field gpuWithCpuInflight)' bash -c \"\$(echo '$box_b64' | base64 -d)\" hf-box" < "$payload"

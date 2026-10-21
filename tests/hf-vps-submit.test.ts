@@ -13,7 +13,7 @@ const SHIM = join(process.cwd(), 'scripts', 'hf-vps', 'bin', 'hf');
 const TOKEN = 'hf_TESTTOKEN_0123456789abcdef';
 const JOB = 'a1b2c3d4e5f60718293a4b5c';
 
-function setup(submit: 'mac' | 'vps') {
+function setup(submit: 'mac' | 'vps', extraCfg: Record<string, string> = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'hf-vps-'));
   const file = (name: string, text: string, mode = 0o755) => { const p = join(dir, name); writeFileSync(p, text); chmodSync(p, mode); return p; };
   const log = join(dir, 'hf.log'), sshlog = join(dir, 'ssh.log'), ledger = join(dir, 'ledger');
@@ -27,6 +27,7 @@ case "$1 $2" in
   "jobs run") sleep "\${STUB_RUN_SLEEP:-0}"; echo "Job started with ID: ${JOB}"; echo "warn on stderr" >&2;;
   "jobs cancel") echo "cancelled $3";;
   "jobs inspect") echo '[{"status":{"stage":"RUNNING"}}]';;
+  "jobs ps") echo "\${STUB_PS:-[]}";;
   "fail now") echo "boom" >&2; exit 7;;
 esac
 `);
@@ -35,7 +36,7 @@ esac
 printf '%s\\n' "$*" >> "${sshlog}"
 cmd="\${@: -1}"; exec bash -c "$cmd"
 `);
-  const cfg = file('hf-submit.json', JSON.stringify({ submit, host: 'root@box', sshKey: '~/key', sshConnectTimeoutS: 5, ledgerDir: ledger, reapSlackS: 300 }), 0o644);
+  const cfg = file('hf-submit.json', JSON.stringify({ submit, host: 'root@box', sshKey: '~/key', sshConnectTimeoutS: 5, ledgerDir: ledger, reapSlackS: 300, gpuWithCpuInflight: 'warn', ...extraCfg }), 0o644);
   const tokenFile = file('token', TOKEN + '\n', 0o600);
   const env = { ...process.env, HF_SUBMIT_JSON: cfg, HF_SUBMIT_SSH: ssh, HF_SUBMIT_REAL_HF: hf, HF_VPS_HF: hf, HF_VPS_TOKEN_FILE: tokenFile, HF_VPS_LEDGER_DIR: ledger };
   const run = (...args: string[]) => spawnSync(SHIM, args, { encoding: 'utf8', timeout: 60_000, env });
@@ -111,6 +112,31 @@ test('a job live past its own timeout + slack is reaped by the next jobs run on 
   assert.equal(r.status, 0);
   assert.match(t.text(t.log), new RegExp(`\\[jobs\\] \\[cancel\\] \\[${stale}\\]`));
   assert.match(t.text(join(t.ledger, 'dropped.log')), new RegExp(`${stale} reaped`));
+});
+
+const PS_CPU = JSON.stringify([{ id: 'c0ffee00c0ffee00c0ffee00', flavor: 'cpu-upgrade', status: { stage: 'RUNNING' } }, { id: 'dead0000dead0000dead0000', flavor: 'cpu-basic', status: { stage: 'COMPLETED' } }]);
+const T4_RUN = ['jobs', 'run', '--detach', '--flavor', 't4-small', '--timeout', '15m', '--env', 'SHA=' + '12'.repeat(20), 'img'];
+
+test('a T4 launch beside a live CPU job warns and is logged in the box ledger dir; the launch still goes (default mode)', () => {
+  const t = setup('vps');
+  const r = spawnSync(SHIM, T4_RUN, { encoding: 'utf8', timeout: 60_000, env: { ...t.env, STUB_PS: PS_CPU } });
+  assert.equal(r.status, 0);
+  assert.match(r.stderr, /WARN a GPU job is being launched while CPU job\(s\) are in flight: c0ffee00c0ffee00c0ffee00/);
+  assert.doesNotMatch(r.stderr, /dead0000/, 'a finished CPU job is not in flight');
+  assert.match(t.text(join(t.ledger, 'inflight.log')), /t4-small launch for 1212.*c0ffee00c0ffee00c0ffee00 \(mode warn\)/);
+  assert.match(r.stdout, new RegExp(`Job started with ID: ${JOB}`));
+});
+
+test('gpuWithCpuInflight=refuse stops the T4 launch (exit 75) before anything starts; a CPU launch and an idle box are untouched', () => {
+  const t = setup('vps', { gpuWithCpuInflight: 'refuse' });
+  const r = spawnSync(SHIM, T4_RUN, { encoding: 'utf8', timeout: 60_000, env: { ...t.env, STUB_PS: PS_CPU } });
+  assert.equal(r.status, 75);
+  assert.match(r.stderr, /refusing/);
+  assert.doesNotMatch(t.text(t.log), /\[jobs\] \[run\]/, 'hf jobs run never ran');
+  const cpu = spawnSync(SHIM, ['jobs', 'run', '--detach', '--flavor', 'cpu-upgrade', '--timeout', '10m', '--env', 'SHA=' + '34'.repeat(20), 'img'], { encoding: 'utf8', timeout: 60_000, env: { ...t.env, STUB_PS: PS_CPU } });
+  assert.equal(cpu.status, 0);
+  const idle = spawnSync(SHIM, T4_RUN, { encoding: 'utf8', timeout: 60_000, env: { ...t.env, STUB_PS: '[]' } });
+  assert.equal(idle.status, 0);
 });
 
 test('the data row defaults to the Mac path and the box script is the only file that names the token file', () => {

@@ -49,6 +49,16 @@ reap() {   # live jobs past their own timeout + slack: cancel (the box's second 
 
 if [[ "${args[0]:-}" == "jobs" && "${args[1]:-}" == "run" ]]; then
   reap
+  # A GPU job launched while a CPU job (any lane's) is live: say so, and log it beside the ledger (Lead + Strategy 2026-10-21: HF CPU jobs were cancelled twice when a gpu-run
+  # settled next to them; cause under confirmation). GPU_WITH_CPU_INFLIGHT=warn (default) | refuse (exit 75); the row is scripts/lib/hf-submit.json gpuWithCpuInflight.
+  if [[ "$(arg_after --flavor)" == t4-* ]]; then
+    cpu_live=$("$HF" jobs ps --format json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);process.stdout.write((Array.isArray(j)?j:[]).filter(x=>/^cpu/.test(x.flavor||"")&&/^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/.test(x.status?.stage||"")).map(x=>x.id).join(","))}catch{}})')
+    if [[ -n "$cpu_live" ]]; then
+      echo "$(date -u +%FT%TZ) $(arg_after --flavor) launch for $(env_arg SHA) with CPU job(s) in flight: $cpu_live (mode ${GPU_WITH_CPU_INFLIGHT:-warn})" >> "$LEDGER_DIR/inflight.log"
+      echo "hf-vps: WARN a GPU job is being launched while CPU job(s) are in flight: $cpu_live (logged in $LEDGER_DIR/inflight.log)" >&2
+      if [[ "${GPU_WITH_CPU_INFLIGHT:-warn}" == "refuse" ]]; then echo "hf-vps: refusing (gpuWithCpuInflight=refuse)" >&2; exit 75; fi
+    fi
+  fi
   dropped=0; trap 'dropped=1' HUP PIPE TERM
   "$HF" "${args[@]}" > "$tmp/out" 2> "$tmp/err"; rc=$?
   id=$(grep -oE 'Job started with ID: [0-9a-f]{24}' "$tmp/out" | grep -oE '[0-9a-f]{24}' | head -1)
