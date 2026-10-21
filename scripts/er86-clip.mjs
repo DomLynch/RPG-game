@@ -37,8 +37,7 @@ function record() {
 
 const take = record();
 console.log(ERA_NAME, 'v' + take.record.v, 'walk-in', take.arrived, 'ticks:', take.swings.join(' '));
-{ const { decodeRecord } = await import('../src/fight/record.ts'); try { const back = await decodeRecord(await encodeRecord(take.record)); console.log('decodes: v' + back.v, back.outcome, back.ticks + ' ticks'); } catch (error) { console.log('DOES NOT DECODE:', error.message); }
-  const { verifyRecord } = await import('../src/fight/replay.ts'); try { const r = verifyRecord(take.record); console.log('replays:', JSON.stringify(r).slice(0, 200)); } catch (error) { console.log('DOES NOT REPLAY:', error.message); } }
+{ const { decodeRecord } = await import('../src/fight/record.ts'); try { const back = await decodeRecord(await encodeRecord(take.record)); console.log('decodes: v' + back.v, back.outcome, back.ticks + ' ticks'); } catch (error) { console.log('DOES NOT DECODE:', error.message); } }
 if (!DRY) {
   const { chromium } = await import('playwright'), { harnessClock, skipDraws } = await import('./lib/harness-clock.mjs');
   const http = await import('node:http'), zlib = await import('node:zlib'), path = await import('node:path');
