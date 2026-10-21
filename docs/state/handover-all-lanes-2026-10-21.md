@@ -24,7 +24,7 @@ Paste this into the new session, then say which lane you are. Every lane's own h
 - World: memory `project_world_handoff_2026-10-21b`; `docs/state/world.md` HANDOFF #80; #3525 waits PASS; draw read done (draws are not the phone cost).
 - Backend: memory `project_backend_handoff_2026-10-21`; #3527 rides K6q8; pace-flag counts after publish; weekly dev-jobs table to Lead.
 - Hooks Dev: memory `handoff-171-cache-guard-indirect-2026-10-21`; PR #171 live, parity 0/24; 22:15 codex archive NOT armed (by hand: dirs > 7 days, Mac -> VPS -> box, checksum).
-- OpenTrident dev: `opentrident-steam/HANDOFF-latest.md` top section 15:15; 37 guests; Lost Ark not exported yet (hash names, next step in the handoff); PoE 1 extraction running on the box; owed: Next Fest scan (up to 2 3D top-down melee demos before Oct 26), Torchlight/PoE silhouette rows.
+- OpenTrident dev: `opentrident-steam/HANDOFF-latest.md` top section 15:15; 40 guests (Path of Exile 1 Witch, Goatman and Kaom boss landed, animated, via a new Bundles2 converter); Lost Ark not exported yet (hash names, next step in the handoff); owed: Next Fest scan (up to 2 3D top-down melee demos before Oct 26), Torchlight/PoE silhouette rows.
 - Strategy: memory `session-handoff-2026-10-21-midday` (frankendom-strategy key) + `docs/state/strategy.md` 15:0x; re-arm the 15-min sweep, keep-awake, train monitor, two Haiku delivery managers (5-min rounds, run_in_background sleeps).
 
 ## Dom owes
