@@ -295,7 +295,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const v of views.values()) {
         const y0 = v.label.userData.y0 as number; v.label.position.set(0, y0, 0);   // back home every frame, then clamped from there
         if (!v.label.visible || !v.group.visible) continue;
-        v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
+        v.label.getWorldPosition(at).project(camera);   // brings the group's own matrix current, not its bones (updateMatrixWorld(true) walked the whole skeleton per tag per frame, then the draw walked it again); the same as remote-heroes' tags
         if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
         at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at);
       }
