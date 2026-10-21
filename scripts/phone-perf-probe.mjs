@@ -90,11 +90,18 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     const phase = async (name, ms, drive) => {
       const links0 = await page.evaluate((n) => { window.__perf.ph = n; return window.__perf.links; }, name);
       const sp0 = await page.evaluate(() => (window.__spans ? { ...window.__spans } : null));   // walk-frame section totals (the web/walkloop-spans build only)
+      const fl0 = await page.evaluate(() => (window.__frameLog ? window.__frameLog.length : null)), ws0 = await page.evaluate(() => (window.__wcStats ? window.__wcStats() : null));   // sim steps per frame + the loop's lost-time stats (same build)
       if (PROFILE) await cdp.send('Profiler.start');
       await drive(ms);
       if (PROFILE) { const { profile } = await cdp.send('Profiler.stop'); (run.profile ||= {})[name] = digest(profile); }
       const sp1 = await page.evaluate(() => (window.__spans ? { ...window.__spans } : null));
       if (sp0 && sp1) { const fr = Math.max(1, sp1.frames - sp0.frames), per = Object.entries(sp1).filter(([k]) => k !== 'frames').map(([k, v]) => [k, +(((v - (sp0[k] || 0)) / fr)).toFixed(3)]).sort((a, b) => b[1] - a[1]); (run.spans ||= {})[name] = { walkFrames: fr, totalMsPerFrame: +per.reduce((a, x) => a + x[1], 0).toFixed(2), bySection: per }; }
+      if (fl0 !== null) {
+        const fl = await page.evaluate((from) => window.__frameLog.slice(from), fl0), ws1 = await page.evaluate(() => window.__wcStats()), hist = {};
+        for (const [, n] of fl) hist[n] = (hist[n] || 0) + 1;
+        const ns = fl.map((x) => x[1]), ds = fl.map((x) => x[0]), sum = (a) => a.reduce((s, x) => s + x, 0);
+        (run.simSteps ||= {})[name] = { frames: fl.length, histogram: hist, meanStepsPerFrame: fl.length ? +(sum(ns) / fl.length).toFixed(2) : null, p95Steps: q(ns, 0.95), maxSteps: ns.length ? Math.max(...ns) : null, framesAtMaxSteps15: ns.filter((n) => n >= 15).length, meanFrameMs: fl.length ? +(sum(ds) / fl.length).toFixed(1) : null, stepsByFrameMsBucket: [[0, 20], [20, 40], [40, 80], [80, 130], [130, 1e9]].map(([lo, hi]) => { const r = fl.filter((x) => x[0] >= lo && x[0] < hi); return { frameMs: `${lo}-${hi >= 1e9 ? '+' : hi}`, frames: r.length, meanSteps: r.length ? +(sum(r.map((x) => x[1])) / r.length).toFixed(2) : null }; }), loop: ws1 && ws0 ? { steps: ws1.steps - ws0.steps, lostMs: ws1.lostMs - ws0.lostMs, hitches: ws1.hitches - ws0.hitches } : null };
+      }
       const info = await page.evaluate(() => window.originsPreview.renderInfo?.() ?? null).catch(() => null);
       const rows = await page.evaluate((n) => window.__perf.fr.filter((r) => r[0] === n), name);
       const lts = await page.evaluate((n) => window.__perf.lt.filter((x) => x[0] === n), name);
