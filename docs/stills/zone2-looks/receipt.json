@@ -1,0 +1,46 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "look": "base",
+      "name": "375",
+      "file": "base-375.png"
+    },
+    {
+      "look": "base",
+      "name": "desktop",
+      "file": "base-desktop.png"
+    },
+    {
+      "look": "a",
+      "name": "375",
+      "file": "a-375.png"
+    },
+    {
+      "look": "a",
+      "name": "desktop",
+      "file": "a-desktop.png"
+    },
+    {
+      "look": "b",
+      "name": "375",
+      "file": "b-375.png"
+    },
+    {
+      "look": "b",
+      "name": "desktop",
+      "file": "b-desktop.png"
+    },
+    {
+      "look": "c",
+      "name": "375",
+      "file": "c-375.png"
+    },
+    {
+      "look": "c",
+      "name": "desktop",
+      "file": "c-desktop.png"
+    }
+  ],
+  "errors": []
+}
