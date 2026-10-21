@@ -22,7 +22,7 @@ function setup(submit: 'mac' | 'vps') {
 printf 'ARGS:' >> "${log}"; for a in "$@"; do printf ' [%s]' "$a" >> "${log}"; done; printf '\\n' >> "${log}"
 echo "TOKEN_OK=$([[ "\${HF_TOKEN:-}" == "${TOKEN}" ]] && echo yes || echo no)" >> "${log}"
 sf=""; prev=""; for a in "$@"; do [[ "$prev" == "--secrets-file" ]] && sf="$a"; prev="$a"; done
-[[ -n "$sf" ]] && { echo "SECRETS: $(cat "$sf") MODE: $(stat -f %Lp "$sf" 2>/dev/null || stat -c %a "$sf")" >> "${log}"; echo "$sf" > "${dir}/secrets.path"; }
+[[ -n "$sf" ]] && { echo "SECRETS: $(cat "$sf") MODE: $(stat -c %a "$sf" 2>/dev/null || stat -f %Lp "$sf")" >> "${log}"; echo "$sf" > "${dir}/secrets.path"; }
 case "$1 $2" in
   "jobs run") sleep "\${STUB_RUN_SLEEP:-0}"; echo "Job started with ID: ${JOB}"; echo "warn on stderr" >&2;;
   "jobs cancel") echo "cancelled $3";;
