@@ -77,6 +77,7 @@ export type Mobs = {
 };
 const RESPAWN = previewRule('clientRespawn');   // s
 const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
+const RING = { width: previewRule('ringWidth'), segments: previewRule('ringSegments'), opacityCalm: previewRule('ringOpacityCalm'), opacityAggro: previewRule('ringOpacityAggro'), colorCalm: previewRule('ringColorCalm'), colorAggro: previewRule('ringColorAggro') };   // the creature's aggro-radius ring on the ground (rows; colours are 0xrrggbb numbers): the look it had as literals, so no change to the picture
 const HIT = { common: previewRule('tapSphereCommon'), named: previewRule('tapSphereNamed') };   // m: the tap sphere's radius round a creature's chest
 
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; markers?: { alert: boolean; name: boolean; ring?: boolean }; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera; players?: () => { x: number; z: number }[] }): Mobs {
@@ -212,7 +213,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     stand.position.y = 0.85;
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height; label.userData.y0 = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - RING.width, s.aggro, RING.segments), new THREE.MeshBasicMaterial({ color: RING.colorCalm, transparent: true, opacity: RING.opacityCalm, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
     const blob = new THREE.Mesh(blobGeometry, blobMaterial); blob.position.y = 0.03; blob.scale.setScalar(look?.scale ?? 1);
     group.add(stand, label, bang, blob);
@@ -275,7 +276,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
         v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i && (opts.markers?.name ?? true);   // the info card (creature-card.ts) carries this creature's name and level while it is up
-        v.bang.visible = aggro && (opts.markers?.alert ?? true); mat.opacity = aggro ? 0.34 : 0.1; mat.color.set(aggro ? '#e0553a' : '#d8c9a8');
+        v.bang.visible = aggro && (opts.markers?.alert ?? true); mat.opacity = aggro ? RING.opacityAggro : RING.opacityCalm; mat.color.set(aggro ? RING.colorAggro : RING.colorCalm);
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.actor) {
           // The gait follows the speed it actually covers (the engine's gait table); the pose comes from the engine's actorPose of the duel it is in, the death clip once it is down.

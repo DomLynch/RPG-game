@@ -145,6 +145,12 @@
     { "id": "loadCoverFadeMs", "value": 400, "unit": "ms" },
     { "id": "loadCoverHoldMs", "value": 12000, "unit": "ms" },
     { "id": "deferredLookFrames", "value": 30, "unit": "frames" },
-    { "id": "deferredLookGapFrames", "value": 2, "unit": "frames" }
+    { "id": "deferredLookGapFrames", "value": 2, "unit": "frames" },
+    { "id": "ringWidth", "value": 0.12, "unit": "m" },
+    { "id": "ringSegments", "value": 48, "unit": "segments" },
+    { "id": "ringOpacityCalm", "value": 0.1, "unit": "opacity" },
+    { "id": "ringOpacityAggro", "value": 0.34, "unit": "opacity" },
+    { "id": "ringColorCalm", "value": 14207400, "unit": "0xrrggbb" },
+    { "id": "ringColorAggro", "value": 14701882, "unit": "0xrrggbb" }
   ]
 }
