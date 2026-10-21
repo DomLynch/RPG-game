@@ -418,6 +418,25 @@ test('the skin memo belongs to the skeleton and vertex buffers it skinned: a geo
   } finally { proto.applyBoneTransform = original; }
 });
 
+test('the phone tier skips the per-triangle surface ray (row gore.phone-surface-ray 0: it skinned every vertex on the contact frame, 77 % of a 155 ms task at x4); the wound takes the site table\'s fallback; the full tier still meets the face', async () => {
+  const { resetPhoneTierForTests } = await import('../src/fight/quality.ts');
+  const bone = new Bone(); bone.name = 'spine_03'; const geometry = new BoxGeometry(.2, .2, .2);
+  const n = geometry.attributes.position.count;
+  geometry.setAttribute('skinIndex', new Uint16BufferAttribute(new Uint16Array(n * 4), 4));
+  geometry.setAttribute('skinWeight', new Float32BufferAttribute(new Float32Array(n * 4).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+  const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const g = globalThis as { location?: { search: string } };
+  try {
+    g.location = { search: '?gfx=phone' }; resetPhoneTierForTests();
+    assert.equal(surfaceHit(root, bone, new Vector3(0, 0, 1)), null, 'phone: no ray, the caller falls back');
+    const wounds = createBodyWounds(new Scene(), null);
+    assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading: 0 }, 1), 'the wound is still placed');
+    g.location = { search: '?gfx=full' }; resetPhoneTierForTests();
+    assert.ok(surfaceHit(root, bone, new Vector3(0, 0, 1)), 'full tier: the ray meets the face');
+  } finally { delete g.location; resetPhoneTierForTests(); }
+});
+
 // The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the
 // spread gone upstream (the fix to watch: SkinnedMesh.applyBoneTransform without `set( ...target, 1 )`) — then the override is
 // re-checked against the new body or dropped, never left shadowing a method that moved.
