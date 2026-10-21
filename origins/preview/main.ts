@@ -728,11 +728,11 @@ let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (g
 const clampRate = createClampRate(previewRule('clampPauseS'), /[?&]debug\b/.test(location.search) ? document.getElementById('debug') : null);
 (window as unknown as { __clampRate: typeof clampRate.snapshot }).__clampRate = clampRate.snapshot;   // window.__clampRate() -> { frames, clamped, paused, wallMs, simMs, clampedShare, gameSpeed }: cumulative, a harness subtracts two reads
 const CAPTURE = captureOn(location.search) ? createCaptureClock() : null;   // ?capture=seed: the walk is HELD (dt 0 every drawn frame) and moves only through originsPreview.capture.advance(n), n fixed ticks (capture.ts)
-const walkFrame = (rawDt: number, time: number, draw: boolean) => {
+const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) => {   // loadTime: the upload plan's re-look gap is paced by it; under ?capture=seed it is the real clock (the held `time` would never reach uploadNext and the zone would never go ready)
   const dt = Math.min(rawDt, previewRule('frameDtMax'));
   clampRate.frame(rawDt, dt);
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); warmUpload(loadTime); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
@@ -744,7 +744,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean) => {
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
-const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
+const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true, clock.getElapsedTime()); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
 renderer.setAnimationLoop(walkLoop);
 
 // The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.

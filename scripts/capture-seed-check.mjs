@@ -21,7 +21,10 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
 const base = `http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`;
-const readyWait = (page) => page.waitForFunction(() => window.originsPreview?.capture?.ready?.(), null, { timeout: 600000, polling: 500 });
+const readyWait = (page) => page.waitForFunction(() => window.originsPreview?.capture?.ready?.(), null, { timeout: 600000, polling: 500 }).catch(async (error) => {   // never ready: say which half is missing
+  const diag = await page.evaluate(() => { const d = window.originsPreview?.mobs?.(); return { zoneReady: !!window.__zoneReady, ticks: window.originsPreview?.capture?.ticks?.(), drawn: d?.mobs?.filter((m) => m.drawn).length, modelled: d?.mobs?.filter((m) => m.drawn && m.model).length, bodies: d?.bodies }; }).catch(() => null);
+  throw new Error(`${String(error).slice(0, 80)} diag=${JSON.stringify(diag)}`);
+});
 
 async function run(flag) {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
