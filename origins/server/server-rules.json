@@ -31,6 +31,16 @@
       "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, the oldest presence pose (ms) that still counts, the most landed hits a kill report may claim, the random bytes in a spawn-engage token, and the ticks (two seconds) a record may run past the engagement's age for the window that opened just before the token"
     }
   ],
+  "pace": [
+    {
+      "id": "killTiming",
+      "slowRatio": 3,
+      "minTickS": 3,
+      "startsKept": 5000,
+      "decimals": 2,
+      "note": "the slow-motion flag on a verified kill (flag only, nothing is refused): a kill is flagged slow when its wall time was at least this many times its sim time (a client under about a third of its speed), a fight under this many seconds of sim time is never flagged (too short to tell), the decimals the event keeps, and the writer remembers this many encounter start times in memory (oldest dropped; a restart forgets them and those settles carry no flag)"
+    }
+  ],
   "fightLimit": [
     {
       "id": "fight",
