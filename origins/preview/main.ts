@@ -195,9 +195,10 @@ let zoneReadyOpen!: () => void;
 const zoneReadyGate = new Promise<void>((resolve) => { zoneReadyOpen = resolve; });
 const afterReadyOnPhone = <T>(load: () => Promise<T>): Promise<T> => PHONE ? Promise.race([zoneReadyGate, new Promise<void>((resolve) => { setTimeout(resolve, previewRule('groundDeferMax')); })]).then(load) : load();
 const isLootFile = (url: string) => url === GROUND_LOOT['../../src/assets/loot.glb'];
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => groundModelOf(url)) : groundModelOf(url) });
+const compileLoot = (root: THREE.Object3D): THREE.Object3D => { void renderer.compileAsync(root, camera, scene).catch(() => {}); return root; };   // loot.glb arrives after [zone ready]: its materials' programs build off the draw path the moment it lands, not on the first draw of a loot item (right after a kill). Not awaited: an item that draws before it resolves still draws.
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => groundModelOf(url).then(compileLoot)) : groundModelOf(url) });
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
-const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url)) : sceneOf(url) });
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url).then(compileLoot)) : sceneOf(url) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
