@@ -8,7 +8,7 @@
 // and queues again (the youngest excess job backs off, so two simultaneous launchers cannot both keep the last slot).
 // A launcher calls withSlot(): it waits (polling) for a slot, runs `launch()` while holding the lock (so two lanes cannot both take the last slot), and the caller
 // prints tierLine(). No slot within maxWaitS => withSlot returns { ok: false } and the caller exits 75 (the submit path requeues to the VPS).
-import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -49,6 +49,14 @@ export function rankOf(flavor, jobs, id) {
   const live = (Array.isArray(jobs) ? jobs : []).filter(j => j?.flavor === flavor && LIVE.test(String(j?.status?.stage ?? j?.status ?? '')))
     .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)) || String(x.id).localeCompare(String(y.id)));
   return live.findIndex(j => j.id === id) + 1;
+}
+
+/** The live CPU jobs (any lane's) in a `hf jobs ps --format json` array. A GPU launch beside one is warned and logged (Lead + Strategy 2026-10-21: HF CPU jobs were cancelled twice when a gpu-run settled next to them). */
+export const cpuLiveIds = jobs => (Array.isArray(jobs) ? jobs : []).filter(j => /^cpu/.test(String(j?.flavor ?? '')) && LIVE.test(String(j?.status?.stage ?? j?.status ?? ''))).map(j => j.id);
+/** 'warn' (default) or 'refuse': GPU_WITH_CPU_INFLIGHT, else the data row scripts/lib/hf-submit.json gpuWithCpuInflight. */
+export function cpuInflightMode(env = process.env, file = new URL('./hf-submit.json', import.meta.url)) {
+  let row = 'warn'; try { row = JSON.parse(readFileSync(file, 'utf8')).gpuWithCpuInflight || 'warn'; } catch { /* no row: warn */ }
+  return (env.GPU_WITH_CPU_INFLIGHT || row) === 'refuse' ? 'refuse' : 'warn';
 }
 
 export function livePs(hf = 'hf') {

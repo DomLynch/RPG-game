@@ -5,10 +5,10 @@
 // the artifacts/ it wrote). Every path ends in the ledger + scripts/hf-cleanup.mjs's "HF: N jobs, 0 running, <=$X" line. The exit code is the command's own; 11 = no NVIDIA
 // renderer, 12 = a setup blocker, 124 = the job did not finish in its timeout. The artifacts the command wrote land in artifacts/gpu-run/<job id>/.
 // The HF token is the hf CLI's own login: never read or printed here. Env: GPU_RUN_HF (the hf binary; tests stub it), HF_LEDGER_DIR (the ledger folder), GPU_RUN_OUT, GPU_RUN_POLL_S.
-import { tierLine, withSlot } from './lib/hf-slots.mjs';
+import { cpuInflightMode, cpuLiveIds, livePs, tierLine, withSlot } from './lib/hf-slots.mjs';
 import { settle } from './lib/hf-ledger.mjs';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +51,14 @@ export async function main(argv) {
       if (pairs.length) { secrets = join(mkdtempSync(join(tmpdir(), 'gpu-run-')), 'secrets.env'); writeFileSync(secrets, pairs.join('\n') + '\n', { mode: 0o600 }); launchArgs.push('--secrets-file', secrets); }
     }
     launchArgs.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
+    // A GPU job beside a live CPU job (any lane's): said, and logged beside this run's ledger. warn by default; refuse is opt-in (scripts/lib/hf-submit.json gpuWithCpuInflight).
+    const cpuLive = cpuLiveIds(livePs(hf));
+    if (cpuLive.length) {
+      const mode = cpuInflightMode();
+      appendFileSync(join(ledgerDir, 'inflight.log'), `${new Date().toISOString()} ${flavor} launch for ${sha.slice(0, 8)} with CPU job(s) in flight: ${cpuLive.join(',')} (mode ${mode})\n`);
+      say(`WARN a GPU job is being launched while CPU job(s) are in flight: ${cpuLive.join(',')} (logged in ${join(ledgerDir, 'inflight.log')})`);
+      if (mode === 'refuse') throw new Error('refusing: a CPU job is in flight (gpuWithCpuInflight=refuse)');
+    }
     let logs = '', now = 'UNKNOWN', timedOut = false, wallS = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       // Work waterfall: a T4 slot under the shared cap (scripts/lib/hf-slots.mjs); a lane's graphics job waits for one instead of piling onto the card.
