@@ -9,6 +9,7 @@ import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { steps as expand } from './lib/npm-script.ts';
 
 type Ctx = { event_name: string; event: Record<string, unknown>; head_ref?: string; ref?: string; run_id?: string };
 type Job = { name: string; needs: string[]; cond: string | null; outputs: boolean };
@@ -172,15 +173,22 @@ test('fail closed (the Auditor on #2476): a red static or a red plan still runs 
   assert.ok(!schedule(R, withLabelNames({ ...pr('synchronize', ['ci:release-checks']), head_ref: 'release-DX' }), {}, { plan: { checks: '[]' } }).has('summary'), 'an empty matrix still skips it (docs-only diff)');
 });
 
-test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {
+// Dom's repo audit (2026-10-21): the lint half lives once, in package.json's quality:lint; the static jobs run it, and the quality shard runs it
+// only when its static did not run (a trunk push), so a pull request lints once per workflow instead of re-linting inside quality:static.
+test('the static job is tsc + lint only (fast) through quality:lint; the quality shard lints only when static did not run, and always runs quality:checks', () => {
+  const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts as Record<string, string>;
+  assert.deepEqual(expand(scripts, 'quality:lint'), ['eslint src', 'npm run typecheck:tests', 'npm run typecheck:origins', 'npm run lint:origins']);
   for (const f of [Q, U]) {
     const t = readFileSync(f, 'utf8'), at = t.indexOf('\n  static:\n');
     assert.ok(at >= 0, `${f} has a static job`);
     const block = t.slice(at + 1), end = block.slice(1).search(/\n {2}[a-z][a-z0-9-]*:\n/);
     const s = end < 0 ? block : block.slice(0, end + 1);
-    for (const cmd of ['npx eslint src', 'npm run typecheck:tests', 'npm run typecheck:origins', 'npm run lint:origins']) assert.ok(s.includes(cmd), `${f} static runs ${cmd}`);
-    assert.doesNotMatch(s, /npm run build|test:all|playwright/, `${f} static stays fast`);
+    assert.match(s, /\n {6}- run: npm run quality:lint\b/, `${f} static runs quality:lint`);
+    assert.doesNotMatch(s, /npm run build|test:all|playwright|quality:checks|quality:static/, `${f} static stays fast`);
   }
+  const q = readFileSync(Q, 'utf8');
+  assert.match(q, /- if: matrix\.part == 'static' && needs\.static\.result != 'success'\n {8}run: npm run quality:lint\n/, 'the shard lints when static did not run');
+  assert.match(q, /- if: matrix\.part == 'static'\n {8}run: npm run quality:checks\n/, 'the shard always runs the rest');
 });
 
 test('release-checks: rows only for a release-* candidate; a feature PR, labelled or not, schedules no job; a dispatch is unchanged', () => {

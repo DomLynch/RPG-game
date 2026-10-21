@@ -51,7 +51,7 @@ jobs:
           sparse-checkout: scripts   # the runner needs scripts/ only; the HF job clones the whole repo itself
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - name: Hugging Face CLI
         run: pip install --quiet 'huggingface_hub==1.7.2'
       - name: GPU checks on the T4

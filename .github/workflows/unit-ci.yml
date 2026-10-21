@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - id: delta
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,13 +68,10 @@ jobs:
           ref: ${{ env.UNIT_SHA }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npx eslint src
-      - run: npm run typecheck:tests
-      - run: npm run typecheck:origins
-      - run: npm run lint:origins
+      - run: npm run quality:lint   # eslint src + both typechecks + the origins lint (package.json, the one list)
   shard:
     needs: [delta, static]
     # Not on the push of an already-tested candidate: the train fast-forwards trunk to the candidate's merge commit ("... (release-X candidate)"), whose tree the
@@ -91,12 +88,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.UNIT_SHA }}
-      # The exact node the VPS receipt is pinned to (NODE_PIN): record/replay fingerprints depend on its float behaviour.
-      - id: pin
-        run: echo "node=$(node -e "import('./scripts/lib/vps-unit.mjs').then((m) => console.log(m.NODE_PIN.version.slice(1)))")" >> "$GITHUB_OUTPUT"
+      # The exact node the VPS receipt is pinned to (NODE_PIN): record/replay fingerprints depend on its float behaviour. .nvmrc holds that
+      # version for every job (tests/node-pin-file.test.ts keeps the two equal).
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.pin.outputs.node }}
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Drop the Microsoft apt source
@@ -135,7 +131,7 @@ jobs:
           ref: ${{ env.UNIT_SHA }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Postgres 16 binaries
@@ -190,7 +186,7 @@ jobs:
       - if: needs.delta.outputs.unchanged != 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 22.23.3
+          node-version-file: .nvmrc
       - if: needs.delta.outputs.unchanged != 'true'
         run: node scripts/ci-unit-receipt.mjs shards unit-receipt.json
       - if: needs.delta.outputs.unchanged != 'true'

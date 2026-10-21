@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { countLint, DEBT } from '../scripts/origins-lint.mjs';
 import { judge } from '../scripts/origins-tsc.mjs';
+import { expanded } from './lib/npm-script.ts';
 
 const root = '/repo', MAIN = 'origins/preview/main.ts', UNUSED = '@typescript-eslint/no-unused-vars';
 const msg = (ruleId: string | null, severity = 2) => ({ ruleId, severity, line: 1, column: 1, message: 'x' });
@@ -32,5 +33,5 @@ test('today\'s pins pass; a new error, a new file and a new rule in a pinned fil
 test('the ratchet runs in every quality gate, next to the origins type-check', () => {
   const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts;
   assert.equal(scripts['lint:origins'], 'node scripts/origins-lint.mjs');
-  for (const gate of ['quality', 'quality:ci', 'quality:stop']) assert.match(scripts[gate], /npm run typecheck:origins && npm run lint:origins/, gate);
+  for (const gate of ['quality', 'quality:ci', 'quality:stop']) assert.match(expanded(scripts, gate), /npm run typecheck:origins && npm run lint:origins/, gate);   // what the gate runs, through quality:lint
 });
