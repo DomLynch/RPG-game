@@ -43,7 +43,19 @@ try {
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
-  const { run, until } = await harnessClock(page); await run(200);
+  const { run, until } = await harnessClock(page);
+  // Row 36 (Auditor, 2026-10-21): the clock keeps real pace between install and pause, so the sim's fixed-step accumulator came out of
+  // harnessClock holding a real-time fraction of a tick; every scripted press then landed a tick early or late from run to run, the
+  // bot's inputs split (seed 731: died at 1303, killed at 2073, died at 1782 on one box, each record replaying to its own outcome), and
+  // the row won or lost the Goblin by luck. One grid frame first (pauseAt's jump frame lands off the 16 ms grid, at a time set by the
+  // real uptime), then opening and closing the journal runs clearInput() (accumulator 0) with no frame between, so duel 1 starts from
+  // the same phase on every machine; a rematch's began() already zeroes it for duels 2 and 3.
+  await run(16);
+  await page.evaluate(() => { document.querySelector('#journal-button').click(); document.querySelector('#close-journal').click(); });
+  await run(16);
+  const [frameS, accS] = (await page.evaluate(() => document.querySelector('#debug').dataset.clock ?? '')).split('/');
+  assert.deepEqual([frameS, accS], ['0.0160', '0.0160'], `one whole 16 ms frame since the reset, all of it in the sim accumulator (main.ts data-clock raw/accumulator: ${frameS}/${accS})`);
+  await run(168);
 
   // ---- the goblin win (quiet-one-browser-check.mjs fight(), goblin branch) -------------------------------------------------------
   let killed = false;
