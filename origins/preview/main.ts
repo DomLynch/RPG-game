@@ -396,6 +396,11 @@ try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storag
 const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = previewRule('turnRate'), followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
 function zoneCamera<T>(path: string): T | undefined { return ZONE_FIELDS.set?.includes(path) ? ZONE_FIELDS.fields![path] as T : undefined; }   // a camera field the zone (or its biome) SET
 const actionLog: [number, string][] = [], ACT_LOG_KEEP = 16;   // the last few actions the controls handed the walk, for the browser checks (combat().acts)
+// MEASUREMENT ONLY (branch web/walkloop-spans, never merged): wall ms per section of the walk frame, summed in window.__spans (frames = walkLoop calls). scripts/phone-perf-probe.mjs reads it per phase.
+const SPANS: Record<string, number> = ((window as unknown as { __spans: Record<string, number> }).__spans = { frames: 0 });
+let lapAt = 0;
+const lapStart = (): void => { lapAt = performance.now(); };
+const lap = (k: string): void => { const n = performance.now(); SPANS[k] = (SPANS[k] ?? 0) + (n - lapAt); lapAt = n; };
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
@@ -423,6 +428,7 @@ function step(dt: number) {
   else if (pads.move || pads.look) ({ forward, strafe, turn, pitch, running } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
   if (forward || turn || strafe || pitch) { hint.hidden = true; hintMoved = true; }   // the first-load hint goes once you move (Lead 2026-10-06)
   { const ph = wc.hero().phase; if (ph === 'windup' || ph === 'active') forward = strafe = 0; }   // a cut commits him: he stands through it
+  lap('step.input');
   heading += turn * TURN * dt;
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
@@ -432,12 +438,14 @@ function step(dt: number) {
   const px = state.x, pz = state.z, ground = (running ? RUN / 2 : WALK) * rim;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
+  lap('step.move');
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
     if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
     sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
+  lap('step.look');
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   // The engine's actor poses him: the gait follows the speed he actually covers (collisions included, signed backwards), the pose / progress / attack / contact come from the engine's actorPose of his duel.
@@ -448,6 +456,7 @@ function step(dt: number) {
     warriors.player.specialMove(duel ? specialRoleOf(duel.fighters[0]) : null);   // the special's own clip (Skull Crack, Whirlwind, Ground Slam, Lunge), as the Pit's scene.ts does every frame; without it every SPECIAL played the weapon's plain Heavy (Dom 2026-10-20)
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
+  lap('step.heroActor');
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
   { const head = warriors?.player.anchor.getObjectByName('Head'); if (firstPerson) { head?.scale.setScalar(fxNum('fp.head-scale')); headCollapsed = true; } else if (headCollapsed) { head?.scale.setScalar(1); headCollapsed = false; } }   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it, and given back ONCE when the view leaves first person (never forced every frame: nothing else's scale on the Head is overwritten); the body, arms and weapon stay in view
@@ -455,6 +464,7 @@ function step(dt: number) {
   applyCombatView();
   fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
   if (firstPerson) followCam.kick(fpArm.kick(), heading, { roll: fxNum('fp.kick-roll'), yaw: fxNum('fp.kick-yaw'), lunge: fxNum('fp.kick-lunge') });   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
+  lap('step.followCam');
   warBandRun.tick(dt);
   killDrops.update(state);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
@@ -464,12 +474,16 @@ function step(dt: number) {
     mobsAsked = true;
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, players: () => (shownOthers ?? []).map((o) => ({ x: o.x, z: o.z })), markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
+  lap('step.zoneBookkeeping');
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
-  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  lap('step.syncWeapon');
+  if (mobs) { mobs.update(dt, state, cardId); lap('step.mobs.update'); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); lap('step.mobs.woundEngageAim'); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); lap('step.wc.update'); zoneFx.frame(wc.takeContacts(), dt); lap('step.zoneFx'); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); lap('step.meters+bodyClass'); spawnNet.tick(); zoneSound.flush(); lap('step.net+sound'); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  lap('step.card');
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
+  lap('step.label+place');
   groundNear = groundPickup.nearest(state.x, state.z);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
     : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
@@ -481,7 +495,9 @@ function step(dt: number) {
   const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
   prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
   prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
+  lap('step.nearPromptDom');
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
+  lap('step.sun');
 }
 
 // ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
@@ -723,18 +739,25 @@ function zoneReadyCheck() {
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
+  lapStart(); SPANS.frames!++;
   const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); lap('loop.door'); warmUpload(time); lap('loop.warmUpload'); zoneReadyCheck(); lap('loop.zoneReady'); arena.update(dt, [], camera); exchange.update(time); lap('loop.arena+exchange');
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
-  fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
+  lap('loop.pitFar');
+  fires?.update(time, state, warm); lap('loop.fires');   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
-  if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
+  lap('loop.lights');
+  if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }
+  lap('loop.remote');   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
-  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
+  lap('loop.ambience+smoke');
+  zoneDome?.follow(camera); camera.updateMatrixWorld(); lap('loop.dome+camMatrix'); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight); lap('loop.clampLabels');
   if (gfx) gfx.render(); else renderer.render(scene, camera);
-  if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
+  lap('loop.render');
+  if (!cover.lifted()) cover.frame();
+  lap('loop.cover');   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 renderer.setAnimationLoop(walkLoop);
 
