@@ -308,9 +308,16 @@ previews_ok=1
 # Same rule as above: record the failure, raise it at the end, never skip the verifier install.
 if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
   rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
-  bash scripts/publish-origins-preview.sh || previews_ok=0
+  # A transient network drop (K6o2, 2026-10-21: "ssh: connect to host 49.12.7.18 port 22: Operation timed out" in this step) is retried before it counts: up to 3 publish attempts, 20 s apart.
+  for _pv_try in 1 2 3; do
+    if bash scripts/publish-origins-preview.sh; then previews_ok=1; break; fi
+    previews_ok=0; echo "origins preview: publish attempt $_pv_try of 3 failed" >&2; [[ "$_pv_try" == 3 ]] || sleep "${PREVIEW_RETRY_S:-20}"
+  done
   built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
-  live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+  for _pv_try in 1 2 3; do   # a short re-read: the page may be served a moment after the copy
+    live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+    [[ -n "$built_bundle" && "$built_bundle" == "$live_bundle" ]] && break; sleep "${PREVIEW_RETRY_S:-20}"
+  done
   if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
     echo "origins preview: /zone1/ serves '${live_bundle:-none}', this revision built '${built_bundle:-none}'" >&2
     previews_ok=0
@@ -318,6 +325,14 @@ if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
     echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
   fi
 fi
+# Look-test folders (/preview/<name>/ with an index.html, e.g. rv86) are carried forward but are NOT production (Lead 2026-10-21): one that does not serve after the switch is NAMED, never fatal.
+# (/zone1/ and /preview/origins/ above are the production pages: those stop the train.)
+look_missing=""
+for _lt in $(ssh "${ssh_options[@]}" "$host" 'cd /var/www/frankendom/current/preview 2>/dev/null && for d in */; do [ -f "${d}index.html" ] && echo "${d%/}"; done' 2>/dev/null || true); do
+  [[ "$_lt" == origins ]] && continue
+  [[ "$(curl --silent --output /dev/null --max-time 15 --write-out '%{http_code}' "https://frankendom.com/preview/$_lt/" || true)" == 200 ]] || look_missing="$look_missing $_lt"
+done
+[[ -z "$look_missing" ]] || echo "look-test folders not serving:$look_missing" >&2   # shares no words with the production LIVE line raised at the end: the resume greps for that one to STOP
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
 nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
 if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
