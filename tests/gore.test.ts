@@ -418,7 +418,7 @@ test('the skin memo belongs to the skeleton and vertex buffers it skinned: a geo
   } finally { proto.applyBoneTransform = original; }
 });
 
-test('the phone tier skips the per-triangle surface ray (row fx.gore.phone-surface-ray 0: it skinned every vertex on the contact frame, 77 % of a 155 ms task at x4); the wound takes the site table\'s fallback; the full tier still meets the face', async () => {
+test('the phone tier skips the per-triangle surface ray (row gore.phone-surface-ray 0: it skinned every vertex on the contact frame, 77 % of a 155 ms task at x4); the wound takes the site table\'s fallback; the full tier still meets the face', async () => {
   const { resetPhoneTierForTests } = await import('../src/fight/quality.ts');
   const bone = new Bone(); bone.name = 'spine_03'; const geometry = new BoxGeometry(.2, .2, .2);
   const n = geometry.attributes.position.count;
