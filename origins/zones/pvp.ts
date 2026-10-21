@@ -9,7 +9,8 @@ export type SafeArea = { id: string; name: string; shape: 'rect'; min: readonly 
 export type PvpSpec = { pvp?: string; safeAreas?: readonly SafeArea[] };
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-const point = (p: unknown): p is readonly [number, number] => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && Number.isFinite(n));
+const AXES = ['x', 'z'] as const;   // a ground point is one number per axis
+const point = (p: unknown): p is readonly [number, number] => Array.isArray(p) && p.length === AXES.length && p.every((n) => typeof n === 'number' && Number.isFinite(n));
 
 /** What is wrong with a zone's safeAreas rows (empty = fine): shape, corner order, a repeated id, an unknown pvp value, a non-boolean spawnsAllowed. The loader (zoneProblems) calls it. */
 export function safeAreaProblems(areas: unknown): string[] {
