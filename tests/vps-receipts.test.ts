@@ -284,7 +284,8 @@ test('run-rows.sh prints the last 50 lines of every FAILED or CEILING row into t
 test('the job command caps every setup step at 300 s so a wedged apt or fetch fails the job fast (S attempt 1: 15+ min in apt-get)', () => {
   for (const kind of ['unit', 'rows']) {
     const text = jobCommand(kind, sha)[2];
-    for (const step of ['apt-get update', 'apt-get install', 'git fetch']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+    for (const step of ['apt-get update', 'apt-get install']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+    assert.match(text, /for i in 1 2 3; do timeout 120 git fetch -q origin /, `${kind}: git fetch is 3 attempts of at most 120 s (Strategy 2026-10-21: a GitHub outage must retry, not hang)`);
   }
 });
 
