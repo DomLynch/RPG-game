@@ -55,6 +55,7 @@ export async function main(argv) {
     const cpuLive = cpuLiveIds(livePs(hf));
     if (cpuLive.length) {
       const mode = cpuInflightMode();
+      mkdirSync(ledgerDir, { recursive: true });   // the ledger folder appears with the first job; the pre-check runs before it
       appendFileSync(join(ledgerDir, 'inflight.log'), `${new Date().toISOString()} ${flavor} launch for ${sha.slice(0, 8)} with CPU job(s) in flight: ${cpuLive.join(',')} (mode ${mode})\n`);
       say(`WARN a GPU job is being launched while CPU job(s) are in flight: ${cpuLive.join(',')} (logged in ${join(ledgerDir, 'inflight.log')})`);
       if (mode === 'refuse') throw new Error('refusing: a CPU job is in flight (gpuWithCpuInflight=refuse)');
