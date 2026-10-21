@@ -53,16 +53,47 @@ sweep_kind() {
 # back the very same string, so a symlink anywhere in the path (a planted /tmp/cq-x -> /opt, a dir whose parent is a link, a dangling link) is refused, and the resolved path
 # must still be inside an allowed root. The caller then hands rm exactly this string (no trailing slash), so a link swapped in afterwards is unlinked, never followed.
 sweep_safe_path() {
-  local p=$1 real
+  local p=$1 bindok=${2:-} real kind
   case "$p" in /*) ;; *) echo "not an absolute path"; return 1;; esac
   case "$p" in */|*//*|*/./*|*/.|*/..|*/../*) echo "not canonical: trailing slash, // or . or .."; return 1;; esac
-  [ ! -L "$p" ] || { echo "is a symlink"; return 1; }
-  if [ "$(sweep_kind "$p")" = file ]; then [ -f "$p" ] || { echo "not a regular file"; return 1; }   # only the three exact one-off files have this kind
+  [ ! -L "$p" ] || { echo "is a symlink"; return 1; }   # also a symlink FILE: refused
+  kind=$(sweep_kind "$p")
+  if [ "$kind" = file ]; then [ -f "$p" ] || { echo "not a regular file"; return 1; }   # the three exact one-off /tmp files
+  elif [ "$kind" = lane ] && [ -f "$p" ]; then :   # a regular file directly inside a lane root (Lead 2026-10-21: a finished tar no longer has to be moved into a dir first); same archive-first route
   else [ -d "$p" ] || { echo "not a real directory"; return 1; }; fi
   real=$(realpath -e -- "$p" 2>/dev/null) || { echo "cannot be resolved"; return 1; }
   [ "$real" = "$p" ] || { echo "a path component is a symlink ($p resolves to $real)"; return 1; }
   [ -n "$(sweep_kind "$real")" ] || { echo "resolves outside the allowed roots"; return 1; }
-  mountpoint -q -- "$p" 2>/dev/null && { echo "is a mount point"; return 1; }
+  # bindok=bind: the caller has already resolved a BIND MOUNT to its source (sweep_bind_source) and checks the source itself; any other mount point is still refused
+  if [ "$bindok" != bind ]; then mountpoint -q -- "$p" 2>/dev/null && { echo "is a mount point"; return 1; }; fi
+  return 0
+}
+# sweep_bind_source <mountpoint>: when <mountpoint> is a BIND mount of a sub-directory of a device (findmnt shows SOURCE as /dev/xxx[/sub]), print the source's real path (the device's own mount + /sub).
+# Prints nothing and returns 1 for anything else: not a bind of a sub-directory (a whole-device mount), a source that is not a real directory, itself a mount point, or OUTSIDE the allowed roots.
+# Lead 2026-10-21: the box's job dirs on the volume are bind-mounted under /srv/dev-jobs and /opt/frankendom-shadow/work (fstab lines `<volume dir> <old path> none bind,...`).
+sweep_bind_source() {
+  local mp=$1 desc dev sub base real
+  desc=$(findmnt -rn -o SOURCE --target "$mp" 2>/dev/null | head -n 1)
+  case "$desc" in */*"["/*"]") ;; *) return 1;; esac
+  dev=${desc%%\[*}; sub=${desc#*\[}; sub=${sub%\]}
+  base=$(findmnt -rn -o TARGET,SOURCE 2>/dev/null | awk -v d="$dev" '$2 == d { print $1; exit }')   # the mount whose SOURCE is the bare device: the device's own mount point
+  [ -n "$base" ] || return 1
+  real=$(realpath -e -- "${base%/}$sub" 2>/dev/null) || return 1
+  [ -d "$real" ] && [ ! -L "$real" ] || return 1
+  [ -n "$(sweep_kind "$real")" ] || return 1
+  mountpoint -q -- "$real" 2>/dev/null && return 1
+  printf '%s\n' "$real"
+}
+# sweep_fstab_drop <mountpoint>: remove the ONE bind line whose target is exactly <mountpoint> from the fstab (SWEEP_FSTAB, default /etc/fstab), keeping a dated backup. Prints what it did; returns 0 either way.
+sweep_fstab_drop() {
+  local mp=$1 fstab=${SWEEP_FSTAB:-/etc/fstab} n tmp
+  [ -f "$fstab" ] || { echo "no fstab at $fstab"; return 0; }
+  n=$(awk -v t="$mp" '$0 !~ /^[ \t]*#/ && $2 == t && $4 ~ /(^|,)bind(,|$)/ { c++ } END { print c + 0 }' "$fstab")
+  [ "$n" = 1 ] || { echo "fstab: $n bind lines for $mp (expected exactly 1), left alone"; return 0; }
+  tmp=$(mktemp "$fstab.new.XXXXXX") || { echo "fstab: cannot write a temp file, left alone"; return 0; }
+  awk -v t="$mp" '!($0 !~ /^[ \t]*#/ && $2 == t && $4 ~ /(^|,)bind(,|$)/)' "$fstab" > "$tmp" \
+    && cp -p "$fstab" "$fstab.bak-$(date +%Y%m%d-%H%M%S)" && cat "$tmp" > "$fstab" && rm -f "$tmp" && echo "fstab: dropped the bind line for $mp (backup $fstab.bak-*)" \
+    || { rm -f "$tmp"; echo "fstab: edit failed, left alone"; }
   return 0
 }
 # In use = a process has its cwd inside, or lsof +D finds an open file. FAILS CLOSED: 0 (in use) for anything but a clean "nothing open" (lsof exit 1); a timeout (124) or any
@@ -223,14 +254,30 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
   for p in "${PATHS[@]}"; do
     case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
     kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
-    why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }
+    # A BIND MOUNT (Lead 2026-10-21): when <p> is a bind of a dir on an allowed volume root, the SOURCE is what is archived and removed ($target), then the bind is unmounted and its fstab line dropped. A bind whose
+    # source resolves outside the allowed roots, and any other mount point, is refused as before.
+    target=$p; bound=0
+    if mountpoint -q -- "$p" 2>/dev/null; then
+      src=$(sweep_bind_source "$p") || { say "REFUSE(is a mount point, and not a bind of a directory under an allowed root) $p"; continue; }
+      [ "$kind" = lane ] || { say "REFUSE(a bind mount is only swept under a lane root, this is '$kind') $p"; continue; }   # the aged/tmp/home kinds delete by path and would reach through the mount
+      target=$src; bound=1
+    fi
+    if [ "$bound" = 1 ]; then why=$(sweep_safe_path "$p" bind) || { say "REFUSE($why) $p"; continue; }; why=$(sweep_safe_path "$target") || { say "REFUSE(bind source: $why) $p -> $target"; continue; }
+    else why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }; fi
     case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
     if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
     if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
     # every kind, the lane roots too: the INUSE scan above is lsof +D over the whole of work/ and dev-jobs/ and silently comes back empty on a timeout
     if sweep_in_use "$p"; then say "REFUSE(in use, or the in-use probe could not tell: a process has its cwd or a file open inside, or lsof timed out) $p"; continue; fi
     if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
-    case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$p" named;; esac
+    case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$target" named;; esac
+    if [ "$bound" = 1 ]; then
+      if [ $APPLY = 0 ]; then say "would umount the bind $p (source $target) and drop its fstab line"
+      elif [ -e "$target" ]; then say "bind $p: source $target still exists (archive failed or kept): not unmounting"
+      else
+        if umount -- "$p" 2>>"$LOG"; then say "unmounted the bind $p"; rmdir -- "$p" 2>/dev/null; say "$(sweep_fstab_drop "$p")"; else say "UMOUNT FAILED $p (its source $target is already removed; unmount by hand)"; fi
+      fi
+    fi
   done
   say "named-path mode done"; exit 0
 fi
