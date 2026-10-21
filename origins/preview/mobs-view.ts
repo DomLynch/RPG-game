@@ -90,6 +90,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const blobGeometry = new THREE.PlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2), blobMaterial = new THREE.MeshBasicMaterial({ map: blobTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let shown: number[] = [];
+  const displaced = new Set<View>(), labelAt = new THREE.Vector3();   // clampLabels: the tags it moved last frame, and its one scratch point
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   // A creature whose loadout row names a main-game rank look (`look`, e.g. /looks/goblin-L5.glb) is drawn in that whole fitted figure (the Pit's own armour): its body key is `<kind>@<file>`, so each rank look is fetched, warmed and shared once.
@@ -291,13 +292,15 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       }
     },
     clampLabels(camera, floorPx, heightPx) {
-      const ceiling = labelCeilingNdc(floorPx, heightPx), at = new THREE.Vector3();
-      for (const v of views.values()) {
-        const y0 = v.label.userData.y0 as number; v.label.position.set(0, y0, 0);   // back home every frame, then clamped from there
-        if (!v.label.visible || !v.group.visible) continue;
+      const ceiling = labelCeilingNdc(floorPx, heightPx), at = labelAt;
+      for (const v of displaced) v.label.position.set(0, v.label.userData.y0 as number, 0);   // the tags that slid last frame go back home first (every other tag is already home: only this function moves one), then only the drawn creatures' tags are tested, not every view ever made
+      displaced.clear();
+      for (const i of shown) {
+        const v = views.get(i);
+        if (!v || !v.label.visible || !v.group.visible) continue;
         v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
         if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
-        at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at);
+        at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at); displaced.add(v);
       }
     },
     pick(ray) {
