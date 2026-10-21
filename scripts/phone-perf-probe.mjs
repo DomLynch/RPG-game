@@ -54,6 +54,9 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: UA });
   const page = await ctx.newPage(), cdp = await ctx.newCDPSession(page), errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
+  // Lead's lead (Characters: on a real GPU with a phone UA [zone ready] never fired, "warmup stuck player"): when does __zoneReady / [zone ready] fire in this cell, and what does the page say about the warm-up?
+  const navAt = { t: Date.now() }, said = [], readyLog = { atMs: null };
+  page.on('console', (m) => { const t = m.text(); if (/\[zone ready\]/.test(t) && readyLog.atMs === null) readyLog.atMs = Date.now() - navAt.t; if (/warm|stuck|zone ready|compile|context|lost|webgl/i.test(t) && said.length < 25) said.push(`${Date.now() - navAt.t} ms ${m.type()}: ${t.slice(0, 200)}`); });
   await page.addInitScript(() => {
     window.__perf = { fr: [], lt: [], ph: 'load' }; let last = performance.now();
     const loop = (t) => { window.__perf.fr.push([window.__perf.ph, t - last]); last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
@@ -64,9 +67,12 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
   const run = { label, mode, orient, size: [w, h], throttle: thr };
   try {
-    const t0 = Date.now(); await page.goto(URL_, { waitUntil: 'commit' });
-    await page.waitForFunction(() => window.originsPreview?.settledAt?.() >= 0, null, { timeout: 240000, polling: 200 });
-    run.load = await page.evaluate(() => ({ settledAtMs: window.originsPreview.settledAt(), cover: window.originsPreview.cover(), fcpMs: Math.round(performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1), wallMs: Math.round(performance.now()) }));
+    const t0 = Date.now(); navAt.t = t0; await page.goto(URL_, { waitUntil: 'commit' });
+    // Wait for the hooks, then for the settle (hero + kit) OR [zone ready], at most 240 s; a cell where neither comes is reported as such and the walk/fight are still measured.
+    await page.waitForFunction(() => !!window.originsPreview, null, { timeout: 240000, polling: 200 });
+    await page.waitForFunction(() => window.originsPreview?.settledAt?.() >= 0 || !!window.__zoneReady, null, { timeout: 240000, polling: 200 }).catch(() => { run.settleTimeout = true; });
+    run.load = await page.evaluate(() => ({ settledAtMs: window.originsPreview.settledAt(), cover: window.originsPreview.cover(), zoneReady: !!window.__zoneReady, zoneReadyDetail: window.__zoneReady ? JSON.stringify(window.__zoneReady).slice(0, 200) : null, fcpMs: Math.round(performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1), wallMs: Math.round(performance.now()) }));
+    run.load.zoneReadyLogAtMs = readyLog.atMs;
     run.load.wallSinceGotoMs = Date.now() - t0; run.load.mbBeforeReady = +(bytes / 1048576).toFixed(2); run.load.requests = requests;
     run.load.longTasksDuringLoad = await page.evaluate(() => { const l = window.__perf.lt.filter((x) => x[0] === 'load'); return { n: l.length, over50: l.filter((x) => x[2] > 50).length, totalMs: l.reduce((a, x) => a + x[2], 0), maxMs: Math.max(0, ...l.map((x) => x[2])) }; });
     run.env = await page.evaluate(() => { const c = document.createElement('canvas').getContext('webgl'), e = c?.getExtension('WEBGL_debug_renderer_info'); const cv = document.querySelector('canvas'); return { gl: e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a', coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, canvas: cv ? [cv.width, cv.height] : null, ua: /iPhone/.test(navigator.userAgent) }; });
@@ -106,10 +112,11 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     await phase('fight', FIGHT_MS, async (ms) => { const t1 = Date.now() + ms; while (Date.now() < t1) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: atk[0], y: atk[1], id: 2 }] }); await page.waitForTimeout(60); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(440); } });
     run.fightInfight = await page.evaluate(() => document.body.classList.contains('infight'));
   } catch (e) { run.error = String(e).slice(0, 300); }
+  run.zoneReadyByEnd = await page.evaluate(() => !!window.__zoneReady).catch(() => null); run.zoneReadyLogAtMs = readyLog.atMs; run.console = said;
   run.errors = errors; results.push(run);
   fs.writeFileSync(path.join(out, `${label}.json`), JSON.stringify(run, null, 1));
   const ph = run.phases || {}, f = (n) => ph[n]?.frames, l = run.load || {};
-  console.log(`PERF ${label} gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls ${ph[n]?.render?.calls} tris ${ph[n]?.render?.triangles}`).join(' | ') + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
+  console.log(`PERF ${label} gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls ${ph[n]?.render?.calls} tris ${ph[n]?.render?.triangles}`).join(' | ') + ` | zoneReady at-load ${l.zoneReady} by-end ${run.zoneReadyByEnd} logged@${run.zoneReadyLogAtMs} ms${run.settleTimeout ? ' SETTLE-TIMEOUT' : ''} stuck-lines ${said.filter((x) => /stuck/i.test(x)).length}` + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
   await ctx.close();
 }
 await browser.close(); await close();
