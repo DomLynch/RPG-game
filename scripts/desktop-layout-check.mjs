@@ -58,6 +58,7 @@ const errors = []; page.on('pageerror', e => errors.push(String(e)));
 const t0 = Date.now(); const trace = process.env.DESKTOP_TRACE === '1' ? (m) => console.error(`[trace ${((Date.now() - t0) / 1000).toFixed(1)}s] ${m}`) : () => {};
 page.on('framenavigated', f => trace('framenavigated ' + f.url()));
 await page.route('**/*sentry.io/**', route => route.abort());
+page.on('response', r => trace('resp ' + r.status() + ' ' + r.request().method() + ' ' + r.url().slice(0, 110))); page.on('requestfailed', r => trace('reqfail ' + r.url().slice(0, 110)));
 const receipt = { origin, viewport: { width, height }, screens: {}, faults: [], errors, passed: false };
 const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 // Two painted frames before a screen is measured. Once the harness clock is installed (from the duel on) requestAnimationFrame only
@@ -134,9 +135,13 @@ try {
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   // The arena on easy (the bot below needs it), then the HUD. Level 6 is the rank's own level: the guest the card just named moves to 5
   // career marks (career.ts levelOf: level 6) and the page reloads on them (the live level pick is retired, Dom 2026-09-29).
-  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1')); localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ ...p, career: { victoryMarks: 5 } })); });
+  const setMarks = (victoryMarks) => page.evaluate((victoryMarks) => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1')); localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ ...p, career: { victoryMarks } })); }, victoryMarks);
+  await setMarks(5);
   await page.reload(); await ready();
   await screen('hud');
+  // The duel below is fought at level 1 (0 marks): the scripted bot beat the level-6 Goblin about one duel in three under CPU load (rows 37/38,
+  // 2026-10-21: five reds of three duels each), and no assertion after the duel reads the level. The HUD above keeps the level-6 coverage.
+  await setMarks(0); await page.reload(); await ready();
   // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel. The duel is fought
   // at phone size: headless Chromium draws each frame in software, and a 1280x800 frame costs ~2.5 s of wall time per 200 ms of page
   // time (measured 2026-09-27: the 90 s duel budget ran for three hours at desktop size). The kill screen is measured back at the
