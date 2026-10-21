@@ -96,8 +96,8 @@ test('withSlot({ cost }) is the one place: a T4 over the stop is refused before 
 
 test('every HF launcher passes cost, with its reason, and says why when the stop refuses it', () => {
   const src = (f: string) => readFileSync(f, 'utf8');
-  assert.match(src('scripts/hf-wall-rows.mjs'), /cost: \{ timeout, reason: 'gpu-only' \}/);
-  assert.match(src('scripts/gpu-run.mjs'), /cost: \{ timeout: args\.timeout, reason: process\.env\.HF_REASON \|\| 'gpu-run' \}/);
+  assert.match(src('scripts/hf-wall-rows.mjs'), /cost: \{ timeout, reason: \['gpu-only', fellBack\]\.filter\(Boolean\)\.join\(';'\) \}/, 'the reason, then the capacity fallback reason when medium was a fallback');
+  assert.match(src('scripts/gpu-run.mjs'), /cost: \{ timeout: args\.timeout, reason: \[process\.env\.HF_REASON \|\| 'gpu-run', fellBack\]\.filter\(Boolean\)\.join\(';'\) \}/);
   assert.match(src('scripts/vps-shadow/launch.mjs'), /cost: \{ timeout: args\[args\.indexOf\('--timeout'\) \+ 1\], reason: process\.env\.HF_REASON \|\| \(lane \? `lane-\$\{cmd\}` : cmd\) \}/);
   for (const f of ['scripts/hf-wall-rows.mjs', 'scripts/gpu-run.mjs', 'scripts/vps-shadow/launch.mjs']) assert.match(src(f), /slot\.refused \|\|/, `${f} prints the refusal`);
 });
