@@ -1,0 +1,65 @@
+{
+  "url": "https://frankendom.com/zone1/?presence=0",
+  "torches": [
+    {
+      "x": -107.3,
+      "z": 5.5
+    },
+    {
+      "x": -102.8,
+      "z": 1.9
+    }
+  ],
+  "views": [
+    {
+      "name": "east8",
+      "want": {
+        "x": -97.05,
+        "z": 3.7
+      },
+      "hero": {
+        "x": -97.05,
+        "z": 3.7
+      }
+    },
+    {
+      "name": "north8",
+      "want": {
+        "x": -105.05,
+        "z": 11.7
+      },
+      "hero": {
+        "x": -105.05,
+        "z": 11.7
+      }
+    },
+    {
+      "name": "south8",
+      "want": {
+        "x": -105.05,
+        "z": -4.3
+      },
+      "hero": {
+        "x": -105.05,
+        "z": -4.3
+      }
+    },
+    {
+      "name": "east14",
+      "want": {
+        "x": -91.05,
+        "z": 3.7
+      },
+      "hero": {
+        "x": -91.05,
+        "z": 3.7
+      }
+    }
+  ],
+  "zoneReadyMs": 31772,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "spawn": {
+    "x": -103.77,
+    "z": 6.12
+  }
+}
