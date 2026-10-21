@@ -59,6 +59,7 @@ export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type MobNear = MobPick & { hunting: boolean };
 export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown; seen(): { id: string; x: number; z: number; mode: string }[];
+  nearestDrawn(n: number): THREE.Object3D[];   // the drawn bodies of the n nearest drawn creatures (a phone keeps these as sun-shadow casters)
   clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void;   // before the draw: a name tag under the HUD slides down the view to just below it
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   anchorOf(id: string): THREE.Object3D | null;   // a creature's drawn body (its rig's root), for the blood a wound draws on a part's bone; null while it is not drawn
@@ -290,6 +291,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         }
       }
     },
+    nearestDrawn(n) { return shown.map((i) => ({ i, d: Math.hypot(mobs[i]!.x - lastHero.x, mobs[i]!.z - lastHero.z) })).sort((a, b) => a.d - b.d).slice(0, Math.max(0, n)).map((r) => views.get(r.i)?.model).filter((m): m is THREE.Object3D => !!m); },
     clampLabels(camera, floorPx, heightPx) {
       const ceiling = labelCeilingNdc(floorPx, heightPx), at = new THREE.Vector3();
       for (const v of views.values()) {

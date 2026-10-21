@@ -235,6 +235,7 @@
     { "id": "zone.shadow.phone-map", "fields": {"value": 512} },
     { "id": "zone.shadow.phone-every", "fields": {"value": 1} },
     { "id": "zone.shadow.phone-hero-only", "fields": {"value": 1} },
+    { "id": "zone.shadow.phone-creatures", "fields": {"value": 3} },
     { "id": "zone.shadow.sweep-every", "fields": {"value": 30} },
     { "id": "warband.enabled", "fields": {"value": 1} },
     { "id": "warband.min-band", "fields": {"value": 2} },

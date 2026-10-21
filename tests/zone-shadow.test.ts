@@ -25,5 +25,6 @@ test('a phone casts the sun shadow from the hero only, swept every Nth frame (ro
   assert.equal(fxNum('zone.shadow.phone-hero-only'), 1);
   assert.ok(fxNum('zone.shadow.sweep-every') >= 1);
   assert.equal(fxNum('zone.shadow.phone-every'), 1, 'no refresh-every-Nth: in a fight everything moves (Lead 2026-10-21)');
-  assert.match(main, /PHONE && fxNum\('zone\.shadow\.phone-hero-only'\) > 0 && \+\+casterTick % fxNum\('zone\.shadow\.sweep-every'\) === 0\) limitCasters\(scene, hero\)/);
+  assert.equal(fxNum('zone.shadow.phone-creatures'), 3, 'the hero plus the 3 nearest drawn creatures cast (a goblin on you with no shadow reads as floating, Lead 2026-10-21)');
+  assert.match(main, /PHONE && fxNum\('zone\.shadow\.phone-hero-only'\) > 0 && \+\+casterTick % fxNum\('zone\.shadow\.sweep-every'\) === 0\) \{ const near = mobs\?\.nearestDrawn\(SHADOW_CREATURES\) \?\? \[\]; limitCasters\(scene, \[hero, \.\.\.near\]\); enableCasters\(near\); \}/);
 });
