@@ -19,13 +19,15 @@ const server = http.createServer((req, res) => {
   res.setHeader('content-type', mime[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
-const base = `http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1&presence=0`;
+const MAC_GL = process.env.MAC_GL === '1';   // the Mac M5: Google Chrome on Metal (Playwright's own headless shell can fall back to SwiftShader there); the renderer string is logged either way
+const browser = await chromium.launch(MAC_GL ? { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] } : { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
+const base = `${/^https?:/.test(dist) ? dist.replace(/\/$/, '') : `http://127.0.0.1:${server.address().port}`}/preview/origins/?region=1&zone=1&presence=0`;   // <dist> may be a running dev server's origin (http://127.0.0.1:5191) instead of a built folder
 const readyWait = (page) => page.waitForFunction(() => window.originsPreview?.capture?.ready?.(), null, { timeout: 600000, polling: 500 }).catch(async (error) => {   // never ready: say which half is missing
   const diag = await page.evaluate(() => { const d = window.originsPreview?.mobs?.(); return { zoneReady: !!window.__zoneReady, ticks: window.originsPreview?.capture?.ticks?.(), gates: window.originsPreview?.capture?.gates?.(), drawn: d?.mobs?.filter((m) => m.drawn).length, modelled: d?.mobs?.filter((m) => m.drawn && m.model).length, bodies: d?.bodies }; }).catch(() => null);
   throw new Error(`${String(error).slice(0, 80)} diag=${JSON.stringify(diag)}`);
 });
 
+let shots = 0;   // SHOTS=<dir> writes each flag-on run's still (replay-0.png, replay-1.png)
 async function run(flag) {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   try {
@@ -42,8 +44,10 @@ async function run(flag) {
     const ticks = await page.evaluate((n) => window.originsPreview.capture.advance(n), TICKS);
     await page.waitForTimeout(1500);   // two drawn frames at dt 0 (the held walk) so the screenshot is the state at `ticks`
     const mobs = await page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => [m.id, m.x, m.z, m.mode, m.drawn, m.model]));
-    const shot = crypto.createHash('sha256').update(await page.screenshot()).digest('hex').slice(0, 16);
-    return { ticks, mobs, shot };
+    const png = await page.screenshot(), shot = crypto.createHash('sha256').update(png).digest('hex').slice(0, 16);
+    if (process.env.SHOTS) { fs.mkdirSync(process.env.SHOTS, { recursive: true }); fs.writeFileSync(path.join(process.env.SHOTS, `replay-${shots++}.png`), png); }
+    const renderer = await page.evaluate(() => { const c = document.createElement('canvas').getContext('webgl'); const e = c && c.getExtension('WEBGL_debug_renderer_info'); return e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : null; });
+    return { ticks, mobs, shot, renderer };
   } finally { await page.context().close(); }
 }
 
