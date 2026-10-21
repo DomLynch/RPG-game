@@ -80,6 +80,9 @@ if [ -e "$failed_file" ]; then
   if POST_PUBLISH_REV=$rev _pp_dispatch "$rev" "${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"; then rm -f "$failed_file"; say "the release-checks dispatch went through on the tail's try"
   else raise "dispatch failed: the release-checks dispatch for $rev failed every try, in the publisher and again in this tail; rows $rows were never started on CI"; fi
 fi
+# The installed vps-scratch-sweep is a hand-copied delete tool (nothing installs it): say in the log when it differs from ops/vps-scratch-sweep at the live revision. A WARN line only: it never holds,
+# never fails the release and never installs (Lead 2026-10-21; scripts/lib/sweep-tool-drift.sh).
+. "$dir/lib/sweep-tool-drift.sh"; while IFS= read -r l; do say "$l"; done < <(sweep_tool_drift "$rev" 2>&1 || true)
 sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the dispatched run must exist before ci-trusted-checks can wait on it
 # WAIT HONESTLY (Strategy + Lead 2026-10-20, K5k and K5m tails raised RED ~4 min into a 1500 s wait while their CI run was still going with 0 failed): a lookup that FAILED, or that found no run
 # or stopped waiting with rows unfinished (ci-trusted-checks says "all checks run locally" / "stopped waiting after"), is UNKNOWN, never red: ask again until the wait budget ends. The lookup's own
