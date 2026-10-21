@@ -1,0 +1,36 @@
+{
+ "dist": "/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-world/92120691-454d-47f2-a467-cb162cb4af9f/scratchpad/d-ash",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "got": [
+  {
+   "name": "a",
+   "at": {
+    "x": -93.1,
+    "z": -49
+   },
+   "from": {
+    "x": -93.1,
+    "z": -41
+   },
+   "pos": {
+    "x": -93.1,
+    "z": -41
+   }
+  },
+  {
+   "name": "b",
+   "at": {
+    "x": -104.9,
+    "z": -49.9
+   },
+   "from": {
+    "x": -104.9,
+    "z": -43
+   },
+   "pos": {
+    "x": -104.9,
+    "z": -43
+   }
+  }
+ ]
+}
