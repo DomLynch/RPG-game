@@ -6,6 +6,7 @@ import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sa
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { steps as expand } from './lib/npm-script.ts';
 
 const text = readFileSync('.github/workflows/quality.yml', 'utf8');
 const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts as Record<string, string>;
@@ -13,7 +14,7 @@ const jobBlock = (name: string) => { const i = text.indexOf(`\n  ${name}:\n`); a
 const steps = (s: string) => s.split(' && ');
 
 test('quality:static + test:all is exactly quality:ci, so the shards run the same checks (a step added to one but not the other fails here)', () => {
-  const ci = steps(scripts['quality:ci']!), stat = steps(scripts['quality:static']!);
+  const ci = expand(scripts, 'quality:ci'), stat = expand(scripts, 'quality:static');   // what each runs, through quality:lint and quality:checks
   assert.deepEqual([...stat].sort(), ci.filter((s) => s !== 'npm run test:all').sort());
   assert.equal(ci.filter((s) => s === 'npm run test:all').length, 1, 'quality:ci runs test:all once');
 });
@@ -23,7 +24,10 @@ test('quality.yml runs quality:static and the database checks, and no test:all s
   const parts = /\n {8}part: \[([^\]]+)\]/.exec(block)?.[1]?.split(',').map((s) => s.trim()) ?? [];
   assert.deepEqual(parts, ['static']);
   assert.doesNotMatch(text, /--test-shard|tests\/\*\.test\.ts|npm run test:all/, 'the suite is not run here a second time');
-  assert.match(block, /if: matrix\.part == 'static'\n {8}run: npm run quality:static\n/);
+  // quality:static in two steps (Dom's audit 2026-10-21): its lint half only when `static` did not run (a trunk push), its checks half always.
+  assert.match(block, /if: matrix\.part == 'static' && needs\.static\.result != 'success'\n {8}run: npm run quality:lint\n/);
+  assert.match(block, /if: matrix\.part == 'static'\n {8}run: npm run quality:checks\n/);
+  assert.equal(scripts['quality:static'], 'npm run quality:lint && npm run quality:checks', 'the two steps are exactly quality:static');
   for (const db of ['account', 'awards', 'origins', 'duel-season']) assert.match(block, new RegExp(`if: matrix\\.part == 'static'\\n {8}name: [^\\n]+\\n {8}run: PG_BIN="\\$\\(pg_config --bindir\\)" node scripts/${db}-database-check\\.mjs`), db);
   assert.match(block, /fail-fast: false/, 'one red shard does not cancel the others (every failure shows)');
 });

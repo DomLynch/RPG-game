@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { countErrors, judge, DEBT } from '../scripts/origins-tsc.mjs';
+import { expanded } from './lib/npm-script.ts';
 
 const MAIN = 'origins/preview/main.ts';
 
@@ -35,5 +36,5 @@ test('the ratchet checks origins/ and runs in the CI gate', () => {
   assert.deepEqual(JSON.parse(readFileSync(new URL('../tsconfig.origins.json', import.meta.url), 'utf8')).include, ['src', 'origins']);
   const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts;
   assert.equal(scripts['typecheck:origins'], 'node scripts/origins-tsc.mjs');
-  for (const gate of ['quality', 'quality:ci']) assert.match(scripts[gate], /npm run typecheck:origins/, gate);
+  for (const gate of ['quality', 'quality:ci']) assert.match(expanded(scripts, gate), /npm run typecheck:origins/, gate);   // what the gate runs, through quality:lint
 });
