@@ -49,6 +49,8 @@ sweep_kind() {
   esac
   return 0
 }
+# sweep_links_to <target> <root>...: the symlinks that are DIRECT children of the given roots and whose link text is exactly <target>, one per line (nothing else: no resolving, no recursion).
+sweep_links_to() { local t=$1 r l; shift; for r in "$@"; do for l in "$r"/*; do if [ -L "$l" ] && [ "$(readlink "$l")" = "$t" ]; then echo "$l"; fi; done; done; return 0; }
 # A --path must name exactly a real directory spelled canonically. Prints the reason and returns 1 otherwise. Every level is checked, not only the last: realpath -e must give
 # back the very same string, so a symlink anywhere in the path (a planted /tmp/cq-x -> /opt, a dir whose parent is a link, a dangling link) is refused, and the resolved path
 # must still be inside an allowed root. The caller then hands rm exactly this string (no trailing slash), so a link swapped in afterwards is unlinked, never followed.
@@ -315,6 +317,7 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
     # Every bind of the source is checked BEFORE the delete (Auditor on #3518): a non-lane bind, a symlink into it, a process inside it, or an in-use probe that cannot tell refuses the whole path. When <p> is itself a bind, a
     # SECOND bind of the same source would be orphaned by the delete, so it is released with it.
     sbinds=""; if [ "$kind" = lane ]; then sbinds=$(sweep_binds_of "$target" | grep -vxF -e "$p"); fi
+    dlinks=""; case "$target" in /mnt/HC_Volume_107195252/work/*|/mnt/HC_Volume_107195252/dev-jobs/*) dlinks=$(sweep_links_to "$target" "$WORK" "$JOBS");; esac
     refused=0
     for b in $sbinds; do
       if [ "$(sweep_kind "$b")" != lane ]; then say "REFUSE(a bind of the source is not under a lane root) $p -> $b"; refused=1; break; fi
@@ -329,6 +332,16 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
       elif [ -e "$target" ]; then say "bind $p: source $target still exists (archive failed or kept): not unmounting"
       else say "$(sweep_bind_release "$p")"; fi
     fi
+    # Combat 2026-10-21 (card from #3518): a dir moved to the volume leaves a symlink at its old lane path (work/<n> or dev-jobs/<n> -> /mnt/HC_Volume_107195252/...). Sweeping the volume path
+    # deletes the target and the link dangles for good, and this tool refuses a symlink path by design. So, only after the target is gone, remove exactly the direct children of the two lane roots
+    # whose link text IS the swept target and which no longer resolve; nothing else is touched. The unlink is written to the manifest.
+    while IFS= read -r l; do
+      [ -n "$l" ] || continue
+      if [ $APPLY = 0 ]; then say "would remove the link $l (-> $target): it dangles once the target is gone"
+      elif [ -e "$target" ]; then say "link $l: target $target still exists (archive failed or kept): link kept"
+      elif [ -L "$l" ] && [ ! -e "$l" ]; then echo "UNLINKED $l -> $target" >> "$MAN"; rm -f -- "$l"; say "removed the dangling link $l (-> $target)"
+      else say "link $l: not a dangling link now, left alone"; fi
+    done <<< "$dlinks"
     for b in $sbinds; do
       if [ $APPLY = 0 ]; then say "would umount the bind $b (it points at the same source as $p) after the source is removed, and drop its fstab line"
       elif [ -e "$target" ]; then say "bind $b: source $target still exists (archive failed or kept): not unmounting"
