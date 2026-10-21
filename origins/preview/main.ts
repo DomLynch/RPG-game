@@ -401,6 +401,11 @@ const SPANS: Record<string, number> = ((window as unknown as { __spans: Record<s
 let lapAt = 0;
 const lapStart = (): void => { lapAt = performance.now(); };
 const lap = (k: string): void => { const n = performance.now(); SPANS[k] = (SPANS[k] ?? 0) + (n - lapAt); lapAt = n; };
+// Sim steps run in each walk frame (the fixed-1/60 accumulator in world-combat.ts catches up after a slow frame, up to maxSteps): a histogram, the first 6000 (frame ms, steps) pairs, and the loop's own stats (steps, lostMs, hitches).
+const STEPHIST: Record<number, number> = ((window as unknown as { __stepHist: Record<number, number> }).__stepHist = {}), FRAMELOG: number[][] = ((window as unknown as { __frameLog: number[][] }).__frameLog = []);
+let lastSimSteps = 0;
+const noteSteps = (dt: number): void => { const s = wc.stats().steps, n = s - lastSimSteps; lastSimSteps = s; STEPHIST[n] = (STEPHIST[n] ?? 0) + 1; if (FRAMELOG.length < 6000) FRAMELOG.push([Math.round(dt * 1000), n]); };
+(window as unknown as { __wcStats: () => unknown }).__wcStats = () => wc.stats();
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
@@ -742,7 +747,7 @@ const walkLoop = () => {
   lapStart(); SPANS.frames!++;
   const dt = Math.min(clock.getDelta(), previewRule('frameDtMax')), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); doorWatch?.update(state.x, state.z); lap('loop.door'); warmUpload(time); lap('loop.warmUpload'); zoneReadyCheck(); lap('loop.zoneReady'); arena.update(dt, [], camera); exchange.update(time); lap('loop.arena+exchange');
+  step(dt); noteSteps(dt); doorWatch?.update(state.x, state.z); lap('loop.door'); warmUpload(time); lap('loop.warmUpload'); zoneReadyCheck(); lap('loop.zoneReady'); arena.update(dt, [], camera); exchange.update(time); lap('loop.arena+exchange');
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
   lap('loop.pitFar');
   fires?.update(time, state, warm); lap('loop.fires');   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
