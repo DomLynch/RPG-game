@@ -22,5 +22,6 @@ export function paceOf(wallS: number, ticks: number): Pace | null {
   const tickS = ticks / TICKS_PER_SECOND;
   if (tickS < PACE.minTickS) return null;
   const ratio = wallS / tickS;
-  return { wallS: Math.round(wallS * 100) / 100, tickS: Math.round(tickS * 100) / 100, ratio: Math.round(ratio * 100) / 100, slow: ratio >= PACE.slowRatio };
+  const cents = (n: number): number => Number(n.toFixed(2));   // two decimals in the event
+  return { wallS: cents(wallS), tickS: cents(tickS), ratio: cents(ratio), slow: ratio >= PACE.slowRatio };
 }
