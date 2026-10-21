@@ -30,7 +30,12 @@ async function run(flag) {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   try {
     await page.goto(flag ? `${base}&capture=seed` : base, { waitUntil: 'load' });
-    if (!flag) { await page.waitForFunction(() => window.originsPreview, null, { timeout: 600000 }); return { capture: await page.evaluate(() => window.originsPreview.capture ?? null) }; }
+    if (!flag) {   // flag off: no capture hook; and the control for the replays: how long this renderer takes to reach [zone ready] with the live loop
+      const t0 = Date.now(); await page.waitForFunction(() => window.originsPreview, null, { timeout: 600000 });
+      const capture = await page.evaluate(() => window.originsPreview.capture ?? null);
+      const zoneMs = await page.waitForFunction(() => window.__zoneReady, null, { timeout: 600000 }).then(() => Date.now() - t0, () => -1);
+      return { capture, zoneReadyMs: zoneMs };
+    }
     await readyWait(page);
     await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [sx, sz]);
     await page.waitForTimeout(500); await readyWait(page);
