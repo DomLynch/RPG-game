@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { ZoneMaterials } from './zone-scenery.ts';
 import { meshPieces } from './exchange.ts';
+import type { OcclusionFade } from './occlusion-fade.ts';
 import type { Board, Build } from './frontier-plan.ts';
 import type { Dress } from './frontier-dress.ts';
 import type { Camp } from './frontier-camp.ts';
@@ -73,11 +74,12 @@ function reliefMesh(rz: ReliefZone, material: THREE.MeshStandardMaterial): THREE
   const mesh = new THREE.Mesh(geo, material); mesh.receiveShadow = true; mesh.name = `frontier-relief:${z.zone}`; return mesh;
 }
 
-export function buildFrontier(scene: THREE.Scene, m: ZoneMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = []): THREE.Group {
+export function buildFrontier(scene: THREE.Scene, m: ZoneMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = [], fade?: OcclusionFade): THREE.Group {
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
+  const stone = fade ? fade.patch(m.stone.clone()) : undefined, props = stone ? { stone } : {};   // the buildings and the props dissolve between the camera and the hero (occlusion-fade.ts); the ground never does
   if (relief.length) { const mat = dirtMaterial().clone(); mat.vertexColors = true; mat.color.set(0xffffff); for (const rz of relief) group.add(reliefMesh(rz, mat)); }
-  meshPieces(group, b.pieces, m, 'frontier');
-  if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial() }); meshPieces(group, dress.pieces, m, 'frontier-dress'); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
+  meshPieces(group, b.pieces, m, 'frontier', props);
+  if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial() }); meshPieces(group, dress.pieces, m, 'frontier-dress', props); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
   if (camps.length) { meshPieces(group, camps.flatMap((c) => c.pieces), m, 'camp'); for (const c of camps) group.add(campGlow(c)); }   // frontier-camp.ts: fire, seats, bedrolls, crates and the soft ground glow
   for (const f of b.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));

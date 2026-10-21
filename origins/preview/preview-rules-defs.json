@@ -84,6 +84,10 @@
     { "id": "remoteAdaptWindowMs", "value": 3000, "unit": "ms" },
     { "id": "remoteAdaptJudgeMs", "value": 250, "unit": "ms" },
     { "id": "remoteAdaptPercentile", "value": 0.95, "unit": "ratio" },
-    { "id": "remoteGroundStep", "value": 0.25, "unit": "m" }
+    { "id": "remoteGroundStep", "value": 0.25, "unit": "m" },
+    { "id": "occFadeRadius", "value": 1.0, "unit": "m" },
+    { "id": "occFadeNear", "value": 0.05, "unit": "ratio" },
+    { "id": "occFadeStrength", "value": 0.92, "unit": "ratio" },
+    { "id": "occFadeChestY", "value": 0.9, "unit": "m" }
   ]
 }
