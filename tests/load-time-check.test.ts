@@ -2,7 +2,7 @@
 // today's address, ready signal, routing and receipt; Zone 1 is the origins preview under its vite base, ready at the page's settled stamp, with a whole-load byte tripwire.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bytesVerdict, DEFAULT_PAGE, PAGES, pairedDelta, pairOrder, parseArgs, routeOf, sitePaths } from '../scripts/load-time-check.mjs';
+import { bytesVerdict, DEFAULT_PAGE, limitVerdict, PAGES, pairedDelta, pairOrder, parseArgs, routeOf, sitePaths } from '../scripts/load-time-check.mjs';
 
 test('load-time pages: pit and zone1 only, pit the default, one receipt each (pit keeps receipt.json)', () => {
   assert.deepEqual(Object.keys(PAGES), ['pit', 'zone1']);
@@ -44,8 +44,20 @@ test('load-time paired delta: the median of head_i - base_i, not the difference 
   assert.equal(pairedDelta(s([20, 20, 20]), s([21.5, 21, 22])), 1.5);
   assert.throws(() => pairedDelta(s([1, 2]), s([1])), /do not pair/);
   assert.deepEqual([PAGES.pit.paired, PAGES.zone1.paired], [false, true]);
-  // The absolute tripwire per page (Lead 2026-10-21): the Pit keeps 30 s; Zone 1's identical code read 34 s on a slow CI runner.
-  assert.deepEqual([PAGES.pit.limitS, PAGES.zone1.limitS], [30, 45]);
+  // The head-median tripwire per page (Lead 2026-10-21): the Pit keeps 30 s absolute; Zone 1 is 1.5x the same run's base, since identical code read
+  // 20.5 s, 34 s and 44 s on three CI runners (K6n2 at 43.99 s against the old 45 s ceiling).
+  assert.deepEqual([PAGES.pit.limitS, PAGES.pit.limitRatio], [30, null]);
+  assert.deepEqual([PAGES.zone1.limitS, PAGES.zone1.limitRatio], [null, 1.5]);
+});
+
+test('load-time tripwire: absolute for the Pit, relative to base for zone1; a page must set exactly one', () => {
+  assert.equal(limitVerdict(PAGES.pit, 10, 29.9).limitFail, false);
+  assert.equal(limitVerdict(PAGES.pit, 10, 30.1).limitFail, true, 'the Pit ceiling ignores the base');
+  assert.deepEqual(limitVerdict(PAGES.zone1, 44, 43.99), { ceilingS: 66, limitText: '1.5× base = 66 s', limitFail: false }, 'a K6n2-speed runner (base ~44 s) passes');
+  assert.equal(limitVerdict(PAGES.zone1, 20, 30).limitFail, false, 'at 1.5x passes');
+  assert.equal(limitVerdict(PAGES.zone1, 20, 30.5).limitFail, true, 'a runaway past 1.5x of the same run fails');
+  assert.throws(() => limitVerdict({ label: 'x', limitS: 30, limitRatio: 1.5 }, 1, 1), /both/);
+  assert.throws(() => limitVerdict({ label: 'x', limitS: null, limitRatio: null }, 1, 1), /neither/);
 });
 
 test('load-time site paths: every "/x/y.ext" string in a row, once, sorted; the zone1 row names its kit', () => {

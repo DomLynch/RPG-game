@@ -42,18 +42,19 @@ const out = 'artifacts/load-time';
 // start). receipt: its file under artifacts/load-time/. bytes: null, or the byte tripwire { row: the zone row (relative to the dist) whose
 // site-path strings are sized under publicFrom, mbDelta / filesDelta: how far head may grow past base }. runs: base/head pairs (the RUNS env
 // overrides it). alternate: each pair's order flips (pairOrder) so neither side always loads second on a warmed box. paired: the delta is the
-// median of the per-pair differences, not the difference of the two medians. limitS: the absolute tripwire on the head median (a runaway, not a
-// regression: the delta is the gate).
+// median of the per-pair differences, not the difference of the two medians. limitS / limitRatio: the tripwire on the head median, set one or the
+// other: an absolute ceiling in seconds, or a multiple of the same run's base median (a runaway, not a regression: the delta is the gate).
 export const PAGES = {
-  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false, paired: false, limitS: 30,
+  pit: { label: 'Pit', prefix: '/', query: '', spa: '/s/', publicFrom: null, receipt: 'receipt.json', bytes: null, runs: 5, alternate: false, paired: false, limitS: 30, limitRatio: null,
     ready: () => ({ now: performance.now(), ready: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' }) },
   // Zone 1 by name (?zone=1; the path form /zone/<id>/ is outside the vite base) with no presence server (?presence=0).
   zone1: { label: 'Zone 1', prefix: '/preview/origins/', query: '?zone=1&presence=0', spa: null, publicFrom: '../../public', receipt: 'receipt-zone1.json',
     bytes: { row: '../../origins/zone-rows/zone1.row.json', mbDelta: 1.0, filesDelta: 10 },
     // runs 11, paired (Lead 2026-10-20): at 7 pairs CI's samples spread 21.8-24.9 s on identical code (dispatch 39481901108).
     runs: 11, alternate: true, paired: true,
-    // limitS 45 (Lead 2026-10-21): identical code read 20.5 s on one CI runner and 34 s on another (dispatches 39484673851 / 39484695388); 30 s is the Pit's.
-    limitS: 45,
+    // limitRatio 1.5 (Lead 2026-10-21): an absolute ceiling tracks the runner, not the change. Identical code read 20.5 s, 34 s and 44 s on three
+    // CI runners (dispatches 39484673851 / 39484695388, K6n2 #3482 at 43.99 s against a 45 s ceiling). Relative to the same run's base, a runaway still fails.
+    limitS: null, limitRatio: 1.5,
     ready: () => { const at = window.originsPreview?.settledAt?.() ?? -1; return at >= 0 ? { now: at, ready: true } : { now: performance.now(), ready: false }; } },
 };
 export const DEFAULT_PAGE = 'pit';
@@ -144,8 +145,8 @@ async function main() {
   const { page: pageName, dirs: [baseDir, headDir] } = parseArgs(process.argv.slice(2)), spec = PAGES[pageName];
   if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist> [--page pit|zone1]');
   const sites = { base: await serveLikeLive(baseDir, spec), head: await serveLikeLive(headDir, spec) };
-  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs, LIMIT_S = spec.limitS;
-  const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: LIMIT_S, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
+  const browser = await chromium.launch({ headless: true }), RUNS = RUNS_ENV ?? spec.runs;
+  const receipt = { page: pageName, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: spec.limitS, limitRatio: spec.limitRatio, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
   try {
     for (let i = 0; i < RUNS; i++) for (const side of pairOrder(i, spec.alternate)) {
       const r = await once(browser, sites[side].url, spec); receipt[side].samples.push(r); console.log(`load-time ${side} ${i + 1}: ${JSON.stringify(r)}`);
@@ -158,7 +159,7 @@ async function main() {
     if (spec.paired) receipt.pairDeltasS = receipt.head.samples.map((h, i) => +(h.s - receipt.base.samples[i].s).toFixed(2));
     receipt.deltaS = spec.paired ? pairedDelta(receipt.base.samples, receipt.head.samples) : +(receipt.head.medianS - receipt.base.medianS).toFixed(2);
     receipt.deltaFail = receipt.deltaS > DELTA_S && !RULED;
-    receipt.limitFail = receipt.head.medianS > LIMIT_S;
+    Object.assign(receipt, limitVerdict(spec, receipt.base.medianS, receipt.head.medianS));
     if (spec.bytes) Object.assign(receipt, bytesVerdict(spec.bytes, receipt.base, receipt.head, RULED));
     receipt.passed = !receipt.deltaFail && !receipt.limitFail && !receipt.bytesFail;
   } finally {
@@ -167,10 +168,10 @@ async function main() {
     await browser.close(); await sites.base.close(); await sites.head.close();
   }
   const { base, head } = receipt;
-  console.log(`load-time-check: ${spec.label} first playable at ${receipt.profile}, median of ${RUNS}: base ${base.medianS} s (${base.mb} MB, ${base.files} files), head ${head.medianS} s (${head.mb} MB, ${head.files} files), ${spec.paired ? 'median paired ' : ''}delta ${receipt.deltaS >= 0 ? '+' : ''}${receipt.deltaS} s (limit +${DELTA_S} s; tripwire ${LIMIT_S} s)`);
-  if (RULED) console.log(`load-time-check: label load-time-ruled is on this PR (Lead's ruling): the delta is report-only; the ${LIMIT_S} s tripwire still applies`);
+  console.log(`load-time-check: ${spec.label} first playable at ${receipt.profile}, median of ${RUNS}: base ${base.medianS} s (${base.mb} MB, ${base.files} files), head ${head.medianS} s (${head.mb} MB, ${head.files} files), ${spec.paired ? 'median paired ' : ''}delta ${receipt.deltaS >= 0 ? '+' : ''}${receipt.deltaS} s (limit +${DELTA_S} s; tripwire ${receipt.limitText})`);
+  if (RULED) console.log(`load-time-check: label load-time-ruled is on this PR (Lead's ruling): the delta is report-only; the ${receipt.limitText} tripwire still applies`);
   if (receipt.deltaFail) console.error(`load-time-check: FAIL, head is ${receipt.deltaS} s slower than base (over +${DELTA_S} s). An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
-  if (receipt.limitFail) console.error(`load-time-check: FAIL, the head median ${head.medianS} s is over the ${LIMIT_S} s tripwire`);
+  if (receipt.limitFail) console.error(`load-time-check: FAIL, the head median ${head.medianS} s is over the ${receipt.limitText} tripwire`);
   if (spec.paired) console.log(`load-time-check: ${spec.label} per-pair deltas (head - base, s): ${receipt.pairDeltasS.join(', ')}`);
   if (spec.bytes) console.log(`load-time-check: ${spec.label} build + row files on disk: base ${base.totalMb} MB / ${base.totalFiles} files${base.missing.length ? ` (missing ${base.missing.join(', ')})` : ''}, head ${head.totalMb} MB / ${head.totalFiles} files (limit +${spec.bytes.mbDelta} MB, +${spec.bytes.filesDelta} files)`);
   if (receipt.bytesFail) console.error(`load-time-check: FAIL, head loads ${receipt.mbGrowth} MB / ${receipt.filesGrowth} files more than base. An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
@@ -199,6 +200,12 @@ async function staticBytes(dir, spec) {
     if (st?.isFile()) { size += st.size; count += 1; } else missing.push(p);
   }
   return { totalMb: +(size / MB).toFixed(2), totalFiles: count, missing };
+}
+/** The head-median tripwire: an absolute ceiling (limitS) or a multiple of this run's base median (limitRatio); exactly one is set per page. */
+export function limitVerdict(spec, baseS, headS) {
+  if ((spec.limitS == null) === (spec.limitRatio == null)) throw new Error(`load-time-check: ${spec.label} sets ${spec.limitS == null ? 'neither' : 'both'} limitS and limitRatio`);
+  const ceilingS = spec.limitS ?? +(baseS * spec.limitRatio).toFixed(2);
+  return { ceilingS, limitText: spec.limitS != null ? `${spec.limitS} s` : `${spec.limitRatio}× base = ${ceilingS} s`, limitFail: headS > ceilingS };
 }
 /** The byte tripwire: head's totals against base's, failing past mbDelta or filesDelta unless ruled (the label makes it report-only, like the time delta). */
 export function bytesVerdict(limits, base, head, ruled) {
