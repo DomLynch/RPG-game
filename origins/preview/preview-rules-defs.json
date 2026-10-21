@@ -105,7 +105,7 @@
     { "id": "bountyOrderWork", "value": 10, "unit": "order" },
     { "id": "bountyOrderWhere", "value": 20, "unit": "order" },
     { "id": "bountyOrderFarewell", "value": 99, "unit": "order" },
-    { "id": "decalTopAsh", "value": 0.06, "unit": "m" },
+    { "id": "decalTopAsh", "value": 0.045, "unit": "m" },
     { "id": "decalTopRoad", "value": 0.05, "unit": "m" },
     { "id": "decalTopRut", "value": 0.056, "unit": "m" },
     { "id": "decalTopScorch", "value": 0.1, "unit": "m" },
