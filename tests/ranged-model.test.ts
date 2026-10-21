@@ -11,7 +11,7 @@ import { WEAPONS } from '../src/fight/moves.ts';
 
 // The painted bow (CS23). The file ships byte for byte as the sandbox's (public/weapons/ranged/PROVENANCE.txt); a swapped file changes this pin and its provenance line.
 // The orb staff (2026-10-20, Dom: "a cool staff with a white glowing tip"): the sandbox's procedural staff-v1 (build-ranged-weapons.mjs, Characters & Art 47c653222), baked to glb by that script.
-const SHA: Record<string, string> = { 'weapons/ranged/bow-v1.glb': '79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd', 'weapons/ranged/staff-v1.glb': 'aaadfdbb7159314af6547f85c6fe486aab058f9d493ee67a770132403ffd3ea0' };
+const SHA: Record<string, string> = { 'weapons/ranged/bow-v1.glb': 'ff14366e9a62fcfd43a309f797806480aeedc6ef01158bf2d6d76ba4f0967b94', 'weapons/ranged/staff-v1.glb': 'aaadfdbb7159314af6547f85c6fe486aab058f9d493ee67a770132403ffd3ea0' };
 const glbJson = (file: string) => { const b = readFileSync(new URL(`../public/${file}`, import.meta.url)); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()) as { nodes: { name: string; extras?: { hand?: string; weapon?: string } }[] }; };
 
 test('the shipped ranged model files are the pinned ones, and the provenance names each', () => {
