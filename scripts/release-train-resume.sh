@@ -24,9 +24,21 @@ logf="$state/release-train-${sha:0:8}.resume.log"; envf="${RELEASE_TRAIN_ENV:-$s
 echo "deploy.sh $sha in $dir (log $logf)"
 ( cd "$dir" && { [ -r "$envf" ] && set -a && . "$envf" && set +a; true; } && FRANKENDOM_RELEASE=1 ${RELEASE_TRAIN_DEPLOY:-bash scripts/deploy.sh} ) > "$logf" 2>&1
 rc=$?
-[ "$rc" -eq 0 ] || fail "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"
+# A release that is LIVE (a "Published <sha>" line) whose only failure is the previews step (deploy.sh exits 1 with "previews missing" after the verifier install; K6o2, 2026-10-21: an ssh timeout
+# in the preview step) is published WITH A WARNING: no stop file, the tail below still starts, and the previews are flagged on the PR. A red post-publish row still fails.
+previews_warn=""
+if [ "$rc" -ne 0 ]; then
+  if grep -q "^Published $sha" "$logf" && grep -q "previews missing" "$logf" && ! grep -q "^RED: post-publish rows" "$logf"; then previews_warn=1
+  else fail "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"; fi
+fi
 grep -q "^Published $sha" "$logf" || fail "deploy.sh exited 0 without a Published $sha line; log $logf"
+# The post-publish CI tail, exactly as the publisher starts it (release-train-publish.sh): a marker BEFORE the hold goes, the postcheck detached in its own session. A resume used to start none, so
+# its CI rows were never confirmed by anything (K6o2: run 39552152553 had no marker and nobody watching).
+tail_rows=$(sed -n -E "s/^post-publish CI tail: rows ([0-9,]+) for $sha .*/\1/p" "$logf" | head -n 1)
+[ -z "$tail_rows" ] || printf 'rev=%s\nrows=%s\nat=%s\n' "$sha" "$tail_rows" "$(date +%s)" > "$state/post-publish-pending-${sha:0:8}"
 rm -f "$hold" "$hold.stale-told"
+[ -z "$tail_rows" ] || ( nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- ${RELEASE_TRAIN_POSTCHECK:-bash "$(dirname "$0")/release-train-postcheck.sh"} "$sha" "$tail_rows" "$pr" > "$state/release-train-postcheck-${sha:0:8}.log" 2>&1 & )
 summary=$(sed -n "/^Published $sha/,\$p" "$logf" | head -n 40)
 gh pr comment "$pr" --body "$(printf 'release-train: RESUMED and published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$sha" "$summary")" >/dev/null 2>&1 || true
-echo "Published $sha (resumed)"
+[ -z "$previews_warn" ] || gh pr comment "$pr" --body "release-train: WARNING #$pr @${sha:0:9} is LIVE but deploy.sh's previews step failed (/preview/origins/ not 200 or /zone1/ not on this revision's bundle). Republish: VITE_SENTRY_RELEASE=$sha bash scripts/publish-origins-preview.sh from a checkout at $sha. Log $logf" >/dev/null 2>&1 || true
+echo "Published $sha (resumed)${previews_warn:+ WITH A PREVIEWS WARNING}"

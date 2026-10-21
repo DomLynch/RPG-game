@@ -306,9 +306,16 @@ previews_ok=1
 # Same rule as above: record the failure, raise it at the end, never skip the verifier install.
 if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
   rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
-  bash scripts/publish-origins-preview.sh || previews_ok=0
+  # A transient network drop (K6o2, 2026-10-21: "ssh: connect to host 49.12.7.18 port 22: Operation timed out" in this step) is retried before it counts: up to 3 publish attempts, 20 s apart.
+  for _pv_try in 1 2 3; do
+    if bash scripts/publish-origins-preview.sh; then previews_ok=1; break; fi
+    previews_ok=0; echo "origins preview: publish attempt $_pv_try of 3 failed" >&2; [[ "$_pv_try" == 3 ]] || sleep "${PREVIEW_RETRY_S:-20}"
+  done
   built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
-  live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+  for _pv_try in 1 2 3; do   # a short re-read: the page may be served a moment after the copy
+    live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+    [[ -n "$built_bundle" && "$built_bundle" == "$live_bundle" ]] && break; sleep "${PREVIEW_RETRY_S:-20}"
+  done
   if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
     echo "origins preview: /zone1/ serves '${live_bundle:-none}', this revision built '${built_bundle:-none}'" >&2
     previews_ok=0

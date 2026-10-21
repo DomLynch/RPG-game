@@ -26,6 +26,9 @@ if [ "$head" != "$live" ] && [ "$mismatch" = 0 ]; then echo "checkout $head is n
 [ -f .env.production.local ] || { echo ".env.production.local is missing: a guest-only preview would ship" >&2; exit 1; }
 sh scripts/refuse-unlisted-zones-env.sh . || exit 1   # no .env* may set VITE_UNLISTED_ZONES: env -u below clears only the process environment, vite also reads the files
 rm -rf artifacts/origins-preview
+# deploy.sh exports VITE_SENTRY_RELEASE=<revision> and the bundle embeds it (the `save` chunk, so every chunk hash above it): a hand republish without it built index-UafUUjJu.js where the deploy built
+# index-DvKwpY5i.js for the same commit (K6o2, 2026-10-21) and /zone1/ lost its Sentry release tag. Default it to the published revision so a hand run can never drift from the deploy build.
+export VITE_SENTRY_RELEASE="${VITE_SENTRY_RELEASE:-$head}"
 ( set -a; . ./.env.production.local; set +a; env -u VITE_UNLISTED_ZONES npx vite build --config origins/preview/vite.config.mjs >/dev/null )   # cleared AFTER the env file: this bundle is the live game (also published at /zone1/), and an unlisted zone must never open in it, whatever the shell or the env file says
 node scripts/check-built-account.mjs artifacts/origins-preview
 if [ "$dry" = 1 ]; then echo "dry run: built and checked $head, nothing copied"; exit 0; fi
