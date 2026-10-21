@@ -1359,6 +1359,22 @@
         ],
         "gate": null
       }
+    },
+    {
+      "name": "giant-salamander",
+      "added": "2026-10-21",
+      "encoded": "H4sIAAAAAAAAA3PzjmBOLUoUSM9MzCvRLU7MScxNzEtJLeLMyc9LLy7PL0phAAHm20wMDEpMDKNgFBACaTQDA-2zUTAKRsEAAEZayHLTzOTBKTtM_TsKRgFWwEEPwIUJRu0dKvYCALXzkzv9DAAA",
+      "server": null,
+      "expect": {
+        "v": 88,
+        "ticks": 546,
+        "outcome": "killed",
+        "hits": [
+          3,
+          1
+        ],
+        "gate": null
+      }
     }
   ]
 }
