@@ -49,6 +49,7 @@ test('the VPS gets a low-weight, niced scope and software GL; its own GL choice 
   assert.match(text, /^echo \$\$ > "\/tmp\/x\.pid"$/m);   // the exec keeps the pid, so this is the browser's pid
   assert.match(text, /^exec nice -n 10 systemd-run --scope --quiet --collect -p CPUWeight=20 -- "\/opt\/pw\/headless_shell" "\$@"$/m);   // Nice= is rejected for a scope, so nice wraps systemd-run
   assert.doesNotMatch(text, /Nice=/);
+  assert.match(text, /^unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR XDG_SESSION_ID$/m);   // without a session bus Chromium cannot hop into its own scope and shed the CPUWeight
   assert.deepEqual(reniceArgs([11, 12]), ['-n', '10', '-p', '11', '12']);
 });
 
@@ -64,9 +65,9 @@ test('threadIds walks a process and its descendants, every thread', () => {
 });
 
 test('off the VPS launchBrowser is exactly type.launch(options)', async () => {
-  const calls: unknown[] = [];
-  const fake = { name: () => 'chromium', launch: async (o: unknown) => { calls.push(o); return 'browser'; }, executablePath: () => '/x' };
+  const calls: unknown[] = [], fakeBrowser = { on: () => {} };
+  const fake = { name: () => 'chromium', launch: async (o: unknown) => { calls.push(o); return fakeBrowser; }, executablePath: () => '/x' };
   const opts = { headless: true, args: ['--a'] };
-  assert.equal(await launchBrowser(fake, opts), 'browser');   // this host is not the VPS (test hosts are the Mac, CI or HF)
+  assert.equal(await launchBrowser(fake, opts), fakeBrowser);   // off the VPS (the Mac, CI, HF) the options pass untouched; on the VPS they are wrapped, so only the browser is compared there
   if (!onVps()) assert.deepEqual(calls, [opts]);
 });

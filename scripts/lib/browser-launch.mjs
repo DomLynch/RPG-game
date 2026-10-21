@@ -25,7 +25,8 @@ export function vpsOptions(options, wrapperPath, row = rows) {
 /** Pure: the wrapper script text: the real browser, in a low-weight scope, niced. */
 export function wrapperText(realPath, pidFile, row = rows) {   // the wrapper execs, so its pid IS the browser's: Playwright no longer has browser.process(), the pid file is how the renice finds it
   const props = row.scopeProperties.map((p) => `-p ${p}`).join(' ');
-  return `#!/bin/sh\necho $$ > "${pidFile}"\nexec nice -n ${row.niceLevel} systemd-run --scope --quiet --collect ${props} -- "${realPath}" "$@"\n`;
+  // Chromium moves itself into its own app-org.chromium.Chromium-PID.scope through the user session's bus, which would leave our CPUWeight behind: no session bus, no escape.
+  return `#!/bin/sh\necho $$ > "${pidFile}"\nunset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR XDG_SESSION_ID\nexec nice -n ${row.niceLevel} systemd-run --scope --quiet --collect ${props} -- "${realPath}" "$@"\n`;
 }
 
 /** Pure: the renice call for a set of thread ids (root Chromium boosts its main and GPU processes to -8 on its own, so the scope's CPUWeight is the real cap and this is belt and braces). */
