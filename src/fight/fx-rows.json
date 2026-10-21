@@ -232,7 +232,7 @@
     { "id": "gfx.msaa-samples", "fields": {"value": 0} },
     { "id": "gfx.fxaa", "fields": {"value": 1} },
     { "id": "zone.shadow.map", "fields": {"value": 2048} },
-    { "id": "zone.shadow.phone-map", "fields": {"value": 512} },
+    { "id": "zone.shadow.phone-map", "fields": {"value": 1024} },
     { "id": "zone.shadow.phone-every", "fields": {"value": 1} },
     { "id": "zone.shadow.phone-hero-only", "fields": {"value": 1} },
     { "id": "zone.shadow.phone-creatures", "fields": {"value": 0} },
