@@ -227,7 +227,8 @@ test('the world keeps living during a fight: Zone 1\'s fight is the engine loop 
   assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
   assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
   assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
-  assert.match(view, /v\.group\.visible = !hiddenInFight\(s\.id, engaged\); v\.ring\.visible = v\.group\.visible && /);
+  assert.match(view, /v\.group\.visible = !hiddenInFight\(s\.id, engaged\) && !\(opts\.phone && !v\.model && !body && urlOfKey\(keyOf\(s\)\) && !\(driven\.has\(i\) \|\| m\.mode === 'aggro' \|\| s\.id === engaged\)\);/, 'the engaged foe is hidden from the walk (the duel draws it); #3520 adds only "a phone does not draw a creature whose body was deferred", and never for one that fights, hunts or is engaged');
+  assert.match(view, /v\.ring\.visible = v\.group\.visible && /, 'the ring follows the group');
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
