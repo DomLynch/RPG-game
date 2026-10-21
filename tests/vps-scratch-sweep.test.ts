@@ -678,3 +678,28 @@ test('named-path mode: a bind is only swept under a lane root, its SOURCE is arc
   assert.match(src, /sweep_fstab_drop "\$mp"/); assert.doesNotMatch(src, /umount[^\n]*(-f|-l|--force|--lazy)/, 'no forced or lazy unmount');
 });
 
+test('sweep_links_to: only DIRECT children of the given roots whose link text is exactly the target (not a resolving walk, not a lookalike, not a regular file or a dir)', { skip: process.platform !== 'linux' }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'sweep-links-')), work = join(root, 'work'), jobs = join(root, 'jobs'), t = '/mnt/HC_Volume_107195252/work/combat-er86';
+  try {
+    mkdirSync(work); mkdirSync(join(work, 'sub')); mkdirSync(jobs); writeFileSync(join(work, 'file'), 'x');
+    symlinkSync(t, join(work, 'combat-er86')); symlinkSync(t, join(jobs, 'also-er86'));
+    symlinkSync(`${t}-trunk`, join(work, 'combat-er86-trunk'));   // a lookalike target: not this one
+    symlinkSync(`${t}/`, join(work, 'slash'));                      // link text differs by a trailing slash: not exactly the target
+    symlinkSync(t, join(work, 'sub', 'nested'));                    // a grandchild: not a direct child
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_links_to "$@"', 'x', t, work, jobs], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.stdout.trim().split('\n').sort(), [join(jobs, 'also-er86'), join(work, 'combat-er86')]);
+    assert.equal(spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_links_to /nowhere /nonexistent-root; echo rc=$?'], { encoding: 'utf8' }).stdout.trim(), 'rc=0', 'an empty or missing root is no error');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('named-path mode: the dangling link left by a swept volume path is removed only after the target is gone, only if it still dangles, and is written to the manifest (Combat card, 2026-10-21)', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
+  assert.match(src, /case "\$target" in \/mnt\/HC_Volume_107195252\/work\/\*\|\/mnt\/HC_Volume_107195252\/dev-jobs\/\*\) dlinks=\$\(sweep_links_to "\$target" "\$WORK" "\$JOBS"\);; esac/, 'only a volume target looks for links, and only in the two lane roots');
+  const arch = src.indexOf('archive_then_delete "$target" named'), rm = src.indexOf('rm -f -- "$l"');
+  assert.ok(arch > 0 && rm > arch, 'the link goes after the archive-first delete');
+  assert.match(src, /elif \[ -e "\$target" \]; then say "link \$l: target \$target still exists[^"]*: link kept"/, 'the target still exists (archive failed or kept): the link stays');
+  assert.match(src, /elif \[ -L "\$l" \] && \[ ! -e "\$l" \]; then echo "UNLINKED \$l -> \$target" >> "\$MAN"; rm -f -- "\$l"/, 'removed only while it is a symlink that dangles, and logged in the manifest first');
+  assert.match(src, /would remove the link \$l \(-> \$target\)/, 'a dry run names it');
+});
+
