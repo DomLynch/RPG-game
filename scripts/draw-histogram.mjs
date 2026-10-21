@@ -41,6 +41,7 @@ try {
   await page.addInitScript(() => {
     const rec = { on: false, frame: 0, frames: [], fbo: null, vp: [0, 0], prog: 0, progs: new WeakMap(), nextProg: 1, switches: [], binds: [] };
     window.__draws = rec;
+    window.__scenes = []; window.__THREE_DEVTOOLS__ = new EventTarget(); window.__THREE_DEVTOOLS__.addEventListener('observe', (e) => { if (e.detail?.isScene) window.__scenes.push(e.detail); });   // three announces its Scene here
     const note = (kind, count, inst) => { if (!rec.on) return; (rec.frames[rec.frame] ??= []).push([kind, count, inst, rec.fbo ? 1 : 0, rec.vp[0], rec.vp[1], rec.prog]); };
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       const orig = (n) => proto[n];
@@ -61,6 +62,18 @@ try {
     await page.evaluate(() => { window.__draws.frames = []; window.__draws.frame = 0; window.__draws.on = true; });
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
     const got = await page.evaluate(() => { window.__draws.on = false; return { f: window.__draws.frames.slice(2, -2), sw: window.__draws.switches.slice(2, -2), bd: window.__draws.binds.slice(2, -2) }; });
+    // the scene graph census: every visible mesh (all ancestors visible), by class; meshes ~ scene draws (x material groups), unique materials, unique material types, how many cast shadows
+    const census = await page.evaluate(() => {
+      const scene = window.__scenes[0], classes = {}, add = (cls, o, mats) => { const c = (classes[cls] ??= { meshes: 0, instanced: 0, castShadow: 0, tris: 0, materials: new Set(), types: new Set(), textures: new Set(), names: {} });
+        c.meshes++; if (o.isInstancedMesh) c.instanced++; if (o.castShadow) c.castShadow++; c.tris += ((o.geometry?.index?.count ?? o.geometry?.attributes?.position?.count ?? 0) / 3) * (o.isInstancedMesh ? o.count : 1);
+        for (const m of mats) { c.materials.add(m.uuid); c.types.add(m.type + (m.skinning ? '' : '')); for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) if (m[k]) c.textures.add(m[k].uuid); }
+        const nm = (o.name || o.parent?.name || '?').replace(/[-_]?\d+$/, '').slice(0, 28); c.names[nm] = (c.names[nm] ?? 0) + 1; };
+      const walk = (o, hidden) => { if (!o.visible) return; if (o.isMesh || o.isSkinnedMesh) {
+          const mats = [].concat(o.material), cls = o.isSkinnedMesh ? 'skinned (creatures+hero)' : o.isInstancedMesh ? 'instanced (kit/fx)' : /^frontier|^camp/.test(o.name) ? 'dressing merged' : 'other mesh'; add(cls, o, mats); }
+        for (const ch of o.children) walk(ch); };
+      if (scene) walk(scene);
+      return Object.fromEntries(Object.entries(classes).map(([k, c]) => [k, { meshes: c.meshes, instanced: c.instanced, castShadow: c.castShadow, tris: Math.round(c.tris), uniqueMaterials: c.materials.size, materialTypes: [...c.types], uniqueTextures: c.textures.size, topNames: Object.entries(c.names).sort((a, b) => b[1] - a[1]).slice(0, 8) }]));
+    });
     const full = got.f.filter(Boolean), n = full.length || 1, groups = {}, shapes = {}, uniq = {};
     for (const f of full) for (const [kind, count, inst, fbo, vw, vh, prog] of f) {
       (uniq[fbo ? 'offscreen' : 'screen'] ??= new Set()).add(prog);
@@ -69,7 +82,7 @@ try {
     }
     const top = Object.entries(shapes).map(([k, v]) => [k, +(v / n).toFixed(2)]).sort((a, b) => b[1] - a[1]);
     const label = (k) => { const m = /count=(\d+) inst=(\d+)/.exec(k); return m && expected.has(+m[1]) && m[2] === '1' ? expected.get(+m[1]) : (m && +m[2] > 1 ? 'instanced (kit/crowd/fx)' : ''); };
-    result.scenarios[name] = { frames: n, ...extra, uniqueProgramsByTarget: Object.fromEntries(Object.entries(uniq).map(([k, v]) => [k, v.size])), programSwitchesPerFrame: +(got.sw.reduce((s, f) => s + (f?.length ?? 0), 0) / n).toFixed(1), textureBindsPerFrame: +(got.bd.reduce((s, v) => s + (v || 0), 0) / n).toFixed(1), drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
+    result.scenarios[name] = { frames: n, ...extra, census,uniqueProgramsByTarget: Object.fromEntries(Object.entries(uniq).map(([k, v]) => [k, v.size])), programSwitchesPerFrame: +(got.sw.reduce((s, f) => s + (f?.length ?? 0), 0) / n).toFixed(1), textureBindsPerFrame: +(got.bd.reduce((s, v) => s + (v || 0), 0) / n).toFixed(1), drawsPerFrameByTarget: Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, +(v / n).toFixed(1)])), top: top.slice(0, 40).map(([k, v]) => ({ shape: k, perFrame: v, label: label(k) })),
       staticDressingMergedPerFrame: +top.filter(([k]) => label(k).startsWith('frontier')).reduce((s, [, v]) => s + v, 0).toFixed(1), instancedPerFrame: +top.filter(([k]) => /inst=(?!1\b)/.test(k)).reduce((s, [, v]) => s + v, 0).toFixed(1) };
   };
   await sample('opening-view', { at: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })) });
@@ -84,5 +97,5 @@ try {
     await sample('fight-camera', { target: target.id, infight: await page.evaluate(() => document.body.classList.contains('infight')) });
   }
   fs.writeFileSync(outFile, JSON.stringify(result, null, 1));
-  for (const [name, s] of Object.entries(result.scenarios)) console.log(name, JSON.stringify({ frames: s.frames, byTarget: s.drawsPerFrameByTarget, programs: s.uniqueProgramsByTarget, switches: s.programSwitchesPerFrame, binds: s.textureBindsPerFrame, staticDressingMergedPerFrame: s.staticDressingMergedPerFrame, instancedPerFrame: s.instancedPerFrame, infight: s.infight }));
+  for (const [name, s] of Object.entries(result.scenarios)) console.log(name, JSON.stringify({ frames: s.frames, byTarget: s.drawsPerFrameByTarget, census: JSON.stringify(s.census), programs: s.uniqueProgramsByTarget, switches: s.programSwitchesPerFrame, binds: s.textureBindsPerFrame, staticDressingMergedPerFrame: s.staticDressingMergedPerFrame, instancedPerFrame: s.instancedPerFrame, infight: s.infight }));
 } finally { await browser.close(); server.close(); }
