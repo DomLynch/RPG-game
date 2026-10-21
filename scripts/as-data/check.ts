@@ -169,8 +169,14 @@ try {
   // The half-extent class (Auditor's rule, Lead-approved 2026-10-18): `<extent> / 2`, the centre or half-size of a width / depth / size, is a geometric identity nobody tunes. ONLY the literal 2, ONLY the `/ 2` form
   // (`* 0.5` stays counted, so neither can be traded for the other), and ONLY when the operand's last name is on this CLOSED list (a member or a bare identifier: `z.width / 2`, `plan.depth / 2`, `size / 2`).
   // Halving a range, a reach or a timing (`aggro / 2`, `windup / 2`) is a design choice and stays counted. Growing the list is a Lead/Strategy ruling, not a PR's choice.
-  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent / 2)';
-  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent)\s*\/$/;
+  // arc and ring joined the list on Lead's ruling (2026-10-21, Dom's audit): the half-span of an angular arc or a ring's diameter (`b.arc / 2`, `V.ring / 2`), both row values.
+  const HALF_EXTENT_CLASS = 'math: 2 as a half-extent (width/depth/height/size/length/w/d/h/span/extent/arc/ring / 2)';
+  const HALF_EXTENT_BEFORE = /(?:^|[^\w$.])(?:[\w$]+\.)*(?:width|depth|height|size|length|w|d|h|span|extent|arc|ring)\s*\/$/;
+  // Two more named maths classes (Lead's ruling 2026-10-21, Dom's audit), each as narrow as the sites that asked for it:
+  // degrees <-> radians: 180 straight against Math.PI (`(deg * Math.PI) / 180`, `Math.PI / 180`, `* 180 / Math.PI`);
+  // a git sha's display: `.slice(0, N)` of a sha / revision / release / commit / hash, and a full sha's `.length === 40` on a line that names one.
+  const DEGREES_BEFORE = /Math\.PI\s*\)?\s*\/$/, DEGREES_AFTER = /^\/\s*Math\.PI\b/;
+  const SHA_SLICE_BEFORE = /\b(?:sha|rev(?:ision)?|release|commit|hash|head)\w*(?:\([^()]*\))?\.slice\(\s*0\s*,$/i, SHA_LINE = /\b(?:sha|hex|revision|release|commit)\b/i;
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -186,6 +192,9 @@ try {
     if (text === '-1') return /(?:===|!==|==|!=|<=|>=|<|>)$/.test(before) || /\b(?:indexOf|lastIndexOf|findIndex|findLastIndex)\b/.test(line) ? '-1 sentinel (compared, or beside indexOf/findIndex)' : null;
     if (bitOp) return 'bits (beside & | ^ << >>)';
     const beside = arithBefore.test(before) || arith.test(after);
+    if (text === '180' && (DEGREES_BEFORE.test(before) || DEGREES_AFTER.test(after))) return 'math: degrees <-> radians (180 against Math.PI)';
+    if (SHA_SLICE_BEFORE.test(before)) return 'display: a short git sha (.slice(0, N) of a sha/revision/release)';
+    if (text === '40' && /\.length\s*[!=]==?$/.test(before) && SHA_LINE.test(line)) return 'format: a full git sha is 40 hex characters';
     if (text === '2') {
       if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
       if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
@@ -201,7 +210,9 @@ try {
   };
   const excludedInline: Record<string, number> = {};
   const inlines = run('inline-number.yml', [...scope.files, ...scope.dirs]).flatMap((m) => { const cat = excludedCategory(m); if (cat) { excludedInline[cat] = (excludedInline[cat] ?? 0) + 1; return []; } return [siteOf(m, m.text.replace(/\s+/g, ''))]; }).sort(bySite);
-  // GAMEPLAY (the gate, target 0 new) and NON-GAMEPLAY (tracked, not blocking): gameplay is the DEFAULT; presentation is the explicit file list in the scope file.
+  // GAMEPLAY and NON-GAMEPLAY are counted apart (gameplay is the DEFAULT; presentation is the explicit file list in the scope file), and since Dom's audit
+  // (2026-10-21) a NEW site of either is red under --gate: "every game number lives in a data row" has no presentation exemption. The existing presentation
+  // backlog stays on the ratchet (inline-number-baseline.json), so the count can only come down.
   const isPresentation = (f: string) => presentationFiles.has(f);
   const { fresh: newInlines, lowered: loweredInlines } = ratchet('inline-number', inlines, (s) => s.text);
   const gameplayInlines = inlines.filter((s) => !isPresentation(s.file)), presentationInlines = inlines.filter((s) => isPresentation(s.file));
@@ -240,8 +251,8 @@ try {
     for (const c of newConstExprs) console.log(`NEW const expression ${c.file}:${c.line} ${c.text}: a tunable written as arithmetic is content in code; make it a row (or a named exempt) instead`);
     for (const c of newConstObjects) console.log(`NEW object const ${c.file}:${c.line} ${c.text}: a table of numbers in code; make it rows (or a named exempt) instead`);
     for (const c of newGameplayInlines) console.log(`NEW inline number ${c.file}:${c.line} ${c.text}: a number in game logic is a tuning in code; make it a row (or a named exempt) instead`);
-    for (const c of newPresentationInlines) console.log(`new (tracked, not blocking) presentation inline number ${c.file}:${c.line} ${c.text}`);
-    console.log(`as-data inline numbers: GAMEPLAY ${gameplayInlines.length} (new ${newGameplayInlines.length}, the gate, target 0) | NON-GAMEPLAY ${presentationInlines.length} (new ${newPresentationInlines.length}, tracked, not blocking)`);
+    for (const c of newPresentationInlines) console.log(`NEW presentation inline number ${c.file}:${c.line} ${c.text}: a look or timing tuned in code; make it a row (fx-rows.json and kin) or a named exempt instead`);
+    console.log(`as-data inline numbers: GAMEPLAY ${gameplayInlines.length} (new ${newGameplayInlines.length}, the gate, target 0) | NON-GAMEPLAY ${presentationInlines.length} (new ${newPresentationInlines.length}, the gate, target 0; the backlog only comes down)`);
     for (const c of constExprExcluded) console.log(`as-data const expressions EXCLUDED (not counted, geometry not a tunable): ${c.class}: ${c.count}`);
     for (const [cat, n] of Object.entries(excludedInline).sort((a, b) => b[1] - a[1])) console.log(`as-data inline numbers EXCLUDED (not counted, not gameplay): ${cat}: ${n}`);
     for (const s of allowedBranchIds) console.log(`allowed-branch-id ${s.file}:${s.line} ${s.text}  (${s.reason})`);
@@ -255,5 +266,5 @@ try {
     console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps} (new ${summary.newMaps}; the rest are the known backlog in map-baseline.json), inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json), const expressions ${summary.constExprs} (new ${summary.newConstExprs}; const-expr-baseline.json), object consts ${summary.constObjects} (new ${summary.newConstObjects}; const-object-baseline.json), inline numbers in game logic ${summary.inlineNumbers} (new ${summary.newInlineNumbers}; inline-number-baseline.json), id tables in code ${summary.idTables} (new ${summary.newIdTables}; id-table-baseline.json), branches on other content ids ${summary.branchIds} (new ${summary.newBranchIds}; branch-id-baseline.json)`);
   }
   if (stale.length || staleVerbs.length || staleTunables.length || lowered.length || loweredMaps.length || loweredConstExprs.length || loweredConstObjects.length || loweredInlines.length || loweredIdTables.length || loweredBranchIds.length || staleIdAllow.length || staleBranchAllow.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
-  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length || newConstExprs.length || newConstObjects.length || newGameplayInlines.length || newIdTables.length || newBranchIds.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map or inline clamp literal in code, or a debt past its sunset, is red
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length || newConstExprs.length || newConstObjects.length || newGameplayInlines.length || newPresentationInlines.length || newIdTables.length || newBranchIds.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map, inline clamp literal or inline number (gameplay or presentation) in code, or a debt past its sunset, is red
 } finally { rmSync(dir, { recursive: true, force: true }); }
