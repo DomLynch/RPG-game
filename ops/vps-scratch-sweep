@@ -35,6 +35,7 @@ sweep_kind() {
   case "$p" in */|*//*|*/./*|*/.) return 0;; esac   # a trailing slash makes `[ -L x/ ]` follow the link and `rm -rf x/` empty its TARGET (Auditor, #2624, reproduced on the VPS)
   case "$p" in
     /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
+    /mnt/HC_Volume_107195252/work/*|/mnt/HC_Volume_107195252/dev-jobs/*) echo lane;;   # the 200 GB volume's copies of the two job roots (Lead + Strategy 2026-10-21, after the root disk hit 95%): a moved dir is a symlink at its old path, and --path resolves symlinks, so its real path must be an allowed root too
     /var/tmp/be-*) [ "$(dirname "$p")" = /var/tmp ] && echo aged;;
     /tmp/hooks-*|/tmp/cq-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;   # hooks-* review trees, cq-* the Auditor's worktrees (Lead 2026-10-13: standing root)
     /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
