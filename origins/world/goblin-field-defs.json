@@ -62,7 +62,6 @@
   ],
   "looks": [
     { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] },
-    { "id": "town-a", "fog": "#d2a272", "fogDensity": 0.012, "hemiSky": "#9ab0d8", "hemiGround": "#5a4636", "hemiIntensity": 1.3, "sunColor": "#ffc078", "sunIntensity": 5.0, "sunPos": [-24, 9, -15], "exposure": 1.3, "ground": [1.0, 0.97, 0.92] },
     { "id": "reach-plate", "fog": "#5b5478", "fogDensity": 0.013, "hemiSky": "#7a84d0", "hemiGround": "#2e2638", "hemiIntensity": 1.1, "sunColor": "#b4c0ff", "sunIntensity": 4.2, "sunPos": [-24, 13, -15], "exposure": 1.25, "ground": [0.78, 0.78, 0.92] }
   ],
   "grounds": [
