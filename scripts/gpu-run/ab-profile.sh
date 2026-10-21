@@ -13,10 +13,14 @@ for T in before after; do
   (cd "/tmp/wt-$T" && npx vite build --minify false --config origins/preview/vite.config.mjs > "/tmp/b-$T.log" 2>&1) || { tail -20 "/tmp/b-$T.log"; exit 1; }
 done
 cp /tmp/zone-profile.src.mjs ./zone-profile-run.mjs
+for REP in 1 2; do
 for PH in walk fight; do
   for T in before after; do
-    echo "######## $T $PH rate 4"
-    REAL_GPU=1 CPU_RATE=4 PHASE=$PH DEVICE=iphone WINDOW_MS=30000 TOP=12 node ./zone-profile-run.mjs "/tmp/wt-$T" "$T-$PH" artifacts/ab-profile 2>&1 | grep -E "^(RENDERER|PROFILE|SELF|  +[0-9]+ ms)" | head -16
+    echo "######## rep $REP $T $PH rate 4"
+    REAL_GPU=1 CPU_RATE=4 PHASE=$PH DEVICE=iphone WINDOW_MS=30000 TOP=45 node ./zone-profile-run.mjs "/tmp/wt-$T" "$T-$PH-r$REP" artifacts/ab-profile > "artifacts/ab-profile/out-$T-$PH-r$REP.txt" 2>&1
+    grep -E "^(RENDERER|PROFILE|CASTERS)" "artifacts/ab-profile/out-$T-$PH-r$REP.txt"
+    grep -E "WebGLShadowMap.render|WebGLRenderer.render |setProgram|updateMatrixWorld|renderObject @|projectObject|walkLoop|  step @" "artifacts/ab-profile/out-$T-$PH-r$REP.txt" | head -14
   done
+done
 done
 echo ALLDONE

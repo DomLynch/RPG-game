@@ -49,6 +49,7 @@ const m = FIGHT_F ? await page.evaluate(() => { const x = window.originsPreview.
 if (!FIGHT_F) { /* no fight phase */ } else if (m) { await page.evaluate((q) => { window.originsPreview.place(q.x, q.z - 2.5, 0); window.originsPreview.tapMob(q.id); }, m); const end = Date.now() + WINDOW_MS * FIGHT_F; while (Date.now() < end) { await page.evaluate(() => window.originsPreview.press?.('light')); await new Promise((r) => setTimeout(r, 400)); } }
 else await new Promise((r) => setTimeout(r, WINDOW_MS * FIGHT_F));
 const { profile } = await cdp.send('Profiler.stop');
+console.log('CASTERS', JSON.stringify(await page.evaluate(() => { const r = window.originsPreview.shadowCasters?.(); return r ? { groups: r.length, meshes: r.reduce((n, x) => n + x.meshes, 0), tris: r.reduce((n, x) => n + x.tris, 0) } : null; })));
 console.log('KITS', JSON.stringify(await page.evaluate(() => window.originsPreview.remoteKitsWarm?.() ?? null)).slice(0, 1500));
 const long = await page.evaluate((n) => window.__long.slice(n), longBefore);
 const gaps = (await page.evaluate(() => window.__gaps.slice(1))).sort((a, b) => a - b), fpsAt = (p) => (gaps.length ? Math.round(10 * 1000 / gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))]) / 10 : null), medianFps = fpsAt(0.5), p5Fps = fpsAt(0.95);
