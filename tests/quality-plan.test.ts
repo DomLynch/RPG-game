@@ -10,7 +10,7 @@ const jobBlock = (name: string) => { const i = text.indexOf(`\n  ${name}:\n`); a
 const gameRe = (() => { const m = /GAME_RE='([^']+)'/.exec(jobBlock('plan')); assert.ok(m, 'plan job defines GAME_RE'); return new RegExp(m[1]); })();
 
 test('the heavy jobs wait for the plan and run on a PR only when it says the diff touches game paths; push always runs them', () => {
-  for (const job of ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
+  for (const job of ['load-time', 'load-time-zone1', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
     const block = jobBlock(job);
     assert.match(block, /\n {4}needs: \[plan, static\]\n/, `${job} needs plan (and static first: tests/ci-static-first.test.ts)`);
     assert.match(block, /needs\.plan\.result == 'success'/, `${job} runs only after its plan`);
@@ -29,7 +29,7 @@ test('GAME_RE: game, asset, gate and net paths run the heavy jobs; docs, tests, 
 
 test('every script a gated job runs, plus everything it imports with a relative path, matches GAME_RE (a change to it must not skip the gate)', () => {
   const roots = new Set<string>();
-  for (const job of ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
+  for (const job of ['load-time', 'load-time-zone1', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
     for (const m of jobBlock(job).matchAll(/(scripts\/[\w./-]+\.(?:mjs|sh))/g)) roots.add(m[1]);
   }
   for (const f of readdirSync('scripts')) if (/-polish-check\.mjs$/.test(f)) roots.add(`scripts/${f}`);   // asset-rows runs `scripts/*-polish-check.mjs`

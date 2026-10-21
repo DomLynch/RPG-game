@@ -64,7 +64,7 @@ const schedule = (file: string, github: Ctx, results: Record<string, string> = {
 const pr = (action: string, labels: string[] = [], extra: Record<string, unknown> = {}): Ctx =>
   ({ event_name: 'pull_request', head_ref: 'deploy-b/x', event: { action, pull_request: { number: 7, draft: false, labels: labels.map(name => ({ name })) }, ...extra } });
 const Q = '.github/workflows/quality.yml', U = '.github/workflows/unit-ci.yml', R = '.github/workflows/release-checks.yml';
-const BROWSER = ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page'];
+const BROWSER = ['load-time', 'load-time-zone1', 'browser', 'net-engines', 'asset-rows', 'duel-two-page'];
 const game = { plan: { game: 'true', browser: 'true' } };
 // Actions resolves github.event.pull_request.labels.*.name; the files use it only inside contains(...)
 const withLabelNames = (c: Ctx) => { const p = c.event.pull_request as { labels?: { name: string }[] } | undefined; if (p?.labels) Object.assign(p.labels, { '*': { name: p.labels.map(l => l.name) } }); return c; };
@@ -153,7 +153,7 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   const push: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} };
   const ran = schedule(Q, push, {}, game);
   assert.ok(!ran.has('static'));
-  for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
+  for (const j of ['quality-shard', 'quality', 'load-time', 'load-time-zone1', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
   const unit = schedule(U, push);
   assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
   assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
