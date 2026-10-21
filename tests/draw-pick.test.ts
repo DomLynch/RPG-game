@@ -35,3 +35,18 @@ test("fetchKinds: before [zone ready] a phone fetches only its nearest creatures
   assert.deepEqual(fetchKinds(field, hero, 60, true, 0), [], 'a first-K of 0 fetches nothing before ready');
   assert.deepEqual(fetchKinds([], hero, 60, true, 3), []);
 });
+
+test('fetchKinds: a creature within its own reach (aggro radius + margin) is fetched before ready even when it is not among the nearest (an invisible attacker is a no-go)', () => {
+  const field = [{ x: 3, z: 0, kind: 'goblin@L4', reach: 7 }, { x: 11, z: 0, kind: 'salamander', reach: 12 }, { x: 20, z: 0, kind: 'troll', reach: 12 }];
+  assert.deepEqual(fetchKinds(field, hero, 60, true, 1), ['goblin@L4', 'salamander'], 'the salamander is 11 m away with a 12 m reach: fetched now; the troll at 20 m waits');
+  assert.deepEqual(fetchKinds(field, hero, 60, true, 0), ['goblin@L4', 'salamander'], 'first-K 0 still fetches what can reach him');
+  assert.deepEqual(fetchKinds(field, hero, 60, false, 1), ['goblin@L4', 'salamander', 'troll'], 'after ready: everything in range');
+});
+
+test('the page never draws a creature without a body while it fights, hunts or is engaged, and the reach margin is a row', () => {
+  const src = readFileSync(new URL('../origins/preview/mobs-view.ts', import.meta.url), 'utf8');
+  assert.match(src, /!\(driven\.has\(i\) \|\| m\.mode === 'aggro' \|\| s\.id === engaged\)\);/, 'the invisible-until-warmed rule excludes a creature that fights, hunts or is engaged (its capsule stays, as before)');
+  assert.match(src, /reach: specs\[i\]!\.aggro \+ fxNum\('mob-view\.preready-margin'\)/);
+  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string; fields: { value: number } }[] }).fxRows;
+  assert.equal(rows.find((r) => r.id === 'mob-view.preready-margin')?.fields.value, 6);   // metres past a creature's aggro radius within which its body is fetched before [zone ready]; deliberate (#3520)
+});

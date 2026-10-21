@@ -4,10 +4,12 @@
 export type Pos = { x: number; z: number };
 
 /** The body kinds to fetch this frame, nearest creature first, each once. A phone before [zone ready] fetches only the kinds of its `firstK` nearest in-range creatures (the rest of the near kinds would put their bodies and compiles in front of the ready, Dom: the phone is slow); once the zone is ready every in-range kind is fetched, closest first. */
-export function fetchKinds(creatures: readonly (Pos & { kind: string })[], hero: Pos, range: number, preReady: boolean, firstK: number): string[] {
-  const near = creatures.map((c, i) => ({ i, kind: c.kind, d: Math.hypot(c.x - hero.x, c.z - hero.z) })).filter((r) => r.d <= range).sort((a, b) => a.d - b.d || a.i - b.i);
+export function fetchKinds(creatures: readonly (Pos & { kind: string; reach?: number })[], hero: Pos, range: number, preReady: boolean, firstK: number): string[] {
+  const near = creatures.map((c, i) => ({ i, kind: c.kind, d: Math.hypot(c.x - hero.x, c.z - hero.z), reach: c.reach })).filter((r) => r.d <= range).sort((a, b) => a.d - b.d || a.i - b.i);
   const out: string[] = [];
-  for (const r of preReady ? near.slice(0, Math.max(0, firstK)) : near) if (!out.includes(r.kind)) out.push(r.kind);
+  // Before ready: the nearest `firstK` creatures, plus ANY creature within its own `reach` (its aggro radius and a margin): one that can notice or fight the hero is never left without its body.
+  const first = preReady ? near.filter((r, n) => n < Math.max(0, firstK) || (r.reach !== undefined && r.d <= r.reach)) : near;
+  for (const r of first) if (!out.includes(r.kind)) out.push(r.kind);
   return out;
 }
 
