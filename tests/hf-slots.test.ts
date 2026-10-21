@@ -80,7 +80,7 @@ test('CLI: a lane job prints the tier line and the job id and goes in the lane l
   // LAUNCH_TARGET=hf: on a Mac that can reach the VPS the unit command would otherwise run the real suite there (waterfall target vps).
   const unit = cli(['unit', sha], live('cpu-upgrade', 3), { LAUNCH_UNIT_ANY: '1', LAUNCH_TARGET: 'hf' });
   assert.equal(unit.code, 0, unit.err); assert.match(unit.out, /^tier=hf-cpu slot=4 queued=0s/);
-  const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-medium', 2)]);
+  const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-small', 2), ...live('t4-medium', 3)]);   // slots count per flavor: two small are live (ours is the 3rd), the medium ones are another pool
   assert.equal(gfx.code, 0, gfx.err); assert.match(gfx.out, /^tier=hf-t4 slot=3 queued=0s/);
 });
 
