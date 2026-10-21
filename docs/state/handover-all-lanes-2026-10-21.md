@@ -4,7 +4,7 @@ Paste this into the new session, then say which lane you are. Every lane's own h
 
 ## Live and in flight
 - Live: K6q7 `29fb58b5d` PUBLISHED 15:11, verified by Strategy's curl 15:16 (RV87 fairer fights, pace flag, clamp-rate counter, sweep tool, t4-small default, setsid test, sweep WARN). Eight releases today. The publish had stopped once on a VPS-to-GitHub outage and was resumed from the box's local store; work-1880's origin is restored to GitHub; `deploy_hold` and the stop file are gone; presence healthy.
-- OPEN CI TAIL, nobody watching: run 39590338326 (rows 10,11,38,39,46 at 29fb58b5d) was still in progress at 15:16 and the resume wrote no postcheck marker. First lane up reads `gh run view 39590338326 --repo DomLynch/RPG-game --json status,conclusion`; green = tail trusted; red = Lead/Strategy decide (no trust lines).
+- CI TAIL CLOSED 15:37 (Strategy, on Dom's own account again): run 39590338326 (rows 10,11,38,39,46 at 29fb58b5d) is COMPLETED / SUCCESS; the tail is trusted, no red owed. 15:4x: all nine lane sessions on this account re-briefed by message with this file; Strategy re-armed the 15-min sweep cron, keep-awake and the train monitor. OpenTrident - Dev has no session on this account yet (Dom creates it on ~/Developer/opentrident-steam; its brief is HANDOFF-latest.md top section).
 - K6q8 order (Lead): #3526 guards, #3527 Backend mirror-first + 30 s GitHub probes (then remove the TEMP hosts pin `140.82.121.3 github.com`, backup `/root/hosts.bak-2026-10-21`), #3520 creature-body defer, #3525 road tops, #3529 Web labels cache, #3528 RV88 salamander. Each needs "Auditor: PASS @head9" then Lead's candidate:pass.
 
 ## Rulings today (all in Strategy memory)
