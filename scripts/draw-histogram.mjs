@@ -44,7 +44,7 @@ try {
     window.__scenes = []; window.__THREE_DEVTOOLS__ = new EventTarget(); window.__THREE_DEVTOOLS__.addEventListener('observe', (e) => { if (e.detail?.isScene) window.__scenes.push(e.detail); });   // three announces its Scene here
     rec.cur = null; rec.agg = {}; rec.W = 0; rec.H = 0;
     // per-draw trace: which pass (main / shadow / post), which mesh (its name path), which material and program; set by each mesh's onBeforeRender (tagMeshes), read by the draw / useProgram / bindTexture hooks
-    const label = (o) => o.__lbl ??= `${o.isSkinnedMesh ? 'skinned' : o.isInstancedMesh ? 'instanced' : 'mesh'}:${[o.name, o.parent?.name, o.parent?.parent?.name, o.parent?.parent?.parent?.name].filter(Boolean).slice(0, 3).join('<')}`;
+    const label = (o) => o.__lbl ??= `${o.isSkinnedMesh ? 'skinned' : o.isInstancedMesh ? 'instanced' : o.isPoints ? 'points' : o.isLine ? 'line' : o.isSprite ? 'sprite' : 'mesh'}:${[o.name, o.parent?.name, o.parent?.parent?.name, o.parent?.parent?.parent?.name].filter(Boolean).slice(0, 3).join('<')}`;
     const pass = () => !rec.fbo ? 'screen' : rec.vp[0] === rec.vp[1] ? 'shadow' : (rec.vp[0] === rec.W && rec.vp[1] === rec.H ? 'main' : 'post');
     const slot = () => { const k = `${pass()}|${rec.cur ? label(rec.cur.o) : 'untagged'}`; return (rec.agg[k] ??= { draws: 0, switches: 0, binds: 0, progs: new Set(), mats: new Set() }); };
     rec.slot = slot;
@@ -66,8 +66,9 @@ try {
   await page.waitForTimeout(4000);
   const sample = async (name, extra = {}) => {
     await page.evaluate(([W, H]) => { const rec = window.__draws; rec.W = W; rec.H = H; rec.agg = {}; rec.switches = []; rec.binds = [];
-      const tag = (o) => { if (o.isMesh && !o.__tagged) { o.__tagged = true; const prev = o.onBeforeRender; o.onBeforeRender = function (r, s, c, g, m, grp) { rec.cur = { o: this, m: (m?.name || m?.type || '?') + '#' + (m?.uuid || '').slice(0, 6) }; return prev.call(this, r, s, c, g, m, grp); }; } for (const ch of o.children) tag(ch); };
+      const tag = (o) => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !o.__tagged) { o.__tagged = true; const prev = o.onBeforeRender; o.onBeforeRender = function (r, s, c, g, m, grp) { rec.cur = { o: this, m: (m?.name || m?.type || '?') + '#' + (m?.uuid || '').slice(0, 6) }; return prev.call(this, r, s, c, g, m, grp); }; const prevS = o.onBeforeShadow; o.onBeforeShadow = function (r, obj, cam, sc, g, m, grp) { rec.cur = { o: this, m: 'shadow:' + (m?.type || '?') }; return prevS.call(this, r, obj, cam, sc, g, m, grp); }; } for (const ch of o.children) tag(ch); };
       for (const s of window.__scenes) tag(s);
+      clearInterval(window.__retag); window.__retag = setInterval(() => { for (const s of window.__scenes) tag(s); }, 160);   // meshes spawned after the first walk (creatures, fx) get tagged within ~10 frames
       rec.frames = []; rec.frame = 0; rec.on = true; }, [w, h]);
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
     const trace = await page.evaluate(() => { const rec = window.__draws, n = rec.frame; return Object.entries(rec.agg).map(([k, s]) => ({ key: k, drawsPerFrame: +(s.draws / n).toFixed(2), switchesPerFrame: +(s.switches / n).toFixed(2), bindsPerFrame: +(s.binds / n).toFixed(2), programs: s.progs.size, materials: s.mats.size })).sort((a, b) => b.switchesPerFrame - a.switchesPerFrame).slice(0, 60); });
