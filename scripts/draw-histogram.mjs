@@ -77,6 +77,12 @@ try {
     await page.waitForFunction((n) => window.__draws.frame >= n, FRAMES + 5, { timeout: 300000 });
     const trace = await page.evaluate(() => { const rec = window.__draws, n = rec.frame; return Object.entries(rec.agg).map(([k, s]) => ({ key: k, drawsPerFrame: +(s.draws / n).toFixed(2), switchesPerFrame: +(s.switches / n).toFixed(2), bindsPerFrame: +(s.binds / n).toFixed(2), programs: s.progs.size, materials: s.mats.size })).sort((a, b) => b.switchesPerFrame - a.switchesPerFrame).slice(0, 60); });
     extra.untagged = await page.evaluate(() => { const rec = window.__draws, n = rec.frame; return Object.entries(rec.untagged ?? {}).map(([k, v]) => ({ key: k, perFrame: +(v.n / n).toFixed(2) })).sort((a, b) => b.perFrame - a.perFrame).slice(0, 40); });   // untagged draws by shape + program + call stack (needs an unminified build)
+    const counts = [...new Set(extra.untagged.map((t) => /^(?:main|screen) e count=(\d+)/.exec(t.key)?.[1]).filter(Boolean).map(Number))];
+    extra.suspects = await page.evaluate((cs) => {   // the scene's meshes whose index count matches an untagged indexed draw: who are they
+      const out = []; const chain = (o) => { const a = []; for (let p = o; p && a.length < 5; p = p.parent) a.push(p.name || p.type); return a.join('<'); };
+      const w = (o, vis) => { vis = vis && o.visible; if ((o.isMesh) && cs.includes(o.geometry?.index?.count)) out.push({ count: o.geometry.index.count, chain: chain(o), mat: [].concat(o.material).map((m) => `${m.type}:${m.name || ''}:${m.blending}:${m.transparent ? 't' : 'o'}`).join('|'), visible: vis, tagged: !!o.__tagged, castShadow: o.castShadow, ud: Object.keys(o.userData || {}).join(',') }); o.children.forEach((c) => w(c, vis)); };
+      window.__scenes.forEach((s) => w(s, true)); return out.slice(0, 60);
+    }, counts);
     extra.seq = await page.evaluate(() => window.__draws.seq);   // one frame's main-pass draw order: label, program, renderOrder, transparent, blending, depthTest, material
     const got = await page.evaluate(() => { window.__draws.on = false; return { f: window.__draws.frames.slice(2, -2), sw: window.__draws.switches.slice(2, -2), bd: window.__draws.binds.slice(2, -2) }; });
     // the scene graph census: every visible mesh (all ancestors visible), by class; meshes ~ scene draws (x material groups), unique materials, unique material types, how many cast shadows
