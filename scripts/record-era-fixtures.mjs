@@ -49,6 +49,7 @@ export const RECIPES = {
   skill2: { skill2: 'stomp' },
   meleeSpecial: { specials: true, skill: 'lunge' },   // RV79 (Auditor, BULK-CS note 1): a fight that PRESSES a melee special, so the era fixture fires the sandbox's windup / reach / react rows (the plain recipe never does)
   'cave-troll': { opponent: 'cave-troll', level: 3 },
+  'giant-salamander': { opponent: 'giant-salamander', level: 3 },   // RV88: the newest REACH bump names the salamander, so a recipe on it carries the ceiling stamp the unit run (era off) checks
 };
 const MAX_TICKS = 6000;
 const script = (t, name) => ({ move: { x: 0, z: t < 90 ? 0.8 : 0, yaw: 0, run: false }, action: name === 'meleeSpecial' && t % 90 === 45 ? 'skill' : t % 30 === 15 ? 'light' : t % 240 === 100 ? 'skill2' : null, guard: t % 120 > 100, lock: true });   // the melee-special recipe presses its pick (slot a) every 90 ticks; every other recipe is the script it always was

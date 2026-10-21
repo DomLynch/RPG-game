@@ -23,7 +23,7 @@ function heavy(holdTicks: number, ticks = 500): PitEvent[] {
 const hit = (evs: PitEvent[]): PitEvent | undefined => evs.find((e) => e.type === 'Hit');
 
 test('a held heavy in the world chambers and charges: it lands later and harder than the uncharged heavy', () => {
-  assert.equal(RECORD_VERSION, 87);
+  assert.equal(RECORD_VERSION, 88);
   const tap = hit(heavy(0)), held = hit(heavy(RULES.charge.max + 40));
   assert.ok(tap?.damage && held?.damage, `both heavies land (tap ${JSON.stringify(tap)}, held ${JSON.stringify(held)})`);
   assert.ok(held!.tick! > tap!.tick!, `the held heavy chambers, so it lands later (${held!.tick} > ${tap!.tick})`);
@@ -36,7 +36,7 @@ test('under a record below 85 the held bit is ignored: the heavy is the uncharge
 });
 
 test('the held bit rides the world record: a step packs and unpacks with it, and a step without it is byte for byte as before', () => {
-  assert.equal(WORLD_SIM_VERSION, 66);
+  assert.equal(WORLD_SIM_VERSION, 67);
   const steps = [{ pose: { x: 0, z: 0, f: 0 }, guard: false, gd: null, attack: 'heavy' as const, roll: null, held: true as const }, { pose: null, guard: false, gd: null, attack: null, roll: null }];
   const rec = { rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { level: 1, weapon: 'longsword', health: 100, stamina: 100, posture: 0, exhausted: false }, joins: [], releases: [], steps } as unknown as WorldRecord;
   const back = unpackWorldRecord(packWorldRecord(rec));
