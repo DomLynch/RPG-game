@@ -182,7 +182,7 @@
    "health": 850,
    "poise": 16,
    "sheet": {
-    "attack": 80
+    "attack": 60
    },
    "profiles": {
     "easy": {

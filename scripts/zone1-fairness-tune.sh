@@ -10,6 +10,7 @@ if [ -z "${NOFILES:-}" ]; then   # NOFILES=1: the clone's own trunk rows, untouc
   cp /srv/dev-jobs/er-timings/tune/archetype-defs.json src/fight/archetype-defs.json
   cp /srv/dev-jobs/er-timings/tune/catalogue-data.ts src/fight/catalogue-data.ts
 fi
+cp /srv/dev-jobs/er-timings/tune/kite-farm.ts scripts/kite-farm.ts   # this branch's kite-farm (HERO_LEVEL / HERO_RUNG)
 echo "base $(git log -1 --format='%h %s' | cut -c1-70)"
 for cand in "$@"; do
   IFS=: read -r kind health attack <<< "$cand"
@@ -19,8 +20,9 @@ for cand in "$@"; do
     if (Number(attack) > 0) a.sheet = { attack: Number(attack) }; else delete a.sheet;
     fs.writeFileSync(f, JSON.stringify(d, null, 1));' "$kind" "$health" "$attack"
   case "$kind" in troll) pairs="cave-troll:3";; salamander) pairs="giant-salamander:1 giant-salamander:2";; wolf) pairs="wolf:1 wolf:2";; before) pairs="wolf:1 wolf:2 giant-salamander:1 giant-salamander:2 cave-troll:3";; esac   # before = no patch: the rows as the base has them
+  if [ "$kind" = troll ]; then echo "== $cand -> L16 rung-4 geared hero: $(HERO_LEVEL=16 HERO_RUNG=4 KIND=cave-troll LEVEL=3 CASES=stand SEEDS=32 node scripts/kite-farm.ts 2>&1 | grep '^stand' | sed -E 's/, killed while.*mean time to kill/ ... ttk/' | cut -c1-140)"; fi
   for pair in $pairs; do
     echo "== $cand -> ${pair}: $(KIND="${pair%%:*}" LEVEL="${pair##*:}" CASES=stand SEEDS=64 node scripts/kite-farm.ts 2>&1 | grep '^stand' | sed -E 's/, killed while.*mean time to kill/ ... ttk/' | cut -c1-140)"
   done
 done
-git checkout -q -- src/fight/archetype-defs.json src/fight/catalogue-data.ts
+git checkout -q -f -- src/fight/archetype-defs.json src/fight/catalogue-data.ts scripts/kite-farm.ts

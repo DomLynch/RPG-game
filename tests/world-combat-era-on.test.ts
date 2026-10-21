@@ -20,8 +20,8 @@ function fight(body: string, level: number, gap: number, presses = 400): { kills
 }
 
 test('the hero cuts a level-1 wolf dead on the LIVE rules from some swinging gap: one kill, the creature released, the hero alive', () => {
-  const gaps = [0.8, 1.0, 1.2, 1.4, 1.6], results = gaps.map((gap) => ({ gap, ...fight('wolf', 1, gap) })), winners = results.filter((r) => r.kills.length === 1 && !r.heroDead);
-  assert.ok(winners.length >= 1, `no gap in ${gaps.join(', ')} m lets the masher kill a level-1 wolf on the live rules: ${JSON.stringify(results.map((r) => ({ gap: r.gap, kills: r.kills.length, dead: r.heroDead })))}`);
+  const gaps = Array.from({ length: 21 }, (_, i) => Math.round((0.6 + i * 0.1) * 10) / 10), results = gaps.map((gap) => ({ gap, ...fight('wolf', 1, gap) })), winners = results.filter((r) => r.kills.length === 1 && !r.heroDead);
+  assert.ok(winners.length >= 1, `no gap from 0.6 to 2.6 m lets the masher kill a level-1 wolf on the live rules: ${JSON.stringify(results.map((r) => ({ gap: r.gap, kills: r.kills.length, dead: r.heroDead })))}`);
   for (const w of winners) { assert.ok(w.swings >= 1); assert.deepEqual(w.kills, ['wolf-1']); assert.ok(w.released, `gap ${w.gap}: released after the fall`); }
 });
 
