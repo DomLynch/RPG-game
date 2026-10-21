@@ -78,7 +78,9 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   try {
     const t0 = Date.now(); navAt.t = t0; await page.goto(URL_, { waitUntil: 'commit' });
     // Wait for the hooks, then for the settle (hero + kit) OR [zone ready], at most 240 s; a cell where neither comes is reported as such and the walk/fight are still measured.
+    if (thr > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: thr });   // again after the commit: a renderer-process swap on the first navigation can drop the throttle set before it (seen on the Mac: a "x4" run at x1 speed)
     await page.waitForFunction(() => !!window.originsPreview, null, { timeout: 240000, polling: 200 });
+    run.calibMs = await page.evaluate(() => { const t = performance.now(); let x = 0; for (let i = 0; i < 3e7; i++) x += i % 7; return Math.round(performance.now() - t + (x < 0 ? 1 : 0)); });   // a fixed loop: ~4x longer at x4 than at x1, so a table can show the throttle was really on
     await page.waitForFunction(() => window.originsPreview?.settledAt?.() >= 0 || !!window.__zoneReady, null, { timeout: 240000, polling: 200 }).catch(() => { run.settleTimeout = true; });
     run.load = await page.evaluate(() => ({ settledAtMs: window.originsPreview.settledAt(), cover: window.originsPreview.cover(), zoneReady: !!window.__zoneReady, zoneReadyDetail: window.__zoneReady ? JSON.stringify(window.__zoneReady).slice(0, 200) : null, fcpMs: Math.round(performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1), wallMs: Math.round(performance.now()) }));
     run.load.zoneReadyLogAtMs = readyLog.atMs;
@@ -87,9 +89,12 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
     run.env = await page.evaluate(() => { const c = document.createElement('canvas').getContext('webgl'), e = c?.getExtension('WEBGL_debug_renderer_info'); const cv = document.querySelector('canvas'); return { gl: e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a', coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, canvas: cv ? [cv.width, cv.height] : null, ua: /iPhone/.test(navigator.userAgent) }; });
     const phase = async (name, ms, drive) => {
       const links0 = await page.evaluate((n) => { window.__perf.ph = n; return window.__perf.links; }, name);
+      const sp0 = await page.evaluate(() => (window.__spans ? { ...window.__spans } : null));   // walk-frame section totals (the web/walkloop-spans build only)
       if (PROFILE) await cdp.send('Profiler.start');
       await drive(ms);
       if (PROFILE) { const { profile } = await cdp.send('Profiler.stop'); (run.profile ||= {})[name] = digest(profile); }
+      const sp1 = await page.evaluate(() => (window.__spans ? { ...window.__spans } : null));
+      if (sp0 && sp1) { const fr = Math.max(1, sp1.frames - sp0.frames), per = Object.entries(sp1).filter(([k]) => k !== 'frames').map(([k, v]) => [k, +(((v - (sp0[k] || 0)) / fr)).toFixed(3)]).sort((a, b) => b[1] - a[1]); (run.spans ||= {})[name] = { walkFrames: fr, totalMsPerFrame: +per.reduce((a, x) => a + x[1], 0).toFixed(2), bySection: per }; }
       const info = await page.evaluate(() => window.originsPreview.renderInfo?.() ?? null).catch(() => null);
       const rows = await page.evaluate((n) => window.__perf.fr.filter((r) => r[0] === n), name);
       const lts = await page.evaluate((n) => window.__perf.lt.filter((x) => x[0] === n), name);
@@ -130,7 +135,7 @@ for (const orient of ORIENTS) for (const thr of THROTTLES) {
   run.errors = errors; results.push(run);
   fs.writeFileSync(path.join(out, `${label}.json`), JSON.stringify(run, null, 1));
   const ph = run.phases || {}, f = (n) => ph[n]?.frames, l = run.load || {};
-  console.log(`PERF ${label} gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls/f ${f(n)?.callsMedian}(p95 ${f(n)?.callsP95}) tris/f ${f(n)?.trisMedian} linked ${ph[n]?.programsLinkedInPhase}`).join(' | ') + ` | zoneReady at-load ${l.zoneReady} by-end ${run.zoneReadyByEnd} logged@${run.zoneReadyLogAtMs} ms${run.settleTimeout ? ' SETTLE-TIMEOUT' : ''} stuck-lines ${said.filter((x) => /stuck/i.test(x)).length}` + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
+  console.log(`PERF ${label} calib=${run.calibMs}ms gl=${run.env?.gl?.slice(0, 40)} coarse=${run.env?.coarse} | load: settled ${l.settledAtMs} ms, fcp ${l.fcpMs}, ${l.mbBeforeReady} MB/${l.requests} req, loadLT>50 ${l.longTasksDuringLoad?.over50} | ` + ['idle', 'walk', 'fight'].map((n) => `${n}: med ${f(n)?.medianMs} p95 ${f(n)?.p95Ms} p99 ${f(n)?.p99Ms} fps ${f(n)?.fpsMedian} LT>50 ${ph[n]?.longTasks.over50} calls/f ${f(n)?.callsMedian}(p95 ${f(n)?.callsP95}) tris/f ${f(n)?.trisMedian} linked ${ph[n]?.programsLinkedInPhase}`).join(' | ') + ` | zoneReady at-load ${l.zoneReady} by-end ${run.zoneReadyByEnd} logged@${run.zoneReadyLogAtMs} ms${run.settleTimeout ? ' SETTLE-TIMEOUT' : ''} stuck-lines ${said.filter((x) => /stuck/i.test(x)).length}` + (run.error ? ` | ERROR ${run.error}` : '') + ` | moved ${run.walkMovedM} m, errors ${errors.length}`);
   await ctx.close();
 }
 await browser.close(); await close();
