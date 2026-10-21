@@ -80,7 +80,8 @@ const joinAndDrop = async (p: Awaited<ReturnType<typeof start>>, ip: string, pro
 };
 test('a guest socket gives its place back on every exit: a clean close, a reset (socket error), the idle timeout, and a refusal after the identity is minted (world-full)', async () => {
   const cap = presenceRule('guestIpSockets');
-  const p = await start({ ipHeader: true, limits: { ...LIMITS, idleMs: 300 } });
+  // The join-rate bound is lifted here: four rounds of `cap` joins from one address are 32 at cap 8, over the 30 a minute that bounds a real address (guestIpSockets 2 -> 8, 2026-10-21); this test is about giving places back, not the rate.
+  const p = await start({ ipHeader: true, limits: { ...LIMITS, idleMs: 300, ipJoinsPerMinute: 1000 } });
   try {
     await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.destroy());
     await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.resetAndDestroy());   // ECONNRESET on the server's socket
