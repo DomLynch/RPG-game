@@ -136,6 +136,19 @@ work_live_checkout(){ [ -e "$1/.git" ] || return 1; local m dirty unpushed
   for m in $MERGE_REFS; do git -C "$1" merge-base --is-ancestor HEAD "$m" 2>/dev/null && return 1; done
   unpushed=$(git -C "$1" rev-list --count HEAD --not --remotes 2>/dev/null) || return 0
   [ "$unpushed" != 0 ]; }
+# sweep_linked <shadow> <work>: the work/<name> dirs that a symlink OUTSIDE them points into (the shared node_modules of bn-trunk, bowspec and the like), one per line. A link whose own
+# location is inside the dir it points into (lead-row46's old/node_modules -> ../RPG-game/node_modules) is the dir's own business: it goes with the dir, so it does not make the dir a link target
+# (Lead 2026-10-21). A link from another dir, or from work/ itself, still does.
+sweep_linked() {
+  local shadow=$1 work=$2 dir tgt abs have home
+  find "$shadow" -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do
+    case "$tgt" in /*) abs=$(realpath -m -s "$tgt");; *) abs=$(realpath -m -s "$dir/$tgt");; esac
+    have=$(printf '%s\n' "$abs" | sed -n -E "s#^($work)/([^/]+).*#\1/\2#p"); [ -n "$have" ] || continue
+    home=$(printf '%s\n' "$dir" | sed -n -E "s#^($work)/([^/]+).*#\1/\2#p")
+    [ "$home" = "$have" ] && continue
+    printf '%s\n' "$have"
+  done | sort -u
+}
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --cap) CAPMODE=1; FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -168,7 +181,7 @@ PRS=$(open_pr_list) && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list";
 INUSE=$( { lsof +D "$WORK" 2>/dev/null | awk 'NR>1{print $9}'; lsof +D "$JOBS" 2>/dev/null | awk 'NR>1{print $9}'
           for p in /proc/[0-9]*; do readlink "$p/cwd" 2>/dev/null; done; } | sed -n -E "s#^($WORK|$JOBS)/([^/]+).*#\1/\2#p" | sort -u )
 # a dir another dir symlinks into (the shared node_modules in bn-trunk, world-z2fix, char-nk...) is never swept, one hop at a time: 2026-10-13 a hand-run prune deleted bn-trunk and every VPS lane job failed
-LINKED=$(find "$SHADOW" -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do case "$tgt" in /*) realpath -m -s "$tgt";; *) realpath -m -s "$dir/$tgt";; esac; done | sed -n -E "s#^($WORK)/([^/]+).*#\1/\2#p" | sort -u)
+LINKED=$(sweep_linked "$SHADOW" "$WORK")   # a link from inside a dir to itself does not count (sweep_linked)
 HELD=$(cat "$SHADOW"/capture.holder* "$SHADOW"/capture.queue 2>/dev/null)
 
 # recent = any file changed (mtime OR ctime) inside the window; ctime catches `git archive | tar x` trees whose mtimes are the commit date
