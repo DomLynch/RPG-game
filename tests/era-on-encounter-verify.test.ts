@@ -20,6 +20,7 @@ import { liveSpecials, verifyEncounter, type EncounterParams } from '../origins/
 import { encounterOps } from '../origins/server/encounter.ts';
 import { ACCOUNT, CHAR, RESOLVED, deps, fakeDb } from '../origins/server/encounter-fixtures.ts';
 import type { Db } from '../origins/server/db.ts';
+import { Conflict } from '../origins/server/errors.ts';
 
 const ENEMY: OpponentId = 'goblin', LEVEL = 6;   // test-local: the legend and rung the moving script beats (the knight at 1, 3 and 6 still beats it: a harder fight than this file needs)
 const SEED = 1;   // test-local, PINNED: the moving script wins on seed 1 under RV86 (85 of 100 seeds in all); 1 is the one verify-loot.test.ts fights too
@@ -39,7 +40,6 @@ function moving(seed: number, margin?: number): { record: FightRecord; hp: reado
   const outcome = p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned';
   return { record: { ...rec.finish(outcome), v: RECORD_VERSION }, hp: [p.duel.fighters[0].health, p.duel.fighters[1].health] };
 }
-const STARTS = 25;   // test-local: the server picks the seed at random (encounter.ts randomInt) and the script wins ~4 in 5 of them (measured: 85 of 100 seeds under RV86), so settle opens up to this many fresh fights until one is a win
 const params = (seed: number, over: Partial<EncounterParams> = {}): EncounterParams => ({ seed, enemy: ENEMY, level: LEVEL, bar: null, flags: [], layer: null, ...over });
 const wire = (r: FightRecord) => toBase64Url(gzipSync(packRecord(r)));
 const ctx = (db: Db) => ({ db, account: ACCOUNT });
@@ -70,19 +70,20 @@ test('live era: a forged duel record is refused: a flipped outcome, a cut-short 
   no(record, 'another level', params(SEED, { level: LEVEL + 1 }));
 });
 
-test('live era: settle with the REAL verifier pays an honest moving win on the server\'s seed once; a forged outcome is a loss that pays nothing', async () => {
-  let found: { db: Db; events: Record<string, unknown>[]; rewards: string[]; ops: ReturnType<typeof encounterOps>; start: { token: string; seed: number }; record: FightRecord } | null = null;
-  for (let k = 0; k < STARTS && !found; k++) {   // a fresh database each time: an unplayed fight stays open, and nothing of it is settled or paid
-    const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [], ops = encounterOps(goblinDeps(rewards));
-    const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: `encounter:${ENEMY}` }) as { token: string; seed: number };
-    const { record } = moving(start.seed); if (record.outcome === 'killed') found = { db, events, rewards, ops, start, record };
-  }
-  assert.ok(found, `the moving script won one of ${STARTS} server-picked seeds`);
-  const { db, events, rewards, ops, start, record } = found;
+test('live era: settle with the REAL verifier pays an honest moving win on the issued (pinned) seed exactly once, a second settle of the same token included; a forged outcome is a loss that pays nothing', async () => {
+  const fake = fakeDb({ t: 1e6 }), { events } = fake, rewards: string[] = [], ops = encounterOps(goblinDeps(rewards));
+  const db: Db = { run: (sql, v = {}) => fake.db.run(sql, /origins_encounter_start\(/.test(sql) ? { ...v, s: String(SEED) } : v) };   // the test's fake DB only: the start row is stored with the PINNED seed (the fixture builds the row from `s`; start and settle read it back), so the fight is the one this file pins
+  const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: `encounter:${ENEMY}` }) as { token: string; seed: number };
+  assert.equal(start.seed, SEED, 'the issued seed is the pinned one');
+  const { record } = moving(start.seed);
+  assert.equal(record.outcome, 'killed', `the moving script beats the ${ENEMY} on seed ${SEED}`);
   const out = await ops.encounter_settle!(ctx(db), { token: start.token, record: wire(record) }) as Record<string, unknown>;
   assert.equal(out.verified, true, String(out.reason)); assert.equal(out.result, 'won');
   assert.deepEqual(rewards, [start.token], 'the reward hook is asked once, for this token');
   assert.equal((events[0]!.payload as { paid: boolean }).paid, true);
+  await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record: wire(record) }), Conflict, 'the SAME token settles once');
+  assert.deepEqual(rewards, [start.token], 'a second settle of the same token asks for no second reward');
+  assert.equal(events.length, 1, 'and writes no second (paid) event');
 
   const second = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: `encounter:${ENEMY}` }) as { token: string; seed: number };
   const lie = moving(second.seed).record, forged: FightRecord = { ...lie, outcome: 'killed', intents: lie.intents.map((i) => ({ ...i, action: null })) };   // a won header over a fight with no cuts in it
