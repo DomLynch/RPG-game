@@ -64,13 +64,22 @@ const expectClear = async (page, step, text, tapTarget) => {
     if (tapTarget) await shot(page, `${step}-${w}.jpg`);   // a line is on screen for lineSec only: no slow screenshot between the two widths
   }
 };
-async function run(take) {
+// One page load of Zone 1 costs minutes on software GL, and row 57 was four of them (8 to 10 min). Now two: ONE signed-in page serves the taken take, the race take and the walk prompts (the stub's writer forgets between takes and the page's own poll brings the item back), and the guest has its own, being signed out.
+const openPage = async (stub) => {
   const page = await (await browser.newContext({ viewport: { width: WIDTHS[0], height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(`pageerror: ${String(e).slice(0, 200)}`));
-  const guest = take === 'guest', ID = guest ? 'ground:zone1.rusty-sword-1' : 'ground:still-0';   // a guest: no session and no stub, the static row, and the take goes to the session bag
-  if (!guest) await stubSignedIn(page, { offsets: [[0.3, 1.0]], take });
+  const writer = stub ? await stubSignedIn(page, { offsets: [[0.3, 1.0]], take: 'taken' }) : null;
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+  return { page, errors, writer };
+};
+let signed = null;
+async function run(take) {
+  const guest = take === 'guest', ID = guest ? 'ground:zone1.rusty-sword-1' : 'ground:still-0';   // a guest: no session and no stub, the static row, and the take goes to the session bag
+  if (!guest && !signed) signed = await openPage(true);
+  else if (!guest) signed.writer.again(take);   // the second signed-in take: the writer forgets the first, the poll shows the item again
+  const { page, errors } = guest ? await openPage(false) : signed;
+  await settled(page, WIDTHS[0]);
   await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, ID, { timeout: 90000 });
   if (guest) { const a = await page.evaluate((id) => window.originsPreview.ground.anchor(id), ID); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [a.x, a.z - 1.3]); }   // the row's own point (its place centre plus its offset, wherever World puts it), not the place centre
   await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 });
@@ -85,16 +94,12 @@ async function run(take) {
   await page.waitForFunction(() => document.getElementById('prompt').hidden, null, { timeout: (PICKUP.lineSec + 15) * 1000 }).catch(() => {});
   const after = await measure(page); receipt.steps.push({ step: `${take}-after-line`, shown: after.shown, text: after.text });
   if (after.shown) failures.push(`${take}: a prompt ("${after.text}") is still up once the line's ${PICKUP.lineSec} s are over`);
-  if (errors.length) failures.push(...errors);
-  await page.context().close();
+  if (guest) { if (errors.length) failures.push(...errors); await page.context().close(); }
 }
 // Talk, Bank and Fight in the Pit share the prompt's slot (#2857): the hero is placed where each shows, and the shown prompt is measured like the ground one.
 async function runPrompts() {
-  const page = await (await browser.newContext({ viewport: { width: WIDTHS[0], height: 812 }, isMobile: true, hasTouch: true })).newPage();
-  const errors = []; page.on('pageerror', (e) => errors.push(`pageerror: ${String(e).slice(0, 200)}`));
-  await stubSignedIn(page, { offsets: [], take: 'taken' });
-  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+  const { page, errors } = signed;   // the shared signed-in page: the race take left the ground item gone, which these prompts do not need
+  await settled(page, WIDTHS[0]);
   const spots = await page.evaluate(() => window.originsPreview.promptSpots());
   let prev = '';
   for (const [kind, [x, z]] of Object.entries(spots)) {
@@ -105,10 +110,10 @@ async function runPrompts() {
     await expectClear(page, `prompt-${kind}`, label, true);
   }
   if (errors.length) failures.push(...errors);
-  await page.context().close();
+  await page.context().close();   // the last use of the shared page
 }
 const ceiling = new Promise((_, reject) => setTimeout(() => reject(new Error(`the check ran past its ${CEILING_MS / 1000} s ceiling`)), CEILING_MS).unref());
-try { await Promise.race([(async () => { await run('taken'); await run('race'); await run('guest'); await runPrompts(); })(), ceiling]); }
+try { await Promise.race([(async () => { await run('taken'); await run('race'); await runPrompts(); await run('guest'); })(), ceiling]); }
 catch (e) { failures.push(`check crashed: ${String(e).slice(0, 300)}`); }
 finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); await close(); }
 receipt.failures = failures; await fs.writeFile(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 2));
