@@ -141,7 +141,7 @@ try {
   await screen('hud');
   // The duel below is fought at level 1 (0 marks): the scripted bot beat the level-6 Goblin about one duel in three under CPU load (rows 37/38,
   // 2026-10-21: five reds of three duels each), and no assertion after the duel reads the level. The HUD above keeps the level-6 coverage.
-  await setMarks(0); await page.reload(); await ready();
+  await setMarks(Number(process.env.PROBE_MARKS ?? 0)); await page.reload(); await ready();   // PROBE: 5 = level 6, the level that diverged
   // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel. The duel is fought
   // at phone size: headless Chromium draws each frame in software, and a 1280x800 frame costs ~2.5 s of wall time per 200 ms of page
   // time (measured 2026-09-27: the 90 s duel budget ran for three hours at desktop size). The kill screen is measured back at the
@@ -160,7 +160,9 @@ try {
     const step = async ms => { await run(ms); elapsed += ms; if (elapsed % 2000 < ms) trace(`elapsed ${elapsed}`); };
     const enabled = async id => (await page.locator('#' + id).getAttribute('aria-disabled')) === 'false';
     while (elapsed < 90000) {
-      const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false' }));
+      const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false', now: performance.now(), clock: document.querySelector('#debug')?.dataset.clock ?? '' }));
+      // PROBE (scratch branch, never merged): one line per bot step, to diff runs and find the first step where they split.
+      { let h = 0; for (const c of state.text) h = (h * 31 + c.charCodeAt(0)) | 0; console.log(`PROBE a${attempt} e${elapsed} now${state.now.toFixed(1)} clk${state.clock} hp${state.hp}/${state.enemy} L${+state.light}T${+state.thrust} h${(h >>> 0).toString(16)} | ${state.text.replace(/\s+/g, ' ').slice(0, 400)}`); }
       if (!state.hp || !state.enemy) break;
       const distance = +(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
       const attack = (state.text.split('warden:')[1]?.split('\n') ?? [])[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|\-]+)/);
