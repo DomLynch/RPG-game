@@ -36,7 +36,7 @@ start_tail() {
 if grep -q "^Published $sha" "$logf" && ! grep -q "^RED: post-publish rows" "$logf"; then start_tail; fi
 # /zone1/ and /preview/origins/ are PRODUCTION pages (Lead 2026-10-21): left on the old bundle after live moved, an RV release has Zone 1 running an old client against the new verifier and real fights are
 # refused `sim version`. deploy.sh exits 1 with "previews missing" for them (after its 3 publish retries), and that STOPS the train exactly as before; the message says the release is live and how to republish.
-if [ "$rc" -ne 0 ] && grep -q "^Published $sha" "$logf" && grep -q "previews missing" "$logf" && ! grep -q "^RED: post-publish rows" "$logf"; then
+if [ "$rc" -ne 0 ] && grep -q "^Published $sha" "$logf" && grep -q "is LIVE (verifier installed), previews missing" "$logf" && ! grep -q "^RED: post-publish rows" "$logf"; then
   echo "the post-publish tail was started; log $logf; republish from a checkout at $sha, then remove the stop files" >&2
   fail "release LIVE and sound at $sha; previews stale: rerun scripts/publish-origins-preview.sh"   # the exact words Lead + Strategy asked for (2026-10-21): nobody takes this for a failed release or reverts it
 fi
@@ -45,7 +45,7 @@ grep -q "^Published $sha" "$logf" || fail "deploy.sh exited 0 without a Publishe
 rm -f "$hold" "$hold.stale-told"
 summary=$(sed -n "/^Published $sha/,\$p" "$logf" | head -n 40)
 gh pr comment "$pr" --body "$(printf 'release-train: RESUMED and published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$sha" "$summary")" >/dev/null 2>&1 || true
-# Look-test folders (/preview/<name>/, e.g. rv86) are NOT production: deploy.sh names the ones that stopped serving ("look-test previews missing: ...") and exits 0; that warns, it never stops.
-look_warn=$(sed -n -E 's/^look-test previews missing:(.*)$/\1/p' "$logf" | head -n 1)
+# Look-test folders (/preview/<name>/, e.g. rv86) are NOT production: deploy.sh names the ones that stopped serving ("look-test folders not serving: ...") and exits 0; that warns, it never stops.
+look_warn=$(sed -n -E 's/^look-test folders not serving:(.*)$/\1/p' "$logf" | head -n 1)
 [ -z "$look_warn" ] || gh pr comment "$pr" --body "release-train: WARNING #$pr @${sha:0:9} is LIVE; these look-test preview folders do not serve after the switch:$look_warn (not production; republish them from their build). Log $logf" >/dev/null 2>&1 || true
 echo "Published $sha (resumed)${look_warn:+ WITH A LOOK-TEST PREVIEW WARNING:$look_warn}"

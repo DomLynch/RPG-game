@@ -220,7 +220,7 @@ function publisher() {
   sh('gh', `echo "gh $*" >> "${log}"; if [ -n "\${GH_REQUIRE_REPO_FLAG:-}" ]; then case " $* " in *" --repo "*) ;; *) echo "not a git repository (no --repo, launchd cwd)" >&2; exit 1 ;; esac; fi; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
   sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; fetch) fn=$(cat "${dir}/fetchn" 2>/dev/null || echo 0); fn=$((fn+1)); echo $fn > "${dir}/fetchn"; if [ "$fn" -le "\${FETCH_RACES:-0}" ]; then echo "error: cannot lock ref 'refs/remotes/origin/lane/x': is at A but expected B" >&2; exit 1; fi ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
-  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; if [ "\${DEPLOY_PREVIEWS_FAIL:-}" = look ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nlook-test previews missing: rv86 zone-look\\n' "$CAND" "$CAND"; exit 0; fi; if [ -n "\${DEPLOY_PREVIEWS_FAIL:-}" ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nrelease %s is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision bundle\\n' "$CAND" "$CAND" "$CAND"; [ "$DEPLOY_PREVIEWS_FAIL" != red ] || echo 'RED: post-publish rows 9 FAILED for the LIVE release'; exit 1; fi; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
+  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; if [ "\${DEPLOY_PREVIEWS_FAIL:-}" = look ] || [ "\${DEPLOY_PREVIEWS_FAIL:-}" = lookrc1 ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nlook-test folders not serving: rv86 zone-look\\n' "$CAND" "$CAND"; [ "$DEPLOY_PREVIEWS_FAIL" != lookrc1 ] || exit 1; exit 0; fi; if [ -n "\${DEPLOY_PREVIEWS_FAIL:-}" ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nrelease %s is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision bundle\\n' "$CAND" "$CAND" "$CAND"; [ "$DEPLOY_PREVIEWS_FAIL" != red ] || echo 'RED: post-publish rows 9 FAILED for the LIVE release'; exit 1; fi; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
@@ -759,6 +759,13 @@ test('release-train-resume (K6o2, 2026-10-21): production previews stale = STOP 
     assert.match(p.calls(), /gh pr comment 2400 --body release-train: WARNING #2400 .* look-test preview folders do not serve after the switch: rv86 zone-look/);
     await tailStarted();
     rmSync(marker); rmSync(pc); p.reset();
+    // The Auditor's collision (#3496 @7d695cfd8): a look-test warning must NOT read as the production line. A run that exits 1 for ANOTHER reason, with a look-test warning in its log, stops with the
+    // generic message, never with the "previews stale" words (which tell the reader the release is sound).
+    r = resume({ DEPLOY_PREVIEWS_FAIL: 'lookrc1' });
+    assert.equal(r.status, 1);
+    assert.doesNotMatch(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /previews stale/, 'a look-test warning never triggers the production-stale stop');
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /failed: deploy\.sh exit 1/);
+    rmSync(join(p.state, 'release-train.stopped')); rmSync(join(p.state, 'deploy_hold')); rmSync(marker); rmSync(pc, { force: true }); p.reset();
     // A red post-publish row: stops as before and starts NO tail.
     r = resume({ DEPLOY_PREVIEWS_FAIL: 'red' });
     assert.equal(r.status, 1); assert.match(r.stderr, /FAILED: deploy\.sh exit 1/);
@@ -773,6 +780,6 @@ test('publish-origins-preview.sh defaults VITE_SENTRY_RELEASE to the published r
   assert.ok(src.indexOf('export VITE_SENTRY_RELEASE') < src.indexOf('npx vite build'), 'set before the build');
   const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
   assert.match(deploy, /for _pv_try in 1 2 3; do\n    if bash scripts\/publish-origins-preview\.sh; then previews_ok=1; break; fi/, 'deploy.sh retries the preview publish');
-  assert.match(deploy, /echo "look-test previews missing:\$look_missing" >&2/, 'deploy.sh names look-test folders that stopped serving (non-fatal)');
+  assert.match(deploy, /echo "look-test folders not serving:\$look_missing" >&2/, 'deploy.sh names look-test folders that stopped serving (non-fatal)');
   assert.doesNotMatch(deploy.split('look_missing=""')[1] ?? '', /previews_ok=0[^\n]*look|look[^\n]*previews_ok=0/, 'a look-test folder never sets previews_ok=0');
 });

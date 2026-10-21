@@ -330,7 +330,7 @@ for _lt in $(ssh "${ssh_options[@]}" "$host" 'cd /var/www/frankendom/current/pre
   [[ "$_lt" == origins ]] && continue
   [[ "$(curl --silent --output /dev/null --max-time 15 --write-out '%{http_code}' "https://frankendom.com/preview/$_lt/" || true)" == 200 ]] || look_missing="$look_missing $_lt"
 done
-[[ -z "$look_missing" ]] || echo "look-test previews missing:$look_missing" >&2
+[[ -z "$look_missing" ]] || echo "look-test folders not serving:$look_missing" >&2   # shares no words with the production LIVE line raised at the end: the resume greps for that one to STOP
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
 nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
 if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
