@@ -19,6 +19,10 @@ test('sweep_kind: the lane roots keep the archive-first rule', () => {
   assert.equal(kind('/srv/dev-jobs/cq-pg-1'), 'lane');
   assert.equal(kind('/opt/frankendom-shadow/scratch-retirement-20261013'), 'lane');
   // The volume's copies of the two job roots (2026-10-21): a moved dir's real path is a lane dir; the volume roots themselves and anything else on it are refused.
+  // /root/work-cc is a lane root by exact path (2026-10-21); /root/frankendom-worktrees, its sandbox dirs and anything under work-cc stay refused (Dom's sandbox rule).
+  assert.equal(kind('/root/work-cc'), 'lane');
+  for (const p of ['/root/work-cc/dist', '/root/work-cc/', '/root/work-cc2', '/root/frankendom-worktrees', '/root/frankendom-worktrees/sandbox', '/root/frankendom-worktrees/sandbox-base', '/root/frankendom-worktrees/sandbox-test2.log', '/root/work-1880'])
+    assert.equal(kind(p), '', `${p} is refused`);
   assert.equal(kind('/mnt/HC_Volume_107195252/work/combat-er86'), 'lane');
   assert.equal(kind('/mnt/HC_Volume_107195252/dev-jobs/s2x'), 'lane');
   for (const p of ['/mnt/HC_Volume_107195252', '/mnt/HC_Volume_107195252/work', '/mnt/HC_Volume_107195252/dev-jobs', '/mnt/HC_Volume_107195252/hfvenv', '/mnt/HC_Volume_107195252/work/../hfvenv', '/mnt/frankendom-donors/work/x'])
