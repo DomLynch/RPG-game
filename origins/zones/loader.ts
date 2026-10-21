@@ -15,7 +15,9 @@ import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
 
-export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
+/** A kit node's look over the model's own atlas (Dom 2026-10-20: the boulders read flat olive): `color` multiplies the atlas (1,1,1 = as shipped; values above 1 lift a channel), `roughness` replaces the material's when set. Placement and solids are untouched. */
+export type KitTint = { color: readonly [number, number, number]; roughness?: number };
+export type KitKind ={ nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
 /** A warp landmark a package brings (the shape of origins/presence/warp-landmarks.json): a place in Concord metres the server moves a player to when the client names its id. */
@@ -28,7 +30,7 @@ export type Zone = {
   names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
   world: readonly string[];   // the world-data zones (origins/region1/world.ts) this zone's page walks
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
-  kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
+  kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[]; tint?: Readonly<Record<string, KitTint>> };
   looks: Readonly<Record<string, Look>>;
   fields?: Readonly<Record<string, unknown>>;   // the same resolved values, flat by path ('look.fog.density'); `set` is the paths a biome or this zone set (readers act on those only)
   set?: readonly string[];
@@ -85,6 +87,12 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!(k.per > 0 && k.r > 0 && k.solid >= 0 && k.scale[0] > 0 && k.scale[1] >= k.scale[0])) bad.push(`kit kind ${k.nodes[0]}: bad numbers`);
   }
   for (const n of landmarks) if (nodes.has(n)) bad.push(`${n} is both a node and a landmark`);
+  for (const [n, t] of Object.entries(z.kit.tint ?? {})) {
+    if (!nodes.has(n) && !landmarks.has(n)) bad.push(`kit tint names ${n}, which is not a kit node`);
+    const [cr, cg, cb, ...extra] = t.color;   // exactly three channels, each finite and not negative (a channel above 1 lifts it: the atlas is multiplied)
+    if (extra.length || ![cr, cg, cb].every((c) => Number.isFinite(c) && c! >= 0)) bad.push(`kit tint ${n}: color is three non-negative numbers`);
+    if (t.roughness !== undefined && !(t.roughness >= 0 && t.roughness <= 1)) bad.push(`kit tint ${n}: roughness is 0..1`);
+  }
   for (const [id, l] of Object.entries(z.looks)) {
     for (const hex of [l.fog, l.hemiSky, l.hemiGround, l.sunColor]) if (!HEX.test(hex)) bad.push(`look ${id}: ${hex} is not #rrggbb`);
     if (!(l.fogDensity > 0 && l.fogDensity < 0.1 && l.sunIntensity > 0 && l.exposure > 0.5 && l.exposure < 2.5)) bad.push(`look ${id}: a number is out of range`);
