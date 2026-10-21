@@ -8,8 +8,9 @@ set -euo pipefail
 root=$(cd "$1" && pwd -P)
 keep=$2
 dry=${3:-}
-layout=${4:-releases}   # releases: ROOT/releases/<40 hex>; origins: ROOT/<8 hex>
-if [[ $layout == origins ]]; then sub=. hex='^[0-9a-f]{8}$'; else sub=releases hex='^[0-9a-f]{40}$'; fi
+layout=${4:-releases}   # releases: ROOT/releases/<40 hex>; origins: ROOT/<8 or 40 hex>
+# origins: 8 hex (the old short names) or exactly 40 (the writer installs are the full sha since 2026-10-20: the 8-only match removed nothing, 55 trees, 20 GB); nothing in between
+if [[ $layout == origins ]]; then sub=. hex='^[0-9a-f]{8}([0-9a-f]{32})?$'; else sub=releases hex='^[0-9a-f]{40}$'; fi
 [[ $keep =~ ^[0-9]+$ ]] && (( keep >= 2 )) || { echo "prune: KEEP must be an integer >= 2, got '$keep'"; exit 2; }
 cd "$root"
 cur=$(readlink -f current 2>/dev/null || true)
