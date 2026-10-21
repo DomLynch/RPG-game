@@ -255,7 +255,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
-      for (const kind of fetchKinds(mobs.map((m, i) => ({ x: m.x, z: m.z, kind: keyOf(specs[i]!), reach: specs[i]!.aggro + fxNum('mob-view.preready-margin') })), hero, fetchRange, !!opts.phone && !!opts.zoneReady && !opts.zoneReady(), PREREADY_K ?? fxNum('mob-view.preready-kinds'))) fetchBody(kind);   // a phone fetches only its nearest creatures' kinds before [zone ready], then the rest closest first (Dom: the phone is slow; the salamander's 705 KB sat in front of the ready)
+      const mustNow = mustDraw();
+      for (const kind of fetchKinds(mobs.map((m, i) => ({ x: m.x, z: m.z, kind: keyOf(specs[i]!), must: mustNow.has(i), reach: specs[i]!.aggro + fxNum('mob-view.preready-margin') })), hero, fetchRange, !!opts.phone && !!opts.zoneReady && !opts.zoneReady(), PREREADY_K ?? fxNum('mob-view.preready-kinds'))) fetchBody(kind);   // a phone fetches only its nearest creatures' kinds before [zone ready], then the rest closest first (Dom: the phone is slow; the salamander's 705 KB sat in front of the ready)
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
