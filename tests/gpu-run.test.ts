@@ -71,11 +71,12 @@ if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.
 if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
 else if (verb === 'logs') { const seen = ${JSON.stringify(join(dir, 'logged'))}; if (${JSON.stringify(mode)} === 'empty-log-once' && !fs.existsSync(seen)) fs.writeFileSync(seen, 'x'); else process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8')); }
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
-else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-medium', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: ${JSON.stringify(mode)} === 'hangs' && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? 'RUNNING' : 'COMPLETED' } }]));
+else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-small', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: ${JSON.stringify(mode)} === 'hangs' && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? 'RUNNING' : 'COMPLETED' } }]));
 `);
   chmodSync(stub, 0o755);
-  const run = (...args: string[]) => spawnSync(process.execPath, ['scripts/gpu-run.mjs', ...args], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, GPU_RUN_HF: stub, GPU_RUN_OUT: out, HF_LEDGER_DIR: ledger, GPU_RUN_POLL_S: '0', HF_WALL_ROWS_ENV_FILE: join(dir, 'none.env') } });
-  return { run, out, ledger, dir };
+  const runWith = (extra: Record<string, string>, ...args: string[]) => spawnSync(process.execPath, ['scripts/gpu-run.mjs', ...args], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, GPU_RUN_FLAVOR: '', HF_REASON: '', GPU_RUN_HF: stub, GPU_RUN_OUT: out, HF_LEDGER_DIR: ledger, GPU_RUN_POLL_S: '0', HF_WALL_ROWS_ENV_FILE: join(dir, 'none.env'), ...extra } });
+  const run = (...args: string[]) => runWith({}, ...args);
+  return { run, runWith, out, ledger, dir };
 };
 const tgz = () => { const d = mkdtempSync(join(tmpdir(), 'gpu-art-')); mkdirSync(join(d, 'artifacts')); writeFileSync(join(d, 'artifacts', 'still.png'), 'png-bytes'); const f = join(d, 'a.tgz'); spawnSync('tar', ['czf', f, '-C', d, 'artifacts']); return readFileSync(f).toString('base64'); };
 
@@ -86,12 +87,26 @@ test('a good run: the job is ledgered, the artifacts come back, the exit is the 
   assert.match(r.stdout, /smoke OK/);
   assert.match(r.stdout, /^HF: 1 jobs, 0 running, <=\$0\.\d\d$/m);
   assert.match(r.stderr, /renderer: shell=ANGLE \(NVIDIA/);
-  assert.match(r.stderr, /ran 180 s on t4-medium ≈ \$0\.03/);
+  assert.match(r.stderr, /ran 180 s on t4-small ≈ \$0\.02 at \$0\.40\/h/);
   assert.equal(readFileSync(join(t.out, 'a'.repeat(24), 'artifacts', 'still.png'), 'utf8'), 'png-bytes');
   assert.ok(readdirSync(t.ledger).some(f => f.endsWith('.done')), 'cleanup retired the ledger');
   const launched = readFileSync(join(t.dir, 'ran'), 'utf8');
-  assert.match(launched, /--flavor t4-medium --timeout 10m/);
+  assert.match(launched, /--flavor t4-small --timeout 10m/, 'the default is the 40-cent T4 (Dom 2026-10-21)');
   assert.ok(launched.includes('mcr.microsoft.com/playwright:v1.62.1-noble'));
+  assert.doesNotMatch(r.stderr, /t4-medium chosen/, 'no medium warning on the default');
+});
+
+test('t4-medium stays selectable by GPU_RUN_FLAVOR: it warns until HF_REASON gives a reason, and is priced at $0.60/h', () => {
+  const log = ['=== HEAD h TREE t ===', `=== RENDERER shell=${T4} | chrome=${T4} ===`, '=== RUN ===', 'smoke OK', '=== EXIT 0 ===', '=== COST seconds=180 ==='].join('\n');
+  const bare = setup('ok', log).runWith({ GPU_RUN_FLAVOR: 't4-medium' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.equal(bare.status, 0, bare.stderr);
+  assert.match(bare.stderr, /WARN t4-medium chosen without HF_REASON/);
+  assert.match(bare.stderr, /ran 180 s on t4-medium ≈ \$0\.03 at \$0\.60\/h/);
+  const why = setup('ok', log), reasoned = why.runWith({ GPU_RUN_FLAVOR: 't4-medium', HF_REASON: 'needs-30gb-ram' }, 'HEAD', '--timeout', '10m', '--', 'node', 'x.mjs');
+  assert.equal(reasoned.status, 0, reasoned.stderr);
+  assert.doesNotMatch(reasoned.stderr, /WARN t4-medium/);
+  assert.match(reasoned.stderr, /t4-medium chosen \(HF_REASON=needs-30gb-ram\)/);
+  assert.match(readFileSync(join(why.dir, 'ran'), 'utf8'), /--flavor t4-medium /);
 });
 
 test('a software renderer: the job\'s guard blocker is exit 11, nothing runs, no artifacts, and the HF line still closes it', () => {

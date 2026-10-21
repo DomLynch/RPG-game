@@ -26,7 +26,9 @@ test('HF CPU: 4 in all, a lane stops at 3 so the 4th slot stays free for the dep
   assert.equal(slotDecision('t4-medium', live('t4-medium', 3), true).ok, true);
   assert.equal(slotDecision('t4-medium', live('t4-medium', 4), true).ok, false);
   assert.throws(() => slotDecision('cpu-basic', [], true));
-  assert.equal(tierOf('cpu-upgrade'), 'hf-cpu'); assert.equal(tierOf('t4-medium'), 'hf-t4');
+  assert.equal(tierOf('cpu-upgrade'), 'hf-cpu'); assert.equal(tierOf('t4-medium'), 'hf-t4'); assert.equal(tierOf('t4-small'), 'hf-t4');
+  assert.equal(CAPS['t4-small'].total, CAPS['t4-medium'].total, 't4-small has the same cap as medium');
+  assert.equal(slotDecision('t4-small', live('t4-small', 3), true).ok, true); assert.equal(slotDecision('t4-small', live('t4-small', 4), true).ok, false);
   assert.equal(tierLine('cpu-upgrade', 2, 3.4), 'tier=hf-cpu slot=2 queued=3s');
 });
 
@@ -50,7 +52,7 @@ test('launch.mjs job: cpu-upgrade by default, --gfx is the only way to a T4, the
   const b64 = cpu.args[cpu.args.indexOf(cpu.args.find((a: string) => a.startsWith('JOB_ARGV_B64='))!)].slice('JOB_ARGV_B64='.length);
   assert.equal(Buffer.from(b64, 'base64').toString(), 'node scripts/x.mjs --flag');
   assert.match(cpu.args.join(' '), /timeout 300 apt-get update.*timeout 300 git fetch.*lap checkout/);
-  assert.equal(genericJobArgs([sha, '--gfx', '--', 'node', 'still.mjs']).flavor, 't4-medium');
+  assert.equal(genericJobArgs([sha, '--gfx', '--', 'node', 'still.mjs']).flavor, 't4-small', 'a --gfx lane job gets the 40-cent T4 (Dom 2026-10-21)');
   assert.throws(() => genericJobArgs(['abc', '--', 'x']), /40-hex/);
   assert.throws(() => genericJobArgs([sha, 'x']), /usage/);
   assert.throws(() => genericJobArgs([sha, '--flavor', 't4-medium', '--', 'x']), /unknown flag/);

@@ -1,5 +1,5 @@
 // The T4 wall-row box, the I/O half (scripts/lib/hf-wall-rows.mjs is the rules). Sourced into the release by scripts/lib/deploy-hf.sh:
-//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
+//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-small by default, 4-wide) for the wall rows; prints the job id
 //   node scripts/hf-wall-rows.mjs collect                           waits for it, prints the trusted rows "1,3" (empty = trust nothing)
 //   node scripts/hf-wall-rows.mjs table                             the side-by-side after the Mac's rows (artifacts/release-checks.json)
 // The job clones the public repo at the sha and prints its own `git rev-parse HEAD` + tree, so a receipt binds to what it built, not to
@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
-import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
+import { costLine, parseJobLog, selectWallRows, splitRows, t4Flavor, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
 import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-placement.mjs';
 
@@ -24,7 +24,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || (existsSync('/opt/homebrew/bin/hf') ? '/opt/homebrew/bin/hf' : 'hf');
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
-const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
+const flavor = t4Flavor(process.env.HF_WALL_ROWS_FLAVOR, process.env.HF_REASON, message => process.stderr.write(`hf-wall-rows: ${message}\n`)), width =process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
 const num = (name, fallback) => (process.env[name] === undefined || process.env[name] === '' ? fallback : Number(process.env[name]));
 const scheduleMaxS = num('HF_WALL_ROWS_SCHEDULE_MAX_S', 600), waitMaxS = num('HF_WALL_ROWS_WAIT_MAX_S', 1500), pollS = num('HF_WALL_ROWS_POLL_S', 20);
 const say = message => process.stderr.write(`hf-wall-rows: ${message}\n`);

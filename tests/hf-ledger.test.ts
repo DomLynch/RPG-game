@@ -18,7 +18,9 @@ const job = (n: number) => n.toString(16).padStart(24, '0');
 test('the thresholds are one constant: alarm $6, T4 stop $10; prices come from hf-cleanup USD_PER_HOUR', () => {
   assert.deepEqual({ ...HF_COST }, { alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });
   assert.ok(Object.isFrozen(HF_COST));
-  assert.equal(USD_PER_HOUR['t4-medium'], 0.6);
+  assert.equal(USD_PER_HOUR['t4-medium'], 0.6); assert.equal(USD_PER_HOUR['t4-small'], 0.4);
+  const small = record({ id: job(7), flavor: 't4-small', timeout: '15m', reason: 'gpu-only' }, { path: join(mkdtempSync(join(tmpdir(), 'hf-small-')), 'ledger'), now: NOON, say: () => {} });
+  assert.ok(Math.abs(small.usd - 0.1) < 1e-9, 'a 15 m t4-small job books $0.10');
   assert.deepEqual(['45m', '2h', '600s', '600', 'x'].map(timeoutSeconds), [2700, 7200, 600, 600, NaN]);
 });
 

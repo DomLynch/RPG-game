@@ -1,4 +1,4 @@
-// The one shared GPU runner (Dom 2026-10-09: "make sure the devs use the GPU, enforce it like the waterfall"). Runs a command on a Hugging Face t4-medium job at a sha:
+// The one shared GPU runner (Dom 2026-10-09: "make sure the devs use the GPU, enforce it like the waterfall"). Runs a command on a Hugging Face t4-small job (GPU_RUN_FLAVOR=t4-medium + HF_REASON for the dearer one) at a sha:
 //   node scripts/gpu-run.mjs <sha> [--timeout 20m] [--blender] -- <cmd...>
 // The job is scripts/hf-wall-rows/job.sh's own setup (playwright:v1.62.1-noble, clone at the sha, npm ci, the #2044 Vulkan flags, the guard that probes BOTH Chromium
 // binaries and exits 11 unless they render on NVIDIA, the build) plus scripts/gpu-run/job-tail.sh (software-GL args stripped and probed again, --blender, the command,
@@ -12,11 +12,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { costOfSeconds, jobScript, parseArgs, parseJobLog, shellLine } from './lib/gpu-run.mjs';
+import { costOfSeconds, jobScript, parseArgs, parseJobLog, rateOf, shellLine } from './lib/gpu-run.mjs';
+import { t4Flavor } from './lib/hf-wall-rows.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const hf = process.env.GPU_RUN_HF || 'hf', flavor = 't4-medium', pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
 const say = message => process.stderr.write(`gpu-run: ${message}\n`);
+// t4-small unless GPU_RUN_FLAVOR says otherwise (Dom 2026-10-21); medium wants HF_REASON.
+const hf = process.env.GPU_RUN_HF || 'hf', flavor = t4Flavor(process.env.GPU_RUN_FLAVOR, process.env.HF_REASON, say), pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
 const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', timeout: 120_000, ...options });   // every sync child is bounded (tests/child-process-bounds.test.ts)
 const sleep = s => new Promise(resolve => setTimeout(resolve, s * 1000));   // async: a SIGTERM/SIGINT (GitHub cancelling the run) is only handled when the loop yields
 const PUBLIC_KEYS = ['VITE_SENTRY_DSN', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'];
@@ -74,7 +76,7 @@ export async function main(argv) {
     if (from >= 0) process.stdout.write(`${ran.slice(from + 1, to > from ? to : undefined).join('\n')}\n`);
     say(`renderer: ${parsed.renderer ?? 'none printed'}${parsed.blender ? ` | ${parsed.blender}` : ''}`);
     if (parsed.sha && parsed.sha !== sha) say(`WARNING the job built ${parsed.sha.slice(0, 8)}, not ${sha.slice(0, 8)}`);
-    if (parsed.seconds !== null) say(`job ${jobId} ran ${parsed.seconds} s on ${flavor} ≈ $${costOfSeconds(parsed.seconds).toFixed(2)} at $0.60/h`);
+    if (parsed.seconds !== null) say(`job ${jobId} ran ${parsed.seconds} s on ${flavor} ≈ $${costOfSeconds(parsed.seconds, rateOf(flavor)).toFixed(2)} at $${rateOf(flavor).toFixed(2)}/h`);
     // The cost ledger booked this job at its --timeout when it launched (a reservation); settle it to what it really cost. The wall time from launch to the end is
     // used, not the log's COST seconds: that clock starts inside the container, after the image pull HF also bills. Capped at the timeout; a job cancelled at its
     // timeout, or one with no wall time, keeps its bound (the safe side of a money stop).

@@ -1,5 +1,5 @@
 # Sourced by deploy.sh. The T4 wall-row box (Lead's brief 2026-09-30, Dom's yes via Strategy): the wall-clock browser rows of this release
-# run as ONE Hugging Face job (t4-medium, 4-wide, scripts/hf-wall-rows.mjs) launched right after preflight so it overlaps the quality gate;
+# run as ONE Hugging Face job (t4-small by default, 4-wide, scripts/hf-wall-rows.mjs) launched right after preflight so it overlaps the quality gate;
 # at the release-rows step the Mac trusts only the rows whose receipt says exit 0 for the deployed TREE and runs everything else itself
 # (WebKit rows, row 22 while it is held, any T4-failed row — which then gets the Mac's own retry-once-alone — and every row when the job
 # never ran, timed out or errored). test:all and publish never leave the Mac.

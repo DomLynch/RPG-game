@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cpuShards } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
-import { parseJobLog, selectWallRows, splitRows, trustedRows, waitBudget, HELD_ROWS, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
+import { parseJobLog, selectWallRows, splitRows, trustedRows, waitBudget, HELD_ROWS, T4_DEFAULT_FLAVOR, T4_MEDIUM_USD_PER_HOUR, T4_SMALL_USD_PER_HOUR, costLine, t4Flavor } from '../scripts/lib/hf-wall-rows.mjs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
 // The launcher tests read HEAD and its tree: a clone without .git (the VPS work copies) has neither. CI and the Mac keep them strict.
@@ -73,7 +73,13 @@ test('the job log: HEAD/TREE from git inside the container, one receipt line per
   assert.deepEqual(parsed.receipts, [{ index: 1, status: 0, seconds: 63, tree }, { index: 22, status: 1, seconds: 48, tree }]);
   assert.equal(parsed.seconds, 555);
   assert.deepEqual(parseJobLog('=== BLOCKER build failed ===\n'), { sha: null, tree: null, receipts: [], seconds: null, blocker: 'build failed' });
-  assert.equal(costLine(555, 'x1'), `hf-wall-rows: job x1 ran 555 s on t4-medium ≈ $${(555 / 3600 * T4_MEDIUM_USD_PER_HOUR).toFixed(2)} at $${T4_MEDIUM_USD_PER_HOUR.toFixed(2)}/h`);
+  assert.equal(costLine(555, 'x1'), `hf-wall-rows: job x1 ran 555 s on t4-small ≈ $${(555 / 3600 * T4_SMALL_USD_PER_HOUR).toFixed(2)} at $0.40/h`, 'the default flavor is the 40-cent T4');
+  assert.equal(costLine(555, 'x1', 't4-medium'), `hf-wall-rows: job x1 ran 555 s on t4-medium ≈ $${(555 / 3600 * T4_MEDIUM_USD_PER_HOUR).toFixed(2)} at $${T4_MEDIUM_USD_PER_HOUR.toFixed(2)}/h`, 'medium is priced at its own rate');
+  assert.deepEqual([T4_SMALL_USD_PER_HOUR, T4_MEDIUM_USD_PER_HOUR, T4_DEFAULT_FLAVOR], [0.4, 0.6, 't4-small']);
+  const said: string[] = [];
+  assert.equal(t4Flavor('', '', (m: string) => said.push(m)), 't4-small'); assert.deepEqual(said, [], 'no flavor chosen: small, silent');
+  assert.equal(t4Flavor('t4-medium', '', (m: string) => said.push(m)), 't4-medium'); assert.match(said[0], /WARN t4-medium chosen without HF_REASON/);
+  assert.equal(t4Flavor('t4-medium', 'needs-30gb', (m: string) => said.push(m)), 't4-medium'); assert.match(said[1], /HF_REASON=needs-30gb/); assert.doesNotMatch(said[1], /WARN/);
 });
 
 test('the launcher end to end with a fake hf: launch writes the job id, collect trusts only same-tree exit-0 rows, a job that never ran trusts nothing', { skip: noGit }, () => {
