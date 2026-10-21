@@ -1,5 +1,9 @@
 # Deploy lane — state
 
+## 2026-10-21 22:4x (+04) — K6q16 LIVE 2bf101977, closed
+
+Cut 21:52 (+04) by me: `cut-release.mjs K6q16 3553@e533e53748… 3562@ec59e2558f… 3560@ac04dad4b2… --live 08070eb67…` -> PR #3563 @2bf101977755f8540c46af0b87103b17eb9dce80, 0 skipped. Train published on the 22:21 tick after Lead's candidate:pass + "Auditor: PASS @2bf101977"; switch 22:23:06, deploy.sh 3 min. Verified release.json, VPS current, served index == dist/index.html, supabase.co grep = 1 on assets/index-DlTtZRyC.js, health 200, NRestarts 0, trunk == 2bf101977. Mac row 9 passed; CI tail run 39652593340 SUCCESS; rows 37/38 CI-trusted green, no retry. Gap: the skill's fifth check (`grep -c 'v:<N>'`) has no defined N anywhere in the repo, not run; the train's own bundle check (Supabase origin + auth storageKey) passed. Ask Lead what N is or drop the line from the skill. Next: K6q17 on Lead's call; Steam track opens 10-22 (account-free prep only).
+
 ## 2026-10-21 21:3x (+04) — K6q15b LIVE 08070eb67 (train publish), closed
 
 Published 08070eb67ce0fce5b45779ec67b0298abf18d55b at 21:02 (+04): K6q15b #3559 = #3555 (duel-relay handlers armed before the ready lines). The train picked it up on the 21:00 tick once "Auditor: PASS @08070eb67" (16:59:17Z) and candidate:pass were both present (my first check at ~20:58 ran before the PASS landed). Verified release.json, VPS current, health 200, NRestarts 0, trunk == 08070eb67. Mac row 9 passed (125 s). CI tail run 39640579023 SUCCESS, 13/13 groups (rows 37 and 38 green). deploy_hold cleared. Sweep-tool drift WARN fixed by Backend 21:07. Next: K6q16 = #3553 + Web's row 37/38 fix once it has a PASS; no Web PR by 22:00 = #3553 alone; row 37 red = drop #3553. No trunk merge between a cut and its Published line. The handoff #8 entry below is superseded for LIVE and IN FLIGHT.
