@@ -94,9 +94,25 @@ test('net_remote_fetch_cmd: GitHub down for all 3 attempts exits 1 with one name
   assert.match(r.stdout, /rc=1/); assert.match(r.stderr, /github\.com unreachable or the fetch failed after 3 attempts/); assert.deepEqual(w.calls(), ['curl', 'curl', 'curl']);
   const blip = remoteWorld(false, false, 2), rb = blip.run(); assert.match(rb.stdout, /rc=0/); assert.deepEqual(blip.calls(), ['curl', 'curl', 'curl', 'git fetch -q origin deadbeef'], 'a blip that clears on attempt 3 still lands');
 });
-test('deploy.sh: the writer install gets its revision through net_remote_fetch_cmd and keeps the "site has not moved" stop', () => {
+// net_remote_checkout_cmd: the blobless clone's checkout reads blobs from the box's store (origin rewritten), GitHub only when the store lacks one.
+const checkoutWorld = (storeOk: boolean, curlFails: number) => {
+  const dir = mkdtempSync(join(tmpdir(), 'net-co-')), bin = join(dir, 'bin'), log = join(dir, 'calls'); mkdirSync(bin);
+  const tool = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`); chmodSync(join(bin, name), 0o755); };
+  tool('git', `case "$1" in -c) echo "git $*" >> '${log}'; exit ${storeOk ? 0 : 128};; checkout) echo "git $*" >> '${log}'; exit 0;; esac\nexit 0`);
+  tool('curl', `echo curl >> '${log}'\nn=$(grep -c '^curl' '${log}')\n[ "$n" -le ${curlFails} ] && exit 7\nexit 0`);
+  tool('sleep', 'exit 0'); tool('timeout', 'shift; exec "$@"');
+  const run = () => spawnSync('bash', ['-c', `source '${lib}'\nbash -c "$(net_remote_checkout_cmd deadbeef /store)"; echo "rc=$?"`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  return { run, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []) };
+};
+test('net_remote_checkout_cmd: first try rewrites origin to the box store (no curl); a store that lacks an object falls back to GitHub behind a probe; GitHub down is a named exit 1', () => {
+  const a = checkoutWorld(true, 99), ra = a.run(); assert.match(ra.stdout, /rc=0/);
+  assert.deepEqual(a.calls(), ['git -c url./store.insteadOf=https://github.com/DomLynch/RPG-game.git checkout -q -f --detach deadbeef'], 'the lazy blob fetch is pointed at the store, no probe');
+  const b = checkoutWorld(false, 0), rb = b.run(); assert.match(rb.stdout, /rc=0/); assert.deepEqual(b.calls().slice(1), ['curl', 'git checkout -q -f --detach deadbeef']);
+  const c = checkoutWorld(false, 99), rc = c.run(); assert.match(rc.stdout, /rc=1/); assert.match(rc.stderr, /github\.com unreachable or the checkout failed after 3 attempts/);
+});
+test('deploy.sh: the writer install gets its revision and checkout through net_remote_fetch_cmd / net_remote_checkout_cmd and keeps the "site has not moved" stop', () => {
   const d = readFileSync('scripts/deploy.sh', 'utf8');
-  assert.match(d, /cd \/root\/work-1880 && \$\(net_remote_fetch_cmd "\$revision"\) && git checkout -q -f --detach '\$revision'/);
+  assert.match(d, /cd \/root\/work-1880 && \$\(net_remote_fetch_cmd "\$revision"\) && \$\(net_remote_checkout_cmd "\$revision"\) && bash ops\/install-origins-writer\.sh/);
   assert.doesNotMatch(d, /work-1880 && git fetch -q origin/, 'no bare fetch before the install'); assert.match(d, /writer install failed for \$revision; the site has not moved/);
 });
 test('net_retry: the last failure code passes through after N tries; an early success stops it', () => {

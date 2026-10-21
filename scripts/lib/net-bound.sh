@@ -68,6 +68,14 @@ net_fetch_local_first() {
 # net_remote_fetch_cmd REVISION [STORE]: the shell text deploy.sh runs ON THE BOX inside a clone (the writer install's /root/work-1880) to get REVISION, local first (Lead 2026-10-21): already there = no
 # fetch; else from the box's own object store STORE (default /opt/frankendom-shadow/repo, no network); else GitHub, 3 attempts each behind a 30 s connect probe, `timeout 180` on the fetch. A final failure
 # prints one line and exits 1, so the caller's "the site has not moved" stop runs in seconds instead of after a 135 s hang per call.
+# net_remote_checkout_cmd REVISION [STORE] [ORIGIN_URL]: the checkout that follows it. /root/work-1880 is a BLOBLESS partial clone (remote.origin.promisor, blob:none): `git checkout` pulls the blobs the revision
+# changes from the promisor remote (GitHub) one lazy fetch at a time ("could not fetch <oid> from promisor remote", Strategy 2026-10-21). First try with origin REWRITTEN to the box's own store (url.<store>.insteadOf:
+# a plain `-c remote.origin.url=` is only appended to the list and ignored; the rewrite is what the lazy fetch honours; verified with the origin made unreachable). Only if the store lacks an object: GitHub, 3 attempts
+# behind the 30 s probe, `timeout 180` on the checkout; a final failure prints one line and exits 1.
+net_remote_checkout_cmd() {
+  local rev=$1 store=${2:-/opt/frankendom-shadow/repo} url=${3:-https://github.com/DomLynch/RPG-game.git}
+  printf '%s' "git -c 'url.$store.insteadOf=$url' checkout -q -f --detach '$rev' </dev/null 2>/dev/null || { got=0; for i in 1 2 3; do curl -sS -o /dev/null --connect-timeout 30 --max-time 45 https://github.com </dev/null 2>/dev/null && timeout 180 git checkout -q -f --detach '$rev' </dev/null && { got=1; break; }; [ \"\$i\" = 3 ] || sleep \$((i * 5)); done; [ \"\$got\" = 1 ] || { echo 'github.com unreachable or the checkout failed after 3 attempts' >&2; exit 1; }; }"
+}
 net_remote_fetch_cmd() {
   local rev=$1 store=${2:-/opt/frankendom-shadow/repo}
   printf '%s' "if git cat-file -e '$rev^{commit}' 2>/dev/null; then :; elif git -C '$store' cat-file -e '$rev^{commit}' 2>/dev/null && git fetch -q '$store' '$rev'; then :; else got=0; for i in 1 2 3; do curl -sS -o /dev/null --connect-timeout 30 --max-time 45 https://github.com </dev/null 2>/dev/null && timeout 180 git fetch -q origin '$rev' </dev/null && { got=1; break; }; [ \"\$i\" = 3 ] || sleep \$((i * 5)); done; [ \"\$got\" = 1 ] || { echo 'github.com unreachable or the fetch failed after 3 attempts' >&2; exit 1; }; fi"
