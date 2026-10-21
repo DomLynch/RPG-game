@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 
 const [dist, out] = process.argv.slice(2), TICKS = +(process.env.TICKS || 300), [sx, sz] = (process.env.SPOT || '-97.05,3.7').split(',').map(Number);
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ogg': 'audio/ogg', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
@@ -20,7 +21,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const MAC_GL = process.env.MAC_GL === '1';   // the Mac M5: Google Chrome on Metal (Playwright's own headless shell can fall back to SwiftShader there); the renderer string is logged either way
-const browser = await chromium.launch(MAC_GL ? { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] } : { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
+const browser = await launchBrowser(chromium, MAC_GL ? { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] } : { args: process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu', '--no-sandbox'] : [] });   // --no-sandbox: the HF/VPS job runs as root
 const base = `${/^https?:/.test(dist) ? dist.replace(/\/$/, '') : `http://127.0.0.1:${server.address().port}`}/preview/origins/?region=1&zone=1&presence=0`;   // <dist> may be a running dev server's origin (http://127.0.0.1:5191) instead of a built folder
 const readyWait = (page) => page.waitForFunction(() => window.originsPreview?.capture?.ready?.(), null, { timeout: 600000, polling: 500 }).catch(async (error) => {   // never ready: say which half is missing
   const diag = await page.evaluate(() => { const d = window.originsPreview?.mobs?.(); return { zoneReady: !!window.__zoneReady, ticks: window.originsPreview?.capture?.ticks?.(), gates: window.originsPreview?.capture?.gates?.(), drawn: d?.mobs?.filter((m) => m.drawn).length, modelled: d?.mobs?.filter((m) => m.drawn && m.model).length, bodies: d?.bodies }; }).catch(() => null);
