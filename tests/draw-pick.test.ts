@@ -25,7 +25,7 @@ test('the phone cap is 3 and a player\'s reach is a row (desktop keeps TUNING.ca
   const v = (id: string) => rows.find((r) => r.id === id)?.fields.value;
   assert.equal(v('mob-view.phone-cap'), 3);
   assert.equal(v('mob-view.player-reach'), 8);
-  assert.equal(v('mob-view.preready-kinds'), 3);   // a phone's kinds fetched before [zone ready]: the nearest creatures' (= the phone cap), deliberate (#defer-bodies)
+  assert.equal(v('mob-view.preready-kinds'), 1);   // a phone fetches only its nearest creature's kind before [zone ready] (#3520; measured on the T4 phone capture: 3 = 12,268 KB, 2 = 11,576 KB, 1 = 10,887 KB gzip before ready, the others follow right after ready closest first), deliberate
 });
 
 test("fetchKinds: before [zone ready] a phone fetches only its nearest creatures' kinds, after it every near kind, closest first", () => {
