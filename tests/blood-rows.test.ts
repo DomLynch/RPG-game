@@ -19,7 +19,7 @@ test('the exported numbers are the literals the files held before', () => {
 });
 
 test('the private numbers are rows with their old values', () => {
-  const was: Record<string, number> = { 'blood-style.front': 0.35, 'blood-style.min-cam': 1.5, 'gore.arm-share': 0.5, 'gore.floor-dry': 8, 'nightfall-fx.rim-net': 0.65, 'wounds-fx.spots': 40, 'wounds-fx.spot-life': 25, 'wounds-fx.drip-size': 0.12, 'wounds-fx.mark-spread': 0.45 };
+  const was: Record<string, number> = { 'blood-style.front': 0.35, 'blood-style.min-cam': 1.5, 'gore.arm-share': 0.5, 'gore.floor-dry': 8, 'gore.phone-surface-ray': 0,'nightfall-fx.rim-net': 0.65, 'wounds-fx.spots': 40, 'wounds-fx.spot-life': 25, 'wounds-fx.drip-size': 0.12, 'wounds-fx.mark-spread': 0.45 };
   for (const [id, v] of Object.entries(was)) assert.equal(bloodNum(id), v, id);
   assert.throws(() => bloodNum('no-such-row'), /no row/);
 });
