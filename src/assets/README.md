@@ -560,8 +560,8 @@ measures are the pixels the phone shows. Review captures: `node scripts/arena-pr
 
 ## Weapons (weapons lane, 2026-09-18) — the scythe
 
-`src/assets/weapons/scythe/`: `scythe.glb` (the part alone) and `executioner-scythe-{A,B,C}.glb` (silhouette variants, the owner's pick B
-also as `executioner-scythe.glb`) — the Executioner's own 1.36× rig carrying the scythe with a 13-clip `Scythe_*` family authored on it
+`src/assets/weapons/scythe/`: `scythe.glb` (the part alone) and `executioner-scythe.glb` (the owner's pick B of three silhouette
+variants; A, B and C left the tree on 2026-10-21, nothing loaded them; they stay in git history before that date) — the Executioner's own 1.36× rig carrying the scythe with a 13-clip `Scythe_*` family authored on it
 (the two-hand grip solver from the trident; per-key blade roll so the crescent reads from the game camera), plus `warrior-scythe.glb`:
 the MAN-SCALE bake rig (`WARRIOR_FIGHTER=hero WARRIOR_WEAPON=scythe WARRIOR_OUT=…`), the intended blade-table source after the combat
 lane's flip, per the cleaver convention. Built by `scripts/build-weapon.mjs` through `build-warrior.mjs`
