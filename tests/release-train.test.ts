@@ -557,6 +557,13 @@ test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is nev
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
+test('mac rows and deploy.sh default PLAYWRIGHT_BROWSERS_PATH to ~/Developer/.ms-playwright when it exists and the caller set none (macOS emptied ~/Library/Caches/ms-playwright on 10-16 and 10-21)', () => {
+  for (const f of ['scripts/mac-rows-early.sh', 'scripts/deploy.sh']) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    assert.match(src, /if \[\[ -z "\$\{PLAYWRIGHT_BROWSERS_PATH:-\}" && -d "\$HOME\/Developer\/\.ms-playwright" \]\]; then export PLAYWRIGHT_BROWSERS_PATH="\$HOME\/Developer\/\.ms-playwright"; fi/, `${f} defaults the browsers path out of ~/Library/Caches`);
+  }
+});
+
 test('publisher (Strategy 2026-10-20, K6k): an early run ended by a signal (a yield to a deploy, exit 143) is logged but leaves no failed marker', async () => {
   const p = publisher();
   try {

@@ -5,6 +5,8 @@
 # under deploy.sh's Mac-rows lock (scripts/lib/deploy-lock.sh), so it never overlaps a deploy's local rows. Writes the tree-bound receipt
 # scripts/lib/mac-rows-early.mjs reads; deploy.sh trusts the rows that passed, by tree. Env: PRELAUNCH_DIR, MAC_ROWS_DIR, MAC_ROWS_INSTALL, MAC_ROWS_RUN (tests).
 set -uo pipefail
+# Playwright browsers live in ~/Developer/.ms-playwright, not ~/Library/Caches (macOS emptied ms-playwright on 10-16 and 10-21 and every Mac row died at launch); an explicit PLAYWRIGHT_BROWSERS_PATH wins, and a Mac without the folder keeps Playwright's default.
+if [[ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "$HOME/Developer/.ms-playwright" ]]; then export PLAYWRIGHT_BROWSERS_PATH="$HOME/Developer/.ms-playwright"; fi
 sha="${1:-}"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "mac-rows-early: needs a full 40-hex candidate sha" >&2; exit 2; }
 here=$(cd "$(dirname "$0")/.." && pwd)
