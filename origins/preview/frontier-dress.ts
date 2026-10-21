@@ -93,8 +93,9 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
         for (let i = 0; i < 4; i++) {
           if (R() < 0.25) continue;   // a gap in the wall
           const len = between(1.8, 3.2), h = between(0.7, 3.4) * (i === 3 ? 0.5 : 1), t = (i + 0.5) * 3.1, x = o.x + dx * t, zz = o.z + dz * t;
-          put(['box', len, h, 0.7], x, h / 2, zz, WALL, base, 0); solid(x, zz, len / 2);
-          if (R() < 0.5) put(['box', len * 0.8, 0.12, 0.74], x, h * 0.55, zz, BURNT, base, 0);   // a soot band
+          const inside = inZone(z, x, zz, len / 2);   // a ruin's arm is 12 m long and can reach past the zone edge: that segment is not built (the draws below still happen, so no later piece moves)
+          if (inside) { put(['box', len, h, 0.7], x, h / 2, zz, WALL, base, 0); solid(x, zz, len / 2); }
+          if (R() < 0.5 && inside) put(['box', len * 0.8, 0.12, 0.74], x, h * 0.55, zz, BURNT, base, 0);   // a soot band
         }
       }
       for (let i = 0; i < 2; i++) { const x = o.x + ux * between(-4, 5) - uz * between(1, 5), zz = o.z + uz * between(-4, 5) + ux * between(1, 5), h = between(1.2, 3.6); put(['cylinder', 0.42, 0.5, h, 10], x, h / 2, zz, WALL, 0, 0); solid(x, zz, 0.55); }
