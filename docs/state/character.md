@@ -2,6 +2,8 @@
 
 ## 2026-10-21 (~09:45 +04) — HANDOFF #11 (supersedes #10). READ THIS BLOCK FIRST. Theme: phone-tier asset budgets (Dom's study list item 3, Lead's GO, one PR each). Dom's targets: #3488 READY with the Auditor's PASS and #3485 with its WebKit receipt, both by 11:15.
 
+**UPDATE 2026-10-21 ~10:35 +04:** #3485 WebKit receipt PASS posted (pull/3485#issuecomment-6309370802), Lead accepted. #3488 gfx-ON phone-tier loot-draw posted (pull/3488#issuecomment-6309463423): trunk 1 new program at the first loot draw (#98), head 1 (#101), no worse; Lead accepted. Both ride K6q with #3486, waiting on the Auditor's PASS. LATER ITEM (not now, Lead): trunk itself still links 1 program at the first loot draw (#98 on trunk; which material is unidentified: list programNames diff in `loot-draw-programs.mjs`, then pre-compile it with the loot root in the scene). Proof scripts: /srv/dev-jobs/char-webp/loot-draw-programs-gfx.mjs (`?gfx=1`) on the VPS. Creature bare-body item (a) waits for someone to do the face close-up check; I am idle otherwise.
+
 **Merged / live**: #3474 far-detail merged (head 364a94157). #3457, #3463 live earlier (see #10).
 
 **Open PRs (all mine, auditor:ready)**
