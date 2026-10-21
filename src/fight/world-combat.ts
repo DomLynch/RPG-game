@@ -58,6 +58,7 @@ export function finishOf(kind: string, finish: Finish, weapons: readonly [Weapon
   return pick && row.includes(pick) && canPlay(pick) ? pick : PLAIN_DEATH;
 }
 
+const lapW = (k: string): void => (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.(k);   // MEASUREMENT ONLY (branch web/walkloop-spans)
 export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
   const mine = (): { level: number; health?: number; weapon?: WeaponId; sheet?: Sheet; spell?: { id: string; skill: number }; spell2?: { id: string; skill: number }; special?: SkillId; special2?: SkillId } => d.hero?.() ?? { level: 1 };
   const body = (x: number, z: number, facing: number): Fighter => { const { level, health, weapon, sheet, spell: asked, spell2: asked2, special, special2 } = mine(), spell = asked ? resolveSpell(asked.id, asked.skill, sheet?.spellPower ?? 0) : undefined, spell2 = asked2 ? resolveSpell(asked2.id, asked2.skill, sheet?.spellPower ?? 0) : undefined, p = player(ME, x, z, facing, level, special ?? null, { ...(weapon ? { weapon } : {}), ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}), ...(special2 ? { skill2: special2 } : {}) }); return health ? { ...p, health, maxHealth: health } : p; };
@@ -139,6 +140,7 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
         if (specs.size === 0 && !specs.has(p.spec.id) && !heroClean(world)) { const w = (waited.get(p.spec.id) ?? 0) + dt; waited.set(p.spec.id, w); if (w < JOIN_WAIT_S) continue; }
         waited.delete(p.spec.id); join(p);
       }
+      lapW('wc.preAccum(join+hero)');
       const want = acc + dt, cap = STEP * MAX_STEPS; acc = Math.min(want, cap);
       if (want > cap) { lostMs += (want - cap) * 1000; hitches++; if (hitches === 1 || hitches % 10 === 0) console.warn(`world-combat: a ${Math.round(dt * 1000)} ms frame dropped ${Math.round((want - cap) * 1000)} ms of fight time (${hitches} such frame(s), ${Math.round(lostMs)} ms lost in all)`); }
       const rg = d.regen?.() ?? null, walked = lastHero && dt > 0 ? Math.hypot(hero.x - lastHero.x, hero.z - lastHero.z) / dt : 0; lastHero = { x: hero.x, z: hero.z };   // his speed over this frame, for the regen's walk rate
@@ -147,10 +149,14 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
         acc -= STEP; steps++; stepped = true;
         for (const q of world.fighters) prevPose.set(q.id, { x: q.x, z: q.z, facing: q.facing });   // the pose before this tick; after the loop it is the one before the LAST tick
         for (const p of pairs(world)) lastDuel.set(p.foe, p.duel);
+        lapW('wc.prevPose+pairs');
         const step = quantStep(first ? hero : null, guardHeld && !heroDead, heroDead ? null : pendingAttack, heroDead ? null : pendingRoll, guardSide, !heroDead && pendingCast, !heroDead && pendingCast2, !heroDead && attackHeld); first = false;
         recorder.step(step);
+        lapW('wc.quant+recorder');
         const r = stepHero(world, step, gearOf()); pendingAttack = null; pendingRoll = null; pendingCast = false; pendingCast2 = false;
+        lapW('wc.stepHero.tail');
         world = r.world; for (const ev of r.events) { handle(ev); d.onEvent?.(ev); }
+        lapW('wc.events');
         if (rg && !heroDead) {   // out-of-combat regeneration: the sim's own health and stamina on his fighter, once per fixed step (hero-regen.ts); null (the Pit, every listed zone) = none
           const m = world.fighters[0]!, fought = r.events.some((ev) => ev.type === 'Hit' && (ev.attacker === ME || ev.victim === ME)), noticed = specs.size > 0 || world.fighters.slice(1).some((f) => f.phase !== 'dead' && (f.hunting || Math.hypot(f.x - m.x, f.z - m.z) <= AGGRO_M));   // any creature still in the loop (even one walking home) keeps a record window open: no regen tick lands inside it
           const out = regenStep(quiet, STEP, rg, { fought, noticed, moving: walked > rg.moveEpsMps, dead: m.phase === 'dead' }, m); m.health = out.health; m.stamina = out.stamina;
@@ -171,6 +177,7 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
         mobs.drive(f.id, { x: drawn.x, z: drawn.z, facing: drawn.facing, moving: f.returning || (f.hunting && f.phase === 'ready' && Math.hypot(f.x - hero.x, f.z - hero.z) > 1.6), duel: duelFor(world, f.id) ?? undefined });   // the page poses its actor from the duel (the engine's actorPose)
         if (!f.hunting && !f.returning && Math.hypot(f.x - hero.x, f.z - hero.z) > DROP_M) release(f.id);
       }
+      lapW('wc.creatureDrive');
       if (!stepped) return { dx: 0, dz: 0 };   // no step ran (dt 0 on the clock's first frame): the loop's body has not met the page's position yet, so it is not a displacement
       return { dx: me().x - hero.x, dz: me().z - hero.z };   // a roll's displacement (zero on foot); the page applies it with its own collision
     },

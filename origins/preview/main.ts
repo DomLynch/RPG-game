@@ -400,6 +400,7 @@ const actionLog: [number, string][] = [], ACT_LOG_KEEP = 16;   // the last few a
 const SPANS: Record<string, number> = ((window as unknown as { __spans: Record<string, number> }).__spans = { frames: 0 });
 let lapAt = 0;
 const lapStart = (): void => { lapAt = performance.now(); };
+(globalThis as unknown as { __lap: (k: string) => void }).__lap = (k: string): void => { const n = performance.now(); SPANS[k] = (SPANS[k] ?? 0) + (n - lapAt); lapAt = n; };   // the sim files call this through globalThis
 const lap = (k: string): void => { const n = performance.now(); SPANS[k] = (SPANS[k] ?? 0) + (n - lapAt); lapAt = n; };
 // Sim steps run in each walk frame (the fixed-1/60 accumulator in world-combat.ts catches up after a slow frame, up to maxSteps): a histogram, the first 6000 (frame ms, steps) pairs, and the loop's own stats (steps, lostMs, hitches).
 const STEPHIST: Record<number, number> = ((window as unknown as { __stepHist: Record<number, number> }).__stepHist = {}), FRAMELOG: number[][] = ((window as unknown as { __frameLog: number[][] }).__frameLog = []);

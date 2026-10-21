@@ -166,6 +166,7 @@ const slotted = (duel: Bout['duel'], slot: number): Bout['duel'] => {
   return slot > 1 ? { ...rest, crowd: { from: 1, slot, kind: 'mob' } } : rest;
 };
 
+const lapG = (k: string): void => (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.(k);   // MEASUREMENT ONLY (branch web/walkloop-spans)
 export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number): { world: World; events: Event[] } {
   const clock = Math.round(world.time * 60);   // the world's clock in Pit ticks: the crowd-control ladder's window runs on it, across every bout
   const events: Event[] = [];
@@ -173,6 +174,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   for (const [a, m] of Object.entries(world.aggro)) aggro[a] = { ...m };
   const players = fighters.filter((f) => f.side === 'player' && alive(f)), creatures = fighters.filter((f) => f.side === 'creature');
   const inFight = new Set<string>();
+  lapG('wcs.clone');
 
   // A shielded player's own first attack ends his protection (Dom): he swings with another attackable player in reach.
   for (const p of players) if (p.shielded && inputs[p.id]?.attack && players.some((q) => q !== p && q.pvp && p.pvp && dist(p, q) <= ENGAGE_M)) p.shielded = false;
@@ -228,11 +230,14 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     inFight.add(p.id); bouts.push({ a: p, b: foe });   // 3. no foe in reach: the player is alone in his bout (swings at air, guards, rolls, regains stamina on the Pit's rules)
   }
 
+  lapG('wcs.matchmaking');
   for (const { a, b } of bouts) {
     const prev = world.streams[a.id], same = prev && prev.foe === (b?.id ?? null);
     const opened: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const bout: Bout = opened.duel.crowd ? { ...opened, duel: slotted(opened.duel, 1) } : opened;   // the primary foe is the 1st attacker on him: full blow (a joiner promoted to primary sheds its slot)
+    lapG('wcs.boutOpen');
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt, clock);
+    lapG('wcs.stepBout.primary');
     if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     if (b && b.side === 'creature' && !engagedWith(a, b.id)) events.push({ type: 'FightStarted', creature: b.id, player: a.id });
     streams[a.id] = r.bout; events.push(...r.events);
@@ -259,6 +264,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (b && b.side === 'creature' && alive(b) && M.hypot(b.x - b.chaseX, b.z - b.chaseZ) > leashOf(b.kind)) { b.hunting = false; b.returning = true; b.phase = 'ready'; }   // the leash is the world layer's, on the duel too
   }
 
+  lapG('wcs.joiners+threat');
   // Evade (Lead + Strategy 2026-10-16; donor AzerothCore EnterEvadeMode): a creature whose last EVADE_WHIFFS attack cycles all ended without contact gives up by the same exit as the leash (it walks home untargetable and heals to full on arrival).
   // A cycle with no contact is a swing that resolved on empty air, or an approach the prey left (out past the engage-out ring) before the swing started. A cycle cut short by a stagger does not count; only the creature's OWN landed, blocked,
   // parried or dodged blow resets the count, never the hero hitting it. A farmed creature is free to act and whiffs; a stagger-locked one does not swing, so it never trips this.
@@ -281,6 +287,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (c.whiffs >= EVADE_WHIFFS) { c.hunting = false; c.returning = true; c.phase = 'ready'; c.whiffs = 0; c.cycle = false; c.reached = false; }
   }
 
+  lapG('wcs.evade');
   // The world layer for every creature not in a fight: chase to the hold ring (and wait there), give up, walk home.
   for (const f of creatures) {
     if (!alive(f) || inFight.has(f.id)) continue;
@@ -307,6 +314,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
       }
     } else if (f.hunting) { f.hunting = false; f.returning = true; f.unseen = 0; }   // nobody left to hunt (the prey is dead or gone)
   }
+  lapG('wcs.worldLayer');
   return { world: { time: world.time + dt, fighters, aggro, streams }, events };
 }
 
