@@ -49,6 +49,11 @@ test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; all
   assert.equal(zoneFromAddress('/zone/2/', ''), '2');
   assert.equal(zoneFromAddress('/zone/2', '?zone=3'), '2', 'the path wins');
   assert.equal(zoneFromAddress('/zone1/', '?zone=2&x=1'), '2');
+  for (const id of allZoneIds()) { assert.equal(zoneFromAddress(`/zone${id}/`, ''), id, `the short link /zone${id}/`); assert.equal(zoneFromAddress(`/zone${id}`, '?x=1'), id); }
+  assert.equal(zoneFromAddress('/zone2/', '?zone=3'), '3', '?zone= still wins on a short link');
+  assert.equal(zoneFromAddress('/zone/3/', ''), '3', '/zone/<id>/ is unchanged');
+  assert.equal(zoneFromAddress('/zone2/x', ''), '1', 'only the bare short link names a zone');
+  assert.throws(() => loadZone(zoneFromAddress('/zone99/', '')), /no zone 99/, 'an unlisted number is the loader\'s "no such place"');
   assert.equal(pageZoneId(), '1', 'no page (the server, the tests): Zone 1');
   assert.throws(() => loadZone(zoneFromAddress('/zone/99/', '')), /no zone 99/);
 });
