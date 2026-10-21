@@ -85,7 +85,7 @@ test('sweep_kind: exactly /tmp/rev2354-dist.tgz, /tmp/wk.tgz and /tmp/wk2.tgz ar
   for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/root/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
-test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour file is refused because its kind needs a directory', { skip: process.platform !== 'linux' }, () => {
+test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour regular file of kind lane passes since 2026-10-21', { skip: process.platform !== 'linux' }, () => {
   const dir = mkdtempSync(join('/tmp', 'sweep-file-'));
   const file = join(dir, 'a.tgz'), link = join(dir, 'l.tgz'), sub = join(dir, 'd.tgz');
   const neighbour = join('/tmp', `wk3-test-${process.pid}.tgz`);
@@ -96,7 +96,8 @@ test('sweep_safe_path: a kind-file path must be a regular file (never a director
     assert.equal(asFile(link).status, 1); assert.match(asFile(link).stdout, /symlink/);
     assert.equal(asFile(sub).status, 1); assert.match(asFile(sub).stdout, /not a regular file/);
     const real = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', neighbour], { encoding: 'utf8' });
-    assert.equal(real.status, 1, 'a neighbour file (kind lane) is refused'); assert.match(real.stdout, /not a real directory/);
+    // Lead 2026-10-21: a regular file of kind lane is a valid --path now (the Steam dev had to move finished tars into a dir to sweep them); the three one-off kind-file paths above keep their own rules.
+    assert.equal(real.status, 0, 'a neighbour regular file (kind lane) passes now: ' + real.stdout);
   } finally { rmSync(neighbour, { force: true }); rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -152,13 +153,15 @@ test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), 
     const refused: Record<string, RegExp> = {
       [`${real}/`]: /not canonical/, [`${join(base, 'cq-planted')}/`]: /not canonical/, [join(base, 'cq-planted')]: /is a symlink/, [join(base, 'cq-dangling')]: /is a symlink/,
       [join(base, 'parent-link', 'child')]: /path component is a symlink/, [`${base}/real/../real`]: /not canonical/, [`${base}//real`]: /not canonical/,
-      'relative/dir': /not an absolute path/, [join(base, 'a-file')]: /not a real directory/, [join(base, 'missing')]: /not a real directory/,
+      'relative/dir': /not an absolute path/, [join(base, 'missing')]: /not a real directory/,
     };
     for (const [path, why] of Object.entries(refused)) {
       const r = safe(path);
       assert.equal(r.status, 1, `${path} must be refused: ${r.stdout}`);
       assert.match(r.stdout, why, path);
     }
+    // Lead 2026-10-21: a regular file inside a lane root is a valid --path now (it was refused here as "not a real directory"); the symlink and canonical-path refusals above are unchanged.
+    assert.equal(safe(join(base, 'a-file')).status, 0, 'a regular file in a lane root passes');
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
@@ -574,7 +577,7 @@ test('sweep_linked: an outside link makes its target a link target; a link insid
 
 // Lead 2026-10-21 (Strategy's card): (1) a single regular file inside a lane root is a valid --path (the Steam dev had to mv finished tars into a dir first); a symlink file is still refused.
 test('sweep_safe_path: a regular file directly in a lane root is accepted; a symlink file, a file outside the roots and a file of an aged kind are refused', { skip: process.platform !== 'linux' }, () => {
-  const file = join('/tmp', `sweep-file-${process.pid}`), link = join('/tmp', `sweep-filelink-${process.pid}`), aged = join('/tmp', `hooks-sweepfile-${process.pid}`), outside = join(process.cwd(), `.sweep-file-outside-${process.pid}`);
+  const file = join('/tmp', `sweep-file-${process.pid}`), link = join('/tmp', `sweep-filelink-${process.pid}`), aged = join('/tmp', `hooks-sweepfile-${process.pid}`), outside = join('/var/tmp', `sweep-file-outside-${process.pid}`);   // not process.cwd(): a checkout under /srv/dev-jobs is itself inside a lane root
   try {
     for (const f of [file, aged, outside]) writeFileSync(f, 'x');
     symlinkSync(file, link);
