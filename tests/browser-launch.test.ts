@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-// @ts-expect-error: a .mjs tool module without types
 import { launchBrowser, onVps, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/browser-launch.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -46,7 +45,8 @@ test('the VPS gets a low-weight, niced scope and software GL; its own GL choice 
   assert.ok(plain.args.includes('--use-angle=swiftshader') && plain.args.includes('--enable-unsafe-swiftshader'));
   const chosen = vpsOptions({ args: ['--use-angle=gl-egl', '--foo'] }, wrapper);
   assert.deepEqual(chosen.args, ['--use-angle=gl-egl', '--foo']);
-  const text = wrapperText('/opt/pw/headless_shell');
+  const text = wrapperText('/opt/pw/headless_shell', '/tmp/x.pid');
+  assert.match(text, /^echo \$\$ > "\/tmp\/x\.pid"$/m);   // the exec keeps the pid, so this is the browser's pid
   assert.match(text, /^exec nice -n 10 systemd-run --scope --quiet --collect -p CPUWeight=20 -- "\/opt\/pw\/headless_shell" "\$@"$/m);   // Nice= is rejected for a scope, so nice wraps systemd-run
   assert.doesNotMatch(text, /Nice=/);
   assert.deepEqual(reniceArgs([11, 12]), ['-n', '10', '-p', '11', '12']);
