@@ -1135,7 +1135,8 @@ function programOwners(): Record<string, string[]> {
   clampRate: clampRate.snapshot,   // the same read as window.__clampRate(), for the browser checks
   settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
   cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
-  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), advance: (n: number) => CAPTURE.advance(n, (dt, time) => walkFrame(dt, time, false)),   // ?capture=seed (capture.ts): the harness waits ready(), places the hero, waits ready() again, then advance(n) and shoots
+  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), gates: () => ({ selfSettled: selfSettled(), allWarmed: allWarmed(), cleanPlan, queue: uploadQueue.length, programsInFlight: !!programsInFlight, uploadTotal, domeDrawn, gfxDrawn, modelsDrawn: !!modelsDrawn }),   // what [zone ready] is still waiting for (a held-walk diagnosis)
+ advance: (n: number) => CAPTURE.advance(n, (dt, time) => walkFrame(dt, time, false)),   // ?capture=seed (capture.ts): the harness waits ready(), places the hero, waits ready() again, then advance(n) and shoots
     ready: () => { const d = mobs?.debug() as { mobs: { drawn: boolean; model: boolean }[]; bodies: Record<string, string> } | undefined; return !!(window as unknown as { __zoneReady?: unknown }).__zoneReady && !!d && d.mobs.every((m) => !m.drawn || m.model) && Object.values(d.bodies).every((b) => b === 'ready' || b === 'failed'); } },
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
