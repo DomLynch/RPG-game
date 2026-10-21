@@ -636,7 +636,7 @@ test('named-path mode: an orphan bind is released without archiving, and a swept
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8').replace(/\n[ \t]*#[^\n]*/g, '');
   const orphan = src.indexOf('if [ "$orphan" = 1 ]; then\n      if [ $APPLY = 0 ]'), arch = src.indexOf('archive_then_delete "$target" named');
   assert.ok(orphan > 0 && orphan < arch, 'the orphan branch continues before any archive');
-  assert.match(src, /sbinds=""; if \[ "\$kind" = lane \] && \[ "\$bound" = 0 \]; then sbinds=\$\(sweep_binds_of "\$p"\)/, 'binds are found BEFORE the delete');
+  assert.match(src, /sbinds=""; if \[ "\$kind" = lane \]; then sbinds=\$\(sweep_binds_of "\$target"/, 'binds are found BEFORE the delete');
   // Auditor on #3518: every bind of the source is checked BEFORE the delete (lane kind, LINKED, INUSE, in-use probe), a hit refuses the whole path; a sibling bind of a bind source is released too.
   const pre = src.indexOf('sbinds=""; if [ "$kind" = lane ]'), refuse = src.indexOf('[ "$refused" = 0 ] || continue');
   assert.ok(pre > 0 && refuse > pre && refuse < arch, 'the per-bind checks and the refusal come before archive_then_delete');
