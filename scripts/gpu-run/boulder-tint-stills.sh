@@ -7,7 +7,7 @@ ROW=origins/zone-rows/zone1.row.json
 cp "$ROW" /tmp/zone1.row.orig
 shoot() {   # $1 variant name
   npx vite build --config origins/preview/vite.config.mjs --outDir "/tmp/d-$1" > "/tmp/b-$1.log" 2>&1 || { tail -20 "/tmp/b-$1.log"; exit 1; }
-  for v in 844x390 375x812; do VIEW=$v node scripts/boulder-start-stills.mjs "/tmp/d-$1" "artifacts/boulder-tint/$1-$v"; done   # Web's start view + fight flow, where the olive cluster shows (844x390 bottom-left)
+  for v in 844x390 375x812; do VIEW=$v node scripts/boulder-live-stills.mjs "/tmp/d-$1" "artifacts/boulder-tint/$1-$v"; done   # the nearest kit boulder read from the live scene, the hero 4 m south of it (Lead 10-21)
 }
 setcolor() {   # r g b roughness: the three boulder nodes' tint
   python3 - "$ROW" "$1" "$2" "$3" "$4" <<'PY'
