@@ -18,7 +18,12 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
   root.traverse((o) => {
     const mesh = o as THREE.Mesh, list = byNode.get(o.name);
     if (!mesh.isMesh || !list?.length) return;
-    const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, list.length);
+    const tint = loadZone().kit.tint?.[o.name], base = Array.isArray(mesh.material) ? mesh.material[0]! : mesh.material;
+    let material: THREE.Material | THREE.Material[] = mesh.material;
+    if (tint && (base as THREE.MeshStandardMaterial).isMeshStandardMaterial) {   // the zone row's look for this node, on a clone: the model's own material (shared by the other nodes) is never touched
+      const m2 = (base as THREE.MeshStandardMaterial).clone(); m2.color.setRGB(tint.color[0], tint.color[1], tint.color[2]); if (tint.roughness !== undefined) m2.roughness = tint.roughness; material = m2;
+    }
+    const inst = new THREE.InstancedMesh(mesh.geometry, material, list.length);
     inst.name = o.name; inst.castShadow = !NO_SHADOW.test(o.name); inst.receiveShadow = true;
     list.forEach((p, i) => {   // the node's own transform in the file first, then the placement on the ground
       place.compose(new THREE.Vector3(p.x, groundAt(p.x, p.z) + (p.y ?? 0), p.z), q.setFromAxisAngle(up, p.rotY), new THREE.Vector3(p.scale, p.scale, p.scale));
