@@ -38,7 +38,7 @@ await page.evaluate((id) => window.originsPreview.tapMob(id), foe);
 for (let i = 0; i < 20; i++) {
   await page.evaluate(() => window.originsPreview.press?.('light'));
   await page.waitForTimeout(700);
-  if (i === 7 || i === 11) await page.screenshot({ path: path.join(outDir, `${label}-wound-${i}.png`) });
+  if (process.env.STILLS === '1' && (i === 9 || i === 12)) await page.screenshot({ path: path.join(outDir, `${label}-wound-${i}.jpg`), type: 'jpeg', quality: 82 });
 }
 await page.waitForTimeout(3000);
 const lts = await page.evaluate(() => window.__lt);
