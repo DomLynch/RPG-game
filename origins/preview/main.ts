@@ -302,6 +302,7 @@ function crossZone(row: ExitRow) {   // fade to black, close presence (its close
 }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
+let viewH = innerHeight;   // the window's height, read once per resize (resize() below), not per frame: reading innerHeight mid-frame makes the browser flush every style and layout the frame's DOM writes dirtied, ~3 ms of the frame on a phone-class CPU (the walk-loop span between the dome and the tags)
 let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
 const measureHud = () => {
   const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
@@ -521,7 +522,7 @@ function applyCombatView() {
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; viewH = h; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -737,7 +738,7 @@ const walkLoop = () => {
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
-  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
+  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
