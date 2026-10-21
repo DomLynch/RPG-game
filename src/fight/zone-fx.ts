@@ -74,18 +74,22 @@ export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; r
   return {
     /** Once a frame, after the loop stepped: the frame's contacts of every active pair, then the walk camera's kick on top of the placed camera. */
     frame(pairs: PairContacts[], dt: number): void {
+      const lapZ = (k: string): void => (globalThis as unknown as { __lap?: (k: string) => void }).__lap?.(k);   // MEASUREMENT ONLY (branch web/spans-labelfix)
+      lapZ('zfx.pre(takeContacts)');
       for (const c of pairs) {   // a creature with a `breath.<kind>` row breathes fire at the hero whenever its attack starts (fire-breath.ts: presentation only, reads the events, writes nothing)
         if (!fireBreathes(c.kind) || !c.events.some((e) => e.type === 'AttackStarted' && e.actor === OPPONENT_SIDE && e.move !== 'kick')) continue;
         const foe = host.rigs?.foe(c.foe), hero = host.rigs?.hero(), mouth = foe?.boneWorld('Head') ?? foe?.boneWorld('head') ?? foe?.anchor.getWorldPosition(new THREE.Vector3()).setY(1) ?? new THREE.Vector3(c.foeAt.x, 1, c.foeAt.z);
         const chest = hero?.boneWorld('Head') ?? new THREE.Vector3(c.hero.x, 1.4, c.hero.z);
         breath.start(c.foe, mouth, chest.clone().setY(chest.y - 0.3), c.events[0]!.tick);
       }
-      breath.update(dt);
+      breath.update(dt); lapZ('zfx.breath');
       for (const c of pairs) { if (!(c.kind in OPPONENTS)) continue; const s = slotFor(c.foe); s.idle = 0; s.fx.onContact(ctxOf(c, dt)); const hit = c.events.find((e) => e.type === 'Hit'); if (hit) { s.victim = hit.target; s.struck = hit.target === 1 ? [c.foeAt.x, c.foeAt.z] : [c.hero.x, c.hero.z]; } else s.victim = undefined; }
+      lapZ('zfx.onContact');
       for (const [foe, s] of live) {
         s.fx.update(dt);
         if ((s.idle += dt) > IDLE_S) { s.fx.splats.clear(true); s.fx.bodyWounds.clear(); live.delete(foe); free.push(s); }
       }
+      lapZ('zfx.fxUpdate');
       for (const c of pairs) {   // a melee special's look: the hero's SPECIAL 1 (SpecialLanded) and the other slot (a Hit on a skill_ move) both land as one request (special-request.ts)
         const bodies = [{ body: c.hero }, { body: c.foeAt }] as never, scale = [1, OPPONENTS[c.kind as OpponentId]?.scale ?? 1];
         countSpecial('fx', skillImpact.fire(c.events, bodies, scale));
@@ -96,10 +100,11 @@ export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; r
           for (const row of rows) countSpecial('fx', shards.burst(row, shardAt.x, shardAt.y, shardAt.z, to.x - by.x, to.z - by.z));
         }
       }
+      lapZ('zfx.special');
       { const c = pairs.find((p) => telegraphLook(p.duel.fighters[0], false, true)), foe = c && host.rigs?.foe(c.foe), l = foe?.boneWorld('foot_l'), r = foe?.boneWorld('foot_r');   // the hero's special windup, in the world only
         if (c && l && r) windupRing.update(c.duel.fighters[0], ringFoot.copy(l).add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)), c.duel.tick, false, true); else windupRing.hide(); }
-      skillImpact.update(dt); shards?.update(dt);
-      kick.draw(dt);
+      lapZ('zfx.windup'); skillImpact.update(dt); shards?.update(dt); lapZ('zfx.impactUpd');
+      kick.draw(dt); lapZ('zfx.kick');
     },
     /** Instances in use, for the browser checks. */
     active: () => live.size,
