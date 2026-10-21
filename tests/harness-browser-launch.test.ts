@@ -11,7 +11,8 @@ import { launchBrowser, onVps, processTree, reniceArgs, threadIds, vpsOptions, w
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // The helper itself, and the two job scripts that run INSIDE Hugging Face jobs as node snippets (HF behaviour stays unchanged, not the VPS).
-const EXEMPT = new Set(['scripts/lib/harness-browser-launch.mjs', 'scripts/gpu-run/job-tail.sh', 'scripts/hf-wall-rows/job.sh', 'tests/harness-browser-launch.test.ts']);
+const EXEMPT = new Set(['scripts/lib/harness-browser-launch.mjs', 'scripts/gpu-run/job-tail.sh', 'scripts/hf-wall-rows/job.sh', 'tests/harness-browser-launch.test.ts',
+  'scripts/family-turntable.mjs', 'scripts/mob-lineup.mjs']);   // the last two: dead files that #3536 deletes; left untouched here so the two PRs do not conflict (drop these entries when #3536 has landed)
 const DIRECT = /\b(?:playwright\.)?(?:chromium|webkit|firefox|engine|type|browserType)\.launch\(/;
 
 function walk(dir: string, out: string[] = []): string[] {
