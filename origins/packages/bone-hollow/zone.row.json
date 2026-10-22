@@ -1,5 +1,6 @@
 {
   "name": "The Bone Hollow",
+  "unlisted": true,
   "defaultKind": "goblin",
   "dungeon": "bone-hollow",
   "names": { "bone-hollow": "The Bone Hollow" },
