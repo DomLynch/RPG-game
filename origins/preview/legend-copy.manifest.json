@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "legendCopy", "file": "legend-copy.json", "at": "copy", "keyed": true, "key": "id", "required": { "text": "string" } },
+    { "table": "zoneHint", "file": "legend-copy.json", "at": "zoneHints", "keyed": true, "key": "id", "required": { "walk": "string", "watch": "string", "arriving": "string" } }
+  ]
+}
