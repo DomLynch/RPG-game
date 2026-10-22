@@ -151,9 +151,9 @@ if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no
 export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
-// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), else Zone 1 (/zone1/ and every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
+// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short link /zone<id>/ (/zone2/, the same for every row; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? DEFAULT_ZONE;
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? /^\/zone([0-9]+)\/?$/.exec(pathname)?.[1] ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
