@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
-import { legendChase, legendSpecs } from './legend-mobs.ts';
+import { legendChase, legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
 import { frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { NAMED, mobSpecs, mobStand, newMob, stepMob, type Mob } from './mobs.ts';
 import { previewRule } from './preview-rules.ts';
@@ -64,6 +64,20 @@ test('finishLegendFight posts the record; only a verified win says the spell is 
   assert.match((await finishLegendFight(kobold, begun, record, net({ settle: async () => ({ result: 'lost', verified: true, twist: null, ticks: 1, event: 'e' }) })))!, /stands/);
   assert.match((await finishLegendFight(kobold, begun, record, net({ settle: async () => ({ offline: 'net' }) })))!, /could not be sent/);
   const quiet = net(); assert.equal(await finishLegendFight(kobold, begun, null, quiet), null); assert.deepEqual(quiet.calls, [], 'no record, nothing posted');
+});
+
+test('legendPull: only a hunting legend inside reach, within the level gap, with nothing running and no cooldown, pulls the hero; a win lays it down, a loss or draw does not', () => {
+  const sp = legendSpecs(F2)[0]!, hero = { x: 0, z: 0 }, rules = { reach: 6, levelGap: 10 }, at = (d: number, hunting = true) => [{ spec: sp, x: d, z: 0, hunting }];
+  assert.equal(legendPull(at(5), hero, sp.level, false, 0, rules), sp, 'hunting, inside reach, same level: it pulls');
+  assert.equal(legendPull(at(7), hero, sp.level, false, 0, rules), null, 'outside reach: no');
+  assert.equal(legendPull(at(5, false), hero, sp.level, false, 0, rules), null, 'not hunting (it has not noticed the hero): no');
+  assert.equal(legendPull(at(5), hero, sp.level + rules.levelGap + 1, false, 0, rules), null, 'a hero more than the level gap above: no');
+  assert.equal(legendPull(at(5), hero, sp.level + rules.levelGap, false, 0, rules), sp, 'a hero exactly the level gap above: still a pull (the gap is inclusive)');
+  assert.equal(legendPull(at(5), hero, sp.level - rules.levelGap - 1, false, 0, rules), null, 'a hero more than the level gap below: no');
+  assert.equal(legendPull(at(5), hero, sp.level, true, 0, rules), null, 'a fight is up or the duel failed to load: no');
+  assert.equal(legendPull(at(5), hero, sp.level, false, 0.1, rules), null, 'cooling down after a fight: no');
+  assert.equal(legendPull([], hero, sp.level, false, 0, rules), null, 'no legends: no');
+  assert.deepEqual(['win', 'loss', 'draw', null].map((o) => legendFelled(o as never)), [true, false, false, false]);
 });
 
 test('a legend notices the hero inside its aggro radius and walks up to its reach; a far hero leaves it at its post (Dom 2026-10-22: bosses have an aggression zone like every NPC)', () => {

@@ -9,6 +9,16 @@ import { NAMED, type Mob, type MobSpec } from './mobs.ts';
 import { previewRule } from './preview-rules.ts';
 import { SPEEDS } from '../../src/fight/speeds.ts';
 
+export type LegendNear = { spec: MobSpec; x: number; z: number; hunting: boolean };
+export type LegendPullRules = { reach: number; levelGap: number };
+/** The legend that pulls the hero this frame, or null: it hunts the hero, stands inside `reach`, and the hero is within `levelGap` levels of it (a trivial or out-of-reach legend is not a pull). `busy` (a fight is up, or the duel failed to load) and a running cooldown pull nothing. The first legend in list order wins. Pure: main.ts starts the verified fight for the one it returns. */
+export const legendPull = (legends: readonly LegendNear[], hero: { x: number; z: number }, level: number, busy: boolean, cool: number, rules: LegendPullRules): MobSpec | null => {
+  if (busy || cool > 0) return null;
+  return legends.find((l) => l.hunting && Math.hypot(l.x - hero.x, l.z - hero.z) <= rules.reach && Math.abs(l.spec.level - level) <= rules.levelGap)?.spec ?? null;
+};
+/** What a finished legend duel does to the world: a win lays the legend down for the respawn, a loss or a draw leaves it standing (the cooldown stops a re-pull). */
+export const legendFelled = (outcome: 'win' | 'loss' | 'draw' | null): boolean => outcome === 'win';
+
 /** A legend that noticed the hero walks up to its reach: the mob sim's aggro only turns a creature to face the hero (the open world's creatures are pulled in by the combat loop, and a legend has none), so this closes the gap at the creature chase speed and stops at legendStopShare of the legend reach. */
 export const legendChase = (m: Mob, hero: { x: number; z: number }, dt: number, stand: (x: number, z: number) => boolean): Mob => {
   if (m.mode !== 'aggro' || Math.hypot(hero.x - m.x, hero.z - m.z) <= previewRule('legendReach') * previewRule('legendStopShare')) return m;

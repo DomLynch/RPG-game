@@ -36,7 +36,7 @@ import { createLoadoutGate } from './loadout-gate.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
-import { legendSpecs } from './legend-mobs.ts';
+import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
@@ -923,12 +923,9 @@ const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = worl
 let legendCool = 0;
 function legendAggro(dt: number) {
   legendCool = Math.max(0, legendCool - dt);
-  if (!mobs || fighting || duelFailed || legendCool > 0) return;
-  const level = careerLine(session.career).level;
-  for (const l of mobs.legends()) {
-    if (!l.hunting || Math.hypot(l.x - state.x, l.z - state.z) > LEGEND_REACH || Math.abs(l.spec.level - level) > LEGEND_LEVEL_GAP) continue;
-    legendCool = LEGEND_COOLDOWN_S; void legendFight(l.spec); return;
-  }
+  if (!mobs) return;
+  const pulled = legendPull(mobs.legends(), state, careerLine(session.career).level, fighting || duelFailed, legendCool, { reach: LEGEND_REACH, levelGap: LEGEND_LEVEL_GAP });   // the rule is pure and unit-tested (legend-mobs.ts, legend-fight.test.ts)
+  if (pulled) { legendCool = LEGEND_COOLDOWN_S; void legendFight(pulled); }
 }
 const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
 async function legendFight(spec: MobSpec) {
@@ -941,7 +938,7 @@ async function legendFight(spec: MobSpec) {
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
   if (!fighting) return;
   // The weapon is the ledger main hand the rig can draw (what the settle checks), read now and not from rigWeapon, which lags a swap in flight; the gear is not reachable during the duel (the ☰ is hidden above).
-  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (finish, record) => { const won = outcomeOf(finish) === 'win'; if (won) mobs?.fell(spec.id); void finishLegendFight(spec, begun, record, legendNet, won).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);   // a win lays the legend down for the respawn (a loss: the cooldown below keeps it from pulling again at once)
+  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (finish, record) => { const outcome = outcomeOf(finish), won = outcome === 'win'; if (legendFelled(outcome)) mobs?.fell(spec.id); void finishLegendFight(spec, begun, record, legendNet, won).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);   // a win lays the legend down for the respawn (a loss: the cooldown below keeps it from pulling again at once)
 }
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
