@@ -4,6 +4,9 @@
   "exits": [
     { "id": "west-gate", "zone": "exchange", "landmark": "west-gate", "to": "1", "arrive": "exchange-gate", "warp": "zone1-exchange-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Ash Frontier" }
   ],
+  "warps": [
+    { "id": "zone0-start", "x": 0, "z": -36, "unit": "m", "tradeLanding": true }
+  ],
   "entry": { "x": 0, "z": -36, "facing": 3.14159 },
   "look": { "sky": "exchange-plate" },
   "names": { "exchange": "The Concord Exchange" },
