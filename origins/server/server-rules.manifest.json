@@ -179,6 +179,20 @@
       }
     },
     {
+      "table": "worldMarks",
+      "file": "server-rules.json",
+      "at": "worldMarks",
+      "key": "id",
+      "required": {
+        "ofTop": "number",
+        "graceS": "integer",
+        "everyS": "integer",
+        "batch": "integer",
+        "perHour": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "spawnLayers",
       "file": "server-rules.json",
       "at": "spawnLayers",
