@@ -96,10 +96,10 @@ export function walkHeight(pieces: readonly Piece[], x: number, z: number): numb
     const dx = x - p.x, dz = z - p.z, c = Math.cos(p.rotY), s = Math.sin(p.rotY), lx = dx * c - dz * s, lz = dx * s + dz * c;   // into the piece's frame (three's rotation.y: x' = x cos + z sin, z' = -x sin + z cos; the inverse is this)
     let top: number | null = null;
     switch (p.shape[0]) {
-      case 'box': if (Math.abs(lx) <= p.shape[1] / 2 && Math.abs(lz) <= p.shape[3] / 2) top = p.y + p.shape[2] / 2; break;
-      case 'cylinder': if (Math.hypot(lx, lz) <= Math.max(p.shape[1], p.shape[2])) top = p.y + p.shape[3] / 2; break;
-      case 'ring': { const r = Math.hypot(lx, lz); if (r >= p.shape[1] && r <= p.shape[2]) top = p.y + p.shape[3] / 2; break; }
-      case 'wedge': if (Math.abs(lx) <= p.shape[1] / 2 && Math.abs(lz) <= p.shape[3] / 2) top = p.y - p.shape[2] / 2 + (p.shape[2] * (lx + p.shape[1] / 2)) / p.shape[1]; break;
+      case 'box': { const [, width, height, depth] = p.shape; if (Math.abs(lx) <= width / 2 && Math.abs(lz) <= depth / 2) top = p.y + height / 2; break; }
+      case 'cylinder': { const [, radiusTop, radiusBottom, height] = p.shape; if (Math.hypot(lx, lz) <= Math.max(radiusTop, radiusBottom)) top = p.y + height / 2; break; }
+      case 'ring': { const [, inner, outer, height] = p.shape, r = Math.hypot(lx, lz); if (r >= inner && r <= outer) top = p.y + height / 2; break; }
+      case 'wedge': { const [, length, h, depth] = p.shape; if (Math.abs(lx) <= length / 2 && Math.abs(lz) <= depth / 2) top = p.y - h / 2 + (h * (lx + length / 2)) / length; break; }
       default: break;
     }
     if (top !== null && (best === null || top > best)) best = top;

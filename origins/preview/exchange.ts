@@ -38,13 +38,15 @@ export function geometryOf(s: Shape): THREE.BufferGeometry {
     case 'cone': return new THREE.ConeGeometry(s[1], s[2], s[3]);
     case 'sphere': return new THREE.SphereGeometry(s[1], s[2], s[3]);
     case 'pediment': {
-      const tri = new THREE.Shape([new THREE.Vector2(-s[1] / 2, 0), new THREE.Vector2(s[1] / 2, 0), new THREE.Vector2(0, s[2])]);
-      return new THREE.ExtrudeGeometry(tri, { depth: s[3], bevelEnabled: false }).translate(0, 0, -s[3] / 2);
+      const [, width, height, depth] = s;
+      const tri = new THREE.Shape([new THREE.Vector2(-width / 2, 0), new THREE.Vector2(width / 2, 0), new THREE.Vector2(0, height)]);
+      return new THREE.ExtrudeGeometry(tri, { depth, bevelEnabled: false }).translate(0, 0, -depth / 2);
     }
-    case 'ring': { const h = s[3] / 2; return new THREE.LatheGeometry([new THREE.Vector2(s[1], -h), new THREE.Vector2(s[2], -h), new THREE.Vector2(s[2], h), new THREE.Vector2(s[1], h), new THREE.Vector2(s[1], -h)], s[4]); }   // a solid annulus: the profile turned about y
+    case 'ring': { const [, inner, outer, height, segments] = s, half = height / 2; return new THREE.LatheGeometry([new THREE.Vector2(inner, -half), new THREE.Vector2(outer, -half), new THREE.Vector2(outer, half), new THREE.Vector2(inner, half), new THREE.Vector2(inner, -half)], segments); }   // a solid annulus: the profile turned about y
     case 'wedge': {   // a ramp: a right triangle (low end at -x, the rise at +x) extruded across its width, the bounding box centred on the origin
-      const tri = new THREE.Shape([new THREE.Vector2(-s[1] / 2, -s[2] / 2), new THREE.Vector2(s[1] / 2, -s[2] / 2), new THREE.Vector2(s[1] / 2, s[2] / 2)]);
-      return new THREE.ExtrudeGeometry(tri, { depth: s[3], bevelEnabled: false }).translate(0, 0, -s[3] / 2);
+      const [, length, h, depth] = s, lo = -length / 2, hi = length / 2, base = -h / 2, top = h / 2;
+      const tri = new THREE.Shape([new THREE.Vector2(lo, base), new THREE.Vector2(hi, base), new THREE.Vector2(hi, top)]);
+      return new THREE.ExtrudeGeometry(tri, { depth, bevelEnabled: false }).translate(0, 0, -depth / 2);
     }
   }
 }
