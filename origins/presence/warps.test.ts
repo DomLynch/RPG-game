@@ -23,7 +23,7 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate']);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-start', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate']);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);

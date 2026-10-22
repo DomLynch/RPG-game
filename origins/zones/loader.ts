@@ -22,7 +22,7 @@ export type KitKind ={ nodes: readonly string[]; per: number; r: number; solid: 
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; trade?: boolean; rejoin?: string; caps?: { floor?: number; soft?: number; hard?: number } };
 /** A warp landmark a package brings (the shape of origins/presence/warp-landmarks.json): a place in Concord metres the server moves a player to when the client names its id. */
-export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string };
+export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string; readonly tradeLanding?: boolean };   // tradeLanding: the town's own start stands inside its trade area on purpose (the same flag as an exit row's)
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule

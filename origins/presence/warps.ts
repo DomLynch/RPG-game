@@ -13,13 +13,13 @@ import { zoneOpen } from '../zones/loader.ts';
 import { arrival } from '../preview/zone-exit.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
 
-export type WarpRow = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string };
+export type WarpRow = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string; readonly tradeLanding?: boolean };
 export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<string, { x: number; z: number }> {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'warp-landmarks.json')]);
   const out = new Map<string, { x: number; z: number }>();
   for (const r of (raw.landmarks ?? []) as readonly WarpRow[]) {
     if (r.unit !== 'm') throw Error(`warp-landmarks "${r.id}": the unit is m (Concord metres)`);
-    out.set(r.id, placeOf(`warp-landmarks "${r.id}"`, r.x, r.z));
+    out.set(r.id, placeOf(`warp-landmarks "${r.id}"`, r.x, r.z, r.tradeLanding === true));
   }
   return out;
 }
