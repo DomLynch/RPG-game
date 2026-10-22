@@ -14,22 +14,24 @@ export type LegendNet = {
   settle(token: string | null, fight: string, record: FightRecord): Promise<Settled | Offline>;
 };
 /** What the pit duel opens with (pit-duel.ts DuelFight): the server's foe, level and seed, asking for the record the settle needs. */
-export type LegendDuel = { opponent: string; level: number; seed: number; flags: readonly never[]; bar?: number; record: true; as: { name: string; level: number } };
-export type Begun = { ok: true; token: string; duel: LegendDuel } | { ok: false; say: string };
+export type LegendDuel = { opponent: string; level: number; seed: number; flags: readonly never[]; bar?: number; record: boolean; as: { name: string; level: number } };
+/** token null = a guest's fight: the same legend at the same level, no server start and no record, so no spell (Dom: sign-in is a save, never a gate; guests fight the same NPCs). */
+export type Begun = { ok: true; token: string | null; duel: LegendDuel } | { ok: false; say: string };
 
 const offline = (r: unknown): r is Offline => typeof r === 'object' && r !== null && 'offline' in r;
 
-export async function beginLegendFight(spec: Pick<MobSpec, 'legend' | 'name'>, net: LegendNet): Promise<Begun> {
+export async function beginLegendFight(spec: Pick<MobSpec, 'legend' | 'name' | 'body' | 'level'>, net: LegendNet, seed: number): Promise<Begun> {
   if (!spec.legend) return { ok: false, say: 'That is no legend.' };
   const token = net.token(), character = await net.character();
-  if (!token || !character) return { ok: false, say: `Sign in to fight ${spec.name}: a legend's spell is earned on a verified win.` };
+  if (!token || !character) return { ok: true, token: null, duel: { opponent: spec.body, level: spec.level, seed, flags: [], record: false, as: { name: spec.name, level: spec.level } } };
   const got = await net.start(token, character, bossFightId(spec.legend));
   if (offline(got)) return { ok: false, say: `${spec.name} cannot be fought right now. Try again in a moment.` };
   return { ok: true, token: got.token, duel: { opponent: got.enemy, level: got.level, seed: got.seed, flags: got.flags as never[], ...(got.bar ? { bar: got.bar } : {}), record: true, as: { name: spec.name, level: got.level } } };
 }
 
-/** The words after the duel: nothing for a fight with no record; the win, verified or not, and the loss. A verified win is what takes the spell, once per legend. */
-export async function finishLegendFight(spec: Pick<MobSpec, 'name'>, begun: Extract<Begun, { ok: true }>, record: FightRecord | null | undefined, net: LegendNet): Promise<string | null> {
+/** The words after the duel: nothing for a fight with no record; the win, verified or not, and the loss. A verified win is what takes the spell, once per legend. A guest's win (no token, no record) gets the one-line nudge to sign in to keep it. */
+export async function finishLegendFight(spec: Pick<MobSpec, 'name'>, begun: Extract<Begun, { ok: true }>, record: FightRecord | null | undefined, net: LegendNet, won = false): Promise<string | null> {
+  if (begun.token === null) return won ? `${spec.name} falls. Sign in to keep it: a legend's spell is earned on a verified win.` : null;
   if (!record) return null;
   const done = await net.settle(net.token(), begun.token, record);
   if (offline(done)) return `${spec.name}: the result could not be sent. Nothing was lost.`;
