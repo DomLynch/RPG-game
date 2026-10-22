@@ -4,7 +4,7 @@
     "outer": {
       "order": 1, "zone": "7", "landmark": "ring-outer", "levels": [1, 2], "respawnSeconds": 40, "aggroShare": 0.375, "spreadShare": 0.125, "roamShare": 0.2, "leashShare": 0.75,
       "groups": [
-        { "id": "scavengers", "character": "character:cinder-scavenger", "camps": 3, "campSize": [1, 2] },
+        { "id": "scavengers", "character": "character:cinder-scavenger", "camps": 2, "campSize": [1, 2] },
         { "id": "pit-goblins", "character": "character:pit-goblin", "camps": 2, "campSize": [1, 1] },
         { "id": "ash-wolves", "character": "character:ash-wolf", "camps": 2, "campSize": [1, 2] }
       ]
