@@ -9,18 +9,26 @@ import ROWS from './inkverse.json' with { type: 'json' };
 import { hudPieces, withoutHud } from './hud-tag.ts';
 
 type Rgb = readonly [number, number, number];
-export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly materials: readonly string[]; readonly objects: readonly string[]; readonly userData: readonly string[] };
+/** A tag's colour: `gain` makes it emissive (above 1 it reads as light), `glowPx` and `glowStrength` are the bloom around the tagged pixels only. */
+export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly gain: number; readonly glowPx: number; readonly glowStrength: number; readonly materials: readonly string[]; readonly objects: readonly string[]; readonly userData: readonly string[] };
 export type InkLook = {
   readonly id: string; readonly paper: Rgb; readonly ink: Rgb;
-  readonly tone: { readonly gamma: number; readonly exposure: number; readonly pivot: number; readonly contrast: number; readonly low: number; readonly high: number; readonly cellPx: number; readonly angleDeg: number };
-  readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number };
+  /** Continuous greyscale from the lit frame through one S-curve: `pivot`/`contrast` bend it, `low`/`high` crush the blacks and lift the paper whites. */
+  readonly tone: { readonly gamma: number; readonly exposure: number; readonly pivot: number; readonly contrast: number; readonly low: number; readonly high: number };
+  /** A faint dot texture in the deep shadows only (strength 0 = none). */
+  readonly halftone: { readonly strength: number; readonly below: number; readonly cellPx: number; readonly angleDeg: number };
+  /** Thin outlines: `thicknessPx` in device pixels, fading to nothing between `fadeNear` and `fadeFar` metres. */
+  readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number; readonly fadeNear: number; readonly fadeFar: number };
+  /** Paper grain over the whole frame, and an inky vignette whose edge is broken up by noise. */
+  readonly grain: { readonly strength: number; readonly scalePx: number };
+  readonly vignette: { readonly strength: number; readonly start: number; readonly breakup: number; readonly freq: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
 };
 
 const num = (id: string, what: string, v: unknown): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`ink look "${id}": ${what} is a number`); return v; };
 const rgb = (id: string, what: string, v: unknown): Rgb => { if (!Array.isArray(v) || v.length !== 3) throw new Error(`ink look "${id}": ${what} is [r, g, b]`); return [num(id, what, v[0]), num(id, what, v[1]), num(id, what, v[2])]; };
 const names = (id: string, what: string, v: unknown): readonly string[] => { if (!Array.isArray(v) || !v.every((s) => typeof s === 'string' && s)) throw new Error(`ink look "${id}": ${what} is a list of names`); return v as string[]; };
-const tag = (id: string, what: string, v: unknown): InkTag => { const t = v as Record<string, unknown> | undefined; if (!t || typeof t !== 'object') throw new Error(`ink look "${id}": ${what} is an object`); return { color: rgb(id, `${what}.color`, t.color), keepLuma: num(id, `${what}.keepLuma`, t.keepLuma), materials: names(id, `${what}.materials`, t.materials), objects: names(id, `${what}.objects`, t.objects), userData: names(id, `${what}.userData`, t.userData) }; };
+const tag = (id: string, what: string, v: unknown): InkTag => { const t = v as Record<string, unknown> | undefined; if (!t || typeof t !== 'object') throw new Error(`ink look "${id}": ${what} is an object`); return { color: rgb(id, `${what}.color`, t.color), keepLuma: num(id, `${what}.keepLuma`, t.keepLuma), gain: num(id, `${what}.gain`, t.gain), glowPx: num(id, `${what}.glowPx`, t.glowPx), glowStrength: num(id, `${what}.glowStrength`, t.glowStrength), materials: names(id, `${what}.materials`, t.materials), objects: names(id, `${what}.objects`, t.objects), userData: names(id, `${what}.userData`, t.userData) }; };
 const group = (id: string, what: string, v: unknown, keys: readonly string[]): Record<string, number> => {
   const g = v as Record<string, unknown> | undefined; if (!g || typeof g !== 'object') throw new Error(`ink look "${id}": ${what} is an object`);
   return Object.fromEntries(keys.map((k) => [k, num(id, `${what}.${k}`, g[k])]));
@@ -32,10 +40,11 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
   loadRegistry([table]);
   const out = new Map<string, InkLook>();
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
-    const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high', 'cellPx', 'angleDeg']);
-    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength', 'darkBelow']), tags = fields.tags as Record<string, unknown> | undefined;
+    const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high']), halftone = group(id, 'halftone', fields.halftone, ['strength', 'below', 'cellPx', 'angleDeg']);
+    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
+    const tags = fields.tags as Record<string, unknown> | undefined;
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], edges: edges as InkLook['edges'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
   }
   return out;
 }
@@ -48,10 +57,13 @@ const FULLSCREEN_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position =
 const INK_FRAG = `
 uniform sampler2D tColor, tDepth, tTag;
 uniform vec2 texel, projScale; uniform float ratio, cameraNear, cameraFar;
-uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle;
-uniform float thick, depthRel, normalDot, edgeStrength, darkBelow;
-uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep;
+uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle, htStrength, htBelow;
+uniform float thick, depthRel, normalDot, edgeStrength, darkBelow, fadeNear, fadeFar;
+uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep, redGain, blueGain, redGlowPx, redGlowK;
+uniform float grainK, grainPx, vigK, vigStart, vigBreak, vigFreq;
 varying vec2 vUv;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float viewZ(vec2 uv) { float d = texture2D(tDepth, uv).x; return (cameraNear * cameraFar) / ((cameraFar - cameraNear) * d - cameraFar); }   // perspective: negative view-space z
 vec3 viewPos(vec2 uv, float z) { return vec3((uv * 2.0 - 1.0) * projScale * -z, z); }
 void main() {
@@ -59,11 +71,11 @@ void main() {
   float lin = dot(hdr, vec3(0.2126, 0.7152, 0.0722));
   float l = pow(max(lin, 0.0), 1.0 / gamma);
   l = clamp((l - pivot) * contrast + 0.5, 0.0, 1.0);   // the S-curve about the scene's own mid tone
-  // Halftone only in the mid band: below lowCut ink, above highCut paper, between a dot grid (rotated, cell in CSS px) whose dot grows as the light rises.
+  // Continuous greyscale: the lit frame at full resolution through the S-curve (blacks crushed below lowCut, paper above highCut, every grey between kept). A faint dot texture only in the deepest shadows (htStrength 0 = none).
+  float shade = smoothstep(lowCut, highCut, l);
   vec2 p = gl_FragCoord.xy / (cellPx * ratio); float ca = cos(angle), sa = sin(angle);
   vec2 q = vec2(ca * p.x + sa * p.y, -sa * p.x + ca * p.y); vec2 f = fract(q) - 0.5;
-  float dotR = length(f) / 0.7071, t = clamp((l - lowCut) / (highCut - lowCut), 0.0, 1.0);
-  float lit = l <= lowCut ? 0.0 : l >= highCut ? 1.0 : step(dotR, t);
+  shade *= 1.0 - htStrength * (1.0 - smoothstep(0.0, htBelow, l)) * step(length(f), 0.35);
   // Edges: depth jump (relative to depth) or a turn in the surface normal, both read off the depth buffer.
   float z0 = viewZ(vUv); vec2 o = texel * thick;
   float zl = viewZ(vUv - vec2(o.x, 0.0)), zr = viewZ(vUv + vec2(o.x, 0.0)), zd = viewZ(vUv - vec2(0.0, o.y)), zu = viewZ(vUv + vec2(0.0, o.y));
@@ -75,14 +87,24 @@ void main() {
   vec3 n = normalize(cross(dx, dy));
   vec3 nA = normalize(cross(dxl, dyd)), nB = normalize(cross(dxr, dyu));
   float turn = 1.0 - abs(dot(nA, nB));   // the surface turns across the pixel (a fold or a corner), not a depth step
-  float edge = edgeStrength * max(step(depthRel, depthEdge), step(1.0 - normalDot, turn));
-  vec3 col = mix(inkCol, paper, lit);
+  float edge = edgeStrength * max(step(depthRel, depthEdge), step(1.0 - normalDot, turn)) * (1.0 - smoothstep(fadeNear, fadeFar, -z0));   // thin, and fainter with distance
+  vec3 col = mix(inkCol, paper, shade);
   col = mix(col, l < darkBelow ? paper : inkCol, edge);   // an outline in the dark is paper-coloured, or a figure in shadow would vanish into the ink
   // Selective colour: the tag buffer holds 1 in .r for red, 1 in .b for blue where a tagged material is the nearest surface.
   vec3 tg = texture2D(tTag, vUv).rgb;
-  col = mix(col, redCol * (redKeep + (1.0 - redKeep) * l), tg.r * (1.0 - edge));   // red comes from the tag buffer only, never from a surface's own hue
-  col = mix(col, blueCol * (blueKeep + (1.0 - blueKeep) * l), tg.b * (1.0 - edge));
-  gl_FragColor = vec4(col, 1.0);
+  // Red glow: the tagged pixels' neighbourhood (a ring of taps at two radii) tints the surround, so lamps, fires, banners and blood bloom red and nothing else does.
+  if (redGlowPx > 0.0) {
+    vec2 gp = texel * redGlowPx; float gr = 0.0;
+    for (int i = 0; i < 12; i++) { float a = float(i) * 0.5236; vec2 d = vec2(cos(a), sin(a)); gr += texture2D(tTag, vUv + d * gp).r + texture2D(tTag, vUv + d * gp * 0.5).r; }
+    col = mix(col, redCol, clamp(gr / 24.0 * redGlowK * (1.0 - tg.r), 0.0, 1.0));
+  }
+  col = mix(col, min(redCol * (redKeep + (1.0 - redKeep) * l) * redGain, vec3(1.0)), tg.r * (1.0 - edge));   // red comes from the tag buffer only, never from a surface's own hue
+  col = mix(col, min(blueCol * (blueKeep + (1.0 - blueKeep) * l) * blueGain, vec3(1.0)), tg.b * (1.0 - edge));
+  // Paper grain, and an inky frame whose edge is broken up by noise.
+  col += (hash(floor(gl_FragCoord.xy / (grainPx * ratio))) - 0.5) * grainK;
+  float vr = length(vUv - 0.5) * 1.4142 + (vnoise(vUv * vigFreq) - 0.5) * vigBreak;
+  col = mix(col, inkCol, smoothstep(vigStart, 1.0, vr) * vigK);
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 
 /** The pass for the walk's frame: same shape as the graphics lift (`render()` replaces renderer.render(scene, camera)), so main.ts holds one slot for either. */
@@ -92,13 +114,15 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   const color = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, depthTexture: depth });
   const tagged = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.UnsignedByteType, depthTexture: depth });   // shares the scene's depth: a tagged surface behind a wall is hidden
   const u = (v: unknown) => ({ value: v });
-  const rad = Math.PI / 180, T = look.tone, E = look.edges;
+  const rad = Math.PI / 180, T = look.tone, H = look.halftone, E = look.edges;
   const mat = new THREE.ShaderMaterial({
     vertexShader: FULLSCREEN_VERT, fragmentShader: INK_FRAG, depthTest: false, depthWrite: false,
     uniforms: {
       tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
-      gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(T.cellPx), angle: u(T.angleDeg * rad),
-      thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow),
+      gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(H.cellPx), angle: u(H.angleDeg * rad), htStrength: u(H.strength), htBelow: u(H.below),
+      thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow), fadeNear: u(E.fadeNear), fadeFar: u(E.fadeFar),
+      redGain: u(look.tags.red.gain), blueGain: u(look.tags.blue.gain), redGlowPx: u(look.tags.red.glowPx), redGlowK: u(look.tags.red.glowStrength),
+      grainK: u(look.grain.strength), grainPx: u(look.grain.scalePx), vigK: u(look.vignette.strength), vigStart: u(look.vignette.start), vigBreak: u(look.vignette.breakup), vigFreq: u(look.vignette.freq),
       paper: u(new THREE.Vector3(...look.paper)), inkCol: u(new THREE.Vector3(...look.ink)), redCol: u(new THREE.Vector3(...look.tags.red.color)), blueCol: u(new THREE.Vector3(...look.tags.blue.color)), redKeep: u(look.tags.red.keepLuma), blueKeep: u(look.tags.blue.keepLuma),
     },
   });

@@ -1,15 +1,18 @@
 {
   "inkLooks": [
     {
-      "id": "inkverse",
+      "id": "light",
       "fields": {
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
-        "tone": { "gamma": 2.2, "exposure": 1.9, "pivot": 0.3, "contrast": 1.5, "low": 0.2, "high": 0.66, "cellPx": 4, "angleDeg": 45 },
-        "edges": { "thicknessPx": 1.2, "depthRel": 0.012, "normalDot": 0.9, "strength": 1, "darkBelow": 0.3 },
+        "tone": { "gamma": 2.2, "exposure": 1.5, "pivot": 0.3, "contrast": 1.45, "low": 0.14, "high": 0.84 },
+        "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
+        "edges": { "thicknessPx": 1, "depthRel": 0.014, "normalDot": 0.9, "strength": 0.9, "darkBelow": 0.3, "fadeNear": 18, "fadeFar": 70 },
+        "grain": { "strength": 0.035, "scalePx": 1 },
+        "vignette": { "strength": 0.85, "start": 0.78, "breakup": 0.32, "freq": 9 },
         "tags": {
-          "red": { "color": [0.78, 0.07, 0.06], "keepLuma": 0.55, "materials": ["cloth", "blood decal"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
-          "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.55, "materials": [], "objects": [], "userData": [] }
+          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
+          "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.7, "gain": 1.0, "glowPx": 0, "glowStrength": 0, "materials": [], "objects": [], "userData": [] }
         }
       }
     }
