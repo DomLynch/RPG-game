@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/index.ts';
 import MANIFEST from './inkverse.manifest.json' with { type: 'json' };
 import ROWS from './inkverse.json' with { type: 'json' };
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 import { hudPieces, withoutHud } from './hud-tag.ts';
 
 type Rgb = readonly [number, number, number];
@@ -18,7 +19,11 @@ export type InkLook = {
   /** A faint dot texture in the deep shadows only (strength 0 = none). */
   readonly halftone: { readonly strength: number; readonly below: number; readonly cellPx: number; readonly angleDeg: number };
   /** Thin outlines: `thicknessPx` in device pixels, fading to nothing between `fadeNear` and `fadeFar` metres. */
-  readonly edges: { readonly thicknessPx: number; readonly silhouetteMul: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number; readonly fadeNear: number; readonly fadeFar: number };
+  /** A skinned character against the floor: `silhouetteOnly` 1 drops its interior creases (only the outline stays), `darken` and `contrast` push it darker and harder, `rimStrength`/`rimPow` a faint rim light on its edges. */
+  readonly character: { readonly silhouetteOnly: number; readonly darken: number; readonly contrast: number; readonly rimStrength: number; readonly rimPow: number };
+  /** `fxaa` 1 smooths the finished picture's lines (an FXAA pass after the ink pass). */
+  readonly aa: { readonly fxaa: number };
+  readonly edges: { readonly soft: number; readonly thicknessPx: number; readonly silhouetteMul: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number; readonly fadeNear: number; readonly fadeFar: number };
   /** Screen-space occlusion darkening the lit frame BEFORE the curve (strength 0 = off): `radiusPx` the tap ring, `range` metres a neighbour may stand in front, `bias` metres below which it does not count. */
   readonly ao: { readonly strength: number; readonly radiusPx: number; readonly range: number; readonly bias: number };
   /** Hatching in the dark band only, its lines running across the light's direction on screen (strength 0 = off): `spacingPx` between lines, `duty` the inked share of each. */
@@ -46,10 +51,11 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
     const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high']), halftone = group(id, 'halftone', fields.halftone, ['strength', 'below', 'cellPx', 'angleDeg']);
     const ao = group(id, 'ao', fields.ao, ['strength', 'radiusPx', 'range', 'bias']), hatch = group(id, 'hatch', fields.hatch, ['strength', 'below', 'spacingPx', 'duty']);
-    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
+    const character = group(id, 'character', fields.character, ['silhouetteOnly', 'darken', 'contrast', 'rimStrength', 'rimPow']), aa = group(id, 'aa', fields.aa, ['fxaa']);
+    const edges = group(id, 'edges', fields.edges, ['soft', 'thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
     const tags = fields.tags as Record<string, unknown> | undefined;
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
   }
   return out;
 }
@@ -66,6 +72,7 @@ uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle, 
 uniform float thick, depthRel, normalDot, edgeStrength, darkBelow, fadeNear, fadeFar;
 uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep, redGain, blueGain, redGlowPx, redGlowK;
 uniform float grainK, grainPx, vigK, vigStart, vigBreak, vigFreq;
+uniform float edgeSoft, charSilOnly, charDarken, charContrast, rimK, rimPow;
 uniform float silMul, aoK, aoPx, aoRange, aoBias, hatchK, hatchBelow, hatchPx, hatchDuty, lightAngle;
 varying vec2 vUv;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -82,7 +89,10 @@ void main() {
     for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854; float dz = viewZ(vUv + vec2(cos(a), sin(a)) * texel * aoPx) - z0; occ += step(aoBias, dz) * (1.0 - smoothstep(0.0, aoRange, dz)); }
     l *= 1.0 - aoK * occ / 8.0;
   }
-  l = clamp((l - pivot) * contrast + 0.5, 0.0, 1.0);   // the S-curve about the scene's own mid tone
+  vec3 tg = texture2D(tTag, vUv).rgb;   // the tag buffer: .r red, .b blue, .g a skinned character
+  float isChar = step(0.5, tg.g);
+  l *= mix(1.0, charDarken, isChar);   // a character reads a little darker than its floor
+  l = clamp((l - pivot) * contrast * mix(1.0, charContrast, isChar) + 0.5, 0.0, 1.0);   // the S-curve about the scene's own mid tone
   // Continuous greyscale: the lit frame at full resolution through the S-curve (blacks crushed below lowCut, paper above highCut, every grey between kept). A faint dot texture only in the deepest shadows (htStrength 0 = none).
   float shade = smoothstep(lowCut, highCut, l);
   vec2 p = gl_FragCoord.xy / (cellPx * ratio); float ca = cos(angle), sa = sin(angle);
@@ -108,11 +118,12 @@ void main() {
   vec3 n = normalize(cross(dx, dy));
   vec3 nA = normalize(cross(dxl, dyd)), nB = normalize(cross(dxr, dyu));
   float turn = 1.0 - abs(dot(nA, nB));   // the surface turns across the pixel (a fold or a corner), not a depth step
-  float edge = edgeStrength * max(step(depthRel, depthEdge), step(1.0 - normalDot, turn)) * (1.0 - smoothstep(fadeNear, fadeFar, -z0));   // thin, and fainter with distance
+  float eD = smoothstep(depthRel * (1.0 - edgeSoft), depthRel * (1.0 + edgeSoft), depthEdge), eN = smoothstep((1.0 - normalDot) * (1.0 - edgeSoft), (1.0 - normalDot) * (1.0 + edgeSoft), turn) * (1.0 - charSilOnly * isChar);   // soft thresholds (the lines anti-alias) and no interior creases on a character: its silhouette only
+  float edge = edgeStrength * max(eD, eN) * (1.0 - smoothstep(fadeNear, fadeFar, -z0));   // thin, and fainter with distance
+  shade = min(1.0, shade + isChar * rimK * pow(1.0 - abs(n.z), rimPow));   // a faint rim so a character lifts off a pale floor
   vec3 col = mix(inkCol, paper, shade);
   col = mix(col, l < darkBelow ? paper : inkCol, edge);   // an outline in the dark is paper-coloured, or a figure in shadow would vanish into the ink
   // Selective colour: the tag buffer holds 1 in .r for red, 1 in .b for blue where a tagged material is the nearest surface.
-  vec3 tg = texture2D(tTag, vUv).rgb;
   // Red glow: the tagged pixels' neighbourhood (a ring of taps at two radii) tints the surround, so lamps, fires, banners and blood bloom red and nothing else does.
   if (redGlowPx > 0.0) {
     vec2 gp = texel * redGlowPx; float gr = 0.0;
@@ -141,6 +152,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     uniforms: {
       tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(H.cellPx), angle: u(H.angleDeg * rad), htStrength: u(H.strength), htBelow: u(H.below),
+      edgeSoft: u(E.soft), charSilOnly: u(look.character.silhouetteOnly), charDarken: u(look.character.darken), charContrast: u(look.character.contrast), rimK: u(look.character.rimStrength), rimPow: u(look.character.rimPow),
       silMul: u(E.silhouetteMul), aoK: u(look.ao.strength), aoPx: u(look.ao.radiusPx), aoRange: u(look.ao.range), aoBias: u(look.ao.bias), hatchK: u(look.hatch.strength), hatchBelow: u(look.hatch.below), hatchPx: u(look.hatch.spacingPx), hatchDuty: u(look.hatch.duty), lightAngle: u(0),
       thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow), fadeNear: u(E.fadeNear), fadeFar: u(E.fadeFar),
       redGain: u(look.tags.red.gain), blueGain: u(look.tags.blue.gain), redGlowPx: u(look.tags.red.glowPx), redGlowK: u(look.tags.red.glowStrength),
@@ -150,6 +162,10 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false;
   const post = new THREE.Scene(); post.add(quad); const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  // FXAA over the finished picture (look.aa.fxaa): the ink pass draws into `inkOut` and the FXAA shader reads it to the screen.
+  const inkOut = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.UnsignedByteType });
+  const aaMat = look.aa.fxaa > 0 ? new THREE.ShaderMaterial({ uniforms: { tDiffuse: u(inkOut.texture), resolution: u(new THREE.Vector2(1 / size.x, 1 / size.y)) }, vertexShader: FXAAShader.vertexShader, fragmentShader: FXAAShader.fragmentShader, depthTest: false, depthWrite: false }) : null;
+  const aaScene = new THREE.Scene(); if (aaMat) { const aq = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), aaMat); aq.frustumCulled = false; aaScene.add(aq); }
   // The tag pass: each tagged mesh is on a camera layer (1 red, 2 blue) as well as 0; the scene draws once more through those layers over the scene's own depth, each tagged mesh wearing a tag material that keeps its own cut-out (a decal's map alpha,
   // a banner's alphaMap) and its own fade, or the decals would draw as red squares. The sand's blood-stain mask is redrawn from the inputs the sand's shader reads (exchange.ts `stained` leaves them on the material's userData.inkStain).
   const TAG = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1)];
@@ -166,13 +182,14 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     defines: { SPAN: stain.span.toFixed(2), TOP: stain.top.toFixed(2), DEPTH: (stain.bottom - stain.top).toFixed(2), GAIN: stain.gain.toFixed(2) },
     fragmentShader: 'uniform sampler2D patchMap; uniform vec3 tag; varying vec2 vUv; varying vec3 vW; void main() { vec4 s = texture2D(patchMap, fract(vW.xz / SPAN + 0.5)); float a = clamp(s.a * GAIN, 0.0, 1.0) * clamp((vW.y - TOP) / DEPTH, 0.0, 1.0); gl_FragColor = vec4(tag * a, 1.0); }',   // the sand shader's own stain amount
   });
-  const flatMats = [null, new THREE.MeshBasicMaterial({ color: 0xff0000, fog: false, toneMapped: false, ...OFFSET }), new THREE.MeshBasicMaterial({ color: 0x0000ff, fog: false, toneMapped: false, ...OFFSET })];
-  const made = [new WeakMap<THREE.Material, THREE.Material>(), new WeakMap<THREE.Material, THREE.Material>(), new WeakMap<THREE.Material, THREE.Material>()];
+  const flat = (color: number) => new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false, ...OFFSET });
+  const flatMats = [null, flat(0xff0000), flat(0x0000ff), flat(0x00ff00)];   // layer 3 is the character flag (.g): every skinned mesh, whatever it wears
+  const made = [0, 1, 2, 3].map(() => new WeakMap<THREE.Material, THREE.Material>());
   const tagMaterialFor = (src: THREE.Material, layer: number): THREE.Material => {
     let hit = made[layer]!.get(src);
     if (!hit) {
       const stain = src.userData.inkStain;
-      hit = stain && layer === 1 ? stainMat(stain) : (src as Cut).map || (src as Cut).alphaMap ? cutMat(src, layer) : flatMats[layer]!;
+      hit = layer === 3 ? flatMats[3]! : stain && layer === 1 ? stainMat(stain) : (src as Cut).map || (src as Cut).alphaMap ? cutMat(src, layer) : flatMats[layer]!;
       made[layer]!.set(src, hit);
     }
     return hit;
@@ -190,9 +207,12 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
       const layer = hit(look.tags.red) ? 1 : hit(look.tags.blue) ? 2 : 0;
       if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }
+      if ((m as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(3); tagList.push({ mesh: m, layer: 3, own }); }
     });
   };
   let frames = 0; const toLight = new THREE.Vector3();
+  // For picking tags: every mesh's object name, material name and kind in the scene right now (`window.inkNames()`, a look-test aid).
+  (window as unknown as { inkNames: () => unknown }).inkNames = () => { const seen = new Map<string, number>(); scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; for (const x of mats) { const k = `${o.name || '-'} | ${x?.name || '-'} | ${x?.type}${(m as THREE.SkinnedMesh).isSkinnedMesh ? ' skinned' : ''}${(x as THREE.MeshBasicMaterial)?.emissive && (x as THREE.MeshStandardMaterial).emissiveIntensity > 0 ? ' emissive' : ''}`; seen.set(k, (seen.get(k) ?? 0) + 1); } }); return [...seen].map(([k, n]) => `${n} x ${k}`); };
   const render = (): void => {
     if (frames++ % 30 === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
@@ -200,9 +220,14 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     renderer.setRenderTarget(tagged); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, false, false);
     if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
-      for (const t of tagList) { const tm = tagMaterialFor(t.own, t.layer) as THREE.ShaderMaterial; if (tm.uniforms?.opacity) tm.uniforms.opacity.value = t.own.opacity; t.mesh.material = tm; }
-      withoutHud(scene, () => { for (const layer of [1, 2]) { camera.layers.set(layer); renderer.render(scene, camera); } });
-      for (const t of tagList) t.mesh.material = t.own;
+      withoutHud(scene, () => {
+        for (const layer of [1, 2, 3]) {   // red, blue, character: each mesh wears that layer's tag material for its own draw
+          const these = tagList.filter((t) => t.layer === layer); if (!these.length) continue;
+          for (const t of these) { const tm = tagMaterialFor(t.own, layer) as THREE.ShaderMaterial; if (tm.uniforms?.opacity) tm.uniforms.opacity.value = t.own.opacity; t.mesh.material = tm; }
+          camera.layers.set(layer); renderer.render(scene, camera);
+          for (const t of these) t.mesh.material = t.own;
+        }
+      });
       scene.background = bg; scene.fog = fog; camera.layers.set(0);
     }
     (mat.uniforms.projScale!.value as THREE.Vector2).set(1 / camera.projectionMatrix.elements[0]!, 1 / camera.projectionMatrix.elements[5]!);
@@ -211,7 +236,8 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       const sun = scene.children.find((c) => (c as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight | undefined;
       if (sun) { toLight.copy(sun.position).sub(sun.target.position).transformDirection(camera.matrixWorldInverse); mat.uniforms.lightAngle!.value = Math.atan2(toLight.y, toLight.x); }
     }
-    renderer.setRenderTarget(before); renderer.autoClear = true; renderer.render(post, postCam);
+    if (aaMat) { renderer.setRenderTarget(inkOut); renderer.autoClear = true; renderer.render(post, postCam); renderer.setRenderTarget(before); renderer.render(aaScene, postCam); }   // the ink picture, then FXAA of it to the screen: smooth lines
+    else { renderer.setRenderTarget(before); renderer.autoClear = true; renderer.render(post, postCam); }
     if (hudList.length) { const bg = scene.background, fog = scene.fog; renderer.autoClear = false; scene.background = null; camera.layers.set(HUD_LAYER); renderer.render(scene, camera); scene.background = bg; scene.fog = fog; camera.layers.set(0); }   // the HUD pieces, plain, on top (no scene depth: a tag behind a wall still shows)
     renderer.autoClear = autoClear; renderer.setClearColor(clear, clearA);
   };
@@ -224,7 +250,8 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     compile(): void { const before = renderer.getRenderTarget(); renderer.setRenderTarget(color); try { renderer.compile(scene, camera); } finally { renderer.setRenderTarget(before); } },
     setSize(w: number, h: number): void {
       const ratio = renderer.getPixelRatio(), pw = Math.round(w * ratio), ph = Math.round(h * ratio);
-      color.setSize(pw, ph); tagged.setSize(pw, ph); depth.image.width = pw; depth.image.height = ph;
+      color.setSize(pw, ph); tagged.setSize(pw, ph); inkOut.setSize(pw, ph); depth.image.width = pw; depth.image.height = ph;
+      if (aaMat) (aaMat.uniforms.resolution!.value as THREE.Vector2).set(1 / pw, 1 / ph);
       (mat.uniforms.texel!.value as THREE.Vector2).set(1 / pw, 1 / ph); mat.uniforms.ratio!.value = ratio;
     },
   };
