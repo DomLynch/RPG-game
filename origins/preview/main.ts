@@ -688,7 +688,7 @@ async function warmGearScreen() {
     if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
     while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
     let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
-    const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    const settled = await settleWithin('gear-screen', gearMount.warm(() => kitSlice(t0 + previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'))).then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
     if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
     gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
   } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
@@ -724,6 +724,7 @@ async function warmRemoteKits() {
     const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
     const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
     await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
+    await kitSlice(until);   // the creature may have come within tap range while the colour programs compiled: the shadow-pass frames below link the kit's depth program in a real frame, so they wait for him to leave range too (zone 7 red, 2026-10-22: the kit's depth program linked inside the engage window, 38 s after ready on a fast-enough device)
     remote.anchor.visible = true;   // the two frames the shadow pass takes it in (a hidden object is skipped)
     try { await nextFrame(); await nextFrame(); } finally { remote.anchor.visible = false; }
     phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
