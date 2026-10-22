@@ -60,6 +60,10 @@ function sectorCanvas(S: GoblinPalette, img: HTMLImageElement, b: GoblinBackdrop
   const head = o.createLinearGradient(0, 0, 0, h); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(b.fadeTop, 'rgba(0,0,0,1)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, w, h);
   const side = o.createLinearGradient(0, 0, w, 0), e = b.fadeSide ?? 0; side.addColorStop(0, 'rgba(0,0,0,0)'); side.addColorStop(e, 'rgba(0,0,0,1)'); side.addColorStop(1 - e, 'rgba(0,0,0,1)'); side.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = side; o.fillRect(0, 0, w, h);
   o.globalCompositeOperation = 'source-over'; const yh = h * (1 - b.drop), f0 = yh - h * b.fadeFoot;   // the horizon row sits `drop` of the height above the picture's foot: the fade ends AT it, in the haze colour the far ground is fogged to, and the rows below it (behind the ground) are solid haze
+  if (b.keepFoot) {   // a row that keeps the picture's foot (its paved floor): the rows below the horizon are the picture, fading into the haze only over the last `fadeFoot` of the crop, so the picture meets the ground instead of a strip of haze
+    const k0 = h * (1 - b.fadeFoot), keep = o.createLinearGradient(0, k0, 0, h); keep.addColorStop(0, clear(S.horizon)); keep.addColorStop(1, S.horizon); o.fillStyle = keep; o.fillRect(0, k0, w, h - k0);
+    return { canvas: c, heightDeg: (b.arc! * h) / w };
+  }
   const foot = o.createLinearGradient(0, f0, 0, yh); foot.addColorStop(0, clear(S.horizon)); foot.addColorStop(1, S.horizon); o.fillStyle = foot; o.fillRect(0, f0, w, yh - f0); o.fillStyle = S.horizon; o.fillRect(0, yh, w, h - yh);
   return { canvas: c, heightDeg: (b.arc! * h) / w };
 }
