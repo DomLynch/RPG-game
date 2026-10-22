@@ -6,13 +6,12 @@ import test from 'node:test';
 import { loadBowlRings, ringAt, rosterPlacements, rosterRows, type BowlKnown, type RingEdges, type RowBase } from './bowl-roster.ts';
 import RAW from './bowl-roster.json' with { type: 'json' };
 import PROGRESSION from '../region1/progression.json' with { type: 'json' };
-import ZONE1 from '../zone-rows/zone1.row.json' with { type: 'json' };
-import ZONE2 from '../zone-rows/zone2.row.json' with { type: 'json' };
-import ZONE7 from '../zone-rows/zone7.row.json' with { type: 'json' };
+import { listedZone } from '../zones/listed.ts';
 import { ringEdges } from '../zones/plan.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
 import { validateMobRow, type MobRow, type RowContext } from '../../src/core/world/row.ts';
 
+const ZONE1 = listedZone('1'), ZONE2 = listedZone('2'), ZONE7 = listedZone('7');   // a zone is read through the loader, never its row file (tests/zone-packages.test.ts)
 const edges: RingEdges = (zone, landmark) => ringEdges(zone, landmark);
 const FOES = new Set((PROGRESSION.foes as { id: string }[]).map((f) => f.id));
 const RING_LANDMARKS = new Set(['ring-outer', 'ring-middle', 'floor']);   // the marks World's bowl plan names (plan-rows.json zone 7)
@@ -21,7 +20,7 @@ const BASES = new Map<string, MobRow>([...(ZONE1.spawns.rows as unknown as MobRo
 const base = (c: string): RowBase | undefined => BASES.get(c);
 const LOOKS = (ZONE7 as unknown as { mobLooks: { looks: Record<string, { opponent: string }> } }).mobLooks.looks;   // zone 7's own dress for its creatures (a creature with none draws as a capsule)
 const ctx: RowContext = { look: (id) => LOOKS[id] ?? null, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
-type RawRing = { zone: string; landmark: string; levels: number[]; aggro: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
+type RawRing = { zone: string; landmark: string; levels: number[]; aggro: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
 type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
 const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
 
@@ -58,7 +57,7 @@ test('leash, roam and spread are the ring\'s width times its shares: the edges l
   const rings = loadBowlRings(known), rows = rosterRows(rings, edges, base);
   for (const row of rows) {
     const ring = rings.find((r) => r.groups.some((g) => g.character === row.id))!, e = ringEdges(ring.zone, ring.landmark)!, width = e.outer - e.inner, b = row.behaviour;
-    assert.ok(Math.abs(b.spread! - width) < 0.06, `${row.id} spread`);
+    assert.ok(Math.abs(b.spread! - width * ring.spreadShare) < 0.06, `${row.id} spread`);
     assert.ok(Math.abs(b.roam! - width * ring.roamShare) < 0.06, `${row.id} roam`);
     assert.ok(Math.abs(b.leash! - width * ring.leashShare) < 0.06, `${row.id} leash`);
   }
@@ -94,6 +93,18 @@ test('zone 7\'s shipped place.spawns are exactly the roster placements (a drift 
   for (const r of rings) assert.ok(r.levels[0] >= band[0] && r.levels[1] <= band[1], `${r.id} levels ${r.levels} sit in the zone band ${band}`);
 });
 
+test('every camp stays inside its own ring: the spot\'s radius from the bowl\'s centre +- the row\'s spread lies between the ring\'s edges (no creature in the wall, none in the next ring)', () => {
+  const rings = loadBowlRings(known), size = (ZONE7.place as unknown as { zones: Record<string, { zoneSize: { width: number; depth: number } }> }).zones['dungeon-bowl']!.zoneSize;
+  const at = LAYOUT as Record<string, { u: number; v: number }>, rows = new Map(ZONE7.spawns.rows.map((r) => [r.id, r] as const));
+  const spots = (ZONE7.place as unknown as { spawns: { id: string; at: string; characters: string[] }[] }).spawns;
+  assert.ok(spots.length > 0);
+  for (const p of spots) {
+    const ring = rings.find((r) => r.groups.some((g) => g.character === p.characters[0]))!, e = ringEdges(ring.zone, ring.landmark)!, s = at[p.at]!;
+    const radius = Math.hypot((s.u - 0.5) * size.width, (s.v - 0.5) * size.depth), spread = rows.get(p.characters[0]!)!.behaviour.spread!;
+    assert.ok(radius - spread >= e.inner - 0.05 && radius + spread <= e.outer + 0.05, `${p.id}: spot ${p.at} at r ${radius.toFixed(1)} with spread ${spread} reaches ${(radius - spread).toFixed(1)}..${(radius + spread).toFixed(1)}, outside ${ring.id} ${e.inner}..${e.outer}`);
+  }
+});
+
 test('ringAt: the centre is the floor, a point in each band its ring, the yard and beyond are no ring', () => {
   const rings = loadBowlRings(known);
   assert.equal(ringAt(rings, edges, 0), 'floor');
@@ -114,6 +125,8 @@ test('the loader refuses what would put a creature wrong: overlapping bands, unk
   bad((d) => { d.rings.outer.aggro = 0; }, /aggro must be positive/);
   bad((d) => { d.rings.outer.roamShare = 1.5; }, /roamShare/);
   bad((d) => { d.rings.outer.roamShare = 0.5; }, /a third of leashShare/);
+  bad((d) => { d.rings.middle.spreadShare = 0.8; }, /spreadShare 0.8 must be in/);
+  bad((d) => { d.rings.floor.spreadShare = 0; }, /spreadShare/);
   bad((d) => { d.rings.outer.groups[1]!.id = d.rings.outer.groups[0]!.id; }, /twice/);
   bad((d) => { d.rings.middle.groups[0]!.character = d.rings.outer.groups[0]!.character; }, /two groups/);
   bad((d) => { d.rings.outer.groups[0]!.camps = 0; }, /camps/);

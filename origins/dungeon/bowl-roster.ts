@@ -10,7 +10,7 @@ import DEFS from './bowl-roster.json' with { type: 'json' };
 export type RosterGroup = { readonly id: string; readonly character: string; readonly camps: number; readonly campSize: readonly [number, number] };
 export type BowlRing = {
   readonly id: string; readonly order: number; readonly zone: string; readonly landmark: string; readonly levels: readonly [number, number]; readonly respawnSeconds: number;
-  readonly aggro: number; readonly roamShare: number; readonly leashShare: number; readonly groups: readonly RosterGroup[];
+  readonly aggro: number; readonly spreadShare: number; readonly roamShare: number; readonly leashShare: number; readonly groups: readonly RosterGroup[];
 };
 /** A ring's edges in metres from the bowl's centre. The real reader derives them from the bowl layout's paving pieces; a test passes a fixture until that row lands. */
 export type RingEdges = (zone: string, landmark: string) => { readonly inner: number; readonly outer: number } | null;
@@ -24,6 +24,7 @@ export type RowBase = Pick<MobRow, 'source' | 'role' | 'loot'>;
 
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n);
 const PAIR = 2;   // a [lo, hi] pair's length: the loader's shape check (exempt: scripts/as-data/allow/origins-dungeon.json)
+const HALF = 0.5;   // one half: a camp's spot is the ring's mid-radius, so half the width is the farthest its members may scatter and stay in the ring (exempt: scripts/as-data/allow/origins-dungeon.json)
 const ROAM_PER_LEASH = 3;   // the spawn row contract's own rule: roam is at most a third of the leash (src/core/world/row.ts roam-leash) (exempt: scripts/as-data/allow/origins-dungeon.json)
 const pair = (v: unknown): v is readonly [number, number] => Array.isArray(v) && v.length === PAIR && isInt(v[0]) && isInt(v[1]) && v[0] <= v[1];
 
@@ -43,6 +44,7 @@ export function loadBowlRings(known: BowlKnown, raw: { rings?: unknown } = DEFS)
     if (!(r.respawnSeconds > 0)) throw Error(`${at}: respawnSeconds must be positive`);
     if (!(r.aggro > 0)) throw Error(`${at}: aggro must be positive (the bowl's creatures notice the hero like every NPC)`);
     for (const k of ['roamShare', 'leashShare'] as const) if (!(r[k] > 0 && r[k] <= 1)) throw Error(`${at}: ${k} must be in (0, 1]`);
+    if (!(r.spreadShare > 0 && r.spreadShare <= HALF)) throw Error(`${at}: spreadShare ${r.spreadShare} must be in (0, ${HALF}]: a camp stands at its ring's mid-radius, so a spread above half the ring's width puts members outside the ring (the bowl wall, or the next ring)`);
     if (r.roamShare * ROAM_PER_LEASH > r.leashShare) throw Error(`${at}: roamShare ${r.roamShare} is above a third of leashShare ${r.leashShare} (the spawn row contract: roam is at most a third of the leash)`);
     if (!Array.isArray(r.groups) || r.groups.length === 0) throw Error(`${at}: a ring needs at least one group`);
     const seen = new Set<string>();
@@ -76,7 +78,7 @@ export function rosterRows(rings: readonly BowlRing[], edges: RingEdges, base: (
       const b = base(g.character);
       if (!b) throw Error(`bowl-roster "${r.id}": group ${g.id}: ${g.character} has no row to take its source, role and loot from`);
       return { id: g.character, source: b.source, role: b.role, loot: b.loot, level: r.levels, respawnSeconds: r.respawnSeconds, roster: true,
-        behaviour: { aggro: r.aggro, leash: to1(width * r.leashShare), roam: to1(width * r.roamShare), spread: to1(width), pull: 0, campSize: g.campSize } };
+        behaviour: { aggro: r.aggro, leash: to1(width * r.leashShare), roam: to1(width * r.roamShare), spread: to1(width * r.spreadShare), pull: 0, campSize: g.campSize } };
     });
   });
 }
