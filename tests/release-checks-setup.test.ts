@@ -24,7 +24,7 @@ test('release-checks: every apt fetch is bounded before the first apt call (play
 });
 
 test('release-checks: every apt call goes through apt-or-mirror, which retries once on archive.ubuntu.com (Lead 2026-10-22, K6q27 stalls)', () => {
-  const calls = yml.split('\n').filter(l => /^\s+run: .*(apt-get install|playwright install --with-deps)/.test(l)).map(l => l.trim());
+  const calls = yml.split('\n').filter(l => /^\s+(- )?run: .*(apt-get install|playwright install --with-deps)/.test(l)).map(l => l.trim().replace(/^- /, ''));
   assert.ok(calls.length >= 4, `apt calls: ${calls.join(' | ')}`);
   for (const c of calls) assert.match(c, /^run: apt-or-mirror /, `not wrapped: ${c}`);
   const helper = stepOf('Bound apt fetches');
