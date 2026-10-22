@@ -7,13 +7,13 @@
     { "id": "goblin-palisade-a", "url": "world/kit/goblin_palisade_a.glb", "nodes": ["goblin_palisade_a"] },
     { "id": "goblin-palisade-b", "url": "world/kit/goblin_palisade_b.glb", "nodes": ["goblin_palisade_b"] },
     { "id": "goblin-palisade-c", "url": "world/kit/goblin_palisade_c.glb", "nodes": ["goblin_palisade_c"] },
-    { "id": "goblin-gate", "url": "world/kit/goblin_gate.glb", "nodes": ["goblin_gate"] },
-    { "id": "goblin-totem", "url": "world/kit/goblin_totem.glb", "nodes": ["goblin_totem"] },
-    { "id": "goblin-spikes", "url": "world/kit/goblin_spikes.glb", "nodes": ["goblin_spikes"] },
+    { "id": "goblin-gate", "url": "world/kit/goblin_gate.glb", "nodes": ["goblin_gate"], "lod": { "url": "world/kit/goblin_gate_lod.glb", "dist": 35 } },
+    { "id": "goblin-totem", "url": "world/kit/goblin_totem.glb", "nodes": ["goblin_totem"], "lod": { "url": "world/kit/goblin_totem_lod.glb", "dist": 35 } },
+    { "id": "goblin-spikes", "url": "world/kit/goblin_spikes.glb", "nodes": ["goblin_spikes"], "lod": { "url": "world/kit/goblin_spikes_lod.glb", "dist": 35 } },
     { "id": "torch-sconce", "url": "world/kit/torch_sconce.glb", "nodes": ["torch-sconce"] },
     { "id": "goblin-lantern", "url": "world/kit/goblin_lantern.glb", "nodes": ["goblin_lantern"] },
-    { "id": "goblin-hut", "url": "world/kit/goblin_hut.glb", "nodes": ["goblin_hut"] },
-    { "id": "goblin-tower", "url": "world/kit/goblin_tower.glb", "nodes": ["goblin_tower"] },
+    { "id": "goblin-hut", "url": "world/kit/goblin_hut.glb", "nodes": ["goblin_hut"], "lod": { "url": "world/kit/goblin_hut_lod.glb", "dist": 35 } },
+    { "id": "goblin-tower", "url": "world/kit/goblin_tower.glb", "nodes": ["goblin_tower"], "lod": { "url": "world/kit/goblin_tower_lod.glb", "dist": 35 } },
     { "id": "dungeon", "url": "world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile"] }
   ],
   "fits": [

@@ -1,0 +1,604 @@
+{
+ "near": 12,
+ "far": 55,
+ "spots": {
+  "goblin_hut": [
+   -162,
+   -35
+  ],
+  "goblin_totem": [
+   -106.4794921875,
+   4.75891637802124
+  ]
+ },
+ "shots": [
+  {
+   "arm": "lod-on",
+   "node": "goblin_hut",
+   "label": "near",
+   "asked": [
+    -150,
+    -40
+   ],
+   "stood": [
+    -150,
+    -40
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 1,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__far",
+     "count": 1,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -174,
+      -64
+     ],
+     "scale": 1.718,
+     "tris": 1492
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    }
+   ],
+   "file": "goblin_hut-near-lod-on.jpg"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_hut",
+   "label": "far",
+   "asked": [
+    -107,
+    -57
+   ],
+   "stood": [
+    -107,
+    -57
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 0,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__far",
+     "count": 2,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    }
+   ],
+   "file": "goblin_hut-far-lod-on.jpg"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_totem",
+   "label": "near",
+   "asked": [
+    -94,
+    0
+   ],
+   "stood": [
+    -94,
+    0
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 4,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -106,
+      5
+     ],
+     "scale": 1.095,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__far",
+     "count": 13,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      84
+     ],
+     "scale": 1.113,
+     "tris": 1200
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -106,
+      5
+     ],
+     "scale": 1.095,
+     "tris": 1200
+    }
+   ],
+   "file": "goblin_totem-near-lod-on.jpg"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_totem",
+   "label": "far",
+   "asked": [
+    -51,
+    -17
+   ],
+   "stood": [
+    -51,
+    -17
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 3,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__far",
+     "count": 11,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -150,
+      -27
+     ],
+     "scale": 0.987,
+     "tris": 1200
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 1200
+    }
+   ],
+   "file": "goblin_totem-far-lod-on.jpg"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_hut",
+   "label": "near",
+   "asked": [
+    -150,
+    -40
+   ],
+   "stood": [
+    -150,
+    -40
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 2,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    }
+   ],
+   "file": "goblin_hut-near-lod-off.jpg"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_hut",
+   "label": "far",
+   "asked": [
+    -107,
+    -57
+   ],
+   "stood": [
+    -107,
+    -57
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 2,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    }
+   ],
+   "file": "goblin_hut-far-lod-off.jpg"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_totem",
+   "label": "near",
+   "asked": [
+    -94,
+    0
+   ],
+   "stood": [
+    -94,
+    0
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 17,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      84
+     ],
+     "scale": 1.113,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -106,
+      5
+     ],
+     "scale": 1.095,
+     "tris": 6000
+    }
+   ],
+   "file": "goblin_totem-near-lod-off.jpg"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_totem",
+   "label": "far",
+   "asked": [
+    -51,
+    -17
+   ],
+   "stood": [
+    -51,
+    -17
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 14,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 6000
+    }
+   ],
+   "file": "goblin_totem-far-lod-off.jpg"
+  },
+  {
+   "arm": "lod-forced",
+   "node": "goblin_hut",
+   "label": "near",
+   "asked": [
+    -150,
+    -40
+   ],
+   "stood": [
+    -150,
+    -40
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 0,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__far",
+     "count": 2,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    }
+   ],
+   "file": "goblin_hut-near-lod-forced.jpg"
+  },
+  {
+   "arm": "lod-forced",
+   "node": "goblin_hut",
+   "label": "far",
+   "asked": [
+    -107,
+    -57
+   ],
+   "stood": [
+    -107,
+    -57
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_hut",
+     "count": 0,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 9000
+    },
+    {
+     "name": "goblin_hut__far",
+     "count": 2,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    },
+    {
+     "name": "goblin_hut__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -162,
+      -35
+     ],
+     "scale": 1.527,
+     "tris": 1492
+    }
+   ],
+   "file": "goblin_hut-far-lod-forced.jpg"
+  },
+  {
+   "arm": "lod-forced",
+   "node": "goblin_totem",
+   "label": "near",
+   "asked": [
+    -94,
+    0
+   ],
+   "stood": [
+    -94,
+    0
+   ],
+   "distToPiece": 13,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 0,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      84
+     ],
+     "scale": 1.113,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__far",
+     "count": 17,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      84
+     ],
+     "scale": 1.113,
+     "tris": 1200
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -106,
+      5
+     ],
+     "scale": 1.095,
+     "tris": 1200
+    }
+   ],
+   "file": "goblin_totem-near-lod-forced.jpg"
+  },
+  {
+   "arm": "lod-forced",
+   "node": "goblin_totem",
+   "label": "far",
+   "asked": [
+    -51,
+    -17
+   ],
+   "stood": [
+    -51,
+    -17
+   ],
+   "distToPiece": 59,
+   "meshes": [
+    {
+     "name": "goblin_totem",
+     "count": 0,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      84
+     ],
+     "scale": 1.113,
+     "tris": 6000
+    },
+    {
+     "name": "goblin_totem__far",
+     "count": 14,
+     "visible": true,
+     "castShadow": false,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 1200
+    },
+    {
+     "name": "goblin_totem__shadow",
+     "count": 0,
+     "visible": true,
+     "castShadow": true,
+     "first": [
+      -45,
+      6
+     ],
+     "scale": 1.124,
+     "tris": 1200
+    }
+   ],
+   "file": "goblin_totem-far-lod-forced.jpg"
+  }
+ ]
+}

@@ -22,6 +22,7 @@
     { "id": "cameraEase", "value": 0.7, "unit": "s" },
     { "id": "campFlameSize", "value": 1.15, "unit": "ratio" },
     { "id": "campLightReach", "value": 36, "unit": "m" },
+    { "id": "kitViewStepM", "value": 1, "unit": "m" },
     { "id": "presenceGiveUp", "value": 6, "unit": "tries" },
     { "id": "gameDayMinutes", "value": 100, "unit": "min" },
     { "id": "duskHour", "value": 19, "unit": "h" },
