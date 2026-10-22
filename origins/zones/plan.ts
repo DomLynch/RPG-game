@@ -12,11 +12,13 @@ export type Shape =
   | ['cylinder', number, number, number, number] // radius top, radius bottom, height, radial segments
   | ['cone', number, number, number] // radius, height, radial segments
   | ['sphere', number, number, number] // radius, width segments, height segments
-  | ['pediment', number, number, number]; // base width, height, depth: a triangle extruded and centred on its depth
+  | ['pediment', number, number, number] // base width, height, depth: a triangle extruded and centred on its depth
+  | ['ring', number, number, number, number] // inner radius, outer radius, height, radial segments: a flat-topped annulus (a terrace of a bowl)
+  | ['wedge', number, number, number]; // length (local x), rise, width (local z): a ramp rising along +x from the piece's base, its bounding box centred on (x, y, z)
 export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal' | 'plain';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
 // One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()).
-export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number };
-export type Figure = { x: number; z: number; color: string };
+export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number; walk?: boolean };   // walk: the hero may stand on its top (walkHeight)
+export type Figure = { x: number; z: number; color: string; y?: number };   // y: the ground he stands on (a layout with levels); absent = 0
 export type Plan = {
   pieces: Piece[];
   awnings: (Figure & { y: number })[];
@@ -24,16 +26,17 @@ export type Plan = {
   frieze?: { x: number; y: number; z: number; text: string };   // a zone's `frieze` mark row; none = no inscription
   braziers: { x: number; z: number }[];
   hearth?: { x: number; y: number; z: number };   // a zone's `hearth` mark row; none = no forge light
+  marks?: Record<string, { x: number; y: number; z: number; facing?: number; text?: string }>;   // every mark row by its local id (`start`: where a layout opens the hero), frieze and hearth included
 };
 
 type Follow = Readonly<Record<string, Readonly<Record<string, number>>>>;   // field -> {anchor local name: weight}
 type Row = { readonly id: string; readonly zone: string; readonly follow?: Follow };
 export type AnchorRow = { readonly id: string; readonly zone: string; readonly source: string; readonly base: number };
-export type PieceRow = Row & { readonly layer: Layer; readonly shape: Shape; readonly x: number; readonly y: number; readonly z: number; readonly tint: Tint; readonly rotY: number; readonly foot: number };
+export type PieceRow = Row & { readonly layer: Layer; readonly shape: Shape; readonly x: number; readonly y: number; readonly z: number; readonly tint: Tint; readonly rotY: number; readonly foot: number; readonly walk?: boolean };
 export type AwningRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly color: string };
-export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string };
+export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string; readonly y?: number };
 export type BrazierRow = Row & { readonly x: number; readonly z: number };
-export type MarkRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly text?: string };
+export type MarkRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly text?: string; readonly facing?: number };
 export type PlanRows = { readonly anchors: readonly AnchorRow[]; readonly pieces: readonly PieceRow[]; readonly awnings: readonly AwningRow[]; readonly people: readonly PersonRow[]; readonly braziers: readonly BrazierRow[]; readonly marks: readonly MarkRow[] };
 
 const TABLES = ['anchors', 'pieces', 'awnings', 'people', 'braziers', 'marks'] as const;
@@ -54,19 +57,39 @@ export const planSources = (zone: string, rows: PlanRows = PLAN_ROWS): readonly 
 
 /** The plan `zone`'s rows describe, where `resolve(source)` is each anchor source's value now: every number at its baseline plus weight x (source now - source at baseline). A zone with no rows has no plan (null). */
 export function planFor(zone: string, resolve: (source: string) => number, rows: PlanRows = PLAN_ROWS): Plan | null {
-  const anchors = rows.anchors.filter((r) => r.zone === zone); if (!anchors.length) return null;
+  const anchors = rows.anchors.filter((r) => r.zone === zone); if (!anchors.length && !rows.pieces.some((r) => r.zone === zone)) return null;   // a zone with no anchors at all (a free-standing layout) still has a plan if it has pieces
   const delta: Record<string, number> = {}; for (const r of anchors) delta[local(r)] = resolve(r.source) - r.base;
   const of = <T extends Row>(t: readonly T[]) => t.filter((r) => r.zone === zone);
   const at = (v: number, r: Row, field: string): number => { let s = v; for (const [n, w] of Object.entries(r.follow?.[field] ?? {})) s += w * delta[n]!; return s; };
-  const pieces: Piece[] = of(rows.pieces).map((r) => ({ layer: r.layer, shape: [r.shape[0], ...r.shape.slice(1).map((n, i) => at(n as number, r, `s${i + 1}`))] as Shape, x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), tint: [...r.tint] as Tint, rotY: at(r.rotY, r, 'rotY'), foot: at(r.foot, r, 'foot') }));
+  const pieces: Piece[] = of(rows.pieces).map((r) => ({ layer: r.layer, shape: [r.shape[0], ...r.shape.slice(1).map((n, i) => at(n as number, r, `s${i + 1}`))] as Shape, x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), tint: [...r.tint] as Tint, rotY: at(r.rotY, r, 'rotY'), foot: at(r.foot, r, 'foot'), ...(r.walk ? { walk: true } : {}) }));
   const mark = (name: string) => of(rows.marks).find((m) => local(m) === name);   // the marks are optional: a zone that has no frieze or no hearth row simply has none
   const frieze = mark('frieze'), hearth = mark('hearth');
   return {
     pieces,
     awnings: of(rows.awnings).map((r) => ({ x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), color: r.color })),
     braziers: of(rows.braziers).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z') })),
-    people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color })),
+    people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color, ...(r.y !== undefined ? { y: at(r.y, r, 'y') } : {}) })),
     ...(frieze ? { frieze: { x: at(frieze.x, frieze, 'x'), y: at(frieze.y, frieze, 'y'), z: at(frieze.z, frieze, 'z'), text: frieze.text ?? '' } } : {}),
     ...(hearth ? { hearth: { x: at(hearth.x, hearth, 'x'), y: at(hearth.y, hearth, 'y'), z: at(hearth.z, hearth, 'z') } } : {}),
+    ...(of(rows.marks).some((m) => local(m) !== 'frieze' && local(m) !== 'hearth') ? { marks: Object.fromEntries(of(rows.marks).filter((m) => local(m) !== 'frieze' && local(m) !== 'hearth').map((m) => [local(m), { x: at(m.x, m, 'x'), y: at(m.y, m, 'y'), z: at(m.z, m, 'z'), ...(m.facing !== undefined ? { facing: m.facing } : {}), ...(m.text !== undefined ? { text: m.text } : {}) }])) } : {}),   // the other marks, by local id (the Exchange has none, so its plan is unchanged)
   };
+}
+
+/** The height of the highest walkable piece (`walk: true`) under (x, z), or null where there is none: a box, a cylinder, a ring and a wedge ramp are read by their own footprint and top, turned by the piece's `rotY`. Pure. */
+export function walkHeight(pieces: readonly Piece[], x: number, z: number): number | null {
+  let best: number | null = null;
+  for (const p of pieces) {
+    if (!p.walk) continue;
+    const dx = x - p.x, dz = z - p.z, c = Math.cos(p.rotY), s = Math.sin(p.rotY), lx = dx * c - dz * s, lz = dx * s + dz * c;   // into the piece's frame (three's rotation.y: x' = x cos + z sin, z' = -x sin + z cos; the inverse is this)
+    let top: number | null = null;
+    switch (p.shape[0]) {
+      case 'box': if (Math.abs(lx) <= p.shape[1] / 2 && Math.abs(lz) <= p.shape[3] / 2) top = p.y + p.shape[2] / 2; break;
+      case 'cylinder': if (Math.hypot(lx, lz) <= Math.max(p.shape[1], p.shape[2])) top = p.y + p.shape[3] / 2; break;
+      case 'ring': { const r = Math.hypot(lx, lz); if (r >= p.shape[1] && r <= p.shape[2]) top = p.y + p.shape[3] / 2; break; }
+      case 'wedge': if (Math.abs(lx) <= p.shape[1] / 2 && Math.abs(lz) <= p.shape[3] / 2) top = p.y - p.shape[2] / 2 + (p.shape[2] * (lx + p.shape[1] / 2)) / p.shape[1]; break;
+      default: break;
+    }
+    if (top !== null && (best === null || top > best)) best = top;
+  }
+  return best;
 }

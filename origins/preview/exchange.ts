@@ -41,6 +41,11 @@ export function geometryOf(s: Shape): THREE.BufferGeometry {
       const tri = new THREE.Shape([new THREE.Vector2(-s[1] / 2, 0), new THREE.Vector2(s[1] / 2, 0), new THREE.Vector2(0, s[2])]);
       return new THREE.ExtrudeGeometry(tri, { depth: s[3], bevelEnabled: false }).translate(0, 0, -s[3] / 2);
     }
+    case 'ring': { const h = s[3] / 2; return new THREE.LatheGeometry([new THREE.Vector2(s[1], -h), new THREE.Vector2(s[2], -h), new THREE.Vector2(s[2], h), new THREE.Vector2(s[1], h), new THREE.Vector2(s[1], -h)], s[4]); }   // a solid annulus: the profile turned about y
+    case 'wedge': {   // a ramp: a right triangle (low end at -x, the rise at +x) extruded across its width, the bounding box centred on the origin
+      const tri = new THREE.Shape([new THREE.Vector2(-s[1] / 2, -s[2] / 2), new THREE.Vector2(s[1] / 2, -s[2] / 2), new THREE.Vector2(s[1] / 2, s[2] / 2)]);
+      return new THREE.ExtrudeGeometry(tri, { depth: s[3], bevelEnabled: false }).translate(0, 0, -s[3] / 2);
+    }
   }
 }
 
@@ -84,7 +89,7 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   }
   for (const f of plan.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
-    body.position.set(f.x, 0.87, f.z); body.castShadow = true; group.add(body);
+    body.position.set(f.x, (f.y ?? 0) + 0.87, f.z); body.castShadow = true; group.add(body);
   }
 
   // The paving and the masonry each get a clone of the arena's stone, so a look (look.ts) can grade them apart; untinted they are the arena's stone to the eye.
