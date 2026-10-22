@@ -10,7 +10,7 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { dressPhase } from './capture.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
-import { bodyFileOfKey, bodyKeyOf, bodyScale, mobLook, mobVariant } from './mob-looks.ts';
+import { bodyFileOfKey, bodyKeyOf, bodyScale, mobLook, mobVariant, zoneKinds } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { TITLES, type Tier } from '../../src/core/index.ts';
 import { calmStep, type Calm } from './calm-step.ts';   // (named so the world-sim list in tests/core-boundary.test.ts C7 does not grow)
@@ -156,16 +156,18 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   // Warm-up (Combat #1915, Claudecraft idioms; the Metal trace, 2026-10-08: the engage frame is 18 ms, the cost is the FIRST DRAW of a body: its programs link and its textures and geometry upload inside that frame, up to 179 ms).
   // So a body kind is revealed only after, per kind and off-frame: compileAsync of one probe clone (never the whole scene, which stalls), then its textures through initTexture and its geometries through a 4x4 proxy draw, one unit per frame.
   // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
-  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map(keyOf))];
+  // A ROTATING camp (spec.pool) can show any of its pool's legends later: each pool character's body key joins the zone's kinds, so the first rotated-in legend of a family no camp shows now is already linked and uploaded (else it links its programs at the engage). `poolKeys` names a pool character that wears each such key (the warm dresses its probe like him).
+  const { keys: kindsOfZone, pool: poolKeys } = zoneKinds(specs);
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>();
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
   const pending = new Map<string, { scene: THREE.Object3D; clips?: THREE.AnimationClip[] }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
   async function warmKind(kind: string, body: { scene: THREE.Object3D; clips?: THREE.AnimationClip[] }) {
-    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => keyOf(x) === kind)!, look = mobVariant(first.character, first.id);
+    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => keyOf(x) === kind) ?? poolKeys.get(kind)!, look = mobVariant(first.character, first.id);
     // The probe is the kind's real ACTOR with its weapon (the same build dress() makes), every part visible, not the bare body: a creature's drawn weapon (mesh_N<WeaponDrawn<hand_r: Leather, WeatheredStone, Steel...) is hidden until it fights, so a kind whose creatures are not drawn at [zone ready]
     // would link the weapon's programs at the first engage (zone 7 under rotation: no knight was drawn at ready, so the knights' weapons linked mid-fight). A body whose actor cannot be built falls back to the bare body (dress() reports it when a creature of the kind is made).
     let probe: THREE.Object3D;
-    try { const weapon = look?.gear ?? (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[first.body]?.weapon ?? 'longsword'; probe = buildWarriors({ scene: clone(body.scene) as THREE.Group, animations: body.clips ?? [] }, undefined, [weapon, weapon], true).player.anchor; probe.traverse((o) => { o.visible = true; }); } catch { probe = clone(body.scene); }
+    try { const weapon = look?.gear ?? (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[(first as { body?: string }).body ?? mobLook(first.character)?.opponent ?? '']?.weapon ?? 'longsword'; probe = buildWarriors({ scene: clone(body.scene) as THREE.Group, animations: body.clips ?? [] }, undefined, [weapon, weapon], true).player.anchor; probe.traverse((o) => { o.visible = true; }); } catch { probe = clone(body.scene); }
     if (look) dressMob(probe, look);
     const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
     await renderer.compileAsync(holder, camera, scene);
