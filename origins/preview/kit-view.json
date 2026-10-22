@@ -2,6 +2,7 @@
   "kitView": [
     { "id": "bush", "fields": { "prefix": "bush_", "castShadow": false, "shadowRadius": 0, "drawRadius": 0 } },
     { "id": "tuft", "fields": { "prefix": "tuft_", "castShadow": false, "shadowRadius": 0, "drawRadius": 0 } },
+    { "id": "goblin", "fields": { "prefix": "goblin_", "castShadow": true, "shadowRadius": 40, "drawRadius": 100 } },
     { "id": "default", "fields": { "prefix": "", "castShadow": true, "shadowRadius": 0, "drawRadius": 0 } }
   ]
 }
