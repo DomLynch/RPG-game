@@ -35,8 +35,8 @@ test('every placed piece of the Exchange matches the pre-switch greybox within 1
   plan.people.forEach((f, i) => { const pin = PINS.people[i]!; near(f.x, pin.at[0]!, `figure ${i} x`); near(f.z, pin.at[1]!, `figure ${i} z`); assert.equal(f.color, pin.color); });
   assert.equal(plan.braziers.length, PINS.braziers.length);
   plan.braziers.forEach((b, i) => { near(b.x, PINS.braziers[i]![0]!, `brazier ${i} x`); near(b.z, PINS.braziers[i]![1]!, `brazier ${i} z`); });
-  near(plan.frieze.x, PINS.frieze[0]!, 'frieze x'); near(plan.frieze.y, PINS.frieze[1]!, 'frieze y'); near(plan.frieze.z, PINS.frieze[2]!, 'frieze z');
-  near(plan.hearth.x, PINS.hearth[0]!, 'hearth x'); near(plan.hearth.y, PINS.hearth[1]!, 'hearth y'); near(plan.hearth.z, PINS.hearth[2]!, 'hearth z');
+  near(plan.frieze!.x, PINS.frieze[0]!, 'frieze x'); near(plan.frieze!.y, PINS.frieze[1]!, 'frieze y'); near(plan.frieze!.z, PINS.frieze[2]!, 'frieze z');
+  near(plan.hearth!.x, PINS.hearth[0]!, 'hearth x'); near(plan.hearth!.y, PINS.hearth[1]!, 'hearth y'); near(plan.hearth!.z, PINS.hearth[2]!, 'hearth z');
 });
 
 test('the anchors are the world data: moving a landmark in concord.ts moves its pieces, and nothing else', () => {

@@ -245,7 +245,7 @@ function environment(sky?: THREE.Texture) {
 }
 let skyReady = false;   // the scene's environment map is final (programs are keyed on it): warm-up waits for this
 environment(); void arena.ready.then(() => environment(arena.sky)).finally(() => { skyReady = true; });
-const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
+const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); if (exchange.hearth) forgeGlow.position.copy(exchange.hearth); else forgeGlow.visible = false; scene.add(forgeGlow);   // (a plan with no hearth row has no forge light: the light stays, dark, so the lights' count and programs do not change)
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 

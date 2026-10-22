@@ -1,4 +1,4 @@
-// The Exchange greybox as it was built in CODE (origins/preview/exchange-plan.ts before the plan moved to rows, trunk 2bf101977), frozen here as the TEST ORACLE: tests/exchange-rows.test.ts compares the row-built plan
+// The Exchange greybox as it was built in CODE (origins/preview/exchange-plan.ts before the plan moved to rows, trunk 2bf101977), frozen here as the TEST ORACLE: tests/zone-plan.test.ts compares the row-built plan
 // against this generator for the shipped anchors and for moved ones. The four rule values it read (kerb inset, stone radius, smithy half footprint) are parameters so the oracle can be moved too. Not used by the game.
 import type { Anchors, Layer, Piece, Plan, Shape, Tint } from '../../origins/preview/exchange-plan.ts';
 

@@ -21,9 +21,9 @@ export type Plan = {
   pieces: Piece[];
   awnings: (Figure & { y: number })[];
   people: Figure[];
-  frieze: { x: number; y: number; z: number; text: string };
+  frieze?: { x: number; y: number; z: number; text: string };   // a zone's `frieze` mark row; none = no inscription
   braziers: { x: number; z: number }[];
-  hearth: { x: number; y: number; z: number };
+  hearth?: { x: number; y: number; z: number };   // a zone's `hearth` mark row; none = no forge light
 };
 
 type Follow = Readonly<Record<string, Readonly<Record<string, number>>>>;   // field -> {anchor local name: weight}
@@ -59,14 +59,14 @@ export function planFor(zone: string, resolve: (source: string) => number, rows:
   const of = <T extends Row>(t: readonly T[]) => t.filter((r) => r.zone === zone);
   const at = (v: number, r: Row, field: string): number => { let s = v; for (const [n, w] of Object.entries(r.follow?.[field] ?? {})) s += w * delta[n]!; return s; };
   const pieces: Piece[] = of(rows.pieces).map((r) => ({ layer: r.layer, shape: [r.shape[0], ...r.shape.slice(1).map((n, i) => at(n as number, r, `s${i + 1}`))] as Shape, x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), tint: [...r.tint] as Tint, rotY: at(r.rotY, r, 'rotY'), foot: at(r.foot, r, 'foot') }));
-  const mark = (name: string) => { const r = of(rows.marks).find((m) => local(m) === name); if (!r) throw Error(`plan-rows: zone "${zone}" has no "${name}" mark row`); return r; };
+  const mark = (name: string) => of(rows.marks).find((m) => local(m) === name);   // the marks are optional: a zone that has no frieze or no hearth row simply has none
   const frieze = mark('frieze'), hearth = mark('hearth');
   return {
     pieces,
     awnings: of(rows.awnings).map((r) => ({ x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), color: r.color })),
     braziers: of(rows.braziers).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z') })),
     people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color })),
-    frieze: { x: at(frieze.x, frieze, 'x'), y: at(frieze.y, frieze, 'y'), z: at(frieze.z, frieze, 'z'), text: frieze.text ?? '' },
-    hearth: { x: at(hearth.x, hearth, 'x'), y: at(hearth.y, hearth, 'y'), z: at(hearth.z, hearth, 'z') },
+    ...(frieze ? { frieze: { x: at(frieze.x, frieze, 'x'), y: at(frieze.y, frieze, 'y'), z: at(frieze.z, frieze, 'z'), text: frieze.text ?? '' } } : {}),
+    ...(hearth ? { hearth: { x: at(hearth.x, hearth, 'x'), y: at(hearth.y, hearth, 'y'), z: at(hearth.z, hearth, 'z') } } : {}),
   };
 }
