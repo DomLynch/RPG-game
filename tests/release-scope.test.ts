@@ -16,10 +16,14 @@ test('every row the scope names is a release_commands row', () => {
   for (const a of scope.areas) assert.ok(a.paths.length && a.rows.length, `an area needs paths and rows: ${JSON.stringify(a)}`);
 });
 
-test('a zone-only diff runs core + the writer boot row, a docs diff runs nothing, a build file runs every row', () => {
+test('a zone-only diff runs core + the writer boot row + the zone pages row, a docs diff runs nothing, a build file runs every row', () => {
   const zone = deployRowsFor(['origins/preview/legend-copy.ts', 'origins/zone-rows/zone7.row.json'], []).map((r: { name: string }) => r.name);
-  assert.ok(zone.length <= scope.core.length + 1, `zone diff ran ${zone.length} rows: ${zone.join(', ')}`);
+  assert.ok(zone.length <= scope.core.length + 2, `zone diff ran ${zone.length} rows: ${zone.join(', ')}`);
   assert.ok(zone.includes('origins-writer-boot-check'), 'origins/** reaches the writer boot row');
+  assert.ok(zone.includes('zone-pages-check'), 'a zone row reaches row 58 (every /zoneN/ page opens)');
+  for (const f of ['origins/zones/plan-rows.json', 'origins/world/town/x.json', 'scripts/gen-zones.mjs'])
+    assert.ok(deployRowsFor([f], []).some((r: { name: string }) => r.name === 'zone-pages-check'), `${f} reaches row 58`);
+  assert.ok(!deployRowsFor(['src/fight/hud.ts'], []).some((r: { name: string }) => r.name === 'zone-pages-check'), 'a Pit-only file does not run row 58');
   assert.deepEqual(deployRowsFor(['docs/state/lead.md'], []), []);
   assert.equal(deployRowsFor(['package-lock.json'], []).length, rows.length);
   assert.equal(deployRowsFor(['public/world/kit/x.glb'], []).length, rows.length, 'public/ outside public_scoped is a full run');
