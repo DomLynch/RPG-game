@@ -12,6 +12,7 @@ import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Fin
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
+import { planFor, planZones, walkHeight } from '../zones/plan.ts';
 import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
@@ -180,7 +181,11 @@ if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 // The hills (frontier-relief.ts): flat pads under everything the plan and the dressing put down, hills in the open ground between; ?relief=0 is the kill switch. groundY is the ground under a world point (0 off the Frontier).
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
-const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
+// ?pitlayout=bowl|spiral (a LOOK TEST for Dom, preview only, never the default path): Dungeon 1's Pit as one of two layouts, the rows of the zone plan table keyed `dungeon1-<layout>` (origins/zones/plan-rows.json). The plan stands where the Exchange stands,
+// the Pit's own scenery is hidden, he opens on the layout's `start` mark, walks the pieces marked `walk` (ground under him = the highest walkable top; a step up a wall is refused: the layoutSlope rule), and the layout's fighters are placeholders.
+const PIT_LAYOUT = (() => { const v = new URLSearchParams(location.search).get('pitlayout'); return v !== null && planZones().includes(`dungeon1-${v}`) ? `dungeon1-${v}` : null; })();
+const layoutPlan = PIT_LAYOUT ? planFor(PIT_LAYOUT, () => 0) : null;
+const groundY = (x: number, z: number): number => (layoutPlan ? (walkHeight(layoutPlan.pieces, x, z) ?? 0) : relief.length ? groundAt(relief, x, z) : 0);
 // Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
 const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc,bow,staff}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
 // One fetch and parse per model file: the ground view and the remote-kit warm-up (loot.glb's pieces) read the same scene. On a phone the skins are capped as the fighters' are (loadFighter / loadLoot do the same).
@@ -203,8 +208,9 @@ const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: gr
 // A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
 const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url).then(compileLoot)) : sceneOf(url) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
-const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
+const exchangePieces = layoutPlan ?? (frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined);
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
+if (layoutPlan) arena.group.visible = false;   // the Pit layout test: the Pit's own sand, stands and sky give way to the layout
 const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
 let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 // The area-sky hook (area-sky.ts): an area (a frontier-plan zone id) with a `<area>:sky` names row shows that dome and light while the walker is in it; no row = nothing changes.
@@ -225,7 +231,9 @@ if (frontier && frontierParts) {
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.
 let mobs: Mobs | null = null, mobsAsked = false;
-const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
+const canStand = layoutPlan
+  ? (x: number, z: number): boolean => { const h = walkHeight(layoutPlan.pieces, x, z); return h !== null && Math.abs(h - groundY(state.x, state.z)) <= previewRule('layoutSlope') * Math.max(Math.hypot(x - state.x, z - state.z), 0.05) + 0.02; }   // the layout test: only on a walkable piece, and never up a wall (the rise per metre is the layoutSlope rule)
+  : (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
 const GAP = previewRule('gateGap');   // radians either side of the gate
@@ -298,6 +306,7 @@ if (start) { state.x = start.x; state.z = start.z; heading = fxNum('start.face-o
 if (start && goblinKit?.centre && fxNum('start.camp-on') > 0) { const a = fxNum('start.camp-angle'), r = fxNum('start.camp-radius'); state.x = goblinKit.centre.x + Math.sin(a) * r; state.z = goblinKit.centre.z + Math.cos(a) * r; }   // a zone with a camp kit starts him at a set place just inside the camp wall, by the skull post (rows start.camp-*: the angle as a ring counts it, the radius from the camp centre), as the Test Zone did   // the hero starts facing the camp wall and the sun, as the Test Zone's start did (start.face-rad is the compass heading to the sun, rad; start.face-on 0 = toward the first creatures, as before)
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
+else if (layoutPlan?.marks?.start) { const at = layoutPlan.marks.start; state.x = at.x; state.z = at.z; heading = at.facing ?? heading; }   // the Pit layout test opens him at the yard's start mark
 else if (zoneRow?.set?.includes('entry')) { const at = zoneRow.fields!['entry'] as { x: number; z: number; facing?: number } | null; if (at) { state.x = at.x; state.z = at.z; if (at.facing !== undefined) heading = at.facing; } }   // a zone row's own `entry` point (a town zone opens on its plaza, not among creatures)
 const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
 function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page

@@ -1,10 +1,10 @@
 {
   "tables": [
     { "table": "plan-anchor", "file": "plan-rows.json", "at": "anchors", "key": "id", "required": { "zone": "string", "source": "string", "base": "number" } },
-    { "table": "plan-piece", "file": "plan-rows.json", "at": "pieces", "key": "id", "required": { "zone": "string", "layer": "string", "shape": "array", "x": "number", "y": "number", "z": "number", "tint": "array", "rotY": "number", "foot": "number" }, "optional": { "follow": "object" } },
+    { "table": "plan-piece", "file": "plan-rows.json", "at": "pieces", "key": "id", "required": { "zone": "string", "layer": "string", "shape": "array", "x": "number", "y": "number", "z": "number", "tint": "array", "rotY": "number", "foot": "number" }, "optional": { "follow": "object", "walk": "boolean" } },
     { "table": "plan-awning", "file": "plan-rows.json", "at": "awnings", "key": "id", "required": { "zone": "string", "x": "number", "y": "number", "z": "number", "color": "string" }, "optional": { "follow": "object" } },
-    { "table": "plan-person", "file": "plan-rows.json", "at": "people", "key": "id", "required": { "zone": "string", "x": "number", "z": "number", "color": "string" }, "optional": { "follow": "object" } },
+    { "table": "plan-person", "file": "plan-rows.json", "at": "people", "key": "id", "required": { "zone": "string", "x": "number", "z": "number", "color": "string" }, "optional": { "follow": "object", "y": "number" } },
     { "table": "plan-brazier", "file": "plan-rows.json", "at": "braziers", "key": "id", "required": { "zone": "string", "x": "number", "z": "number" }, "optional": { "follow": "object" } },
-    { "table": "plan-mark", "file": "plan-rows.json", "at": "marks", "key": "id", "required": { "zone": "string", "x": "number", "y": "number", "z": "number" }, "optional": { "follow": "object", "text": "string" } }
+    { "table": "plan-mark", "file": "plan-rows.json", "at": "marks", "key": "id", "required": { "zone": "string", "x": "number", "y": "number", "z": "number" }, "optional": { "follow": "object", "text": "string", "facing": "number" } }
   ]
 }
