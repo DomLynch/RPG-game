@@ -46,7 +46,8 @@ export type PlanRows = { readonly anchors: readonly AnchorRow[]; readonly pieces
 const TABLES = ['anchors', 'pieces', 'awnings', 'people', 'braziers', 'marks', 'layers'] as const;
 const local = (r: { id: string; zone: string }): string => r.id.slice(r.zone.length + 1);   // a row's id is `<zone>/<local id>`
 /** The one loader: every table keyed by id (a duplicate, a missing or mistyped field is refused), every id starts with its zone, and every `follow` names an anchor row of the same zone. */
-export function loadPlanRows(raw: Partial<Record<(typeof TABLES)[number], readonly unknown[]>>): PlanRows {
+export function loadPlanRows(given: Partial<Record<(typeof TABLES)[number], readonly unknown[]>>): PlanRows {
+  const raw = { ...given, layers: given.layers ?? [] };   // a plan with no layer rows (a zone that draws the stone default) may leave the table out
   loadRegistry(TABLES.map((t, i) => tableFromFile(MANIFEST.tables[i] as unknown as Manifest, { [t]: raw[t] }, 'plan-rows.json')));
   const rows = raw as unknown as PlanRows;
   for (const t of TABLES) for (const r of rows[t] as readonly Row[]) if (!r.id.startsWith(`${r.zone}/`)) throw Error(`plan-rows ${t} "${r.id}": the id starts with its zone "${r.zone}/"`);
