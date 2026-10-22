@@ -2,9 +2,6 @@
  "origins/feuds/feuds.ts": {
   "BAND_RANK": 1
  },
- "origins/preview/main.ts": {
-  "TOWN_RESPAWN": 1
- },
  "origins/server/encounter-fixtures.ts": {
   "RESOLVED": 1
  },
