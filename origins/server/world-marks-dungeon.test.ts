@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createMarksSettler, SETTLE_WAIT_S, MARKS_CAP } from './world-marks.ts';
 import { rosterSpawnIds, spawnAt, zoneOfKey, zoneSpawns } from './world-spawns.ts';
 import { legendAt } from '../dungeon/legend-at.ts';
+import ROSTER from '../dungeon/bowl-roster.json' with { type: 'json' };
 import { fightSetup, loadEncounterContent } from '../encounters/encounters.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
@@ -59,6 +60,10 @@ test('the settle sends those ids with the worldMarks / worldShare rows and the b
 
 // Zone 7's camps ROTATE (docs/specs/origins/dungeon-legend-rotation.md): three camps per ring, each walking the ring's whole pool, one legend per respawn generation. The ledger and settle are keyed (instance, generation), so
 // they never see the legend; what must hold is that every camp is a roster spawn, every pool member is priced, and each generation resolves one legend of the camp's own ring band.
+// A ring's pool is its roster groups (origins/dungeon/bowl-roster.json): the tests read the size from the table, so widening a pool never edits them.
+const POOL = (ring: string): number => (ROSTER.rings as Record<string, { groups: unknown[] }>)[ring]!.groups.length;
+const ringOf = (spec: { spawn: string }): string => spec.spawn.split('-')[0]!;
+
 test('zone 7 is nine rotating roster camps, three per ring, and every pool member is priced, paid and looted at its own rank', () => {
   const loaded = loadEncounterContent();
   assert.ok(loaded.ok);
@@ -68,7 +73,7 @@ test('zone 7 is nine rotating roster camps, three per ring, and every pool membe
   for (const c of camps) {
     const at = c.spec.id;
     assert.equal(c.roster, true, `${at}: a camp is a ladder win only when every legend of its pool is`);
-    assert.ok(c.pool && c.pool.size === 3 && c.spec.pool?.length === 3, `${at}: a pool of the ring's three legends`);
+    assert.ok(c.pool && c.pool.size === POOL(ringOf(c.spec)) && c.spec.pool?.length === POOL(ringOf(c.spec)), `${at}: a pool of the ring's ${POOL(ringOf(c.spec))} legends`);
     assert.match(c.poolKind!, /^pool:(outer|middle|floor)-camp-[0-2]$/, `${at}: the database's kind is the camp's, never a legend`);
     for (const [id, m] of c.pool!) {
       const setup = fightSetup(m.fight, loaded.value);
@@ -80,22 +85,22 @@ test('zone 7 is nine rotating roster camps, three per ring, and every pool membe
   }
 });
 
-test('a zone 7 camp shows a different legend each generation, always of its own ring band, and all three in three generations', () => {
+test('a zone 7 camp shows a different legend each generation, always of its own ring band, and the whole pool in as many generations as it has legends', () => {
   const loaded = loadEncounterContent();
   assert.ok(loaded.ok);
   const rows = listedZone(DUNGEON).spawns.rows;
   for (const c of zoneSpawns(loaded.value, DUNGEON).values()) {
     const seen = new Set<string>(), ring = c.spec.spawn.split('-')[0]!;
     const band = { outer: [1, 3], middle: [4, 6], floor: [7, 10] }[ring as 'outer' | 'middle' | 'floor']!;
-    for (let g = 0; g < 9; g++) {
+    for (let g = 0; g <= POOL(ring); g++) {
       const now = spawnAt(c, g), next = spawnAt(c, g + 1);
       assert.equal(now.spec.character, legendAt(c.spec.pool!, c.spec.id, g), `${c.spec.id} g${g}: the writer and the page's function agree`);
       assert.notEqual(now.spec.character, next.spec.character, `${c.spec.id}: the same legend twice running at g${g}`);
       const lvl = rows.find((r) => r.id === now.spec.character)!.level[0];
       assert.ok(lvl >= band[0]! && lvl <= band[1]!, `${c.spec.id} g${g}: ${now.spec.character} rank ${lvl} is outside the ${ring} band ${band}`);
       assert.equal(now.spec.level, lvl, `${c.spec.id} g${g}: priced at the legend's rank`);
-      if (g < 3) seen.add(now.spec.character);
+      if (g < POOL(ring)) seen.add(now.spec.character);
     }
-    assert.equal(seen.size, 3, `${c.spec.id}: three generations show the whole pool`);
+    assert.equal(seen.size, POOL(ring), `${c.spec.id}: ${POOL(ring)} generations show the whole pool`);
   }
 });

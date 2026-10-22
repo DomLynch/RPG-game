@@ -75,6 +75,7 @@
       {"id": "character:pit.grendel", "source": {"legendId": "grendel"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [5, 5], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
       {"id": "character:pit.lancelot", "source": {"legendId": "lancelot"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [6, 6], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
       {"id": "character:pit.siegfried", "source": {"legendId": "siegfried"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [7, 7], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.hector", "source": {"legendId": "hector"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [8, 8], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
       {"id": "character:pit.achilles", "source": {"legendId": "achilles"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [9, 9], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
       {"id": "character:pit.typhon", "source": {"legendId": "typhon"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [10, 10], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}}
     ]
@@ -88,6 +89,7 @@
       "character:pit.grendel": {"opponent": "pitborn", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
       "character:pit.lancelot": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
       "character:pit.siegfried": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.hector": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
       "character:pit.achilles": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
       "character:pit.typhon": {"opponent": "pitborn", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}}
     },
@@ -405,9 +407,9 @@
       {"id": "middle-camp-0", "at": "ring-middle-0-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
       {"id": "middle-camp-1", "at": "ring-middle-2-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
       {"id": "middle-camp-2", "at": "ring-middle-4-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
-      {"id": "floor-camp-0", "at": "floor-0-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
-      {"id": "floor-camp-1", "at": "floor-1-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
-      {"id": "floor-camp-2", "at": "floor-2-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"}
+      {"id": "floor-camp-0", "at": "floor-0-spot", "characters": ["character:pit.siegfried", "character:pit.hector", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
+      {"id": "floor-camp-1", "at": "floor-1-spot", "characters": ["character:pit.siegfried", "character:pit.hector", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
+      {"id": "floor-camp-2", "at": "floor-2-spot", "characters": ["character:pit.siegfried", "character:pit.hector", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"}
     ]
   }
 }
