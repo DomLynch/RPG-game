@@ -16,7 +16,7 @@ try {
   for (const [name, viewport] of Object.entries(shapes)) {
     const ctx = await browser.newContext({ viewport, deviceScaleFactor: name === '375' ? 2 : 1, isMobile: name === '375', hasTouch: name === '375' }), page = await ctx.newPage();
     page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 200)}`));
-    await page.goto(`${base}/preview/origins/`, { waitUntil: 'load' });
+    await page.goto(`${base}/preview/origins/${process.env.QS ?? ''}`, { waitUntil: 'load' });   // QS=?zone=7 opens another zone's page
     await page.waitForFunction(() => window.originsPreview, null, { timeout: 300000 });
     await page.waitForTimeout(14000);
     if (process.env.VIA) { await page.evaluate((v) => window.originsPreview.place(...v.split(',').map(Number)), process.env.VIA); await page.waitForTimeout(6000); }   // VIA=x,z,heading: stand there first (the Exchange), then POS = walk out again (the exit still)

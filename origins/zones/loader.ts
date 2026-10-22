@@ -39,6 +39,8 @@ export type Zone = {
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
   warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
+  entry?: { readonly x: number; readonly z: number; readonly facing?: number };   // where the page opens him when no door brought him (zone row `entry`; absent = among the creatures, as Zone 1)
+  respawn?: { readonly x: number; readonly z: number; readonly warp: string };   // where he stands up after a death, and the presence warp that moves him there (zone row `respawn`; absent = the schema default, the square the region page opens on)
   presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
