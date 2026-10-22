@@ -32,6 +32,8 @@ async function open(query) {
   await page.goto(`${base}/preview/origins/?region=1&zone=1&presence=0&crowd=0${query}`, { waitUntil: 'commit' });
   await page.waitForFunction(() => !!window.originsPreview, null, { polling: 200 });
   await page.waitForFunction(() => window.originsPreview?.settledAt?.() >= 0 || !!window.__zoneReady, null, { polling: 200 }).catch(() => {});
+  // the skin models (huts, totems) load after the first playable frames, deferred: wait for the hut's instanced mesh, up to 120 s
+  await page.waitForFunction(() => { let hit = false; for (const s of window.__seen.scenes) s.traverse((o) => { if (o.isInstancedMesh && o.name === 'goblin_hut') hit = true; }); return hit; }, null, { polling: 500, timeout: 120000 }).catch(() => {});
   await page.waitForTimeout(3000);
   return { ctx, page };
 }
