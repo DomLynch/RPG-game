@@ -5,7 +5,7 @@ import { previewRule } from './preview-rules.ts';
 import { skinModels } from '../world/building-skins-rules.ts';
 import { greyboxOfSkins, skinPlacements } from './exchange-skin.ts';
 import type { ModelPlacement } from './frontier-skin.ts';
-import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
+import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Figure, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 import type { Stain } from '../zones/plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
@@ -20,7 +20,7 @@ export const BANK_STEP_Z = A.bank.z;
 export const FORGE = { ...A.forge, halfX: FORGE_HALF.x, halfZ: FORGE_HALF.z };   // the blacksmith (Dom 2026-10-06: NPC upgrade service), open toward the plaza
 
 // One placed piece: world transform, box-projected UVs in metres (the arena's stone texture tiles at 2 m), a tint darkened toward its foot.
-function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10, tile = 2): THREE.BufferGeometry {   // tile: metres per repeat, a plan layer row's own (the Pit's sand tiles at 3 m)
+function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10, tile = previewRule('exchangeUvTileM')): THREE.BufferGeometry {   // tile: metres per repeat, a plan layer row's own (the Pit's sand tiles at 3 m), else the `exchangeUvTileM` rule (2 m: the arena's stone)
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)), new THREE.Vector3(1, 1, 1)));
   g.computeVertexNormals();
@@ -91,7 +91,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   return fallbacks;
 }
 
-export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
+export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; capsules: Map<string, THREE.Mesh>; people: Figure[]; setLayerTexture(layer: string, tex: THREE.Texture, slabM: number, warm?: (probe: THREE.MeshStandardMaterial) => Promise<void>): Promise<void>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -102,15 +102,18 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
     awning.position.set(a.x, a.y, a.z); awning.rotation.set(-Math.PI / 2 + 0.18, 0, 0); awning.castShadow = awning.receiveShadow = true;
     group.add(awning); awnings.push(awning);
   }
+  const capsules = new Map<string, THREE.Mesh>();   // a person's greybox capsule by row id: the fallback, hidden when that person's body lands (town-people.ts)
   for (const f of plan.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
     body.position.set(f.x, (f.y ?? 0) + 0.87, f.z); body.castShadow = true; group.add(body);
+    if (f.npc) capsules.set(f.npc.id, body);
   }
 
   // The paving and the masonry each get a clone of the arena's stone, so a look (look.ts) can grade them apart; untinted they are the arena's stone to the eye.
   // A zone's layer rows can name another of the arena's materials for a layer (the Dungeon 1 bowl: the Pit's own sand, no brick); the clone follows ITS source's late textures.
   const sourceOf = (layer: string): THREE.MeshStandardMaterial => ((m as unknown as Record<string, THREE.MeshStandardMaterial | undefined>)[plan.layers?.[layer]?.material ?? ''] ?? m.stone);
-  const ground = sourceOf('paving').clone(), stone = sourceOf('stone').clone(), sources = [[ground, sourceOf('paving')], [stone, sourceOf('stone')]] as const;
+  const ground = sourceOf('paving').clone(), stone = sourceOf('stone').clone(), sources = [['paving', ground, sourceOf('paving')], ['stone', stone, sourceOf('stone')]] as const;
+  const layerMaps = new Map<string, THREE.Texture>();   // a texture row that names a plan layer: that layer draws it (one `slabM` tile at a time) instead of its source's map
   // A layer row's `stain` gives the clone the Pit's own blood-stain mask (the sand's world-space patch: the clone does not inherit the source's shader hook): repeated every `span` m, faded in with depth from `top` to `bottom`.
   const stained = (clone: THREE.MeshStandardMaterial, source: THREE.MeshStandardMaterial, stain: Stain | undefined): void => {
     if (!stain || !source.onBeforeCompile) return;
@@ -129,9 +132,18 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   }
 
   return {
-    group, ground, stone, fallbacks, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
+    // A layer texture lands only on a layer with no material row of its own (a zone that names one, like the Dungeon's sand, keeps it), and only after `warm` has compiled the layer's material with the new map, so the swap never
+    // links a program inside a walking frame (bounded by warmBound; a warm-up that throws swaps anyway).
+    async setLayerTexture(layer: string, tex: THREE.Texture, slabM: number, warm?: (probe: THREE.MeshStandardMaterial) => Promise<void>) {
+      const row = plan.layers?.[layer], target = sources.find((s) => s[0] === layer); if (row?.material || !target) return;
+      const tile = row?.tile ?? previewRule('exchangeUvTileM');
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace; tex.repeat.set(tile / slabM, tile / slabM); tex.anisotropy = 8;   // the pieces' UVs are metres / the layer's tile
+      if (warm) { const probe = target[1].clone(); probe.map = tex; probe.normalMap = null; await Promise.race([warm(probe).catch(() => {}), new Promise<void>((r) => setTimeout(r, previewRule('warmBound')))]); probe.dispose(); }
+      layerMaps.set(layer, tex);
+    },
+    group, ground, stone, fallbacks, capsules, people: plan.people, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
-      for (const [c, source] of sources) if (c.map !== source.map) { c.map = source.map; c.normalMap = source.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone and sand textures in late; the clones follow
+      for (const [layer, c, source] of sources) { const own = layerMaps.get(layer), want = own ?? source.map; if (c.map !== want) { c.map = want; c.normalMap = own ? null : source.normalMap; c.needsUpdate = true; } }   // the arena swaps its heavy stone and sand textures in late; the clones follow (a layer's own texture wins)
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
     },
   };

@@ -1,0 +1,22 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "375",
+      "file": "before-colonnade-375.png",
+      "pos": {
+        "x": -6,
+        "z": -39
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "before-colonnade-desktop.png",
+      "pos": {
+        "x": -6,
+        "z": -39
+      }
+    }
+  ],
+  "errors": []
+}

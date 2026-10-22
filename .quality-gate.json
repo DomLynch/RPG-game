@@ -369,6 +369,10 @@
     [
       "node",
       "scripts/ground-prompt-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/zone-pages-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -383,16 +387,47 @@
       "rows": [
         "origins-writer-boot-check",
         "spell-slots-zone-check",
+        "ground-prompt-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/ground-prompt-check.mjs"
+      ],
+      "rows": [
         "ground-prompt-check"
       ]
     },
     {
       "paths": [
-        "scripts/ground-prompt-check.mjs",
         "scripts/lib/origins-preview-harness.mjs"
       ],
       "rows": [
-        "ground-prompt-check"
+        "ground-prompt-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "origins/zone-rows/**",
+        "origins/zones/**",
+        "origins/preview/**",
+        "origins/world/**",
+        "scripts/gen-zones.mjs"
+      ],
+      "rows": [
+        "origins-writer-boot-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/zone-pages-check.mjs",
+        "scripts/lib/zone-pages.mjs"
+      ],
+      "rows": [
+        "zone-pages-check"
       ]
     },
     {

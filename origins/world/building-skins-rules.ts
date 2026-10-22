@@ -12,7 +12,7 @@ export type SkinPart = { readonly id: string; readonly skin: string; readonly ki
 export type SkinLod = { readonly url: string; readonly dist: number };   // a far body for a model: a file holding the SAME node names at about 1-1.5k tris (Characters kit_lod.py), drawn beyond `dist` metres from the camera
 export type SkinModel = { readonly id: string; readonly url: string; readonly nodes: readonly string[]; readonly lod?: SkinLod };   // a model file (served by URL, one material), the nodes it holds, and its optional far body
 export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number; readonly min: number; readonly max: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
-export type SkinTexture = { readonly id: string; readonly url: string; readonly slabM: number };   // a ground or wall texture: one tile (a slab `slabM` metres across, repeated over the surface)
+export type SkinTexture = { readonly id: string; readonly url: string; readonly slabM: number; readonly layer?: string };   // a ground or wall texture: one tile (a slab `slabM` metres across, repeated over the surface)
 type Raw = { skins?: readonly unknown[]; parts?: readonly unknown[]; models?: readonly unknown[]; fits?: readonly unknown[]; textures?: readonly unknown[] };
 const VEC3 = 3;   // components of a position (x, y, z): the loader's shape check (exempt: scripts/as-data/allow/origins-world.json)
 
@@ -47,6 +47,9 @@ export const fitScale = (f: SkinFit, w: number, d: number): number => Math.min(f
 /** The model file(s) every node name belongs to (a prop row's `glb` name or a fit's node): null = no model holds it. */
 export const modelOfNode = (node: string): SkinModel | null => LOADED.models.find((m) => m.nodes.includes(node)) ?? null;
 export const skinModels = (): readonly SkinModel[] => LOADED.models;
+
+/** The texture rows that name a plan layer (`layer`): that layer's material draws the row's file, one `slabM` tile at a time. */
+export const layerTextures = (): readonly (SkinTexture & { readonly layer: string })[] => LOADED.textures.filter((t): t is SkinTexture & { readonly layer: string } => !!t.layer);
 /** The far body of the model that holds this node ({ url, dist }), or null: then the node is drawn at full detail at every distance. */
 export const skinLod = (node: string): SkinLod | null => modelOfNode(node)?.lod ?? null;
 /** A skin's parts for exactly this kind (no fallback): `gate` and `marker` are landmark kinds a skin may dress or leave bare. null = none. */

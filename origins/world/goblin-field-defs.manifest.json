@@ -67,7 +67,8 @@
         "azimuth": "number",
         "fadeSide": "number",
         "flat": "number",
-        "around": "number"
+        "around": "number",
+        "keepFoot": "number"
       }
     },
     {

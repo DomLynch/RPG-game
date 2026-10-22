@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { actorPose, buildWarriors, createZoneFinisher, MissingClip, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
-import { catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
+import { CATALOGUE, catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
@@ -32,7 +32,7 @@ import { previewRule } from './preview-rules.ts';
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
 // Pit fights with the same files), one download per body kind, fetched only when a creature of that kind first comes within reach; every
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
-const URLS: Record<string, string> = Object.fromEntries(['goblin', 'knight', 'pitborn', 'witch'].map((id) => [id, catalogueBodyUrl(id)!]));   // the engine's bodies, by catalogue row (K11); the wolf is served by worldBodyUrl (public/world), not bundled
+const URLS: Record<string, string> = Object.fromEntries(CATALOGUE.flatMap((r) => { const url = catalogueBodyUrl(r.id); return url ? [[r.id, url]] : []; }));   // the engine's bodies the build bundles (catalogue-bodies.ts), by catalogue row (K11); a row flagged `worldBody` is served by worldBodyUrl (public/world) first, not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
 // Which kinds draw a world body is the catalogue row's `worldBody` flag (worldBodyUrl); public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters.
 const FETCH_RANGE = TUNING.range + previewRule('fetchMargin');   // m: a body kind is fetched when one of its creatures is this near

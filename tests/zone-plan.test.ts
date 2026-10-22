@@ -23,7 +23,7 @@ const fromSources = (m: Record<string, number>): { a: Anchors; k: Knobs } => ({
 });
 const base = exchangeSources(A, K), sources = planSources('exchange');
 // The oracle is the greybox as the code built it: the kit's `skin` / `cover` / `scale` fields (the town 3D kit, plan-rows.json) are rows on top of it, so they come off before the pin.
-const greybox = <T extends { pieces: readonly object[] }>(plan: T): T => ({ ...plan, pieces: plan.pieces.map((p) => { const { skin: _s, cover: _c, scale: _k, skinOff: _o, ...rest } = p as Record<string, unknown>; return rest; }) }) as unknown as T;
+const greybox = <T extends { pieces: readonly object[]; people: readonly object[] }>(plan: T): T => ({ ...plan, pieces: plan.pieces.map((p) => { const { skin: _s, cover: _c, scale: _k, skinOff: _o, ...rest } = p as Record<string, unknown>; return rest; }), people: plan.people.map((f) => { const { npc: _n, ...rest } = f as Record<string, unknown>; return rest; }) }) as unknown as T;   // + a person's `npc` (their body row, town people)
 const compare = (m: Record<string, number>, what: string) => { const { a, k } = fromSources(m); close(greybox(planFor('exchange', (s) => m[s]!)!), oraclePlan(a, k), what); };
 
 test('the Exchange carries a plan; every source its anchors name is one its world data answers, and none is left unread', () => {
@@ -32,7 +32,7 @@ test('the Exchange carries a plan; every source its anchors name is one its worl
 });
 test('at the shipped anchors the rows build exactly what the code built', () => {
   assert.deepEqual(greybox(exchangePlan()), oraclePlan(A, K));
-  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 215);
+  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 205);   // 215 -> 205 (2026-10-22): the two stoa back walls and their eight soot streaks are gone
 });
 test('every source, moved a little, moves the same pieces by the same amounts as the code did', () => {
   for (const s of sources) for (const d of [0.05, -0.05]) compare({ ...base, [s]: base[s]! + d }, `${s} ${d}`);
