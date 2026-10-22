@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { ZoneMaterials } from './zone-scenery.ts';
 import { previewRule } from './preview-rules.ts';
 import { skinModels } from '../world/building-skins-rules.ts';
-import { skinnedPieces, skinPlacements } from './exchange-skin.ts';
+import { greyboxOfSkins, skinPlacements } from './exchange-skin.ts';
 import type { ModelPlacement } from './frontier-skin.ts';
 import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 
@@ -64,11 +64,11 @@ function inscription(text: string): THREE.MeshStandardMaterial {
 // A piece whose `skin` names a model row is drawn in a group of its own per skin (`<prefix>-fallback-<skin>`, returned): the greybox stands until that model's file lands, then main.ts hides the group (a failed file keeps it).
 export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}): Map<string, THREE.Group> {
   const fallbacks = new Map<string, THREE.Group>(), known = new Set(skinModels().map((s) => s.id));
-  for (const [id, list] of skinnedPieces(pieces)) if (known.has(id)) {
+  for (const [id, list] of greyboxOfSkins(pieces)) if (known.has(id)) {
     const g = new THREE.Group(); g.name = `${prefix}-fallback-${id}`; group.add(g); fallbacks.set(id, g);
-    meshPieces(g, list.map((p) => ({ ...p, skin: undefined })), m, `${prefix}-${id}`, own);
+    meshPieces(g, list.map((p) => ({ ...p, skin: undefined, cover: undefined })), m, `${prefix}-${id}`, own);
   }
-  pieces = pieces.filter((p) => !(p.skin && known.has(p.skin)));
+  pieces = pieces.filter((p) => !((p.skin && known.has(p.skin)) || (p.cover && known.has(p.cover))));
   const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [], plain: [] };
   for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
   const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {

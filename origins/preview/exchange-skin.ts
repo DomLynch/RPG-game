@@ -18,6 +18,13 @@ export const skinnedPieces = (pieces: readonly Piece[]): Map<string, Piece[]> =>
   return by;
 };
 
+/** The pieces a model's greybox is made of: the ones that carry its `skin` and the ones that only `cover` for it, by model id. */
+export const greyboxOfSkins = (pieces: readonly Piece[]): Map<string, Piece[]> => {
+  const by = new Map<string, Piece[]>();
+  for (const p of pieces) { const id = p.skin ?? p.cover; if (id) by.set(id, [...(by.get(id) ?? []), p]); }
+  return by;
+};
+
 /** One placement per skinned piece (the model's first node, on the piece's base). A skin id no model row holds is dropped: that piece keeps its shape. */
 export function skinPlacements(pieces: readonly Piece[]): ModelPlacement[] {
   const out: ModelPlacement[] = [];

@@ -209,8 +209,9 @@ const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden wh
 let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
 // The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
-let exchangeSkinsDrawn = !exchange.skins.length;
-if (exchange.skins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(exchange.skins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });
+const townSkins = /[?&]townkit=(?:0|off)\b/.test(location.search) ? [] : exchange.skins;   // ?townkit=0: the greybox town (the A/B of the kit's phone cost reads it)
+let exchangeSkinsDrawn = !townSkins.length;
+if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });
 let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
   const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PLAN_ROWS, planFor, type Piece } from '../zones/plan.ts';
-import { shapeBaseY, skinnedPieces, skinPlacements, skinsOfFile } from './exchange-skin.ts';
+import { skinModels } from '../world/building-skins-rules.ts';
+import { greyboxOfSkins, shapeBaseY, skinnedPieces, skinPlacements, skinsOfFile } from './exchange-skin.ts';
 
 const box = (over: Partial<Piece>): Piece => ({ layer: 'stone', shape: ['box', 1, 4, 1], x: 3, y: 2, z: -40, tint: [1, 1, 1], rotY: 0.5, foot: 0, ...over });
 
@@ -32,10 +33,24 @@ test('a file holds the skin ids that its hide-the-greybox step names', () => {
 test('planFor carries a piece row\'s skin and scale; a row without them is exactly today\'s piece', () => {
   const base: Record<string, number> = {}; for (const a of PLAN_ROWS.anchors) base[a.source] = a.base;
   const resolve = (s: string): number => base[s]!;
-  const today = planFor('exchange', resolve)!;
-  assert.ok(today.pieces.every((p) => !('skin' in p) && !('scale' in p)));
-  const rows = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r, i) => (i === 0 ? { ...r, skin: 'goblin-hut', scale: 2 } : r)) };
+  const bare = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r) => { const { skin: _s, cover: _c, scale: _k, ...rest } = r; return rest; }) };   // the shipped rows carry the town kit's skin / cover / scale: strip them for "today's plan"
+  const today = planFor('exchange', resolve, bare)!;
+  assert.ok(today.pieces.every((p) => !('skin' in p) && !('scale' in p) && !('cover' in p)));
+  const rows = { ...bare, pieces: bare.pieces.map((r, i) => (i === 0 ? { ...r, skin: 'goblin-hut', scale: 2 } : r)) };
   const skinned = planFor('exchange', resolve, rows)!;
   assert.equal(skinned.pieces[0]!.skin, 'goblin-hut'); assert.equal(skinned.pieces[0]!.scale, 2);
   assert.deepEqual(skinned.pieces.slice(1), today.pieces.slice(1));
+});
+test('the shipped town kit rows: every skin and cover id is a model row, and every covered piece stands on a carrier of its model, never below it', () => {
+  const ids = new Set(skinModels().map((m) => m.id)), pieces = planFor('exchange', (s) => PLAN_ROWS.anchors.find((a) => a.source === s)!.base)!.pieces;
+  const groups = greyboxOfSkins(pieces);
+  assert.ok(groups.size >= 4);
+  for (const [id, list] of groups) {
+    assert.ok(ids.has(id), `${id} is a building-skins model row`);
+    const carriers = list.filter((p) => p.skin === id);
+    for (const p of list.filter((q) => q.cover === id)) {
+      const c = carriers.find((k) => Math.hypot(k.x - p.x, k.z - p.z) < 1);
+      assert.ok(c, `${id}: a covered piece at ${p.x.toFixed(1)},${p.z.toFixed(1)} has a carrier`); assert.ok(shapeBaseY(p) >= shapeBaseY(c!) - 1e-9, `${id}: the carrier is the lowest piece of its group`);
+    }
+  }
 });
