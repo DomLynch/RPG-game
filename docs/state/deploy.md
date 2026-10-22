@@ -1,5 +1,13 @@
 # Deploy lane — state
 
+## 2026-10-22 10:4x (+04) — UPDATE to HANDOFF #9 (supersedes its LIVE / IN FLIGHT lines). READ FIRST
+
+**LIVE: K6q21 `5f9b6b0b34ed9c224f9a73fef95e7c9e57b35da7`** (#3601 = #3594 /zone2/ hotfix + #3592 drift fix; switch 10:28:49, Mac row 9 passed, no stop, no hold). Verified: writer restarted 10:29:46 and presence 10:29:49 (+04, ActiveEnterTimestamp); `node scripts/zone-hello-trace.mjs https://frankendom.com/zone2/` (train tree, real Chrome): warp zone2-start sent, hero place "The Ash Reach", presence live at 4.2 s, last place line. Auditor and Lead have the receipt. CI tail run 39734464397 was still in progress: send the closing line when it ends. #3592 is live, so the false "previews missing" STOP on vhost-changing releases is gone: now sweep `/opt/frankendom-shadow/work/deploy-nginx-drift-test` with vps-scratch-sweep (dry-run first, exact path).
+
+**IN FLIGHT: K6q22 = release PR #3606 @307804304906df17c3893b387342b771e8c7e969** (cut 10:35) = #3593 @428eacfde ALONE. #3586 @3419522bd was cut-SKIPPED: conflict in origins/preview/main.ts (#3594 is now on trunk and edits it); Combat must rebase it, then it needs a fresh PASS. Default I told Lead: ship #3606 as cut. NEEDS rows green, the Auditor's line-start "Auditor: PASS @307804304", Lead's candidate:pass; the train publishes on its tick. No vhost change, no provision; check the install lines (#3593 is a data-layer PR: reinstall of presence/writer only if their closures changed).
+
+**Next:** K6q23 = #3586 (rebased) + #3584 @d9fb60a67 + #3603 @e5ce601d3 as each gets a line-start PASS (the Auditor said #3584's PASS waits on its CI); #3591 and #3583 still out. Mac Data volume 28 GiB free (94%), cut guard 20 GiB: clear Mac scratch (the session folder's scratchpad worktrees and the train/cut worktrees' artifacts) before it blocks a cut; the VPS / is at 77%.
+
 ## 2026-10-22 10:1x (+04) — HANDOFF #9 before /clear (Dom). READ FIRST, then memory `project_deploy_handoff_2026-10-22.md`
 
 **LIVE: K6q20b `918cd4117f77422a5b2645ef7ec1a1f5bdd32be1`** (#3598 = #3587 world_marks, migration file only; published 10:02:32). No deploy_hold, no release-train.stopped. Day: K6q16 2bf10197 (06:23 prev night) -> K6q17 0235532f3 (#3570+#3567+#3568, 07:30) -> K6q18 30dd89c3e (#3566+#3578, 08:24) -> K6q19 4c719d75e (nine members, 09:02) -> K6q20b 918cd4117 (10:02). K6q20 (#3596, #3586+#3587) was CLOSED: #3586 (legend aggro) reddened the seamless rows; #3583 was cut-skipped once on a preview-rules pin conflict.
