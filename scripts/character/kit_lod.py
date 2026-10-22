@@ -34,6 +34,16 @@ if len(meshes) > 1:
     bpy.ops.object.join()
 hi = bpy.context.view_layer.objects.active
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+if os.environ.get("GROUND_H"):   # GROUND_H=<metres>: scale the piece to this height and put its origin at the centre of its base (TRELLIS centres a piece on its middle; a kit row places it by its foot)
+    from mathutils import Matrix
+    k = float(os.environ["GROUND_H"]) / hi.dimensions.z
+    corners = [hi.matrix_world @ v.co for v in hi.data.vertices]
+    lo_z = min(c.z for c in corners)
+    cx = (min(c.x for c in corners) + max(c.x for c in corners)) / 2
+    cy = (min(c.y for c in corners) + max(c.y for c in corners)) / 2
+    hi.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation((-cx, -cy, -lo_z)))
+    hi.location = (0, 0, 0)
+    hi.data.update()
 hi_tris = sum(len(p.vertices) - 2 for p in hi.data.polygons)
 height = max(hi.dimensions)   # a kit piece may lie on any axis once imported (Blender is Z-up): its largest extent is the scale of the bake distances
 

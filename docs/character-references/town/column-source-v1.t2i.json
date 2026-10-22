@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A grand marble fluted column on a square stepped plinth with an ornate carved Corinthian capital and a gold-trimmed band at the base, a single column only, full column visible top to bottom. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 55.1,
+  "sha256": "af89ed1144146f6208b8d1ee2a7a53084e37398dc688207ed3b15a66702aa194"
+}
