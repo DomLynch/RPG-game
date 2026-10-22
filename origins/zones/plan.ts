@@ -51,7 +51,7 @@ export function loadPlanRows(raw: Partial<Record<(typeof TABLES)[number], readon
 }
 export const PLAN_ROWS = loadPlanRows(DEFS);
 /** The zones that carry a plan. */
-export const planZones = (rows: PlanRows = PLAN_ROWS): readonly string[] => [...new Set(rows.anchors.map((r) => r.zone))];
+export const planZones = (rows: PlanRows = PLAN_ROWS): readonly string[] => [...new Set([...rows.anchors, ...rows.pieces].map((r) => r.zone))];
 /** The sources an anchor row of `zone` names (what a resolver must answer for it). */
 export const planSources = (zone: string, rows: PlanRows = PLAN_ROWS): readonly string[] => rows.anchors.filter((r) => r.zone === zone).map((r) => r.source);
 
