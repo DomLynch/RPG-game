@@ -2,7 +2,6 @@
 // server moves a player only to a table landmark: a forged id closes the socket, a plain far pose is still a teleport, the rate is a row.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
 import { propKit } from '../preview/prop-kit.ts';
@@ -13,6 +12,7 @@ import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
 import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } from './warps.ts';
 import { openExits } from '../zones/exits.ts';
+import { loadZone } from '../zones/loader.ts';
 const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
@@ -52,7 +52,7 @@ test('the rows equal the places the page teleports to (a zone or mob edit that m
   // The page's goBack stands at the Exchange's west gate, which is inside a trade area: a warp may not land there (Lead's rule), so the row is where presence clears it to, the Pit yard's edge.
   const cleared = clearOfTradeAreas(Math.round(CENTRE_CM + back.x * 100), Math.round(CENTRE_CM + back.z * 100));
   near(m('zone1-road-end').x, (cleared.x - CENTRE_CM) / 100, 0.006); near(m('zone1-road-end').z, (cleared.z - CENTRE_CM) / 100, 0.006);
-  assert.match(readFileSync(new URL('../preview/main.ts', import.meta.url), 'utf8'), /TOWN_RESPAWN = \{ x: 0, z: 3 \}/, 'the page\'s town respawn is the town-respawn row');
+  assert.deepEqual(loadZone('1').fields!['respawn'], { x: 0, z: 3, warp: 'town-respawn' }, 'the page\'s town respawn is a zone-row field (the schema default: the square the region page opens on) and names the town-respawn row');   // was a literal in main.ts (TOWN_RESPAWN); a town zone sets its own
   near(m('town-respawn').x, 0, 1e-9); near(m('town-respawn').z, 3, 1e-9);
 });
 

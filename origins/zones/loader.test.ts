@@ -41,7 +41,7 @@ test('the validator names each way a package can be wrong', () => {
 });
 
 test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {
-  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
+  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone(0|[1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
   assert.deepEqual(allZoneIds(), rows);   // every row, and no more (a new zone row adds no line here)
   assert.deepEqual(zoneIds(), rows.filter((id) => !loadZone(id, true).unlisted), 'no page: every row but the unlisted ones');
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
