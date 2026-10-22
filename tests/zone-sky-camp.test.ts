@@ -46,8 +46,13 @@ test('Zone 1 is the Test Zone look (Dom-approved 2026-10-18): the fortress sky, 
   assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'cinder-fields', rim: true }); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind');
   assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: true, lock: 'hard' }); assert.equal(zoneRim(z).margin, 8); assert.notEqual(z.unlisted, true);
 });
-test('flag off is unchanged: Zones 2-4 set no sky, no camp kit and are listed', () => {
-  for (const id of ['2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
+// Zone 2 has Dom's moonlit plate since #3570, 2026-10-21: it sets look.sky (reach-plate); Zones 3-4 still set no sky.
+test("Zone 2's sky is the reach-plate row (Dom's moonlit castle plate)", () => {
+  const sky = zoneSky(loadZone('2'));
+  assert.equal(sky?.id, 'reach-plate'); assert.equal(sky?.haze, 'reach-plate'); assert.equal(sky?.backdropLandscape, 'zone2-plate-landscape'); assert.equal(sky?.backdropPortrait, 'zone2-plate-portrait');
+});
+test('flag off is unchanged: Zones 2-4 set no camp kit and are listed, Zones 3-4 set no sky', () => {
+  for (const id of ['2', '3', '4']) { const z = loadZone(id); if (id !== '2') assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
 });
 test('the markers, dress, ground and ambience a zone sets are read; set off, the creature markers go', () => {
   assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false, card: 'full', growl: false, ring: true, lock: 'hard' }); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'target' })).card, 'target'); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'nonsense' })).card, 'full', 'only target changes the card');

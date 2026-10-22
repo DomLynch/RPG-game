@@ -14,6 +14,7 @@ import { heightProblems } from './height-ladder.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
+import { safeAreaProblems, type SafeArea } from './pvp.ts';
 
 /** A kit node's look over the model's own atlas (Dom 2026-10-20: the boulders read flat olive): `color` multiplies the atlas (1,1,1 = as shipped; values above 1 lift a channel), `roughness` replaces the material's when set. Placement and solids are untouched. */
 export type KitTint = { color: readonly [number, number, number]; roughness?: number };
@@ -41,6 +42,8 @@ export type Zone = {
   warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
   entry?: { readonly x: number; readonly z: number; readonly facing?: number };   // where the page opens him when no door brought him (zone row `entry`; absent = among the creatures, as Zone 1)
   respawn?: { readonly x: number; readonly z: number; readonly warp: string };   // where he stands up after a death, and the presence warp that moves him there (zone row `respawn`; absent = the schema default, the square the region page opens on)
+  pvp?: 'off' | 'on' | 'opt-in';   // the zone's PvP default (zone row `pvp`, schema default off); pvp.ts pvpAt reads it with safeAreas
+  safeAreas?: readonly SafeArea[];   // rect volumes with their own PvP verdict and spawn rule (zone row `safeAreas`, shape in pvp.ts SafeArea); the most restrictive containing area wins
   presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
@@ -121,6 +124,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (l.body !== undefined && !/^world\/kit\/[\w-]+\.glb$/.test(l.body)) bad.push(`mob look ${id}: body is a world/kit/<name>.glb file`);
   }
   for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
+  bad.push(...safeAreaProblems(z.safeAreas));   // the shape of the PvP volumes (pvp.ts); the zone's own `pvp` value is the schema's enum check above
   const warpIds = new Set<string>();
   for (const [i, w] of (z.warps ?? []).entries()) {   // the shape only; that a place is inside a presence zone row and clear of the trade areas is the server check's (origins/server/zone-package-check.ts)
     if (typeof w.id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(w.id)) bad.push(`warps[${i}]: id ${JSON.stringify(w.id)} is not a lowercase id`);
@@ -149,9 +153,9 @@ if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no
 export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
-// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), else Zone 1 (/zone1/ and every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
+// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short link /zone<id>/ (/zone2/, the same for every row; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? DEFAULT_ZONE;
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? /^\/zone([0-9]+)\/?$/.exec(pathname)?.[1] ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
