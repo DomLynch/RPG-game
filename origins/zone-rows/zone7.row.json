@@ -4,21 +4,66 @@
   "unlisted": true,
   "alias": "dungeon1",
   "level": 1,
-  "entry": { "x": 0, "z": 54, "facing": 3.14159 },
+  "entry": {
+    "x": 0,
+    "z": 54,
+    "facing": 3.14159
+  },
   "warps": [
-    { "id": "zone7-start", "x": 0, "z": 54, "unit": "m" }
+    {
+      "id": "zone7-start",
+      "x": 0,
+      "z": 54,
+      "unit": "m"
+    }
   ],
   "pvp": "on",
   "safeAreas": [
-    { "id": "yard", "name": "The yard", "shape": "rect", "min": [-14, 33], "max": [14, 61], "pvp": "off", "spawnsAllowed": false },
-    { "id": "duel-pit", "name": "The Duel pit", "shape": "rect", "min": [17, 38], "max": [35, 56], "pvp": "on", "spawnsAllowed": false }
+    {
+      "id": "yard",
+      "name": "The yard",
+      "shape": "rect",
+      "min": [
+        -14,
+        33
+      ],
+      "max": [
+        14,
+        61
+      ],
+      "pvp": "off",
+      "spawnsAllowed": false
+    },
+    {
+      "id": "duel-pit",
+      "name": "The Duel pit",
+      "shape": "rect",
+      "min": [
+        17,
+        38
+      ],
+      "max": [
+        35,
+        56
+      ],
+      "pvp": "on",
+      "spawnsAllowed": false
+    }
   ],
   "look": {
-    "fog": { "colour": "#8a6a4a", "density": 0.004 },
+    "fog": {
+      "colour": "#8a6a4a",
+      "density": 0.004
+    },
     "exposure": 1.2
   },
-  "names": { "pit-yard": "Dungeon 1" },
-  "world": [],
+  "names": {
+    "pit-yard": "Dungeon 1",
+    "dungeon-bowl": "Dungeon 1"
+  },
+  "world": [
+    "dungeon-bowl"
+  ],
   "spawns": {
     "openers": {},
     "rows": [
@@ -222,5 +267,118 @@
   "notes": {
     "zone": "Zone 7 (The Dungeon): made by scripts/new-zone.mjs. `level` is the zone number = its base level (Dom 2026-10-08).",
     "kit": "Zone 7's kit: a copy of Zone 2's until Characters ship this zone's own (the kit's node names are a contract)."
+  },
+  "place": {
+    "zones": {
+      "dungeon-bowl": {
+        "zoneSize": {
+          "width": 80,
+          "depth": 80
+        },
+        "layout": {
+          "ring-outer-0-spot": {
+            "u": 0.5,
+            "v": 0.838,
+            "facing": 0
+          },
+          "ring-outer-1-spot": {
+            "u": 0.208,
+            "v": 0.669,
+            "facing": 0
+          },
+          "ring-outer-2-spot": {
+            "u": 0.208,
+            "v": 0.331,
+            "facing": 0
+          },
+          "ring-outer-3-spot": {
+            "u": 0.5,
+            "v": 0.163,
+            "facing": 0
+          },
+          "ring-outer-4-spot": {
+            "u": 0.792,
+            "v": 0.331,
+            "facing": 0
+          },
+          "ring-outer-5-spot": {
+            "u": 0.792,
+            "v": 0.669,
+            "facing": 0
+          },
+          "ring-middle-0-spot": {
+            "u": 0.5,
+            "v": 0.725,
+            "facing": 0
+          },
+          "ring-middle-1-spot": {
+            "u": 0.305,
+            "v": 0.613,
+            "facing": 0
+          },
+          "ring-middle-2-spot": {
+            "u": 0.305,
+            "v": 0.388,
+            "facing": 0
+          },
+          "ring-middle-3-spot": {
+            "u": 0.5,
+            "v": 0.275,
+            "facing": 0
+          },
+          "ring-middle-4-spot": {
+            "u": 0.695,
+            "v": 0.387,
+            "facing": 0
+          },
+          "ring-middle-5-spot": {
+            "u": 0.695,
+            "v": 0.613,
+            "facing": 0
+          },
+          "floor-0-spot": {
+            "u": 0.5,
+            "v": 0.581,
+            "facing": 0
+          },
+          "floor-1-spot": {
+            "u": 0.43,
+            "v": 0.459,
+            "facing": 0
+          },
+          "floor-2-spot": {
+            "u": 0.57,
+            "v": 0.459,
+            "facing": 0
+          }
+        },
+        "connections": {},
+        "density": {
+          "creatures": 0.3
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      }
+    },
+    "joins": [],
+    "waypoints": [
+      "ring-outer-0-spot",
+      "ring-outer-1-spot",
+      "ring-outer-2-spot",
+      "ring-outer-3-spot",
+      "ring-outer-4-spot",
+      "ring-outer-5-spot",
+      "ring-middle-0-spot",
+      "ring-middle-1-spot",
+      "ring-middle-2-spot",
+      "ring-middle-3-spot",
+      "ring-middle-4-spot",
+      "ring-middle-5-spot",
+      "floor-0-spot",
+      "floor-1-spot",
+      "floor-2-spot"
+    ],
+    "spawns": []
   }
 }

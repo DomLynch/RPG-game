@@ -56,4 +56,11 @@ const keep = (t) => (raw[t] ?? []).filter((q) => !String(q.zone).startsWith('dun
 const out = { about: raw.about, anchors: keep('anchors'), pieces: [...keep('pieces'), ...rows.pieces], awnings: keep('awnings'), people: [...keep('people'), ...rows.people], braziers: keep('braziers'), marks: [...keep('marks'), ...rows.marks], layers: [...keep('layers'), ...rows.layers] };
 const rowsOf = (name, list) => `  "${name}": [\n${list.map((q) => `    ${JSON.stringify(q)}`).join(',\n')}\n  ]`;
 writeFileSync(FILE, `{\n  "about": ${JSON.stringify(out.about)},\n${['anchors', 'pieces', 'awnings', 'people', 'braziers', 'marks', 'layers'].map((t) => rowsOf(t, out[t])).join(',\n')}\n}\n`);
+// ---- the zone row's place: camp points the roster's spawn rows anchor to (frontier landmarks, in the bowl's own frame) ----
+const PLACE_SIZE = 80, CAMPS = [[EDGES.outer, (R.mid + R.rim) / 2, 6], [EDGES.middle, (R.floor + R.mid) / 2, 6], [EDGES.floor, R.floor / 2, 3]];   // the place zone's width and depth (m); per ring: its mid-radius and how many camp points round it
+const ROW = new URL('../origins/zone-rows/zone7.row.json', import.meta.url), row7 = JSON.parse(readFileSync(ROW, 'utf8')), layout = {};
+for (const [edge, radius, count] of CAMPS) for (let i = 0; i < count; i++) { const a = (i * 2 * Math.PI) / count, x = Math.sin(a) * radius, z = Math.cos(a) * radius; layout[`${edge}-${i}-spot`] = { u: r(0.5 - x / PLACE_SIZE), v: r((z + PLACE_SIZE / 2) / PLACE_SIZE), facing: 0 }; }   // world x = mount.x - local x, world z = mount.z + local d, the zone centred on the origin (frontier-plan.ts)
+row7.world = ['dungeon-bowl']; row7.names = { ...row7.names, 'dungeon-bowl': row7.name };
+row7.place = { zones: { 'dungeon-bowl': { zoneSize: { width: PLACE_SIZE, depth: PLACE_SIZE }, layout, connections: {}, density: { creatures: 0.3 }, ambience: { preset: 'frontier-haze' } } }, joins: [], waypoints: Object.keys(layout), spawns: row7.place?.spawns ?? [] };
+writeFileSync(ROW, `${JSON.stringify(row7, null, 2)}\n`);
 console.log(`dungeon1 bowl (zone ${ZONE}): ${rows.pieces.length} pieces, ${rows.people.length} fighters, ${rows.marks.length} marks, ${rows.layers.length} layer rows`);

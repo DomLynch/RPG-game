@@ -93,6 +93,8 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
       placed.set(c.to, next); queue.push(next);
     }
   }
+  // A zone no road reaches (a free-standing place, like a dungeon bowl whose plan rows are keyed by its own id) stands centred on the world's origin, so its landmarks are in the page's own frame.
+  for (const [id, q] of frZones) if (!placed.has(id) && owned.has(id)) { const { depth } = toMetres(q); placed.set(id, zonePlan(FRONTIER, id, q, { x: 0, z: -depth / 2, heading: 0 }, townOf(FRONTIER, id))); }
   const kept = [...placed.values()].filter((q) => owned.has(q.zone));
   // A link this page does not walk leaves nothing behind: its landmark (the post and collider it would draw) goes too, unless a kept link or a spawn stands on it.
   const spawnAt = new Set(data.registry.regions.get(FRONTIER)!.spawns.map((s) => s.at));
