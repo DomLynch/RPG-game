@@ -7,7 +7,7 @@ import type { Zone } from '../zones/loader.ts';
 import type { ExitRow } from '../zones/exits.ts';
 import { fightSetup, type EncounterContent } from '../encounters/encounters.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
-import { mobSpecs } from '../preview/mobs.ts';
+import { mobSpecs, poolSpec } from '../preview/mobs.ts';
 import { arrival } from '../preview/zone-exit.ts';
 import { placeProblem } from '../presence/warps.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
@@ -46,9 +46,11 @@ export function packageProblems(zone: Zone, ctx: PackageCtx): string[] {
   const f = frontierPlan(false, id), specs = mobSpecs(f, frontierBuild(f), zone.spawns.rows);
   for (const row of zone.spawns.rows) if (!row.later && !ctx.content.region.registry.lootTables.has(row.loot as never)) bad.push(`spawn row ${row.id}: loot ${row.loot} is not a loot table`);
   for (const spec of specs) {
-    const fight = spec.encounter ?? spec.character;
-    if (healthOf(spec.body, spec.level) === null) bad.push(`creature ${spec.id}: no roster body "${spec.body}" at level ${spec.level}, so the server cannot price it`);
-    else if (!fightSetup(fight, ctx.content).ok) bad.push(`creature ${spec.id}: ${fight} is not a fight the server can set up`);
+    for (const member of spec.pool ? spec.pool.map((c) => poolSpec(f, zone.spawns.rows, spec, c)) : [spec]) {   // a rotating camp is checked as EVERY legend it can show, not just generation 0
+      const fight = member.encounter ?? member.character;
+      if (healthOf(member.body, member.level) === null) bad.push(`creature ${member.id}${spec.pool ? ` (${member.character})` : ''}: no roster body "${member.body}" at level ${member.level}, so the server cannot price it`);
+      else if (!fightSetup(fight, ctx.content).ok) bad.push(`creature ${member.id}${spec.pool ? ` (${member.character})` : ''}: ${fight} is not a fight the server can set up`);
+    }
   }
   // 1b. UNLISTED zones only (a listed zone's drops are frozen): what a creature can be SEEN wearing is what can drop. The pieces are derived from the zone's mob looks (the look's loadout plus its spread loadouts, the
   // rows loadouts.json holds), never listed by hand: every worn piece must be an entry of the table its spawn row rolls.

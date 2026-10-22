@@ -26,8 +26,17 @@ export type MobSpec = {
   legend?: string;   // a legend boss (origins/preview/legend-mobs.ts): drawn like any creature but fought through the verified encounter path (boss:<legend>), never the open world loop
   pool?: readonly string[]; poolBodies?: readonly string[];   // a ROTATING camp (place.spawns `rotation`): the characters it walks through and every body they can show (`character`/`body` are generation 0's); absent = a camp that never changes
 };
+/** A character's open-world form (the one named `mob`), or undefined: the single place the form's id is read (mobSpecs and poolSpec both ask it). */
+const mobFormOf = <F extends { id: string }>(def: { encounterForms: readonly F[] } | undefined): F | undefined => def?.encounterForms.find((x) => x.id === 'mob');
 /** The distinct bodies a rotating camp's pool can show, sorted: what the zone's warm list and the world budget must count for it (a body first seen at engage links its programs mid-fight). */
 export const poolBodies = (bodies: readonly string[]): string[] => [...new Set(bodies)].sort();
+/** A rotating camp's spec as `character` (a member of its pool): the same place and id, the legend's own name, body, level (its row's flat band: the loader refuses a pool row that is not one) and behaviour. The server prices a
+ *  generation with it and the page's swap draws it; both ask `legendAt(spec.pool, spec.id, generation)` for WHICH member. Throws for a character with no mob form or spawn row: a pool never skips a generation. */
+export function poolSpec(f: Frontier, rows: readonly MobRow[], spec: MobSpec, character: string): MobSpec {
+  const def = f.data.registry.characters.get(character as CharacterId), form = mobFormOf(def), row = rows.find((r) => r.id === character);
+  if (!def || !form || !row) throw Error(`poolSpec: ${character} has no mob form or spawn row`);
+  return { ...spec, character, name: def.name, body: form.opponent ?? String(loadZone(f.zone).fields?.defaultKind), level: row.level[0], roam: row.behaviour.roam ?? spec.roam, aggro: row.behaviour.aggro ?? spec.aggro };
+}
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
@@ -55,7 +64,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     // Who: the spawn's creatures (their `mob` form), or the boss of its encounter (the form that names that encounter).
     const who: { id: CharacterId; form: { id: string; opponent: string | null; level: number | null } }[] = [];
     for (const c of sp.characters) {
-      const def = f.data.registry.characters.get(c), form = def?.encounterForms.find((x) => x.id === 'mob');
+      const def = f.data.registry.characters.get(c), form = mobFormOf(def);
       if (def && form) who.push({ id: c, form });
     }
     if (sp.encounter) {
@@ -104,7 +113,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   let openersPlaced = 0;   // an opener's seed is its own place in this list, not the placed count: adding a camp must not move an opener (Lead 2026-10-20; mobOpenerSalt 5021 = what the count was, so today's spots stand)
   for (const [zoneId, rowId] of Object.entries(FRONTIER_OPENERS)) {
     const zone = f.zones.find((z) => z.zone === zoneId), row = rows.find((r) => r.id === rowId), def = f.data.registry.characters.get(rowId as CharacterId);
-    const form = def?.encounterForms.find((x) => x.id === 'mob');
+    const form = mobFormOf(def);
     if (!zone || !row || !def || !form) continue;
     const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
     if (near) continue;

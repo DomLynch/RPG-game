@@ -9,7 +9,8 @@
 // No death op: a death costs nothing. Kill switch: ORIGINS_SPAWNS=0 (every op 503 'off'). Nothing in a body names a reward, a level, a seed or an account.
 import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
-import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
+import { mobSpecs, poolSpec, type MobSpec } from '../preview/mobs.ts';
+import { legendAt } from '../dungeon/legend-at.ts';
 import { worldMetres } from '../presence/zones.ts';
 import { reachOf, type LayerCountsFn } from '../presence/where.ts';
 import { dynamicRespawnS } from './dynamic-respawn.ts';
@@ -56,16 +57,32 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
-export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string; roster?: true };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's); roster: the row says killing it is a ladder win (world-marks.ts)
+// A ROTATING camp (spec.pool, place.spawns `rotation`; docs/specs/origins/dungeon-legend-rotation.md): `pool` holds one fully priced Spawn per pool member and `poolKind` is the database's stable kind for the camp
+// (origins_spawns.kind is pinned at the first engage and refuses a different one, so the camp's kind is the camp, never the legend). `spec`/`fight`/`hp` here are generation 0's; `spawnAt` answers any generation.
+export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string; roster?: true; pool?: ReadonlyMap<string, Spawn>; poolKind?: string };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's); roster: the row says killing it is a ladder win (world-marks.ts)
+/** The spawn as it stands in `generation` (the database's: 0 the first life, +1 per defeat): a rotating camp's pool member for that generation (`legendAt`, the one function the page also asks), any other spawn itself. */
+export const spawnAt = (s: Spawn, generation: number): Spawn => (s.pool ? s.pool.get(legendAt(s.spec.pool!, s.spec.id, generation))! : s);
+// One creature priced from its zone's rows, or null when the server cannot price it (fail closed: it never engages).
+function priced(spec: MobSpec, rows: ReturnType<typeof listedZone>['spawns']['rows'], content: EncounterContent, zoneId: string): Spawn | null {
+  const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
+  if (hp === null || !fightSetup(fight, content).ok) return null;
+  const row = rows.find((r) => r.id === spec.character), loot = row?.loot;
+  return { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}), ...(row?.roster === true ? { roster: true as const } : {}) };
+}
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
   const rows = listedZone(zoneId).spawns.rows;
   for (const spec of mobSpecs(f, frontierBuild(f), rows)) {
-    const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
-    if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    const row = rows.find((r) => r.id === spec.character), loot = row?.loot;
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}), ...(row?.roster === true ? { roster: true as const } : {}) });
+    const base = priced(spec, rows, content, zoneId);
+    if (!base) continue;   // a creature the server cannot price never engages (fail closed)
+    if (!spec.pool) { out.set(spec.id, base); continue; }
+    // A rotating camp: every member must price, or the camp is dropped whole (a pool never skips a generation; packageProblems names the member at install).
+    const members = spec.pool.map((c) => [c, priced(poolSpec(f, rows, spec, c), rows, content, zoneId)] as const);
+    if (members.some(([, p]) => p === null)) continue;
+    const pool = new Map(members.map(([c, p]) => [c, p!] as const));
+    const { roster: _gen0, ...rest } = base;   // the camp is a ladder win only when EVERY member is (the loader refuses a mixed pool)
+    out.set(spec.id, { ...rest, pool, poolKind: `pool:${spec.spawn}`, ...(members.every(([, p]) => p!.roster === true) ? { roster: true as const } : {}) });
   }
   return out;
 }
@@ -155,9 +172,9 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const known = new Map(got.spawns.map((s) => [s.instance, s]));
     return {
       now: got.now,
-      spawns: list.map(({ spec }) => {
-        const s = known.get(spec.id);
-        return { instance: spec.id, kind: spec.character, level: spec.level, alive: s ? s.alive : true, respawnAt: s ? s.respawnAt : null, generation: s ? s.generation : 0 };
+      spawns: list.map((sp) => {
+        const s = known.get(sp.spec.id), generation = s ? s.generation : 0, { spec } = spawnAt(sp, generation);   // a rotating camp reports the legend of the generation the database reports (the page swaps its look on `generation`)
+        return { instance: spec.id, kind: spec.character, level: spec.level, alive: s ? s.alive : true, respawnAt: s ? s.respawnAt : null, generation };
       }),
     };
   };
@@ -168,10 +185,11 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     if (typeof instance !== 'string' || !INSTANCE.test(instance) || zoneOfKey(instance) === null) throw new BadRequest('instance: a spawn id');
     const zoneId = zoneOf(body.zoneId), spawn = spawnsOf(zoneId).get(instance);
     if (!spawn) throw new BadRequest(`instance: not a Zone ${zoneId} spawn`);
-    const got = await store.spawnEngage(db, account, character, randomBytes(ENGAGE_TOKEN_BYTES).toString('base64url'), instance, spawn.spec.character, (await layerOf(where, account)).layer);
+    const got = await store.spawnEngage(db, account, character, randomBytes(ENGAGE_TOKEN_BYTES).toString('base64url'), instance, spawn.poolKind ?? spawn.spec.character, (await layerOf(where, account)).layer);   // the database pins this kind at the first engage: a rotating camp's is the camp's, never a legend's
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    return { token: got.token, instance, zoneId, generation: got.generation, kind: spawn.spec.character, level: spawn.spec.level, hp: spawn.hp, expiresAt: got.expiresAt };
+    const now = spawnAt(spawn, got.generation);   // the legend of the generation this token was issued in
+    return { token: got.token, instance, zoneId, generation: got.generation, kind: now.spec.character, level: now.spec.level, hp: now.hp, expiresAt: got.expiresAt };
   };
 
   const touch: Handler = async ({ db, account }, body) => {
@@ -197,7 +215,8 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
     if (open === 'none') return usedToken(db, account, token);
-    const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
+    const zone0 = zoneOfKey(open.instance), camp = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
+    const spawn = camp && spawnAt(camp, open.generation);   // a rotating camp: the legend of the generation the token was issued in, so the fight is priced, paid and looted as that legend
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
     // The token binds its layer (migration 20261019170000). If presence now says the account stands in ANOTHER layer the kill is refused 'moved' (writes nothing, the token stays open until it expires), so a hop

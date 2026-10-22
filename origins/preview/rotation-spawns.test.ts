@@ -26,7 +26,11 @@ test('the loader refuses a rotating group whose pool names a character with no s
   grp.characters = [...POOL, 'character:no-such-row']; grp.rotation = 'cycle';
   assert.match(zoneProblems(bad).join('|'), /group scavengers: pool character character:no-such-row has no spawn row/);
   grp.characters = POOL;
-  assert.deepEqual(zoneProblems(bad).filter((p) => p.startsWith('group ')), [], 'a pool of real rows is valid');
+  assert.match(zoneProblems(bad).join('|'), /pool row character:cinder-scavenger level \d+-\d+ is not a flat band \[N, N\]/, 'the server prices a generation at the row\'s level, so a distance band is refused');
+  for (const r of bad.spawns.rows.filter((x) => POOL.includes(x.id))) r.level = [r.level[0], r.level[0]];
+  assert.deepEqual(zoneProblems(bad).filter((p) => p.startsWith('group ')), [], 'a pool of real rows with flat bands is valid');
+  const mixed = bad.spawns.rows.find((r) => r.id === POOL[1])!; mixed.roster = true;
+  assert.match(zoneProblems(bad).join('|'), /a pool is all roster fighters or none/, 'one ladder camp cannot sometimes be a ladder win');
 });
 
 test('a rotating camp stands as generation 0 of its pool, carries the pool and every pool body, and moves nothing else', () => {
