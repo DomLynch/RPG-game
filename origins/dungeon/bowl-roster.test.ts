@@ -11,7 +11,9 @@ const BOWL_FIXTURE: Readonly<Record<string, { inner: number; outer: number }>> =
 const edges: RingEdges = (zone, landmark) => (zone === '7' ? BOWL_FIXTURE[landmark] ?? null : null);
 const FOES = new Set((PROGRESSION.foes as { id: string }[]).map((f) => f.id));
 const known: BowlKnown = { characters: FOES, zones: new Set(['7']), landmarks: () => new Set(Object.keys(BOWL_FIXTURE)) };
-const clone = () => JSON.parse(JSON.stringify(RAW)) as { rings: Record<string, any> };
+type RawRing = { zone: string; landmark: string; levels: number[]; aggro: number; roamShare: number; groups: { id: string; character: string; camps: number }[] };
+type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
+const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
 
 test('the shipped roster loads: three rings, bands ascend 1-2, 3-4, 5-6 from the outer ring in, every character is a real foe', () => {
   const rings = loadBowlRings(known);
@@ -64,17 +66,17 @@ test('ringAt: the centre is the floor, a point in each band its ring, the yard a
 });
 
 test('the loader refuses what would put a creature wrong: overlapping bands, unknown creature/zone/landmark, an empty ring, a ring with no edges', () => {
-  const bad = (edit: (d: { rings: Record<string, any> }) => void, want: RegExp, k: BowlKnown = known) => { const d = clone(); edit(d); assert.throws(() => loadBowlRings(k, d), want); };
+  const bad = (edit: (d: Raw) => void, want: RegExp, k: BowlKnown = known) => { const d = clone(); edit(d); assert.throws(() => loadBowlRings(k, d), want); };
   bad((d) => { d.rings.middle.levels = [2, 4]; }, /overlap/);
   bad((d) => { d.rings.outer.levels = [3, 1]; }, /levels must be/);
-  bad((d) => { d.rings.outer.groups[0].character = 'character:nobody'; }, /not a known creature/);
+  bad((d) => { d.rings.outer.groups[0]!.character = 'character:nobody'; }, /not a known creature/);
   bad((d) => { d.rings.outer.zone = '9'; }, /not a zone/);
   bad((d) => { d.rings.outer.landmark = 'the-yard'; }, /no landmark/);
   bad((d) => { d.rings.floor.groups = []; }, /at least one group/);
   bad((d) => { d.rings.outer.aggro = 0; }, /aggro must be positive/);
   bad((d) => { d.rings.outer.roamShare = 1.5; }, /roamShare/);
-  bad((d) => { d.rings.outer.groups[1].id = d.rings.outer.groups[0].id; }, /twice/);
-  bad((d) => { d.rings.outer.groups[0].camps = 0; }, /camps/);
+  bad((d) => { d.rings.outer.groups[1]!.id = d.rings.outer.groups[0]!.id; }, /twice/);
+  bad((d) => { d.rings.outer.groups[0]!.camps = 0; }, /camps/);
   assert.throws(() => rosterSpawns(loadBowlRings(known), () => null), /no edges/);
   assert.throws(() => rosterSpawns(loadBowlRings(known), () => ({ inner: 5, outer: 5 })), /no width/);
 });
