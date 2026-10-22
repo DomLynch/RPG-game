@@ -1,0 +1,75 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "ring": "outer",
+ "shots": [
+  "ready-idle-375.png",
+  "mid-fight-375.png"
+ ],
+ "errors": [],
+ "heroCareer": {
+  "level": 1,
+  "credit": 200,
+  "into": 0,
+  "need": 200,
+  "fillPermille": 0,
+  "top": false
+ },
+ "mobCount": 9,
+ "sample": [
+  {
+   "id": "z7:outer-pit-thrall-0-1",
+   "x": 199.26,
+   "z": 27.47,
+   "body": "pitborn"
+  },
+  {
+   "id": "z7:outer-cacus-0-1",
+   "x": 223.75,
+   "z": -13.64,
+   "body": "pitborn"
+  },
+  {
+   "id": "z7:outer-gawain-0-1",
+   "x": 176.4,
+   "z": -13.92,
+   "body": "knight"
+  }
+ ],
+ "target": {
+  "id": "z7:outer-pit-thrall-0-1",
+  "x": 199.26,
+  "z": 27.47,
+  "body": "pitborn"
+ },
+ "outside": [],
+ "outsideCount": 0,
+ "infight": true,
+ "atShot": {
+  "hero": {
+   "hp": 150,
+   "phase": "recover"
+  },
+  "engaged": [
+   {
+    "id": "z7:outer-pit-thrall-0-1",
+    "hp": 133,
+    "hunting": true
+   }
+  ],
+  "level": null
+ },
+ "later": {
+  "hero": {
+   "hp": 35,
+   "phase": "stagger"
+  },
+  "engaged": [
+   {
+    "id": "z7:outer-pit-thrall-0-1",
+    "hp": 133,
+    "hunting": true
+   }
+  ],
+  "level": null
+ }
+}
