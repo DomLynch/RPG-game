@@ -6,8 +6,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { catalogueRow } from '../../src/fight/catalogue-rows.ts';
+import { catalogueRow } from '../../src/fight/index.ts';   // the engine's door (K7/K12): no deep import of catalogue-rows.ts
 import type { Figure } from './exchange-plan.ts';
+import { previewRule } from './preview-rules.ts';
 
 export type Stander = { readonly id: string; readonly url: string; readonly x: number; readonly z: number; readonly face: number; readonly pose: string; readonly near: number; readonly role?: string };
 
@@ -27,10 +28,13 @@ export const within = (s: Pick<Stander, 'x' | 'z' | 'near'>, x: number, z: numbe
 export type TownPeople = { readonly group: THREE.Group; update(dt: number, x: number, z: number): void };
 
 /** The people's bodies, in a group of their own. `shown(id, visible)` is called when a person's body appears or goes (the greybox capsule takes the opposite state). */
-export function townPeople(list: readonly Stander[], shown: (id: string, bodyVisible: boolean) => void): TownPeople {
+export function townPeople(list: readonly Stander[], shown: (id: string, bodyVisible: boolean) => void, warm?: (body: THREE.Object3D) => Promise<void>): TownPeople {
   const group = new THREE.Group(); group.name = 'town-people';
   const files = new Map<string, Promise<{ scene: THREE.Object3D; clips: THREE.AnimationClip[] } | null>>();
-  const fetchFile = (url: string) => { let p = files.get(url); if (!p) files.set(url, (p = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url).then((g) => ({ scene: g.scene, clips: g.animations })).catch(() => null))); return p; };   // a failed file keeps those people as capsules
+  // `warm` (the page's compile for the drawn target) runs once per file before any of its people is revealed, so the first draw of a body never lands inside a walking frame; it is bounded (a warm-up that never settles
+  // must not leave the people capsules for good), and a warm-up that throws reveals the body anyway.
+  const bounded = (p: Promise<void>): Promise<void> => Promise.race([p.catch(() => {}), new Promise<void>((r) => setTimeout(r, previewRule('warmBound')))]);
+  const fetchFile = (url: string) => { let p = files.get(url); if (!p) files.set(url, (p = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url).then(async (g) => { if (warm) await bounded(warm(g.scene)); return { scene: g.scene, clips: g.animations }; }).catch(() => null))); return p; };   // a failed file keeps those people as capsules
   type Built = { root: THREE.Object3D; mixer: THREE.AnimationMixer | null };
   const state = new Map<string, 'loading' | 'failed' | Built>();
   const build = (s: Stander, file: { scene: THREE.Object3D; clips: THREE.AnimationClip[] }, index: number): Built => {
