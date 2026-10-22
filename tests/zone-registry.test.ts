@@ -35,6 +35,16 @@ test('a throwaway zone99 row loads with zero edits outside it', async () => {
   assert.ok(!zoneIds().includes('99'), 'the real registry never saw it');
 });
 
+test('zone0.row.json is a zone row name (the town); a file with a leading zero is still not', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/zones-zero-`);
+  try {
+    writeFileSync(`${scratch}/zone0.row.json`, '{}'); writeFileSync(`${scratch}/zone2.row.json`, '{}'); writeFileSync(`${scratch}/zone10.row.json`, '{}');
+    assert.deepEqual(zoneRows(`${scratch}/`).map((r) => [r.id, r.n]), [['0', 0], ['2', 2], ['10', 10]], 'zone 0 sorts first, and its id stays the string "0"');
+    writeFileSync(`${scratch}/zone00.row.json`, '{}');
+    assert.throws(() => zoneRows(`${scratch}/`), /zone00.row.json is not a zone row name/);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
 test('a file in origins/zone-rows that is not a zone row name is an error, never skipped', () => {
   const scratch = mkdtempSync(`${tmpdir()}/zones-bad-`);
   try {

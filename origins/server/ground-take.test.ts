@@ -87,7 +87,9 @@ test('the point and the radius come from rows: the place\'s centre plus the offs
   assert.ok(point && Number.isFinite(point.x) && Number.isFinite(point.z));
   assert.deepEqual(groundPointOf({ ...row, offsetX: 3, offsetZ: -2 }), { x: point.x - (row.offsetX ?? 0) + 3, z: point.z - (row.offsetZ ?? 0) - 2 }, 'the offset is added to the place centre (the row may carry its own: the sword lies at the camp edge)');
   assert.equal(groundPointOf({ ...row, place: 'nowhere' }), null);
-  assert.equal(groundPointOf({ ...row, zone: 'zone0' }), null);
+  assert.equal(groundPointOf({ ...row, zone: 'zone0' }), null, 'zone 0 (the town) is a legal zone id, but this build has no zone row 0 yet: null, not a throw');
+  assert.equal(groundPointOf({ ...row, zone: 'zone9999' }), null, 'any zone number this build has no row for is the same null');
+  assert.equal(groundPointOf({ ...row, zone: 'zone01' }), null, 'a leading zero is not a zone id');
   assert.ok(radiusOf(row) > GROUND_LIMITS.defaultRadiusM && radiusOf({ radiusM: 3 }) > 3);
 });
 
