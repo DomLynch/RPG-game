@@ -158,7 +158,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
   // A ROTATING camp (spec.pool) can show any of its pool's legends later: each pool character's body key joins the zone's kinds, so the first rotated-in legend of a family no camp shows now is already linked and uploaded (else it links its programs at the engage). `poolKeys` names a pool character that wears each such key (the warm dresses its probe like him).
   const { keys: kindsOfZone, pool: poolKeys } = zoneKinds(specs);
-  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>();
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), linked = new Set<string>();   // warmed: revealed (the warm-up finished OR the bound released it, so [zone ready] is not held by a slow compile); linked: the warm-up really finished (warmState().linked: the rows wait on it, like remoteKitsWarm)
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
   const pending = new Map<string, { scene: THREE.Object3D; clips?: THREE.AnimationClip[] }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
@@ -185,13 +185,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       await opts.after?.catch(() => {});   // programs are keyed on the scene's environment map: warm only after its final swap (the sky), or every program links twice
       while (pending.size) {
         const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
-        const g = await gateWithBound(kind, warmKind(kind, body), WARM_BOUND_MS);
+        const g = await gateWithBound(kind, warmKind(kind, body).finally(() => { linked.add(kind); }), WARM_BOUND_MS);
         warmed.add(kind);   // revealed: warmed, failed or past the bound (logged by the gate)
-        if (g.result === 'late' && !(await settleWithin(kind, g.settled, WARM_BOUND_MS))) { ungated = true; for (const k of pending.keys()) warmed.add(k); pending.clear(); }   // still one compile in flight, but only for one more bound: a compile that never settles must not leave the rest of the zone a capsule (they are revealed ungated, as on trunk, and logged)
+        if (g.result === 'late' && !(await settleWithin(kind, g.settled, WARM_BOUND_MS))) { ungated = true; for (const k of pending.keys()) warmed.add(k); }   // still one compile in flight, but only for one more bound: a compile that never settles must not leave the rest of the zone a capsule (they are revealed ungated, as on trunk, and logged)
       }
     } finally { pumping = false; }
   }
-  const queueWarm = (kind: string, body: { scene: THREE.Object3D; clips?: THREE.AnimationClip[] }) => { if (ungated) { warmed.add(kind); return; } pending.set(kind, body); void pump(); };
+  const queueWarm = (kind: string, body: { scene: THREE.Object3D; clips?: THREE.AnimationClip[] }) => { if (ungated) warmed.add(kind); pending.set(kind, body); void pump(); };   // ungated: the kind is revealed at once, but its warm-up still runs after the one that never settled (see `linked`)
   const revealed = (kind: string) => !gate || warmed.has(kind);
 
   const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
@@ -335,7 +335,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
     legends() { const out: { spec: MobSpec; x: number; z: number; hunting: boolean }[] = []; specs.forEach((s, i) => { if (s.legend && !down.has(i)) out.push({ spec: s, x: mobs[i]!.x, z: mobs[i]!.z, hunting: mobs[i]!.mode === 'aggro' }); }); return out; },
-    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKey(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKey(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds], linked: [...new Set([...linked, ...failedKinds])] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },
     fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
