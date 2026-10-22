@@ -227,6 +227,7 @@ if (frontier && frontierParts) {
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette(), Number(new URLSearchParams(location.search).get('torchlights') ?? NaN) >= 0 ? Number(new URLSearchParams(location.search).get('torchlights')) : undefined);   // the camp fires' smoke and light; ?torchlights=N lights only the N nearest fires (the lights A/B's other arm; absent = the torchLights row)
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
+  if (layoutPlan && frontierGroup) frontierGroup.visible = false;   // the Pit layout test: the Frontier's ground and dressing give way to the layout (so it opens on any zone page, Zone 1 included)
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.

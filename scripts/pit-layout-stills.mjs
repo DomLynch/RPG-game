@@ -17,13 +17,13 @@ const SHOTS = {
     { name: 'yard-start', at: [0, 47, Math.PI] }, { name: 'mouth', at: [0, 34, Math.PI], walkMs: 1500 },
     { name: 'terrace-lookdown', at: [...dir(0.1, 28), facing(0.1)] }, { name: 'terrace-ramp-top', at: [...dir(0.9, 25.5), facing(0.9)], walkMs: 2500 },
     { name: 'middle-ring', at: [...dir(2.4, 18), facing(2.4)] }, { name: 'champion-ramp', at: [...dir(Math.PI / 2, 14.5), facing(Math.PI / 2)], walkMs: 2500 }, { name: 'floor', at: [0, 4, 0] },
-    { name: 'duel-ramp', at: [15, 47, -Math.PI / 2], walkMs: 2500 }, { name: 'duel-floor', at: [26, 47, -Math.PI / 2] },
+    { name: 'duel-ramp', at: [13.5, 47, Math.PI / 2], walkMs: 2500 }, { name: 'duel-floor', at: [26, 47, -Math.PI / 2] },
   ],
   spiral: [
     { name: 'yard-start', at: [0, 36, Math.PI] }, { name: 'landing-a', at: [...dir(0.35, 17), 0.35 + Math.PI / 2], walkMs: 1500 },
     { name: 'ramp-1-mid', at: [...dir(1.4, 17), 1.4 + Math.PI / 2], walkMs: 2500 }, { name: 'landing-b', at: [...dir(3.0, 17), 3.0 + Math.PI / 2] },
     { name: 'ramp-2-mid', at: [...dir(4.0, 17), 4.0 + Math.PI / 2], walkMs: 2500 }, { name: 'landing-c', at: [...dir(5.0, 17), 5.0 + Math.PI / 2] }, { name: 'floor', at: [0, 3, 0] },
-    { name: 'duel-ramp', at: [15, 36, -Math.PI / 2], walkMs: 2500 }, { name: 'duel-floor', at: [26, 36, -Math.PI / 2] },
+    { name: 'duel-ramp', at: [13.5, 36, Math.PI / 2], walkMs: 2500 }, { name: 'duel-floor', at: [26, 36, -Math.PI / 2] },
   ],
 };
 const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME || undefined, args: ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
