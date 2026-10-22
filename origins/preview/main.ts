@@ -46,6 +46,7 @@ import { createGoblinSmoke } from './goblin-smoke.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { buildingSkin } from './building-skin.ts';
 import { loadSkinModels } from './skin-models.ts';
+import { skinsOfFile } from './exchange-skin.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
@@ -210,6 +211,10 @@ let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof create
 // The area-sky hook (area-sky.ts): an area (a frontier-plan zone id) with a `<area>:sky` names row shows that dome and light while the walker is in it; no row = nothing changes.
 const areas = createAreaSky({ skyOf: areaSky, own: () => zoneDome, blendS: goblinRule('areaBlendS'), make: (p) => { const d = createHorizonDome(scene, p, import.meta.env.BASE_URL), pitSky = arena.group.getObjectByName(d.covers); if (pitSky) pitSky.renderOrder = d.mesh.renderOrder - 1; return d; } });
 settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
+// The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
+const townSkins = /[?&]skins=(?:0|off)\b/.test(location.search) ? [] : exchange.skins;   // ?skins=0: every skinned plan piece keeps its greybox shape (the A/B of the skin path's cost reads it)
+let exchangeSkinsDrawn = REGION || !townSkins.length;   // only the Exchange's own page (region=0) waits on its skins before it is ready; a zone that merely shows the Exchange streams them in after ready (the Auditor, #3608: ~4.7 MB must not move Zone 1's ready)
+if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });
 let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
   const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
@@ -723,7 +728,7 @@ function zoneReadyCheck() {
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
-  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !gfxDrawn || !modelsDrawn) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !gfxDrawn || !modelsDrawn || !exchangeSkinsDrawn) return;
   // One last look before it says ready: a body or prop that streamed in after the plan's last look would link its programs at the engage (seamless-quiet, K5r and trunk under load: a creature weapon's Leather and WeatheredStone, "mesh_2/mesh_3<WeaponDrawn<hand_r"). Plan again now, not in 3 s; bounded by the kinds' own wait so a material that never uploads cannot hold the zone.
   { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
@@ -1156,7 +1161,7 @@ function programOwners(): Record<string, string[]> {
   clampRate: clampRate.snapshot,   // the same read as window.__clampRate(), for the browser checks
   settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
   cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
-  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), gates: () => ({ selfSettled: selfSettled(), allWarmed: allWarmed(), cleanPlan, queue: uploadQueue.length, programsInFlight: !!programsInFlight, uploadTotal, domeDrawn, gfxDrawn, modelsDrawn: !!modelsDrawn }),   // what [zone ready] is still waiting for (a held-walk diagnosis)
+  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), gates: () => ({ selfSettled: selfSettled(), allWarmed: allWarmed(), cleanPlan, queue: uploadQueue.length, programsInFlight: !!programsInFlight, uploadTotal, domeDrawn, gfxDrawn, modelsDrawn: !!modelsDrawn, exchangeSkinsDrawn }),   // what [zone ready] is still waiting for (a held-walk diagnosis)
  advance: (n: number) => CAPTURE.advance(n, (dt, time) => walkFrame(dt, time, false)),   // ?capture=seed (capture.ts): the harness waits ready(), places the hero, waits ready() again, then advance(n) and shoots
     ready: () => { const d = ((window as unknown as { originsPreview: { mobs: () => unknown } }).originsPreview.mobs() ?? undefined) as { mobs: { drawn: boolean; model: boolean }[]; bodies: Record<string, string> } | undefined; return !!(window as unknown as { __zoneReady?: unknown }).__zoneReady && !!d && d.mobs.every((m) => !m.drawn || m.model) && Object.values(d.bodies).every((b) => b === 'ready' || b === 'failed'); } },
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
@@ -1170,7 +1175,7 @@ function programOwners(): Record<string, string[]> {
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   injectLate: () => { lateStream.inject(); uploadNext = Infinity; return true; },   // browser row only: one model streams into the scene after the plan's last look and before the next one (the 3 s re-plan is frozen, so only zoneReadyCheck can still see it)
-  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && domeDrawn && gfxDrawn }),
+  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && exchangeSkinsDrawn && domeDrawn && gfxDrawn }),
   releaseCompiles: lateStream.release,
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page

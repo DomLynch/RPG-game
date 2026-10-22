@@ -33,7 +33,7 @@ export async function loadFarBodies(nodes: readonly string[]): Promise<Map<strin
 }
 
 /** Fetch each needed file once and stand its placements as instanced meshes. A failed file leaves its buildings undrawn, never the zone. */
-export async function loadSkinModels(models: readonly ModelPlacement[], groundAt?: (x: number, z: number) => number, pace?: () => Promise<void>): Promise<THREE.Group> {
+export async function loadSkinModels(models: readonly ModelPlacement[], groundAt?: (x: number, z: number) => number, pace?: () => Promise<void>, loaded?: (url: string) => void): Promise<THREE.Group> {   // loaded: called with a file's url once its buildings are in the group (the Exchange hides the greybox it stood in for)
   const group = new THREE.Group(); group.name = 'skin-models';
   // pace: when given, the files go ONE AT A TIME with `await pace()` before each (the page passes a few frames), so a file's parse and instancing never lands beside another's or beside the player's first taps (Z1b: row 57 on software GL)
   const each = async <T>(items: T[], one: (item: T) => Promise<void>) => { if (!pace) return void (await Promise.all(items.map(one))); for (const item of items) { await pace(); await one(item); } };
@@ -42,6 +42,7 @@ export async function loadSkinModels(models: readonly ModelPlacement[], groundAt
       const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`/${url}`);   // public/world is served from the site root, like the kit (frontier-kit-view.ts KIT_URL), not under the preview's base
       gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.position.set(0, 0, 0); });   // the kit files lay their nodes in a row to look at (x offsets): a placement stands the node where the plan says, from its own origin
       group.add(kitGroup(gltf.scene,{ placements: list as unknown as KitPlacement[], landmarks: [] }, groundAt, { lods: await loadFarBodies(list.map((p) => p.node)) }));
+      loaded?.(url);
     } catch { /* this file only: its buildings stay undrawn */ }
   });
   return group;

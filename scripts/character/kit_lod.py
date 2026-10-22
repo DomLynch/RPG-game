@@ -25,7 +25,7 @@ meshes = [o for o in scene.objects if o.type == "MESH"]
 if not meshes:
     raise SystemExit(f"kit_lod: no mesh in {SRC}")
 meshes.sort(key=lambda o: len(o.data.vertices), reverse=True)
-node_name = meshes[0].name   # the glTF node name the row and the renderer look the piece up by
+node_name = os.environ.get("NODE_NAME") or meshes[0].name  # the glTF node name the row and the renderer look the piece up by
 bpy.ops.object.select_all(action="DESELECT")
 for o in meshes:
     o.select_set(True)
@@ -34,6 +34,17 @@ if len(meshes) > 1:
     bpy.ops.object.join()
 hi = bpy.context.view_layer.objects.active
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+if os.environ.get("GROUND_H") or os.environ.get("GROUND_W"):   # GROUND_H=<metres>: scale the piece to this height; GROUND_W=<metres>: to this largest horizontal extent (a wide facade); either puts its origin at the centre of its base (TRELLIS centres a piece on its middle; a kit row places it by its foot)
+    from mathutils import Matrix
+    k = float(os.environ["GROUND_H"]) / hi.dimensions.z if os.environ.get("GROUND_H") else float(os.environ["GROUND_W"]) / max(hi.dimensions.x, hi.dimensions.y)
+    corners = [hi.matrix_world @ v.co for v in hi.data.vertices]
+    lo_z = min(c.z for c in corners)
+    cx = (min(c.x for c in corners) + max(c.x for c in corners)) / 2
+    cy = (min(c.y for c in corners) + max(c.y for c in corners)) / 2
+    hi.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation((-cx, -cy, -lo_z)))
+    hi.location = (0, 0, 0)
+    hi.data.update()
+    bpy.context.view_layer.update()   # hi.dimensions is read below for the bake distances: it must see the new scale
 hi_tris = sum(len(p.vertices) - 2 for p in hi.data.polygons)
 height = max(hi.dimensions)   # a kit piece may lie on any axis once imported (Blender is Z-up): its largest extent is the scale of the bake distances
 
@@ -87,6 +98,7 @@ img = bpy.data.images.new("KitColour", SIZE, SIZE, alpha=False)
 img.colorspace_settings.name = "sRGB"
 mat = bpy.data.materials.new("KitLod")
 mat.use_nodes = True
+mat.use_backface_culling = False   # exported as doubleSided: a remeshed or decimated thin wall (cloth, an open pier face) keeps its back face, so it never culls to a see-through frame
 nt = mat.node_tree
 bsdf = nt.nodes["Principled BSDF"]
 tex = nt.nodes.new("ShaderNodeTexImage")

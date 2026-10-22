@@ -14,7 +14,23 @@
     { "id": "goblin-lantern", "url": "world/kit/goblin_lantern.glb", "nodes": ["goblin_lantern"] },
     { "id": "goblin-hut", "url": "world/kit/goblin_hut.glb", "nodes": ["goblin_hut"], "lod": { "url": "world/kit/goblin_hut_lod.glb", "dist": 35 } },
     { "id": "goblin-tower", "url": "world/kit/goblin_tower.glb", "nodes": ["goblin_tower"], "lod": { "url": "world/kit/goblin_tower_lod.glb", "dist": 35 } },
-    { "id": "dungeon", "url": "world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile"] }
+    { "id": "dungeon", "url": "world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile"] },
+    { "id": "town-column", "url": "world/kit/town_column.glb", "nodes": ["town_column"], "lod": { "url": "world/kit/town_column_lod.glb", "dist": 12 }, "budget": { "height": 5.2, "tris": 4000, "lodTris": 1200 } },
+    { "id": "town-pier", "url": "world/kit/town_pier.glb", "nodes": ["town_pier"], "lod": { "url": "world/kit/town_pier_lod.glb", "dist": 14 }, "budget": { "height": 8.2, "tris": 4000, "lodTris": 1200 } },
+    { "id": "town-brazier", "url": "world/kit/town_brazier.glb", "nodes": ["town_brazier"], "lod": { "url": "world/kit/town_brazier_lod.glb", "dist": 10 }, "budget": { "height": 2, "tris": 4000, "lodTris": 1200 } },
+    { "id": "town-banner", "url": "world/kit/town_banner.glb", "nodes": ["town_banner"], "lod": { "url": "world/kit/town_banner_lod.glb", "dist": 8 }, "budget": { "height": 3.5, "tris": 5000, "lodTris": 1000 } },
+    { "id": "town-balustrade", "url": "world/kit/town_balustrade.glb", "nodes": ["town_balustrade"], "lod": { "url": "world/kit/town_balustrade_lod.glb", "dist": 20 }, "budget": { "height": 1.2, "tris": 4000, "lodTris": 2000 } },
+    { "id": "town-lion", "url": "world/kit/town_lion.glb", "nodes": ["town_lion"], "lod": { "url": "world/kit/town_lion_lod.glb", "dist": 35 }, "budget": { "height": 4.5, "tris": 8000, "lodTris": 1500 } },
+    { "id": "town-steps", "url": "world/kit/town_steps.glb", "nodes": ["town_steps"], "budget": { "width": 26, "tris": 5000 } },
+    { "id": "town-bank", "url": "world/kit/town_bank.glb", "nodes": ["town_bank"], "budget": { "width": 24, "tris": 8000 } },
+    { "id": "town-stone", "url": "world/kit/town_stone.glb", "nodes": ["town_stone"], "budget": { "height": 7.9, "tris": 4000 } },
+    { "id": "town-smithy", "url": "world/kit/town_smithy.glb", "nodes": ["town_smithy"], "lod": { "url": "world/kit/town_smithy_lod.glb", "dist": 20 }, "budget": { "height": 6, "tris": 5000, "lodTris": 1800 } },
+    { "id": "town-stall", "url": "world/kit/town_stall.glb", "nodes": ["town_stall"], "budget": { "width": 2.8, "tris": 4000 } },
+    { "id": "town-gate", "url": "world/kit/town_gate.glb", "nodes": ["town_gate"], "budget": { "height": 6.5, "tris": 5000 } },
+    { "id": "town-board", "url": "world/kit/town_board.glb", "nodes": ["town_board"], "budget": { "width": 3.1, "tris": 3000 } }
+  ],
+  "textures": [
+    { "id": "town-paving", "url": "world/town/paving.jpg", "slabM": 2.4 }
   ],
   "fits": [
     { "id": "goblin.default", "skin": "goblin", "kind": "default", "model": "goblin-hut", "node": "goblin_hut", "w": 5.24, "d": 3.3, "min": 0.6, "max": 2.5 },
