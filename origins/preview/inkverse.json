@@ -15,7 +15,7 @@
         "grain": { "strength": 0.035, "scalePx": 1 },
         "vignette": { "strength": 0.85, "start": 0.78, "breakup": 0.32, "freq": 9 },
         "tags": {
-          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
+          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal", "flame", "coal", "Heraldry"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
           "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.7, "gain": 1.0, "glowPx": 0, "glowStrength": 0, "materials": [], "objects": [], "userData": [] }
         }
       }
