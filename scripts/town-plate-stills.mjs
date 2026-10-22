@@ -21,6 +21,13 @@ try {
     await page.waitForTimeout(14000);
     if (process.env.VIA) { await page.evaluate((v) => window.originsPreview.place(...v.split(',').map(Number)), process.env.VIA); await page.waitForTimeout(6000); }   // VIA=x,z,heading: stand there first (the Exchange), then POS = walk out again (the exit still)
     if (spot) { await page.evaluate(([px, pz, ph]) => window.originsPreview.place(px, pz, ph), spot); await page.waitForTimeout(4000); }
+    if (process.env.WALK && name === '375') {   // WALK=x,z,heading[,frames]: stand there and hold W (a real walk, not a teleport), one still per 2.5 s with where he is
+      const [wx, wz, wh, frames = 5] = process.env.WALK.split(',').map(Number);
+      await page.evaluate(([a, b, c]) => window.originsPreview.place(a, b, c), [wx, wz, wh]); await page.waitForTimeout(3000);
+      await page.keyboard.down('w');
+      for (let i = 0; i < frames; i++) { await page.waitForTimeout(2500); const at = await page.evaluate(() => ({ ...window.originsPreview.pos })); const f = `${prefix}-walk${i}.png`; await page.screenshot({ path: path.join(out, f) }); receipt.shots.push({ name: `walk${i}`, file: f, pos: at }); }
+      await page.keyboard.up('w');
+    }
     receipt.renderer ??= await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'); const e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
     const pos = await page.evaluate(() => ({ ...window.originsPreview.pos }));
     const file = `${prefix}-${name}.png`; await page.screenshot({ path: path.join(out, file) }); receipt.shots.push({ name, file, pos });

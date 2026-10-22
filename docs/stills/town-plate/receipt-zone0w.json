@@ -1,0 +1,62 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "walk0",
+      "file": "zone0w-walk0.png",
+      "pos": {
+        "x": -6,
+        "z": -50.144659999835504
+      }
+    },
+    {
+      "name": "walk1",
+      "file": "zone0w-walk1.png",
+      "pos": {
+        "x": -6,
+        "z": -44.08944999999999
+      }
+    },
+    {
+      "name": "walk2",
+      "file": "zone0w-walk2.png",
+      "pos": {
+        "x": -6,
+        "z": -38.03400999983545
+      }
+    },
+    {
+      "name": "walk3",
+      "file": "zone0w-walk3.png",
+      "pos": {
+        "x": -6,
+        "z": -31.97581000010968
+      }
+    },
+    {
+      "name": "walk4",
+      "file": "zone0w-walk4.png",
+      "pos": {
+        "x": -6,
+        "z": -25.919680000054875
+      }
+    },
+    {
+      "name": "375",
+      "file": "zone0w-375.png",
+      "pos": {
+        "x": -6,
+        "z": -25.69175000027422
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "zone0w-desktop.png",
+      "pos": {
+        "x": 0,
+        "z": -36
+      }
+    }
+  ],
+  "errors": []
+}
