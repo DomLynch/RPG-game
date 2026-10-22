@@ -78,7 +78,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
   const end = toWorld(road.to, mounts.value.exchange), start = toWorld(road.from, mounts.value.exchange);
   // Across the portal pair: the east road's exchange gate stands at the road's end, facing back down it.
   const portal = data.registry.regions.get(EXCHANGE)!.portals.find((q) => q.to === FRONTIER)!, back = data.registry.regions.get(FRONTIER)!.portals.find((q) => q.id === portal.toPortal)!;
-  if (portal.at !== road.from) throw new Error(`the Frontier portal is at ${portal.at}, not the west road's gate ${road.from}`);   // the west road leaves from the gate the portal pair stands at (both are rows)
+  if (portal.at !== ex.passages['west-road']!.from) throw new Error(`the Frontier portal is at ${portal.at}, not the west road's gate ${ex.passages['west-road']!.from}`);   // the west road leaves from the gate the portal pair stands at (both are rows)
   const firstZone = [...frZones].find(([, p]) => Object.hasOwn(p.layout, back.at))![0];
   const placed = new Map<string, ZonePlan>();
   const first = zonePlan(FRONTIER, firstZone, frZones.get(firstZone)!, mountAt(frZones.get(firstZone)!, back.at, end, gate.facing + Math.PI), townOf(FRONTIER, firstZone));
