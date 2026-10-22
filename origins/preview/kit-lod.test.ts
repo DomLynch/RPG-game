@@ -30,6 +30,16 @@ test('the far body casts the shadow: the proxy holds the far geometry, the near 
   assert.equal(proxy.count, 4, 'x = 0, 10, 20 and 40 are within the 40 m shadow row');
 });
 
+// The bug the T4 stills caught first: a jump of the walker (a teleport) leaves the camera easing behind for a moment, and the re-bucket only looked at the walker, so every hut went to the far bucket and nothing was drawn at 13 m. The eye moving counts too.
+test('the swap re-buckets when only the eye has moved', () => {
+  const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { lods: lods(15), override: {} });
+  const near = kids(g, 'goblin_hut')!;
+  updateKitViews({ x: 500, z: 0 }, 1, { x: 500, z: 0 });   // the walker jumps; the camera has not followed yet (it is still at x = 500 here, far from every hut)
+  assert.equal(near.count, 0);
+  updateKitViews({ x: 500, z: 0 }, 1, { x: 5, z: 0 });   // the walker has not moved again, the camera has arrived near the huts
+  assert.equal(near.count, 2, 'x = 0 and 10 are within 15 m of the eye at x = 5');
+});
+
 // The bug the T4 stills caught: a re-baked or quantized far file carries its own scale in its node, and the far instances must use THAT node transform, not the full mesh's (else the far body is drawn at the wrong size and the hut vanishes).
 test('the far instances carry the far body\'s own node transform', () => {
   const own = new Map<string, KitLod>([['goblin_hut', { geometry: farGeometry, material: farMaterial, dist: 15, matrix: new THREE.Matrix4().makeScale(2, 2, 2) }]]);

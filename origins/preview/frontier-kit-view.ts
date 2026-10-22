@@ -20,7 +20,7 @@ export function kitRadiusOverride(search: string = typeof location === 'undefine
 // A kind with a far body (building-skins.json `lod: { url, dist }`, skinLod) also keeps a far InstancedMesh: instances within `dist` metres of the camera draw the full mesh, the rest draw the far one; the shadow proxy then casts the far geometry.
 export type KitLod = { readonly geometry: THREE.BufferGeometry; readonly material: THREE.Material | THREE.Material[]; readonly dist: number; /** the far mesh's own matrixWorld (its node transform in the lod file; absent = the full mesh's) */ readonly matrix?: THREE.Matrix4 };
 type KitView = { inst: THREE.InstancedMesh; far: THREE.InstancedMesh | null; farSrc: Float32Array | null; lodDist: number; proxy: THREE.InstancedMesh | null; src: Float32Array; xs: number[]; zs: number[]; drawR: number; shadowR: number };
-const VIEWS: KitView[] = []; let lastAt: { x: number; z: number } | null = null, stale = false;
+const VIEWS: KitView[] = []; let lastAt: { x: number; z: number } | null = null, lastEye: { x: number; z: number } | null = null, stale = false;
 const SHADOW_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });   // the proxy draws nothing in the picture: only the shadow pass (the depth material) reads its geometry
 /** Writes the instances `keep(i)` accepts to the front of the target's matrix buffer and returns how many. */
 const pack = (target: THREE.InstancedMesh, src: Float32Array, n: number, keep: (i: number) => boolean): number => {
@@ -31,8 +31,8 @@ const pack = (target: THREE.InstancedMesh, src: Float32Array, n: number, keep: (
 /** Once per frame from the page's loop: the instances within drawRadius (of the walker) are the ones drawn, the ones within shadowRadius the ones cast, and a kind with a far body draws the full mesh within its lod distance of `eye` (the camera; the walker when absent) and the far one beyond. Re-packs only after the walker moved `stepM` (a row: previewRule kitViewStepM) or a kind was added. */
 export function updateKitViews(hero: { x: number; z: number }, stepM: number, eye: { x: number; z: number } = hero): void {
   if (!VIEWS.length) return;
-  if (!stale && lastAt && Math.hypot(hero.x - lastAt.x, hero.z - lastAt.z) < stepM) return;
-  lastAt = { x: hero.x, z: hero.z }; stale = false;
+  if (!stale && lastAt && lastEye && Math.hypot(hero.x - lastAt.x, hero.z - lastAt.z) < stepM && Math.hypot(eye.x - lastEye.x, eye.z - lastEye.z) < stepM) return;   // the eye counts too: the camera eases after the walker, so a jump of the walker leaves it behind for a moment
+  lastAt = { x: hero.x, z: hero.z }; lastEye = { x: eye.x, z: eye.z }; stale = false;
   for (const v of VIEWS) {
     const n = v.xs.length, dHero = (i: number) => Math.hypot(v.xs[i] - hero.x, v.zs[i] - hero.z), dEye = (i: number) => Math.hypot(v.xs[i] - eye.x, v.zs[i] - eye.z), drawn = (i: number) => v.drawR <= 0 || dHero(i) <= v.drawR;
     if (v.far && v.farSrc) { v.inst.count = pack(v.inst, v.src, n, (i) => drawn(i) && dEye(i) <= v.lodDist); v.far.count = pack(v.far, v.farSrc, n, (i) => drawn(i) && dEye(i) > v.lodDist); }
