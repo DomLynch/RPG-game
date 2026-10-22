@@ -40,7 +40,7 @@ console.log(JSON.stringify(bad));`;
 // Every legend citation in the zone spawns files at `base` (trunk): git show, so the working tree (the PR) is not read.
 export function baseCitations(base) {
   const ls = sh('git', ['ls-tree', '-r', '--name-only', base, 'origins/zones', 'origins/zone-rows'], 60_000);
-  const files = ls.stdout.split('\n').filter(f => /^origins\/zones\/zone\d+\/spawns\.ts$/.test(f) || /^origins\/zone-rows\/zone[1-9][0-9]*\.row\.json$/.test(f));
+  const files = ls.stdout.split('\n').filter(f => /^origins\/zones\/zone\d+\/spawns\.ts$/.test(f) || /^origins\/zone-rows\/zone(0|[1-9][0-9]*)\.row\.json$/.test(f));
   return Object.assign({}, ...files.map(f => { const t = sh('git', ['show', `${base}:${f}`], 60_000); try { return legendCitations(spawnRowsOf(f, t.stdout)); } catch { return {}; } }));
 }
 

@@ -25,6 +25,14 @@ test('a key that is not a world zone of the package fails at load', () => {
   assert.match(problems({ nowhere: { quiet: true } })[0] ?? '', /not a world zone/);
 });
 
+test('a trade zone names its rejoin landmark, and a rejoin without trade fails at load', () => {
+  const w = loadZone('1').world[0]!;
+  assert.deepEqual(problems({ [w]: { trade: true, rejoin: 'gate' } }), []);
+  assert.match(problems({ [w]: { trade: true } })[0] ?? '', /rejoin landmark/);
+  assert.match(problems({ [w]: { trade: true, rejoin: '' } })[0] ?? '', /rejoin landmark/);
+  assert.match(problems({ [w]: { rejoin: 'gate' } })[0] ?? '', /only goes with trade/);
+});
+
 test('bad speed and bad caps fail at load', () => {
   const w = loadZone('1').world[0]!;
   assert.match(problems({ [w]: { speed: 0 } })[0] ?? '', /speed/);

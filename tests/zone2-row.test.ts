@@ -11,7 +11,8 @@ import { loadZone } from '../origins/zones/loader.ts';
 // Re-pinned 2026-10-19 (#3301): Zone 2's ash boar respawnSeconds 75 -> 45, the one-clock-per-creature-id rule (mob-rewards respawnRows) following Zone 1's starter tier. The previous pin was fefc8060b662812f.
 // Re-pinned 2026-10-19 (#3315, per-layer spawns): respawn rows are keyed (zone, id), so Zone 2's cinder-scavenger carries its own `respawnSeconds: 40` (it used to inherit Zone 1's 40 s through the id-only key; without the row it
 // would fall to the 300 s default, against Dom's 30-60 s rule). The only change is that one field. The previous pin was 4f90ee24a77fc98c.
-const ZONE2_BEFORE_THE_SWAP = '86bfb10819a6b0fee68c2832cd6a5cee9bb1435e95c37cd2d8407a0813fba2ce';
+// Re-pinned 2026-10-22 (#3558, Combat, Zone 2 creatures, RV90): Zone 2's rows changed on purpose, +5 creatures (the Ash skeleton camps [3,4] at the ruin, the Pale duelist at the cairn). The previous pin was 86bfb10819a6b0fe.
+const ZONE2_BEFORE_THE_SWAP = '85050901d6ea6a34c4b3244791dad81f71be0a14a8b5889d86a64c6e7266660d';
 
 test('Zone 2 loads to exactly the data the hand-written Zone 2 did', () => {
   const z = loadZone('2'), body = { id: z.id, level: z.level, name: z.name, names: z.names, world: z.world, spawns: z.spawns, kit: z.kit, looks: z.looks, mobLooks: z.mobLooks, place: z.place };

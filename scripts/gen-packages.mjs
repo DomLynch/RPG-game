@@ -38,7 +38,7 @@ export function validatePackage(files, ctx) {
   let m; try { m = JSON.parse(files['package.json'] ?? ''); } catch { return ['package.json is missing or not JSON']; }
   if (m.schema !== SCHEMA) bad.push(`manifest schema must be ${SCHEMA}`);
   if (typeof m.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(m.id)) bad.push('manifest id must be lowercase letters, digits and dashes');
-  if (!Number.isInteger(m.zone) || m.zone < 1) bad.push('manifest zone must be a whole number from 1');
+  if (!Number.isInteger(m.zone) || m.zone < 0) bad.push('manifest zone must be a whole number from 0 (0 is the town)');
   // 1. paths: only the known names, plain (no folder, no .., no absolute), and not more than the bound
   const names = Object.keys(files).filter((f) => f !== 'package.json');
   for (const f of [...names, ...Object.keys(m.files ?? {})]) if (!FILES.includes(f)) bad.push(`file "${f}" is not an allowed package file name (${FILES.join(', ')}); a path is never accepted`);
@@ -132,7 +132,7 @@ export function existingIds(root = ROOT) {
   const ids = (list, key = 'id') => new Set(list.map((r) => r[key]));
   const obj = (file, at) => (existsSync(join(root, file)) ? (JSON.parse(readFileSync(join(root, file), 'utf8'))[at] ?? {}) : {});
   const zoneDir = join(root, 'origins/zone-rows');
-  return { zones: new Set(readdirSync(zoneDir).map((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1]).filter(Boolean)), exits: ids(table('origins/zones/exit-rows.json', 'exits')), dungeons: ids(table('origins/zones/dungeon-rows.json', 'dungeons')), themes: ids(table('origins/zones/dungeon-themes.json', 'themes')), warps: ids(table('origins/presence/warp-landmarks.json', 'landmarks')), biomes: new Set([...Object.keys(obj('origins/zones/biomes.json', 'biomes')), ...Object.keys(obj('origins/zones/biomes.packages.json', 'biomes'))]) };
+  return { zones: new Set(readdirSync(zoneDir).map((f) => /^zone(0|[1-9][0-9]*)\.row\.json$/.exec(f)?.[1]).filter((id) => id !== undefined)), exits: ids(table('origins/zones/exit-rows.json', 'exits')), dungeons: ids(table('origins/zones/dungeon-rows.json', 'dungeons')), themes: ids(table('origins/zones/dungeon-themes.json', 'themes')), warps: ids(table('origins/presence/warp-landmarks.json', 'landmarks')), biomes: new Set([...Object.keys(obj('origins/zones/biomes.json', 'biomes')), ...Object.keys(obj('origins/zones/biomes.packages.json', 'biomes'))]) };
 }
 /** The import tool: validate the folder `src` against the repo at `root` (import mode: a new package unlisted, a clash only when named in `replace`), copy it to origins/packages/<id>/ and regenerate. Returns the problems, or [] when done. */
 export function importFolder(src, root = ROOT, replace = new Set()) {

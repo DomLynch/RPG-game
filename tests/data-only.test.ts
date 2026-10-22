@@ -20,7 +20,11 @@ test('every zone module on trunk is pure data, and the loot table is JSON', () =
 test('the path list is strict: engine code, loaders, biomes, catalogue rows, legends and tests are never data', () => {
   for (const f of ['origins/zones/loader.ts', 'origins/zones/biomes.ts', 'origins/zones/place.ts', 'origins/zones/zone1/place.test.ts', 'origins/zones/zone1/zone.test.ts', 'origins/zones/zone1/places.ts', 'src/fight/catalogue-rows.ts',
     'docs/research/legends-fame.md', 'src/core/loot.ts', 'origins/zones/biomes.ts.data', 'origins/zones/zone1/biomes-data.ts', 'origins/zones/zone1/zone.ts.bak', 'origins/zones/zone1/../loader.ts',
-    'origins/zone-rows/zone1.row.json.bak', 'origins/zone-rows/zone01.row.json', 'origins/zone-rows/README.md', 'origins/zone-rows/zone1.row.ts']) assert.equal(onDataPath(f), false, f);
+    'origins/zone-rows/zone1.row.json.bak', 'origins/zone-rows/zone01.row.json', 'origins/zone-rows/zone00.row.json', 'origins/zone-rows/README.md', 'origins/zone-rows/zone1.row.ts']) assert.equal(onDataPath(f), false, f);
+});
+
+test('a zone row is data, zone 0 (the town) included', () => {
+  for (const f of ['origins/zone-rows/zone0.row.json', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone700.row.json']) assert.equal(onDataPath(f), true, f);
 });
 
 test('anything that runs is not data (mutation cases: a call, a value import, an outside identifier, ${}, a function, a spread, a second statement)', () => {
