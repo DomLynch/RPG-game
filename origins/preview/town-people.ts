@@ -26,8 +26,8 @@ export function standers(people: readonly Figure[], urlOf: (body: string) => str
 export const within = (s: Pick<Stander, 'x' | 'z' | 'near'>, x: number, z: number): boolean => Math.hypot(s.x - x, s.z - z) <= s.near;
 
 /** Which body a stander draws at a point: the full one inside its row's `full` range, the far one out to `near` (when the row has one), none beyond. Pure. */
-export type Range = 'full' | 'far' | 'out';
-export const rangeOf = (s: Pick<Stander, 'x' | 'z' | 'near' | 'far' | 'full'>, x: number, z: number): Range => { const d = Math.hypot(s.x - x, s.z - z); return d > s.near ? 'out' : s.far !== undefined && s.full !== undefined && d > s.full ? 'far' : 'full'; };
+export type Reach = { readonly inFull: boolean; readonly inNear: boolean };   // inFull: inside the full body's range; inNear: inside the row's outer range (the far body draws where inNear and not inFull)
+export const reachOf = (s: Pick<Stander, 'x' | 'z' | 'near' | 'far' | 'full'>, x: number, z: number): Reach => { const d = Math.hypot(s.x - x, s.z - z); return { inFull: d <= (s.far !== undefined && s.full !== undefined ? s.full : s.near), inNear: d <= s.near }; };
 
 export type TownPeople = { readonly group: THREE.Group; update(dt: number, x: number, z: number): void };
 
@@ -54,15 +54,15 @@ export function townPeople(list: readonly Stander[], shown: (id: string, bodyVis
     group,
     update(dt, x, z) {
       list.forEach((s, i) => {
-        const range = rangeOf(s, x, z);
-        if (range === 'out' && !state.has(s.id)) return;
+        const { inFull, inNear } = reachOf(s, x, z);
+        if (!inNear && !state.has(s.id)) return;
         let cur = state.get(s.id); if (!cur) state.set(s.id, (cur = { full: undefined, far: undefined, on: false }));
         const slots = cur;
-        const want = (kind: 'full' | 'far') => { if (slots[kind] !== undefined) return; slots[kind] = 'loading'; void fetchFile(kind === 'far' ? s.far! : s.url).then((f) => { slots[kind] = f ? build(s, f, i) : 'failed'; }); };
-        if (range === 'full') want('full');
-        if (range !== 'out' && s.far !== undefined) want('far');   // the cheap body is also what stands in while the full one loads
+        const want = (kind: 'full' | 'far', url: string) => { if (slots[kind] !== undefined) return; slots[kind] = 'loading'; void fetchFile(url).then((f) => { slots[kind] = f ? build(s, f, i) : 'failed'; }); };
+        if (inFull) want('full', s.url);
+        if (inNear && s.far !== undefined) want('far', s.far);   // the cheap body is also what stands in while the full one loads
         const built = (k: Slot): k is Built => k !== undefined && k !== 'loading' && k !== 'failed';
-        const showFull = range === 'full' && built(cur.full), showFar = range !== 'out' && built(cur.far) && !showFull;
+        const showFull = inFull && built(cur.full), showFar = inNear && built(cur.far) && !showFull;
         if (built(cur.full)) cur.full.root.visible = showFull;
         if (built(cur.far)) cur.far.root.visible = showFar;
         if (cur.on !== (showFull || showFar)) { cur.on = showFull || showFar; shown(s.id, cur.on); }

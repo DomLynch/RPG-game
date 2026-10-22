@@ -53,8 +53,8 @@ export function loadPlanRows(given: Partial<Record<(typeof TABLES)[number], read
   loadRegistry(TABLES.map((t, i) => tableFromFile(MANIFEST.tables[i] as unknown as Manifest, { [t]: raw[t] }, 'plan-rows.json')));
   const rows = raw as unknown as PlanRows;
   for (const t of TABLES) for (const r of rows[t] as readonly Row[]) if (!r.id.startsWith(`${r.zone}/`)) throw Error(`plan-rows ${t} "${r.id}": the id starts with its zone "${r.zone}/"`);
-  for (const r of rows.people) if (r.far !== undefined && (!r.body || !(r.full !== undefined && r.full > 0 && r.near !== undefined && r.full < r.near))) throw Error(`plan-rows people "${r.id}": a far body needs a body and a full range between 0 and its near range`);
   for (const r of rows.people) if (r.body && (r.pose === undefined || r.face === undefined || !(r.near !== undefined && r.near > 0))) throw Error(`plan-rows people "${r.id}": a row with a body names its pose, its facing and a near range > 0`);
+  for (const r of rows.people) if (r.far !== undefined && (!r.body || !(r.full !== undefined && r.full > 0 && r.near !== undefined && r.full < r.near))) throw Error(`plan-rows people "${r.id}": a far body needs a body and a full range between 0 and its near range`);
   for (const t of TABLES.slice(1)) for (const r of rows[t] as readonly Row[]) for (const f of Object.values(r.follow ?? {})) for (const n of Object.keys(f)) if (!rows.anchors.some((q) => q.zone === r.zone && local(q) === n)) throw Error(`plan-rows ${t} "${r.id}": follows "${n}", which is no anchor row of zone "${r.zone}"`);
   return rows;
 }
