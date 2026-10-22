@@ -88,6 +88,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
     const first = z.spawns.rows.find((r) => r.id === spawnIds(g)[0]);
     bad.push(...spawnProblems(g, first?.behaviour.campSize?.[1] ?? 1));
+    if (g.rotation !== undefined) for (const id of spawnIds(g)) if (!z.spawns.rows.some((r) => r.id === id)) bad.push(`group ${g.id}: pool character ${id} has no spawn row, so a respawn that picks it would stand nowhere (a pool never skips a generation)`);
   }
   const nodes = new Set(z.kit.nodes), landmarks = new Set(z.kit.landmarks);
   if (!z.kit.url.startsWith('/world/kit/')) bad.push(`kit url ${z.kit.url}`);

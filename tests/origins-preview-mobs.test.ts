@@ -10,3 +10,4 @@ import '../origins/preview/frontier-zone-rules.test.ts';
 import '../origins/preview/wolf-scale.test.ts';   // merge-order pin: the walking Ash Wolf look is WOLF_RENDER_SCALE once src/fight/beast-scale.ts exists (#1710/#1756)
 import '../origins/preview/legend-fight.test.ts';   // legend bosses on the page: the placed creature, the verified encounter start and settle
 import '../origins/preview/weighted-spawns.test.ts';   // weighted spawn entries: the roll, max, the loader rules, and the plain-group golden
+import '../origins/preview/rotation-spawns.test.ts';   // rotating groups (Dungeon 1 legends): the rules, the loader's pool-row check, generation 0, the pool's bodies

@@ -8,7 +8,8 @@ const HASH_SEED = 0x811c9dc5;   // FNV-1a 32-bit offset basis (exempt: scripts/a
 const HASH_PRIME = 0x01000193;   // FNV-1a 32-bit prime (exempt: the same file)
 
 /** The rotation rules. A closed list of one today; a new rule is a new member and a new branch in `legendAt`, named in the rotation row (`bowl-roster.json` ring `rotation`). */
-export type RotationRule = 'cycle';
+export const ROTATION_RULES = ['cycle'] as const;   // the closed list place.ts validates a group's `rotation` against
+export type RotationRule = typeof ROTATION_RULES[number];
 
 /** FNV-1a over the camp key's UTF-16 code units, as an unsigned 32-bit integer. A stable engine detail (no tuning): the same key hashes the same on every platform and after every restart. */
 export function campOffset(campKey: string): number {

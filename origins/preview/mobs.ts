@@ -13,7 +13,8 @@ import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
-import { entryOf, isPlainGroup, rollCamp } from '../zones/place.ts';
+import { entryOf, isPlainGroup, rollCamp, spawnIds } from '../zones/place.ts';
+import { legendAt } from '../dungeon/legend-at.ts';   // importless: the page and the server resolve a rotating camp with the same function
 import { seedOf } from '../world/relief.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
@@ -23,7 +24,10 @@ export type MobSpec = {
   id: string; character: string; name: string; encounter: EncounterId | null; body: string; level: number;
   zone: string; spawn: string; home: Pos; roam: number; aggro: number; named: boolean;
   legend?: string;   // a legend boss (origins/preview/legend-mobs.ts): drawn like any creature but fought through the verified encounter path (boss:<legend>), never the open world loop
+  pool?: readonly string[]; poolBodies?: readonly string[];   // a ROTATING camp (place.spawns `rotation`): the characters it walks through and every body they can show (`character`/`body` are generation 0's); absent = a camp that never changes
 };
+/** The distinct bodies a rotating camp's pool can show, sorted: what the zone's warm list and the world budget must count for it (a body first seen at engage links its programs mid-fight). */
+export const poolBodies = (bodies: readonly string[]): string[] => [...new Set(bodies)].sort();
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
@@ -62,9 +66,12 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     const at = (zone.landmarks[sp.at] ?? zone.spots?.[sp.at])!, stand = mobStand(b, zone), mid = zoneCentre(zone);
     // A weighted group (docs/specs/origins/weighted-spawns.md): ONE camp, sized by its first entry's row, each slot rolled from the entries in proportion to their weights (rollCamp), from the group's own stream.
     // A plain group (a single bare id, every row today) never reaches this and keeps the draws below exactly.
-    const group = loadZone(f.zone).place?.spawns.find((g) => g.id === sp.id), weighted = !!group && !isPlainGroup(group) && !sp.encounter;
+    // A rotating group (`rotation`, docs/specs/origins/dungeon-legend-rotation.md): its characters are a POOL; the camp is sized by the first one's row and each creature shows the pool's legend for generation 0 here
+    // (legendAt, keyed by the creature's own id); the server and the page's swap resolve later generations with the same function. The pool's bodies ride on the spec so the zone's warm list holds every body the camp can show.
+    const group = loadZone(f.zone).place?.spawns.find((g) => g.id === sp.id), rotating = !!group?.rotation && !sp.encounter, weighted = !!group && !isPlainGroup(group) && !sp.encounter && !rotating;
     const kinds = new Map<string, (typeof who)[number]>(who.map((w) => [w.id, w]));
-    for (const w of weighted ? who.slice(0, 1) : who) {
+    const pool = rotating ? spawnIds(group!).filter((c) => kinds.has(c)) : [];
+    for (const w of weighted || rotating ? who.slice(0, 1) : who) {
       const named = !!sp.encounter, row = named ? undefined : rows.find((r) => r.id === w.id);
       if (!named && !row) continue;   // a kind with no row stands nowhere
       const boss = !!row?.named, dest = boss ? late : out;   // a camp boss: a row flagged `named` (zone level + namedLevelLift), placed by its own group
@@ -73,10 +80,10 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         ? rollCamp(group!.characters.map(entryOf).filter((e) => kinds.has(e.id) && rows.some((r) => r.id === e.id)), count, (slot) => nextRandom(mixSeed(mixSeed(TUNING.seed, seedOf(`${f.zone}:${sp.id}`)), slot))[0]).map((c) => kinds.get(c)!)
         : Array.from({ length: count }, () => w);
       for (let i = 0; i < slots.length; i++) {
-        const sw = slots[i]!, srow = named ? undefined : rows.find((r) => r.id === sw.id), sbh = srow?.behaviour;
+        const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
+        const sw = rotating ? kinds.get(legendAt(pool, id, 0))! : slots[i]!, srow = named ? undefined : rows.find((r) => r.id === sw.id), sbh = srow?.behaviour;
         const p = named ? NAMED : { spread: sbh!.spread ?? 6, pull: sbh!.pull ?? 0, roam: sbh!.roam ?? 6 }, def = f.data.registry.characters.get(sw.id)!;
         const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
-        const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
         let rng = mixSeed(TUNING.seed, boss ? out.length + late.length : out.length), home: Pos | null = null;
         for (let tries = 0; tries < previewRule('mobHomeTries') && !home; tries++) {
           let u: number, v: number;
@@ -88,6 +95,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         dest.push({
           id, character: sw.id, name: def.name, encounter: sp.encounter, body: sw.form.opponent ?? defaultKind, level: named ? (sw.form.level ?? NAMED_LEVEL) : srow!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (sbh!.aggro ?? TUNING.aggro), named: named || boss,   // a camp boss draws as a named foe (label, height, hit ring) like an encounter's
+          ...(rotating ? { pool, poolBodies: poolBodies(pool.map((c) => kinds.get(c)!.form.opponent ?? defaultKind)) } : {}),
         });
       }
     }
@@ -122,10 +130,10 @@ const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[], rows: readonly
 // counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
 export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
   const out: Record<string, Set<string>> = {};
-  for (const s of specs) (out[s.zone] ??= new Set()).add(s.body);
+  for (const s of specs) for (const body of [s.body, ...(s.poolBodies ?? [])]) (out[s.zone] ??= new Set()).add(body);   // a rotating camp counts every body its pool can show
   return Object.fromEntries(Object.entries(out).map(([zone, set]) => [zone, [...set].sort()]));
 };
-export const regionBodies = (specs: readonly MobSpec[]): string[] => [...new Set(specs.map((s) => s.body))].sort();
+export const regionBodies = (specs: readonly MobSpec[]): string[] => [...new Set(specs.flatMap((s) => [s.body, ...(s.poolBodies ?? [])]))].sort();
 
 // The middle of a zone's footprint, world metres (zone frame: across 0, inward depth/2).
 function zoneCentre(z: ZonePlan): Pos {
