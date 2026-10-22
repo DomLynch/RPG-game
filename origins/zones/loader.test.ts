@@ -41,7 +41,7 @@ test('the validator names each way a package can be wrong', () => {
 });
 
 test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {
-  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
+  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone(0|[1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
   assert.deepEqual(allZoneIds(), rows);   // every row, and no more (a new zone row adds no line here)
   assert.deepEqual(zoneIds(), rows.filter((id) => !loadZone(id, true).unlisted), 'no page: every row but the unlisted ones');
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
@@ -113,7 +113,7 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
 // like a link: +3 pieces (marker and sign) and +1 collider, 171 -> 174 and 58 -> 59.
 test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark and the cave-mouth door)', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
-  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [175, '1768f2aa4e292dd5', 60, '0635b6287034a063']);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [177, 'e8a74fb898db8194', 60, '0635b6287034a063']);   // re-pinned 2026-10-22 (zone 0 listed): the open town door keeps Zone 1's exchange-gate landmark marker and signpost, +2 pieces, 175 -> 177; solids unchanged (hashes before it 1768f2aa4e292dd5)
 // Re-pinned 2026-10-20 (World, Lead's ruling: the shrine salamander camp moves 15-20 m off Hrungnir's bounty spot): the new `shrine-field` landmark (u 0.3, v 0.86, chosen from a scan so the goblin camp's dead tree still stands) leaves one stone post and its collider (r 0.6), +1 piece and +1 collider, 174 -> 175 and 59 -> 60; the hashes before it fbc437921f82ccf3 and 2fce1d40b375e5ff.
 });
 

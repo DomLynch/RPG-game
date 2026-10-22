@@ -22,7 +22,7 @@ export type KitKind ={ nodes: readonly string[]; per: number; r: number; solid: 
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
 export type ZonePresence = { speed?: number; quiet?: boolean; trade?: boolean; rejoin?: string; caps?: { floor?: number; soft?: number; hard?: number } };
 /** A warp landmark a package brings (the shape of origins/presence/warp-landmarks.json): a place in Concord metres the server moves a player to when the client names its id. */
-export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string };
+export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string; readonly tradeLanding?: boolean };   // tradeLanding: the town's own start stands inside its trade area on purpose (the same flag as an exit row's)
 export type Zone = {
   id: string; level: number;
   band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
@@ -40,6 +40,8 @@ export type Zone = {
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
   warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
+  entry?: { readonly x: number; readonly z: number; readonly facing?: number };   // where the page opens him when no door brought him (zone row `entry`; absent = among the creatures, as Zone 1)
+  respawn?: { readonly x: number; readonly z: number; readonly warp: string };   // where he stands up after a death, and the presence warp that moves him there (zone row `respawn`; absent = the schema default, the square the region page opens on)
   pvp?: 'off' | 'on' | 'opt-in';   // the zone's PvP default (zone row `pvp`, schema default off); pvp.ts pvpAt reads it with safeAreas
   safeAreas?: readonly SafeArea[];   // rect volumes with their own PvP verdict and spawn rule (zone row `safeAreas`, shape in pvp.ts SafeArea); the most restrictive containing area wins
   presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
