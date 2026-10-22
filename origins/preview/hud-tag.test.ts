@@ -2,14 +2,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
+import { readFileSync } from 'node:fs';
 import { hudPieces, markHud, withoutHud } from './hud-tag.ts';
-import { labelSprite } from './label-sprite.ts';
 
-test('a name tag is a tagged sprite; hudPieces finds tagged pieces only', () => {
-  const root = new THREE.Group(), tag = labelSprite('Wolf · Lv 2', false), plain = new THREE.Mesh();
+test('hudPieces finds tagged pieces only', () => {
+  const root = new THREE.Group(), tag = markHud(new THREE.Sprite(), 'tag'), plain = new THREE.Mesh();
   root.add(tag, plain);
   assert.equal(tag.userData.hud, 'tag');
   assert.deepEqual(hudPieces(root), [tag]);
+});
+
+// The pieces are made where the DOM canvas and the scene are (a canvas 2D context for the sprites), so the tagging is pinned at its source.
+test('every scene-space HUD piece is tagged where it is made: name tags, "!", notice ring, ground ring', () => {
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
+  assert.match(read('./label-sprite.ts'), /return markHud\(s, 'tag'\)/);
+  assert.match(read('./mobs-view.ts'), /return markHud\(s, 'bang'\)/);
+  assert.match(read('./mobs-view.ts'), /markHud\(ring, 'ring'\)/);
+  assert.match(read('./ground-item-view.ts'), /markHud\(m, 'ground-ring'\)/);
 });
 
 test('withoutHud hides every piece for the draw and restores what each had (a hidden "!" stays hidden)', () => {
