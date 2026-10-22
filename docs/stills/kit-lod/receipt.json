@@ -16,80 +16,120 @@
    "arm": "lod-on",
    "node": "goblin_hut",
    "label": "near",
-   "at": [
+   "asked": [
     -150,
     -40
    ],
+   "stood": [
+    -150,
+    -40
+   ],
+   "distToPiece": 13,
    "file": "goblin_hut-near-lod-on.jpg"
   },
   {
    "arm": "lod-on",
    "node": "goblin_hut",
    "label": "far",
-   "at": [
+   "asked": [
     -107,
     -57
    ],
+   "stood": [
+    -107,
+    -57
+   ],
+   "distToPiece": 59,
    "file": "goblin_hut-far-lod-on.jpg"
   },
   {
    "arm": "lod-on",
    "node": "goblin_totem",
    "label": "near",
-   "at": [
+   "asked": [
     -94,
     0
    ],
+   "stood": [
+    -94,
+    0
+   ],
+   "distToPiece": 13,
    "file": "goblin_totem-near-lod-on.jpg"
   },
   {
    "arm": "lod-on",
    "node": "goblin_totem",
    "label": "far",
-   "at": [
+   "asked": [
     -51,
     -17
    ],
+   "stood": [
+    -51,
+    -17
+   ],
+   "distToPiece": 59,
    "file": "goblin_totem-far-lod-on.jpg"
   },
   {
    "arm": "lod-off",
    "node": "goblin_hut",
    "label": "near",
-   "at": [
+   "asked": [
     -150,
     -40
    ],
+   "stood": [
+    -150,
+    -40
+   ],
+   "distToPiece": 13,
    "file": "goblin_hut-near-lod-off.jpg"
   },
   {
    "arm": "lod-off",
    "node": "goblin_hut",
    "label": "far",
-   "at": [
+   "asked": [
     -107,
     -57
    ],
+   "stood": [
+    -107,
+    -57
+   ],
+   "distToPiece": 59,
    "file": "goblin_hut-far-lod-off.jpg"
   },
   {
    "arm": "lod-off",
    "node": "goblin_totem",
    "label": "near",
-   "at": [
+   "asked": [
     -94,
     0
    ],
+   "stood": [
+    -94,
+    0
+   ],
+   "distToPiece": 13,
    "file": "goblin_totem-near-lod-off.jpg"
   },
   {
    "arm": "lod-off",
    "node": "goblin_totem",
    "label": "far",
-   "at": [
+   "asked": [
     -51,
     -17
    ],
+   "stood": [
+    -51,
+    -17
+   ],
+   "distToPiece": 59,
    "file": "goblin_totem-far-lod-off.jpg"
   }
  ]
