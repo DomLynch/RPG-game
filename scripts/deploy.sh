@@ -336,8 +336,21 @@ for _lt in $(ssh "${ssh_options[@]}" "$host" 'cd /var/www/frankendom/current/pre
 done
 [[ -z "$look_missing" ]] || echo "look-test folders not serving:$look_missing" >&2   # shares no words with the production LIVE line raised at the end: the resume greps for that one to STOP
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
+# A drift stops the train ONLY when this release did not change the vhost: a release that does (K6q17 #3568, K6q19 #3582) is the announced case, provision.sh follows the Published line, and
+# stopping there made the train raise "previews missing" for a healthy release (two false STOPs on 2026-10-22, each a manual clear). Unexplained drift still stops.
+# nginx-drift begin
+nginx_drift_expected() {   # $1 the outgoing live sha, $2 this revision: 0 only when both are real commits and the vhost paths differ between them
+  [[ "$1" =~ ^[0-9a-f]{40}$ ]] || return 1
+  git cat-file -e "$1^{commit}" 2>/dev/null || return 1
+  [[ -n "$(git diff --name-only "$1" "$2" -- deploy/frankendom.com.conf ops/nginx 2>/dev/null)" ]]
+}
+# nginx-drift end
 nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
-if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
+if [[ -n "$nginx_drift" ]]; then
+  echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2
+  if nginx_drift_expected "${live_now:-}" "$revision"; then echo "nginx: PROVISION PENDING: this release changes the vhost (deploy/frankendom.com.conf or ops/nginx), so the drift is expected and does not stop the train; run scripts/provision.sh after the Published line" >&2
+  else previews_ok=0; fi
+fi
 curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
