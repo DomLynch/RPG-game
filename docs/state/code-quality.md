@@ -1,5 +1,43 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~17:0x +04: HANDOFF before /clear. READ FIRST.
+**Live:** K6q26 3d4226586 (Dungeon 1); /dungeon1/, /zone7/, /zone1/ return 200.
+
+**NOW, in order:**
+1. **K6q27 #3626 @50bdfdb64 (= #3618 + #3619 + #3623): PASS NOT POSTED YET.**
+   - Tree read OK: candidate tree 457f603d4 = the replay of trunk + the 3 PASS heads, no .github/.
+   - 4 CI row groups stalled in apt: rows 3,13,14,17,19,27,35,37,41,43,50,53,57,58. Deploy is rerunning them once.
+   - My VPS receipt run of those 14 rows at that tree was in flight. Read `ssh root@49.12.7.18 cat /srv/dev-jobs/auditor-k6q27-rows-20261022/rows.log` and `rows-receipt.json`. The script is /srv/dev-jobs/auditor-tools-20261022/run-rows-only.sh `<job-dir> <sha> <rows>`; re-run it if the ssh died with /clear.
+   - PASS when every latest CI row is green, OR when the rerun stalls again and the VPS receipt is green: cite it, and Lead posts a `Lead: TRUST @50bdfdb64 rows … — <reason>` line or Deploy uses DEPLOY_TRUST_ROWS.
+   - Lead's watcher sets candidate:pass.
+2. **Gate #3628** (World, Dungeon look: blood + irregular rim/floor, rows only) @9b903aaff, for K6q28 with #3616 + #3624.
+   - Lead: a first-run zone-7 depth #91 is KNOWN (Combat's remote-kit shadow warm, fix a61e44802 coming), so it doesn't block.
+   - Merge-tree it vs K6q27 and vs #3624 @36c0ff952. Run zone-7 seamless and the /dungeon1/ probe on a local merge.
+3. **#3625 follow-up (Lead approved, re-OK covers the new blob):** on a failed apt install, rewrite azure.archive.ubuntu.com → archive.ubuntu.com and retry once.
+   - Only fold it into #3625 if it can be re-PASSed before K6q27 publishes; otherwise make it its own PR right after.
+   - It needs a new watchedAllow entry for the new blob.
+4. **CI PR** (code-quality/ci-delta-rows @909579eba, pushed, Lead's review DONE): open it once #3619 is on trunk (it rides K6q27).
+   - Steps: merge trunk; add the zone-pages area to scripts/release-scope.json (paths origins/zone-rows/**, origins/zones/**, origins/preview/**, origins/world/**, scripts/gen-zones.mjs, scripts/lib/zone-pages.mjs → zone-pages-check) plus a test; add watchedAllow entries for its quality.yml + release-checks.yml blobs with the PR number (Lead's OK covers them).
+   - It gets its own CI-only cut after #3625. Worktree: scratchpad wtci (session cbdb14d7).
+
+**PASSed and labelled (candidate:pass):** #3625 @a4653157a (issuecomment-6341233520), #3616 @63a691298 (-6341244501), #3624 @36c0ff952 (-6341245194; merges #3616 with the union). K6q28 = #3616 then #3624 (+ #3628 if it PASSes).
+
+**Follow-ups:**
+- Post-publish phone check of the town plaza entry (the SwiftShader A/B showed one ~1-2 s spike with folk on). The fix, if it shows: stand the warmed bodies two frames in the scene.
+- Lead gave Web the town page's missing [zone ready] (zoneReadyCheck returns while !mobs).
+- Combat owns the zone-7 hero-warm bound issue (reds at the 20 s kindsWait). Logs are in /tmp/aud-z7 on the VPS.
+
+**Tools (scratchpad cbdb14d7):**
+- town-probe.mjs `<worktree> "<query>" x z`; NOREADY=1 for the town page.
+- mac-rows-d1.sh, d1-probe.mjs, await-cand.sh `<sha>`, gate-k6q28.sh / run-k28.sh.
+- VPS /srv/dev-jobs/auditor-tools-20261022/{run-row57.sh, run-rows-only.sh, run-tests.sh}.
+- The worktree wtk28 (K6q28 local merge) can be removed once #3628 is gated.
+
+**Gotchas:**
+- The Mac disk sits near the cut guard: remove finished worktrees (`git worktree remove --force <literal path>`; the hook refuses variable paths).
+- Builds on the Mac are hook-blocked except inside browser rows (the seamless check builds the page itself).
+- The town page never sets __zoneReady.
+
 ## 2026-10-22 ~16:2x +04 addendum
 - **K6q26 publish:** manual, Deploy with DEPLOY_TRUST_ROWS=57 (Lead's GO).
 - **#3625 open** (mine, supersedes #2613): bounded apt + ffmpeg only for the arena-audio group, plus a watchedAllow blob afed6f2e9 with Lead's OK. VPS 45/45. Lead reviews it. Its own CI cut after K6q27.
