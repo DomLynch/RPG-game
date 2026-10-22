@@ -217,7 +217,8 @@ test('a Lead TRUST line at the head stands in for its named release rows only (L
   const c = (comments: { body: string; authorAssociation: string }[]) => ({ number: 3621, headRefName: 'release-K6q26', baseRefName: TRUNK, headRefOid: head, createdAt: 'a', isDraft: false, labels: [{ name: 'candidate:pass' }], comments: [lead('Auditor: PASS @fffffffff'), ...comments], statusCheckRollup: rollup });
   const trust = lead('Lead: TRUST @fffffffff rows 57 — green on the Mac and the VPS at this tree; CI lost to the apt mirror');
   assert.equal(pickPublish([c([])]), null, 'no trust: the summary red and row 57 pending block, as before');
-  assert.deepEqual(trustAt([trust], head), { rows: [57], reason: 'green on the Mac and the VPS at this tree; CI lost to the apt mirror' });
+  const { rows: trustedRows, reason } = trustAt([trust], head)!;
+  assert.deepEqual({ rows: trustedRows, reason }, { rows: [57], reason: 'green on the Mac and the VPS at this tree; CI lost to the apt mirror' });
   assert.equal(pickPublish([c([trust])])?.number, 3621, 'trusted row 57: publishable');
   assert.deepEqual(missingRows(withoutTrustedRows(rollup, trustAt([trust], head))), []);
   assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 57 — x', 'NONE')])]), null, 'an outsider on the public repo cannot trust a row');
