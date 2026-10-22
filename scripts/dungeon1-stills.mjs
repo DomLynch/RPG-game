@@ -15,7 +15,7 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }), page = await ctx.newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
   await page.goto(`${base}/preview/origins/?region=1&zone=7&presence=0&daynight=0`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__zoneReady, null, { timeout: 240000 });
+  await page.waitForFunction(() => window.originsPreview, null, { timeout: 240000 });
   await page.evaluate(() => { for (const el of document.querySelectorAll('div,p,section')) if (el.children.length === 0 && /^Left stick walks/.test(el.textContent ?? '')) (el.closest('[class]') ?? el).style.display = 'none'; });
   await page.waitForTimeout(4000);
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'); const e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
