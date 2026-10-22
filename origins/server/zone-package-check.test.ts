@@ -51,7 +51,7 @@ test('the key rule is per zone: a key that reads as another zone, does not fit t
 });
 
 test('a door to a zone that is not a package, a door with no landing, and a warp id that is already taken are problems', () => {
-  const z = zones(), z1 = z['1']!, door = EXITS.find((e) => z1.world.includes(e.zone))!;
+  const z = zones(), z1 = z['1']!, door = EXITS.find((e) => z1.world.includes(e.zone) && z[e.to]!.unlisted !== true)!;   // a door to a LISTED zone: an unlisted far zone's landing is checked when it is listed (beta 10-22: the cave mouth leads to the unlisted Bone Hollow now)
   const run = (exits: readonly ExitRow[], zone: Zone = z1): string[] => packageProblems(zone, ctx(z, exits));
   assert.ok(run([{ ...door, to: '77' }]).some((p) => /"77" is not a zone package/.test(p)));
   assert.ok(run([{ ...door, arrive: 'no-such-landmark' }]).some((p) => /has no landing \(arrive landmark "no-such-landmark"\)/.test(p)));
