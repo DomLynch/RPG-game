@@ -19,6 +19,7 @@ try {
     await page.goto(`${base}/preview/origins/`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview, null, { timeout: 300000 });
     await page.waitForTimeout(14000);
+    if (process.env.VIA) { await page.evaluate((v) => window.originsPreview.place(...v.split(',').map(Number)), process.env.VIA); await page.waitForTimeout(6000); }   // VIA=x,z,heading: stand there first (the Exchange), then POS = walk out again (the exit still)
     if (spot) { await page.evaluate(([px, pz, ph]) => window.originsPreview.place(px, pz, ph), spot); await page.waitForTimeout(4000); }
     receipt.renderer ??= await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'); const e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
     const pos = await page.evaluate(() => ({ ...window.originsPreview.pos }));
