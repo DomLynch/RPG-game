@@ -49,16 +49,20 @@
   ],
   "palettes": [
     { "id": "fortress", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-panorama", "backdropLandscape": "fortress-panorama" },
-    { "id": "fortress-card", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-card", "backdropLandscape": "fortress-card" }
+    { "id": "fortress-card", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-card", "backdropLandscape": "fortress-card" },
+    { "id": "reach-plate", "haze": "reach-plate", "zenith": "#14123a", "mid": "#2c2860", "horizon": "#5b5478", "glow": "#9aa8e8", "ridge": "#1a1630", "ridgeFar": "#2e2850", "smoke": "#4a4468", "puff": "#3a3458", "torch": "#ffa850", "torchPower": 7, "backdropPortrait": "zone2-plate-portrait", "backdropLandscape": "zone2-plate-landscape" }
   ],
   "backdrops": [
     { "id": "fortress-card", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.84, "arc": 56, "azimuth": 180, "fadeSide": 0.25, "flat": 1, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.06, "drop": 0.04 },
     { "id": "fortress-panorama", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.92, "arc": 45, "azimuth": 180, "around": 8, "fadeSide": 0, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.08, "drop": 0 },
     { "id": "fortress-portrait", "file": "zones/goblin-fortress-portrait.webp", "x0": 0, "x1": 1, "y0": 0.18, "y1": 0.705, "repeat": 8, "texW": 2560, "texH": 800, "fadeTop": 0.12, "fadeFoot": 0.06, "drop": 0.12 },
     { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06, "drop": 0.08 }
+    ,{ "id": "zone2-plate-landscape", "file": "zones/zone2-backdrop.webp", "x0": 0, "x1": 1, "y0": 0, "y1": 0.9, "arc": 60, "azimuth": 180, "around": 6, "fadeSide": 0, "texW": 2000, "texH": 662, "fadeTop": 0.3, "fadeFoot": 0.06, "drop": 0.3 },
+    { "id": "zone2-plate-portrait", "file": "zones/zone2-backdrop.webp", "x0": 0.15, "x1": 0.8, "y0": 0, "y1": 0.9, "arc": 60, "azimuth": 180, "around": 6, "fadeSide": 0, "texW": 2000, "texH": 662, "fadeTop": 0.3, "fadeFoot": 0.06, "drop": 0.3 }
   ],
   "looks": [
-    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] }
+    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] },
+    { "id": "reach-plate", "fog": "#5b5478", "fogDensity": 0.013, "hemiSky": "#7a84d0", "hemiGround": "#2e2638", "hemiIntensity": 1.1, "sunColor": "#b4c0ff", "sunIntensity": 4.2, "sunPos": [-24, 13, -15], "exposure": 1.25, "ground": [0.78, 0.78, 0.92] }
   ],
   "grounds": [
     { "id": "fortress-ground", "texN": 1024, "tileM": 4, "seed": 7, "base": "#4b3828", "light": "#68513c", "dark": "#271c14", "wet": "#1e1610", "blotches": 140, "blotchMin": 20, "blotchMax": 70, "wetPatches": 30, "wetMin": 60, "wetMax": 200, "speckles": 26000, "speckleMin": 1, "speckleMax": 3, "pebbles": 260, "pebbleMin": 2, "pebbleMax": 7, "cracks": 40, "crackSteps": 8, "crackStep": 50, "noise": 14, "bump": 1.6, "roughness": 0.95 },

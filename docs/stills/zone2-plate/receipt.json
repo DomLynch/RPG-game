@@ -1,0 +1,28 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "look": "base",
+      "name": "375",
+      "file": "base-375.png"
+    },
+    {
+      "look": "base",
+      "name": "375",
+      "file": "base-375-fight.png",
+      "infight": true
+    },
+    {
+      "look": "base",
+      "name": "desktop",
+      "file": "base-desktop.png"
+    },
+    {
+      "look": "base",
+      "name": "desktop",
+      "file": "base-desktop-fight.png",
+      "infight": true
+    }
+  ],
+  "errors": []
+}
