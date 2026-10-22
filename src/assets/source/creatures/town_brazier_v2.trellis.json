@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/brazier-source-v2.png",
+  "preprocess_s": 11.5,
+  "image_to_3d_s": 38.1,
+  "extract_glb_s": 29.6,
+  "glb": "src/assets/source/creatures/town_brazier_v2.glb",
+  "bytes": 5666188,
+  "sha256": "75f2ca2f121d29913f93e9683b817c38939d20cdc5c1100d4d5f2e34250c2570",
+  "attempts": 1
+}

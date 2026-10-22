@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A tall ornate gilded bronze banner standard: a slim bronze pole with a crossbar and a round gold medallion finial, with two long crimson cloth banners hanging from the crossbar, each bearing a gold crest, set in a small square marble foot block. Isolated single game prop, centered, full object in frame, front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, aged bronze and gold trim, crimson cloth, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 58.2,
+  "sha256": "4085de179484cf8fa9aea684ae7c1bece85c845890c1b76e9d0b51009b0d2be9"
+}

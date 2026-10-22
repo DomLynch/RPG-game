@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/lion-source-v3.png",
+  "preprocess_s": 10.1,
+  "image_to_3d_s": 37.2,
+  "extract_glb_s": 44.7,
+  "glb": "src/assets/source/creatures/town_lion_v3.glb",
+  "bytes": 5405064,
+  "sha256": "08db8899a318624b618a4800ab2edb1e9bc664b9b71565d7b848d9f88671f7ce",
+  "attempts": 1
+}
