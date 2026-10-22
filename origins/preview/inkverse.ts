@@ -18,7 +18,11 @@ export type InkLook = {
   /** A faint dot texture in the deep shadows only (strength 0 = none). */
   readonly halftone: { readonly strength: number; readonly below: number; readonly cellPx: number; readonly angleDeg: number };
   /** Thin outlines: `thicknessPx` in device pixels, fading to nothing between `fadeNear` and `fadeFar` metres. */
-  readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number; readonly fadeNear: number; readonly fadeFar: number };
+  readonly edges: { readonly thicknessPx: number; readonly silhouetteMul: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number; readonly fadeNear: number; readonly fadeFar: number };
+  /** Screen-space occlusion darkening the lit frame BEFORE the curve (strength 0 = off): `radiusPx` the tap ring, `range` metres a neighbour may stand in front, `bias` metres below which it does not count. */
+  readonly ao: { readonly strength: number; readonly radiusPx: number; readonly range: number; readonly bias: number };
+  /** Hatching in the dark band only, its lines running across the light's direction on screen (strength 0 = off): `spacingPx` between lines, `duty` the inked share of each. */
+  readonly hatch: { readonly strength: number; readonly below: number; readonly spacingPx: number; readonly duty: number };
   /** Paper grain over the whole frame, and an inky vignette whose edge is broken up by noise. */
   readonly grain: { readonly strength: number; readonly scalePx: number };
   readonly vignette: { readonly strength: number; readonly start: number; readonly breakup: number; readonly freq: number };
@@ -41,10 +45,11 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
   const out = new Map<string, InkLook>();
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
     const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high']), halftone = group(id, 'halftone', fields.halftone, ['strength', 'below', 'cellPx', 'angleDeg']);
-    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
+    const ao = group(id, 'ao', fields.ao, ['strength', 'radiusPx', 'range', 'bias']), hatch = group(id, 'hatch', fields.hatch, ['strength', 'below', 'spacingPx', 'duty']);
+    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
     const tags = fields.tags as Record<string, unknown> | undefined;
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
   }
   return out;
 }
@@ -61,6 +66,7 @@ uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle, 
 uniform float thick, depthRel, normalDot, edgeStrength, darkBelow, fadeNear, fadeFar;
 uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep, redGain, blueGain, redGlowPx, redGlowK;
 uniform float grainK, grainPx, vigK, vigStart, vigBreak, vigFreq;
+uniform float silMul, aoK, aoPx, aoRange, aoBias, hatchK, hatchBelow, hatchPx, hatchDuty, lightAngle;
 varying vec2 vUv;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -70,16 +76,31 @@ void main() {
   vec3 hdr = texture2D(tColor, vUv).rgb * exposure;
   float lin = dot(hdr, vec3(0.2126, 0.7152, 0.0722));
   float l = pow(max(lin, 0.0), 1.0 / gamma);
+  float z0 = viewZ(vUv); vec2 o = texel * thick;
+  if (aoK > 0.0) {   // occlusion first: a neighbour that stands in front of this pixel (within range) darkens it, before the curve crushes anything
+    float occ = 0.0;
+    for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854; float dz = viewZ(vUv + vec2(cos(a), sin(a)) * texel * aoPx) - z0; occ += step(aoBias, dz) * (1.0 - smoothstep(0.0, aoRange, dz)); }
+    l *= 1.0 - aoK * occ / 8.0;
+  }
   l = clamp((l - pivot) * contrast + 0.5, 0.0, 1.0);   // the S-curve about the scene's own mid tone
   // Continuous greyscale: the lit frame at full resolution through the S-curve (blacks crushed below lowCut, paper above highCut, every grey between kept). A faint dot texture only in the deepest shadows (htStrength 0 = none).
   float shade = smoothstep(lowCut, highCut, l);
   vec2 p = gl_FragCoord.xy / (cellPx * ratio); float ca = cos(angle), sa = sin(angle);
   vec2 q = vec2(ca * p.x + sa * p.y, -sa * p.x + ca * p.y); vec2 f = fract(q) - 0.5;
   shade *= 1.0 - htStrength * (1.0 - smoothstep(0.0, htBelow, l)) * step(length(f), 0.35);
+  if (hatchK > 0.0) {   // hatching in the dark band only: lines across the light's screen direction, a second set crossing them in the deepest dark
+    float dark = 1.0 - smoothstep(0.0, hatchBelow, l), ha = lightAngle + 1.5708;
+    float c1 = fract(dot(gl_FragCoord.xy, vec2(cos(ha), sin(ha))) / (hatchPx * ratio)), c2 = fract(dot(gl_FragCoord.xy, vec2(cos(ha + 1.0472), sin(ha + 1.0472))) / (hatchPx * ratio));
+    float line = max(step(1.0 - hatchDuty, c1), step(0.5, dark) * step(1.0 - hatchDuty, c2));
+    shade *= 1.0 - hatchK * dark * line;
+  }
   // Edges: depth jump (relative to depth) or a turn in the surface normal, both read off the depth buffer.
-  float z0 = viewZ(vUv); vec2 o = texel * thick;
   float zl = viewZ(vUv - vec2(o.x, 0.0)), zr = viewZ(vUv + vec2(o.x, 0.0)), zd = viewZ(vUv - vec2(0.0, o.y)), zu = viewZ(vUv + vec2(0.0, o.y));
   float depthEdge = max(max(abs(zl - z0), abs(zr - z0)), max(abs(zd - z0), abs(zu - z0))) / max(-z0, 0.001);
+  if (silMul > 1.0) {   // silhouettes (depth jumps) are drawn heavier than the inner creases: the same test at a wider reach
+    vec2 w = o * silMul;
+    depthEdge = max(depthEdge, max(max(abs(viewZ(vUv - vec2(w.x, 0.0)) - z0), abs(viewZ(vUv + vec2(w.x, 0.0)) - z0)), max(abs(viewZ(vUv - vec2(0.0, w.y)) - z0), abs(viewZ(vUv + vec2(0.0, w.y)) - z0))) / max(-z0, 0.001));
+  }
   vec3 P = viewPos(vUv, z0);
   vec3 dxl = P - viewPos(vUv - vec2(o.x, 0.0), zl), dxr = viewPos(vUv + vec2(o.x, 0.0), zr) - P;
   vec3 dyd = P - viewPos(vUv - vec2(0.0, o.y), zd), dyu = viewPos(vUv + vec2(0.0, o.y), zu) - P;
@@ -120,6 +141,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     uniforms: {
       tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(H.cellPx), angle: u(H.angleDeg * rad), htStrength: u(H.strength), htBelow: u(H.below),
+      silMul: u(E.silhouetteMul), aoK: u(look.ao.strength), aoPx: u(look.ao.radiusPx), aoRange: u(look.ao.range), aoBias: u(look.ao.bias), hatchK: u(look.hatch.strength), hatchBelow: u(look.hatch.below), hatchPx: u(look.hatch.spacingPx), hatchDuty: u(look.hatch.duty), lightAngle: u(0),
       thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow), fadeNear: u(E.fadeNear), fadeFar: u(E.fadeFar),
       redGain: u(look.tags.red.gain), blueGain: u(look.tags.blue.gain), redGlowPx: u(look.tags.red.glowPx), redGlowK: u(look.tags.red.glowStrength),
       grainK: u(look.grain.strength), grainPx: u(look.grain.scalePx), vigK: u(look.vignette.strength), vigStart: u(look.vignette.start), vigBreak: u(look.vignette.breakup), vigFreq: u(look.vignette.freq),
@@ -170,7 +192,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }
     });
   };
-  let frames = 0;
+  let frames = 0; const toLight = new THREE.Vector3();
   const render = (): void => {
     if (frames++ % 30 === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
@@ -185,6 +207,10 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     }
     (mat.uniforms.projScale!.value as THREE.Vector2).set(1 / camera.projectionMatrix.elements[0]!, 1 / camera.projectionMatrix.elements[5]!);
     mat.uniforms.cameraNear!.value = camera.near; mat.uniforms.cameraFar!.value = camera.far;
+    if (look.hatch.strength > 0) {   // the light's direction on screen: from the scene's directional light, in the camera's view
+      const sun = scene.children.find((c) => (c as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight | undefined;
+      if (sun) { toLight.copy(sun.position).sub(sun.target.position).transformDirection(camera.matrixWorldInverse); mat.uniforms.lightAngle!.value = Math.atan2(toLight.y, toLight.x); }
+    }
     renderer.setRenderTarget(before); renderer.autoClear = true; renderer.render(post, postCam);
     if (hudList.length) { const bg = scene.background, fog = scene.fog; renderer.autoClear = false; scene.background = null; camera.layers.set(HUD_LAYER); renderer.render(scene, camera); scene.background = bg; scene.fog = fog; camera.layers.set(0); }   // the HUD pieces, plain, on top (no scene depth: a tag behind a wall still shows)
     renderer.autoClear = autoClear; renderer.setClearColor(clear, clearA);
