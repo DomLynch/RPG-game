@@ -11,11 +11,11 @@ export const centreOf = (page) => page.evaluate(() => window.originsPreview.grou
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
 
 /** Serve `dist` at /preview/origins/ and the repo's public folders beside it. */
-export async function serveOriginsPreview(dist, root = process.cwd()) {
+export async function serveOriginsPreview(dist, root = process.cwd(), shortPaths = []) {   // shortPaths: addresses such as /zone2/ and /dungeon1/ answered with the built page, as the live box's nginx rule does
   const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
   for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
   const server = http.createServer((req, res) => {
-    const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
+    const u = decodeURIComponent(req.url.split('?')[0]); let hit = shortPaths.includes(u) ? path.join(path.resolve(dist), 'index.html') : null;
     for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html');
     if (hit && fs.existsSync(hit) && fs.statSync(hit).isDirectory()) hit = path.join(hit, 'index.html');
     if (!hit || !fs.existsSync(hit)) { res.writeHead(404); return res.end(); }

@@ -2544,7 +2544,7 @@
   },
   {
    "fix": "owed: creature body trim pass (Characters)",
-   "count": 11,
+   "count": 16,
    "entries": [
     {
      "file": "public/world/bear.glb",
@@ -2594,6 +2594,40 @@
       "draws": 1,
       "textureSide": 1024,
       "bytes": 1879828,
+      "pngBytes": 0
+     }
+    },
+    {
+     "file": "public/world/dwarf.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 15951,
+      "bytes": 1854924
+     },
+     "figures": {
+      "tris": 7999,
+      "skinnedVerts": 15951,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1854924,
+      "pngBytes": 0
+     }
+    },
+    {
+     "file": "public/world/executioner.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 15829,
+      "bytes": 1763580
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 15829,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1763580,
       "pngBytes": 0
      }
     },
@@ -2682,6 +2716,40 @@
      }
     },
     {
+     "file": "public/world/plaguedoctor.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 16257,
+      "bytes": 1429132
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 16257,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1429132,
+      "pngBytes": 0
+     }
+    },
+    {
+     "file": "public/world/shieldmaiden.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 14802,
+      "bytes": 1616508
+     },
+     "figures": {
+      "tris": 7995,
+      "skinnedVerts": 14802,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1616508,
+      "pngBytes": 0
+     }
+    },
+    {
      "file": "public/world/skeleton.glb",
      "class": "plain-creature",
      "over": {
@@ -2695,6 +2763,23 @@
       "draws": 1,
       "textureSide": 1024,
       "bytes": 2026588,
+      "pngBytes": 0
+     }
+    },
+    {
+     "file": "public/world/veteran.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 15846,
+      "bytes": 1882220
+     },
+     "figures": {
+      "tris": 7999,
+      "skinnedVerts": 15846,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1882220,
       "pngBytes": 0
      }
     },

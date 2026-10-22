@@ -41,8 +41,7 @@ export function oraclePlan(a: Anchors, k: Knobs): Plan {
     const x = cx + side * (half - 1.5), back = cx + side * (half + 3), from = near - 6, to = far + 6;
     for (let z = from; z >= to; z -= 4) fluteColumn(x, z, 5.2, 0.32);
     put('stone', box(5.4, 0.7, from - to + 2), (x + back) / 2, 5.55, (from + to) / 2, SANDSTONE);
-    put('stone', box(0.8, 5.2, from - to + 2), back, 2.6, (from + to) / 2, DARKSTONE, 0, 0);
-    for (let z = from - 2; z > to; z -= 8) put('soot', box(0.1, 2.6, 1.6), back - side * 0.42, 1.3, z, SOOT);
+    // No brick back wall behind the colonnade and no soot streaks on it (Dom 2026-10-22: it hid the skyline; the columns' spacing is the screen). The kerb at the zone edge and the walk limits are unchanged.
   }
   const N = a.board;
   put('stone', box(0.25, 2.6, 0.25), N.x, 1.3, N.z + 1.4, SOOT);

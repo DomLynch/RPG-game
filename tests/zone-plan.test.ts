@@ -27,12 +27,12 @@ const greybox = <T extends { pieces: readonly object[] }>(plan: T): T => ({ ...p
 const compare = (m: Record<string, number>, what: string) => { const { a, k } = fromSources(m); close(greybox(planFor('exchange', (s) => m[s]!)!), oraclePlan(a, k), what); };
 
 test('the Exchange carries a plan; every source its anchors name is one its world data answers, and none is left unread', () => {
-  assert.deepEqual(planZones(), ['exchange']);
+  assert.deepEqual(planZones(), ['exchange', '7']);   // the Exchange, then Dungeon 1's bowl (zone 7; free-standing: no anchors)
   assert.deepEqual([...sources].sort(), Object.keys(base).sort());
 });
 test('at the shipped anchors the rows build exactly what the code built', () => {
   assert.deepEqual(greybox(exchangePlan()), oraclePlan(A, K));
-  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 215);
+  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 205);   // 215 -> 205 (2026-10-22): the two stoa back walls and their eight soot streaks are gone
 });
 test('every source, moved a little, moves the same pieces by the same amounts as the code did', () => {
   for (const s of sources) for (const d of [0.05, -0.05]) compare({ ...base, [s]: base[s]! + d }, `${s} ${d}`);

@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "pitLegendRule", "file": "legend-foes.json", "at": "rules", "keyed": true, "key": "id", "required": { "idPrefix": "string", "role": "string", "killRow": "string", "lootTable": "string", "template": "object" } }
+  ]
+}

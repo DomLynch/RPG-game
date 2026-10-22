@@ -1,0 +1,276 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "yard-start",
+      "file": "spiral-yard-start-375.png",
+      "hero": {
+        "x": 0,
+        "z": 36,
+        "y": 0
+      },
+      "camera": {
+        "y": 3.5,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "landing-a",
+      "file": "spiral-landing-a-375.png",
+      "hero": {
+        "x": 9.16,
+        "z": 14.75,
+        "y": 0
+      },
+      "camera": {
+        "y": 3.5,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "ramp-1-mid",
+      "file": "spiral-ramp-1-mid-375.png",
+      "hero": {
+        "x": 17.73,
+        "z": -2.78,
+        "y": -1.44
+      },
+      "camera": {
+        "y": 2.07,
+        "clearanceM": 2.99
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "landing-b",
+      "file": "spiral-landing-b-375.png",
+      "hero": {
+        "x": 2.4,
+        "z": -16.83,
+        "y": -2.25
+      },
+      "camera": {
+        "y": 1.25,
+        "clearanceM": 3.45
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "ramp-2-mid",
+      "file": "spiral-ramp-2-mid-375.png",
+      "hero": {
+        "x": -16.65,
+        "z": -6.73,
+        "y": -4.11
+      },
+      "camera": {
+        "y": -0.6,
+        "clearanceM": 2.99
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "landing-c",
+      "file": "spiral-landing-c-375.png",
+      "hero": {
+        "x": -16.3,
+        "z": 4.82,
+        "y": -4.4
+      },
+      "camera": {
+        "y": -0.9,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "floor",
+      "file": "spiral-floor-375.png",
+      "hero": {
+        "x": 0,
+        "z": 3,
+        "y": -4.4
+      },
+      "camera": {
+        "y": -0.9,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "duel-ramp",
+      "file": "spiral-duel-ramp-375.png",
+      "hero": {
+        "x": 19.29,
+        "z": 36,
+        "y": -1.45
+      },
+      "camera": {
+        "y": 2.08,
+        "clearanceM": 2.08
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "375",
+      "name": "duel-floor",
+      "file": "spiral-duel-floor-375.png",
+      "hero": {
+        "x": 26,
+        "z": 36,
+        "y": -2.2
+      },
+      "camera": {
+        "y": 1.3,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "yard-start",
+      "file": "spiral-yard-start-desktop.png",
+      "hero": {
+        "x": 0,
+        "z": 36,
+        "y": 0
+      },
+      "camera": {
+        "y": 3.5,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "landing-a",
+      "file": "spiral-landing-a-desktop.png",
+      "hero": {
+        "x": 9.11,
+        "z": 14.77,
+        "y": 0
+      },
+      "camera": {
+        "y": 3.5,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "ramp-1-mid",
+      "file": "spiral-ramp-1-mid-desktop.png",
+      "hero": {
+        "x": 17.73,
+        "z": -2.77,
+        "y": -1.44
+      },
+      "camera": {
+        "y": 2.07,
+        "clearanceM": 2.99
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "landing-b",
+      "file": "spiral-landing-b-desktop.png",
+      "hero": {
+        "x": 2.4,
+        "z": -16.83,
+        "y": -2.25
+      },
+      "camera": {
+        "y": 1.25,
+        "clearanceM": 3.45
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "ramp-2-mid",
+      "file": "spiral-ramp-2-mid-desktop.png",
+      "hero": {
+        "x": -16.65,
+        "z": -6.73,
+        "y": -4.11
+      },
+      "camera": {
+        "y": -0.6,
+        "clearanceM": 2.99
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "landing-c",
+      "file": "spiral-landing-c-desktop.png",
+      "hero": {
+        "x": -16.3,
+        "z": 4.82,
+        "y": -4.4
+      },
+      "camera": {
+        "y": -0.9,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "floor",
+      "file": "spiral-floor-desktop.png",
+      "hero": {
+        "x": 0,
+        "z": 3,
+        "y": -4.4
+      },
+      "camera": {
+        "y": -0.9,
+        "clearanceM": 3.5
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "duel-ramp",
+      "file": "spiral-duel-ramp-desktop.png",
+      "hero": {
+        "x": 19.29,
+        "z": 36,
+        "y": -1.45
+      },
+      "camera": {
+        "y": 2.08,
+        "clearanceM": 2.08
+      }
+    },
+    {
+      "layout": "spiral",
+      "shape": "desktop",
+      "name": "duel-floor",
+      "file": "spiral-duel-floor-desktop.png",
+      "hero": {
+        "x": 26,
+        "z": 36,
+        "y": -2.2
+      },
+      "camera": {
+        "y": 1.3,
+        "clearanceM": 3.5
+      }
+    }
+  ],
+  "errors": []
+}
