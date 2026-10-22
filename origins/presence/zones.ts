@@ -128,5 +128,6 @@ for (const id of TRADE_ZONES) {
 }
 /** A trade zone's rejoin point in presence centimetres; undefined for a zone that is no trade area. */
 export const rejoinOf = (zone: string): Pt | undefined => REJOINS.get(zone);
-export const REJOIN_EDGE: Pt = [...REJOINS.values()][0] ?? SPAWN;   // the first trade zone's (town rows come first: the Exchange's): the default for a spot whose zone is unknown
+function defaultRejoin(): Pt { const first = REJOINS.values().next(); return first.done ? SPAWN : first.value; }   // the first trade zone's (town rows come first: the Exchange's): the default for a spot whose zone is unknown
+export const REJOIN_EDGE: Pt = defaultRejoin();
 export const clearOfTradeAreas = (x: number, z: number): Pt => { const id = zoneAt(x, z); return (id !== null ? REJOINS.get(id) : undefined) ?? { x, z }; };
