@@ -11,27 +11,9 @@ import { previewRule } from './preview-rules.ts';
 import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { place, toMetres, toWorld } from '../world/derive.ts';
 import { resolveZone, type WorldData } from '../world/resolve.ts';
-import { planFromRows } from './exchange-rows.ts';
+import { planFor, type Plan, type Piece } from '../zones/plan.ts';
 
-export type Tint = [number, number, number];
-export type Shape =
-  | ['box', number, number, number] // width, height, depth
-  | ['cylinder', number, number, number, number] // radius top, radius bottom, height, radial segments
-  | ['cone', number, number, number] // radius, height, radial segments
-  | ['sphere', number, number, number] // radius, width segments, height segments
-  | ['pediment', number, number, number]; // base width, height, depth: a triangle extruded and centred on its depth
-export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal' | 'plain';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
-// One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()).
-export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number };
-export type Figure = { x: number; z: number; color: string };
-export type Plan = {
-  pieces: Piece[];
-  awnings: (Figure & { y: number })[];
-  people: Figure[];
-  frieze: { x: number; y: number; z: number; text: string };
-  braziers: { x: number; z: number }[];
-  hearth: { x: number; y: number; z: number };
-};
+export type { Tint, Shape, Layer, Piece, Figure, Plan } from '../zones/plan.ts';   // the plan's types live with the generic zone plan (origins/zones/plan.ts)
 
 // The world-data anchors of the walk out, in world metres (the Pit's centre at the origin, the gate toward −z).
 export type Anchors = {
@@ -80,5 +62,17 @@ export const KERB_INSET = stageRule('kerbInset'); // the paved field stops this 
 export const STONE_RADIUS = stageRule('stoneRadius');
 export const FORGE_HALF = { x: previewRule('forgeHalfX'), z: previewRule('forgeHalfZ') };   // m: the smithy's half footprint (preview-rules rows)
 
-/** The plan for these anchors, built from the rows (exchange-rows.json); the four rule values above are what the rows' shapes were measured from. */
-export const exchangePlan = (a: Anchors = exchangeAnchors()): Plan => planFromRows(a, { kerb: KERB_INSET, stone: STONE_RADIUS, forgeX: FORGE_HALF.x, forgeZ: FORGE_HALF.z });
+/** The four rule values the greybox's shapes were measured from (the rows' `rule:` sources). */
+export type Knobs = { readonly kerb: number; readonly stone: number; readonly forgeX: number; readonly forgeZ: number };
+/** The Exchange's anchor sources (the `source` of each of its plan-rows anchors) as this zone's world data answers them. A new zone brings its own resolver for the same source grammar (landmark:, passage:, width:, rule:). */
+export const exchangeSources = (a: Anchors, k: Knobs): Record<string, number> => ({
+  'landmark:outer-gate.x': a.gate.x, 'landmark:outer-gate.z': a.gate.z, 'landmark:bank.x': a.bank.x, 'landmark:bank.z': a.bank.z, 'landmark:covenant-stone.x': a.stone.x, 'landmark:covenant-stone.z': a.stone.z,
+  'landmark:contract-board.x': a.board.x, 'landmark:contract-board.z': a.board.z, 'landmark:forge.x': a.forge.x, 'landmark:forge.z': a.forge.z,
+  'passage:gladiator-gate.from': a.passage.from, 'passage:gladiator-gate.to': a.passage.to, 'passage:gladiator-gate.halfWidth': a.passage.halfWidth, 'width:half': a.halfWidth,
+  'rule:stage.kerbInset': k.kerb, 'rule:stage.stoneRadius': k.stone, 'rule:preview.forgeHalfX': k.forgeX, 'rule:preview.forgeHalfZ': k.forgeZ,
+});
+/** The plan for these anchors, built from the zone's plan rows (origins/zones/plan-rows.json, zone "exchange"). */
+export const exchangePlan = (a: Anchors = exchangeAnchors()): Plan => {
+  const src = exchangeSources(a, { kerb: KERB_INSET, stone: STONE_RADIUS, forgeX: FORGE_HALF.x, forgeZ: FORGE_HALF.z });
+  return planFor('exchange', (s) => { const v = src[s]; if (v === undefined) throw Error(`the Exchange's plan names the source "${s}", which its world data does not answer`); return v; })!;
+};
