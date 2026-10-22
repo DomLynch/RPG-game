@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName, trustAt, withoutTrustedRows } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -206,6 +206,31 @@ test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at
   assert.equal(pickPublish([c(9, 'a', { statusCheckRollup: OK.filter((r) => r.workflowName !== 'unit-ci') })]), null, 'a rollup without unit-ci (failed dispatch) is not green');
   assert.deepEqual(missingRows(OK.slice(1)), ['unit-ci/receipt']);
   assert.equal(pickPublish([]), null);
+});
+
+test('a Lead TRUST line at the head stands in for its named release rows only (Lead 2026-10-22: K6q26 row 57, green on the Mac and VPS, lost on CI to the apt mirror)', () => {
+  const head = 'f'.repeat(40), at = '2026-10-22T11:00:00Z';
+  const job = (name: string, status: string, conclusion: string | null) => ({ __typename: 'CheckRun', workflowName: 'release-checks', name, status, conclusion, startedAt: at, completedAt: conclusion ? at : null });
+  const rows = [job('checks 3,9 (finisher-preview, polearm-browser-check)', 'COMPLETED', 'SUCCESS'), job('checks 57 (ground-prompt-check)', 'IN_PROGRESS', null), job('summary', 'COMPLETED', 'FAILURE')];
+  const rollup = [...OK.filter((r) => r.workflowName !== 'release-checks'), ...rows];
+  const lead = (body: string, authorAssociation = 'OWNER') => ({ body, authorAssociation });
+  const c = (comments: { body: string; authorAssociation: string }[]) => ({ number: 3621, headRefName: 'release-K6q26', baseRefName: TRUNK, headRefOid: head, createdAt: 'a', isDraft: false, labels: [{ name: 'candidate:pass' }], comments: [lead('Auditor: PASS @fffffffff'), ...comments], statusCheckRollup: rollup });
+  const trust = lead('Lead: TRUST @fffffffff rows 57 — green on the Mac and the VPS at this tree; CI lost to the apt mirror');
+  assert.equal(pickPublish([c([])]), null, 'no trust: the summary red and row 57 pending block, as before');
+  assert.deepEqual(trustAt([trust], head), { rows: [57], reason: 'green on the Mac and the VPS at this tree; CI lost to the apt mirror' });
+  assert.equal(pickPublish([c([trust])])?.number, 3621, 'trusted row 57: publishable');
+  assert.deepEqual(missingRows(withoutTrustedRows(rollup, trustAt([trust], head))), []);
+  assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 57 — x', 'NONE')])]), null, 'an outsider on the public repo cannot trust a row');
+  assert.equal(pickPublish([c([lead('Lead: TRUST @eeeeeeeee rows 57 — another head')])]), null, 'a trust for another head does not carry');
+  assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 12 — the wrong row')])]), null, 'only the named rows are trusted');
+  assert.equal(trustAt([lead('Lead: TRUST @fffffffff rows 57')], head), null, 'a reason is required');
+  assert.equal(trustAt([lead('Auditor: TRUST @fffffffff rows 57 — not Lead')], head), null, 'only Lead writes a trust');
+  const twoRed = [...rollup.filter((r) => r.name !== 'checks 3,9 (finisher-preview, polearm-browser-check)'), job('checks 3,9 (finisher-preview, polearm-browser-check)', 'COMPLETED', 'FAILURE')];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: twoRed }]), null, 'another red row still blocks: the summary is not made green');
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: [...rollup.filter((r) => r.workflowName !== 'unit-ci')] }]), null, 'a trust never covers another workflow');
+  const sh = readFileSync('scripts/release-train-publish.sh', 'utf8');
+  assert.match(sh, /release-train\.mjs trust "\$sha"/, 'the publisher reads the trust for the audited sha');
+  assert.match(sh, /export DEPLOY_TRUST_ROWS="\$trust_rows" DEPLOY_TRUST_REASON=/, 'and hands deploy.sh the same rows with the reason (scripts/lib/deploy-trust.sh)');
 });
 
 const runEnv = (p: { env: Record<string, string> }) => p.env;
