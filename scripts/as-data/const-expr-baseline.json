@@ -2,23 +2,14 @@
  "origins/feuds/feuds.ts": {
   "GRUDGE_MIN_LEVEL": 1
  },
- "origins/presence/interest.ts": {
-  "TOWN_HALF_CM": 1
- },
  "origins/preview/presence-client.ts": {
   "LEGACY_EDGE_M": 1
  },
  "origins/server/encounter-verify.ts": {
   "SPECIALS_FROM": 1
  },
- "origins/server/mob-rewards.ts": {
-  "RESPAWN_MS": 1
- },
  "origins/server/server.ts": {
   "MAX_BODY": 1
- },
- "origins/server/world-spawns.ts": {
-  "STACK": 1
  },
  "origins/world/relief.ts": {
   "NORM": 1

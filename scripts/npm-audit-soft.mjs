@@ -27,12 +27,26 @@ export function classify({ status, stdout, stderr = '' }) {
   return { exit: status, kind: total > 0 ? 'vulnerable' : 'clean', total };
 }
 
-const TIMEOUT_MS = 180_000;   // a hung registry call is killed and fails the gate (run.error below), never hangs the job
+const TIMEOUT_MS = 180_000;   // a hung registry call is killed (spawnSync's ETIMEDOUT, classifySpawn below), never hangs the job
+
+/** Decide the gate's outcome when npm could not be run to the end. Only spawnSync's own timeout (npm hung on the registry, seen
+ *  2026-10-22 on K6q23 #3609 and #3595: "spawnSync npm ETIMEDOUT") is the audit service being unreachable; any other spawn error
+ *  (ENOENT, EACCES: no usable npm on the runner) is a broken job and fails. */
+export function classifySpawn(error) {
+  if (error?.code === 'ETIMEDOUT') return { exit: 0, kind: 'outage', detail: 'npm audit timed out (the registry did not answer)' };
+  return { exit: 1, kind: 'spawn', detail: error?.code ?? String(error?.message ?? error) };
+}
 
 function main(args) {
   const npm = process.env.NPM_AUDIT_SOFT_NPM || 'npm';
-  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: TIMEOUT_MS });
-  if (run.error) { console.error(`npm-audit-soft: could not run ${npm}: ${run.error.message}`); return 1; }
+  const timeoutMs = Number(process.env.NPM_AUDIT_SOFT_TIMEOUT_MS) || TIMEOUT_MS;   // the env override is for the test's hanging stand-in npm
+  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: timeoutMs });
+  if (run.error) {
+    const spawned = classifySpawn(run.error);
+    if (spawned.kind === 'outage') console.warn(`::warning::npm audit SKIPPED: ${spawned.detail}. Not a pass: re-run once npm recovers.`);
+    else console.error(`npm-audit-soft: could not run ${npm}: ${run.error.message}`);
+    return spawned.exit;
+  }
   const verdict = classify({ status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr });
   if (verdict.kind === 'outage') {
     console.warn(`::warning::npm audit SKIPPED: the registry's audit service is unreachable (${verdict.detail}). Not a pass: re-run once npm recovers.`);

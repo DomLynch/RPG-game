@@ -1,0 +1,8 @@
+{
+  "tunables": [
+    {"file": "origins/units.ts", "name": "DIAMETER_PER_RADIUS", "kind": "exempt", "reason": "a circle's diameter is twice its radius: geometry, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/units.ts", "name": "HALF", "kind": "exempt", "reason": "one half: a half-extent or midpoint, a mathematical constant (x * HALF is exactly x / 2), not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/units.ts", "name": "MS_PER_SECOND", "kind": "exempt", "reason": "milliseconds in a second: a unit, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/units.ts", "name": "PERCENT", "kind": "exempt", "reason": "a percent is a hundredth: the scale a percent figure is read on, a unit, not tuning", "owner": "Duels & Backend"}
+  ]
+}

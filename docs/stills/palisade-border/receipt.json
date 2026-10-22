@@ -1,0 +1,7 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "shots": [
+  "drop-in-375.png"
+ ],
+ "errors": []
+}
