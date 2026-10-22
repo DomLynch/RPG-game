@@ -56,10 +56,11 @@ try {
 
   // ---- grants -----------------------------------------------------------------------------------------------------------------------------------
   const FN = 'origins_world_marks_settle(int,numeric,int,int,text[],int)';
-  eq(['public.' + FN].map(f => psql(`select has_function_privilege('${O}', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${f}'::regprocedure, 'execute')::int::text`)), ['1000'], 'grants: the writer role alone can settle');
+  eq(['public.' + FN].map(f => psql(`select has_function_privilege('${O}', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${f}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${f}'::regprocedure, 'execute')::int::text`)), ['1100'], 'grants: both writer roles (frankendom_origins, frankendom_verifier: the writer logs in as either) can settle, anon and authenticated cannot');
   for (const t of ['origins_world_marks', 'origins_world_marks_settled']) eq(['select', 'insert'].map(p => psql(`select has_table_privilege('${O}', 'public.${t}', '${p}')::int::text || has_table_privilege('${V}', 'public.${t}', '${p}')::int::text || has_table_privilege('anon', 'public.${t}', '${p}')::int::text || has_table_privilege('authenticated', 'public.${t}', '${p}')::int::text`)), ['0000', '0000'], `grants: ${t} is reachable through the function only`);
   eq(await code('anon', SETTLE(0, 0.5, 9, 6, ['roster-1'])), '42501', 'grants: anon cannot settle');
-  eq(await code(V, SETTLE(0, 0.5, 9, 6, ['roster-1'])), '42501', 'grants: the verifier cannot settle');
+  eq(await code('authenticated', SETTLE(0, 0.5, 9, 6, ['roster-1'])), '42501', 'grants: authenticated cannot settle');
+  eq(await code(V, SETTLE(0, 0.5, 9, 6, ['roster-1'])), null, 'grants: the verifier role (the writer\'s login) CAN execute it: an empty settle runs');
 
   // ---- bad arguments ----------------------------------------------------------------------------------------------------------------------------
   for (const [what, sql] of [['of_top 0', SETTLE(0, 0, 9, 6, ['r'])], ['of_top above 1', SETTLE(0, 1.5, 9, 6, ['r'])], ['per_hour 0', SETTLE(0, 0.5, 9, 0, ['r'])], ['cap -1', SETTLE(0, 0.5, -1, 6, ['r'])], ['limit 0', SETTLE(0, 0.5, 9, 6, ['r'], 0)], ['wait -1', SETTLE(-1, 0.5, 9, 6, ['r'])]]) eq(await code(O, sql), 'O0002', `bad arguments: ${what}`);
@@ -78,7 +79,7 @@ try {
   eq(await val(O, SETTLE(125, 0.5, 9, 6, ['roster-1'])), '0', 'idempotent: a second settle writes nothing');
   // the same ledger in the REVERSE order, a later generation: the same qualifiers (the decision never reads who reported first)
   psql(ledger(20, 'roster-1', 1, D, 0) + ledger(21, 'roster-1', 1, C, 49.9) + ledger(22, 'roster-1', 1, B, 50) + ledger(23, 'roster-1', 1, A, 100));
-  eq(await val(O, SETTLE(125, 0.5, 99, 99, ['roster-1'])), '2', 'order-free: the reversed ledger qualifies the same two');
+  eq(await val(V, SETTLE(125, 0.5, 99, 99, ['roster-1'])), '2', 'order-free: the reversed ledger qualifies the same two (settled as the verifier role, the writer\'s login)');
   eq([marksOf(A), marksOf(B), marksOf(C)], ['2', '2', '0'], '... one more mark each');
   // a tiny first reporter alone earns, a big one arriving later cannot take it away: the decision waited for the whole ledger
   psql(ledger(30, 'roster-1', 2, C, 1) + ledger(31, 'roster-1', 2, A, 100));

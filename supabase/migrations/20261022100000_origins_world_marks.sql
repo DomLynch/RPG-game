@@ -92,7 +92,7 @@ begin
 end $$;
 
 revoke all on function public.origins_world_marks_settle(int, numeric, int, int, text[], int) from public, anon, authenticated;
-grant execute on function public.origins_world_marks_settle(int, numeric, int, int, text[], int) to frankendom_origins;
+grant execute on function public.origins_world_marks_settle(int, numeric, int, int, text[], int) to frankendom_origins, frankendom_verifier;   -- the writer logs in as either role (as origins_spawn_check / origins_spawn_kill_v2 / the layer functions are granted)
 
 comment on table public.origins_world_marks is 'One ladder mark per account per world-boss kill (spawn incarnation), settled by origins_world_marks_settle on the whole damage ledger. Read through standing_of only.';
 commit;
