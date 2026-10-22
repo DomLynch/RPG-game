@@ -7,6 +7,7 @@ import { legendChase, legendFelled, legendPull, legendSpecs } from './legend-mob
 import { frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { NAMED, mobSpecs, mobStand, newMob, stepMob, type Mob } from './mobs.ts';
 import { previewRule } from './preview-rules.ts';
+import { SPEEDS } from '../../src/fight/speeds.ts';
 import { LEGEND_SPAWNS, bossFightId, legendBoss } from '../boss/legend-boss.ts';
 import type { Fight, Settled } from './encounter-net.ts';
 
@@ -81,7 +82,7 @@ test('legendPull: only a hunting legend inside reach, within the level gap, with
 });
 
 test('a legend notices the hero inside its aggro radius and walks up to its reach; a far hero leaves it at its post (Dom 2026-10-22: bosses have an aggression zone like every NPC)', () => {
-  const s = legendSpecs(F2)[0]!, ok = () => true, step = (m: Mob, hero: { x: number; z: number }, n: number) => { for (let i = 0; i < n; i++) m = legendChase(stepMob(m, s, hero, 0.05, ok), hero, 0.05, ok); return m; };
+  const s = legendSpecs(F2)[0]!, ok = () => true, step = (m: Mob, hero: { x: number; z: number }, n: number) => { for (let i = 0; i < n; i++) m = legendChase(stepMob(m, s, hero, 0.05, ok), hero, 0.05, ok, SPEEDS.creature.chase); return m; };
   const aggro = previewRule('legendAggro'), stop = previewRule('legendReach') * previewRule('legendStopShare');
   const near = { x: s.home.x + aggro - 1, z: s.home.z }, far = { x: s.home.x + aggro * 3, z: s.home.z };
   const woke = step(newMob(s, 0), near, 600), dist = Math.hypot(near.x - woke.x, near.z - woke.z);

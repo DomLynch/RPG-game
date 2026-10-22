@@ -7,7 +7,6 @@ import { zoneKeyPrefix } from '../zones/loader.ts';
 import type { Frontier } from './frontier-plan.ts';
 import { NAMED, type Mob, type MobSpec } from './mobs.ts';
 import { previewRule } from './preview-rules.ts';
-import { SPEEDS } from '../../src/fight/speeds.ts';
 
 export type LegendNear = { spec: MobSpec; x: number; z: number; hunting: boolean };
 export type LegendPullRules = { reach: number; levelGap: number };
@@ -20,9 +19,9 @@ export const legendPull = (legends: readonly LegendNear[], hero: { x: number; z:
 export const legendFelled = (outcome: 'win' | 'loss' | 'draw' | null): boolean => outcome === 'win';
 
 /** A legend that noticed the hero walks up to its reach: the mob sim's aggro only turns a creature to face the hero (the open world's creatures are pulled in by the combat loop, and a legend has none), so this closes the gap at the creature chase speed and stops at legendStopShare of the legend reach. */
-export const legendChase = (m: Mob, hero: { x: number; z: number }, dt: number, stand: (x: number, z: number) => boolean): Mob => {
+export const legendChase = (m: Mob, hero: { x: number; z: number }, dt: number, stand: (x: number, z: number) => boolean, speed: number): Mob => {   // speed: the engine's creature chase speed (SPEEDS.creature.chase, passed in by mobs-view: a zone reaches the engine only through the fight barrel)
   if (m.mode !== 'aggro' || Math.hypot(hero.x - m.x, hero.z - m.z) <= previewRule('legendReach') * previewRule('legendStopShare')) return m;
-  const nx = m.x + Math.sin(m.facing) * SPEEDS.creature.chase * dt, nz = m.z + Math.cos(m.facing) * SPEEDS.creature.chase * dt;
+  const nx = m.x + Math.sin(m.facing) * speed * dt, nz = m.z + Math.cos(m.facing) * speed * dt;
   return stand(nx, nz) ? { ...m, x: nx, z: nz } : m;
 };
 

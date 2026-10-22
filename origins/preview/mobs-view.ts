@@ -19,7 +19,7 @@ import { NotHeroRig, fitPieces, fxHas, fxNum, shapeFor } from '../../src/fight/i
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
-import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
+import { gateWithBound, settleWithin, SPEEDS } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
 import { fetchKinds, pickDrawn } from './draw-pick.ts';
 import { farHide } from './far-detail.ts';
@@ -252,7 +252,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   return {
     update(dt, hero, hideLabel) {
       lastHero = hero; zoneFinisher.update(dt);
-      mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? legendChase(stepMob(m, specs[i]!, hero, dt, stands[i]!), hero, dt, stands[i]!) : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss wanders, notices and returns home like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC"); main.ts starts its verified fight when it hunts the hero in reach
+      mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? legendChase(stepMob(m, specs[i]!, hero, dt, stands[i]!), hero, dt, stands[i]!, SPEEDS.creature.chase) : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss wanders, notices and returns home like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC"); main.ts starts its verified fight when it hunts the hero in reach
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
       shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
