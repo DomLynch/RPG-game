@@ -1,0 +1,17 @@
+{
+  "shape": "portrait",
+  "combatcam": "default",
+  "extra": "",
+  "errors": [],
+  "target": {
+    "id": "scavengers-1",
+    "body": "goblin"
+  },
+  "infight": true,
+  "view": {
+    "shiftY": 0.11999999997695712,
+    "fov": 51,
+    "zoom": 1,
+    "fight": 0.999999999807976
+  }
+}
