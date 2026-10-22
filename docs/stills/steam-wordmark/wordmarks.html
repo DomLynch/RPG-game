@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FRANKENDOM wordmark options</title>
+<style>
+@font-face { font-family: Cinzel; src: url('../../../public/game/fonts/cinzel.woff2'); font-weight: 400 900; }
+@font-face { font-family: Cormorant; src: url('../../../public/game/fonts/cormorant.woff2'); font-weight: 300 700; }
+html, body { margin: 0; background: transparent; }
+.mark { display: inline-block; padding: 60px 90px; text-align: center; white-space: nowrap; }
+/* A: forged gold, golden-hour sun colours of the z1look row, a blade line under the name */
+#a { font-family: Cinzel, serif; font-weight: 800; font-size: 190px; letter-spacing: 0.06em; line-height: 1;
+  background: linear-gradient(180deg, #fff1cf 0%, #ffc078 38%, #c97b2e 62%, #6b3a12 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 0 #2a1608) drop-shadow(0 10px 22px rgba(0,0,0,.55)); }
+#a .blade { display: block; height: 7px; margin: 22px auto 0; width: 86%; background: linear-gradient(90deg, transparent, #ffe9b8 18%, #fff 50%, #ffe9b8 82%, transparent); box-shadow: 0 0 18px #ffc078; clip-path: polygon(0 50%, 4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%); }
+/* B: bone white, light Cormorant capitals, wide tracking, a thin red line: quiet and grim */
+#b { font-family: Cormorant, serif; font-weight: 600; font-size: 200px; letter-spacing: 0.22em; padding-left: 0.22em; line-height: 1; color: #e9e2d0; text-shadow: 0 4px 24px rgba(0,0,0,.7); }
+#b .line { display: block; height: 3px; margin: 26px auto 0; width: 100%; background: #9d1c1c; }
+#b small { display: block; font-family: Cinzel, serif; font-weight: 500; font-size: 34px; letter-spacing: 0.7em; margin-top: 22px; color: #b9b19c; }
+/* C: stamped, heavy Cinzel on a dark slab with a blood slash through the counter */
+#c { font-family: Cinzel, serif; font-weight: 900; font-size: 170px; letter-spacing: 0.03em; line-height: 1; color: #f2ece0; background: #171e20; padding: 50px 80px; position: relative; border: 6px solid #f2ece0; outline: 3px solid #171e20; outline-offset: -18px; text-shadow: 6px 6px 0 #6e0f0f; }
+#c::after { content: ''; position: absolute; left: 3%; right: 3%; top: 50%; height: 10px; background: #b3201f; transform: rotate(-3deg); z-index: 0; }
+#c span { position: relative; z-index: 1; }
+</style>
+<div class="mark" id="a-wrap"><div id="a">FRANKENDOM<i class="blade"></i></div></div>
+<div class="mark" id="b-wrap"><div id="b">FRANKENDOM<i class="line"></i><small>SWORDPLAY</small></div></div>
+<div class="mark" id="c-wrap"><div id="c"><span>FRANKENDOM</span></div></div>
