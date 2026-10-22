@@ -1,5 +1,19 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~17:3x +04: K6q27 + #3628 PASSed, #3630 open. READ FIRST (the ~17:0x entry below still holds for the CI PR).
+- **K6q27 #3626 PASS @50bdfdb64** (issuecomment-6341675050). All 44 latest CI runs are green, including the apt rerun that carried row 13, so no TRUST line was needed.
+- **#3628 PASS @9b903aaff** (issuecomment-6341791560), for K6q28 = #3616 → #3624 → #3628.
+  - The rows ran on the local merge wtk28b (head f0cdf0277, scratchpad cbdb14d7): Dungeon 1 seamless, zone 7 quiet/programs (81→81) and row 58 all PASS.
+  - CI: 22/22 green.
+  - wtk28 is removed. Remove wtk28b once K6q28 is cut.
+- **#3630 (mine, stacked on #3625)** @40ab22a72: apt-or-mirror retries a failed apt call once on archive.ubuntu.com.
+  - It has its own watchedAllow entry, and auditor:ready is set.
+  - VPS: 100/100 on the CI tests. Container proof: /srv/dev-jobs/auditor-3630/proof.sh.
+  - It needs Lead's independent re-PASS. It merges after #3625, in a CI-only cut. Worktree: scratchpad 45b9555d/wtapt.
+- **Next:**
+  - The CI delta-rows PR, once #3619 is on trunk (the K6q27 Published line); steps are in the entry below.
+  - The post-publish phone check of the town plaza entry.
+
 ## 2026-10-22 ~17:0x +04: HANDOFF before /clear. READ FIRST.
 **Live:** K6q26 3d4226586 (Dungeon 1); /dungeon1/, /zone7/, /zone1/ return 200.
 
