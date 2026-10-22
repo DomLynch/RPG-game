@@ -1,0 +1,16 @@
+[
+  {
+    "layout": "bowl",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+    "hasLayout": true,
+    "heroGroundAtFloor": -4.4,
+    "errors": []
+  },
+  {
+    "layout": "spiral",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+    "hasLayout": true,
+    "heroGroundAtFloor": -4.4,
+    "errors": []
+  }
+]
