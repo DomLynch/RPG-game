@@ -232,7 +232,7 @@ if (frontier && frontierParts) {
 // steps onto the west road, never on the Pit/Exchange-only page.
 let mobs: Mobs | null = null, mobsAsked = false;
 const canStand = layoutPlan
-  ? (x: number, z: number): boolean => { const h = walkHeight(layoutPlan.pieces, x, z); return h !== null && Math.abs(h - groundY(state.x, state.z)) <= previewRule('layoutSlope') * Math.max(Math.hypot(x - state.x, z - state.z), 0.05) + 0.02; }   // the layout test: only on a walkable piece, and never up a wall (the rise per metre is the layoutSlope rule)
+  ? (x: number, z: number): boolean => { const h = walkHeight(layoutPlan.pieces, x, z); return h !== null && Math.abs(h - groundY(state.x, state.z)) <= previewRule('layoutSlope') * Math.hypot(x - state.x, z - state.z) + previewRule('layoutSlack'); }   // the layout test: only on a walkable piece, and never up a wall (the rise per metre is the layoutSlope rule)
   : (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
