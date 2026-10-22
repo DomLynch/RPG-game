@@ -4,9 +4,9 @@
     ,{ "id": "dungeon", "label": "Bone-and-skull cave camp: rough cave walls, doorways, bone piles (Characters & Art kit, PR 3020; look waits for Dom's theme)" }
   ],
   "models": [
-    { "id": "goblin-palisade-a", "url": "world/kit/goblin_palisade_a.glb", "nodes": ["goblin_palisade_a"], "lod": { "url": "world/kit/goblin_palisade_a_lod.glb", "dist": 35 } },
-    { "id": "goblin-palisade-b", "url": "world/kit/goblin_palisade_b.glb", "nodes": ["goblin_palisade_b"], "lod": { "url": "world/kit/goblin_palisade_b_lod.glb", "dist": 35 } },
-    { "id": "goblin-palisade-c", "url": "world/kit/goblin_palisade_c.glb", "nodes": ["goblin_palisade_c"], "lod": { "url": "world/kit/goblin_palisade_c_lod.glb", "dist": 35 } },
+    { "id": "goblin-palisade-a", "url": "world/kit/goblin_palisade_a.glb", "nodes": ["goblin_palisade_a"] },
+    { "id": "goblin-palisade-b", "url": "world/kit/goblin_palisade_b.glb", "nodes": ["goblin_palisade_b"] },
+    { "id": "goblin-palisade-c", "url": "world/kit/goblin_palisade_c.glb", "nodes": ["goblin_palisade_c"] },
     { "id": "goblin-gate", "url": "world/kit/goblin_gate.glb", "nodes": ["goblin_gate"], "lod": { "url": "world/kit/goblin_gate_lod.glb", "dist": 35 } },
     { "id": "goblin-totem", "url": "world/kit/goblin_totem.glb", "nodes": ["goblin_totem"], "lod": { "url": "world/kit/goblin_totem_lod.glb", "dist": 35 } },
     { "id": "goblin-spikes", "url": "world/kit/goblin_spikes.glb", "nodes": ["goblin_spikes"], "lod": { "url": "world/kit/goblin_spikes_lod.glb", "dist": 35 } },
