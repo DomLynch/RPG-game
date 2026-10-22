@@ -1,5 +1,36 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~16:1x +04: K6q26 PASSed and publishing; K6q27 members PASSed; CI PR = 3 local commits. READ FIRST.
+**K6q26 #3621 @3d4226586 PASS** (issuecomment-6339900928, plus the VPS row-57 receipt in issuecomment-6340290293).
+- The tree = live + #3615 @ca6ee3a1d.
+- Row 57's CI attempts were eaten by apt-get ffmpeg stalls (16 min). Attempt 2 reached the row and was cut by the job's 30-min cap 3.5 min in, not a hang. The Mac (SwiftShader, forced by the script) and the VPS (SwiftShader) both passed it at this tree. #2613 is the real fix.
+
+**K6q27 = #3618 + #3619 + #3623, all PASS:**
+- #3618 @01ec5e3a7 (issuecomment-6339804898): Mac rows on K6q26 + #3618.
+- #3619 @d02c58a4c (issuecomment-6339998730): row 58 opens all 8 zone pages, incl. /zone7/ and /dungeon1/, on the K6q27 tree.
+- #3623 @072dc6852 (issuecomment-6340202418): rows only, 215 → 205. I added auditor:ready to start unit-ci.
+
+**K6q28 = #3624 + #3616, both NOT PASS until they catch up after K6q26's Published line. Gate them as a pair on one merge-tree.**
+- #3616 (issuecomment-6339036779): conflicts with #3615 in exchange.ts, preview-rules and the count pins (they become 163/164). Guard the layer texture so it skips a plan layer with its own material. A Zone 1 seamless-quiet run is needed, because the normalMap goes to null after ready.
+- #3624 (issuecomment-6340022137 + -6340202898): K12 red (town-people.ts → src/fight/catalogue-rows.ts; take it from index.ts). Figure.y from #3615. compileAsync before revealing the lazy bodies. A crowd=0 pair with folk on and off.
+
+**Zone-7 hitch (Lead made it a blocker; Combat owns it):**
+- Both reds had zone ready at 20.1-20.3 s, right at the kindsWait bound (20 s); the greens took 28-35 s. So the hero warm gets cut by the bound.
+- The logs are in /tmp/aud-z7 on the VPS. Combat is reproducing.
+
+**CI PR:** branch code-quality/ci-delta-rows @ea00e0a96, worktree at scratchpad wtci (session cbdb14d7), 3 commits.
+- Delta rows on candidates; the load times move to post-publish; cut-to-live in the Published line.
+- The nightly 23:17Z full run is accepted by `--full-age --ci` (ciFullAge).
+- The weekly Mac GPU-row sweep: scripts/gpu-rows-weekly.sh plus docs/ops/gpu-rows-weekly.md.
+
+**Before pushing:**
+1. Wait for K6q26 to MERGE and #3619 to be on trunk.
+2. Merge trunk.
+3. Add the area `{paths: [origins/zone-rows/**, origins/zones/**, origins/preview/**, origins/world/**, scripts/gen-zones.mjs, scripts/lib/zone-pages.mjs], rows: [zone-pages-check]}` to scripts/release-scope.json, and assert it in tests/release-scope.test.ts.
+4. Open the PR (title "unblocks every beta release (cut-to-live ≤ 25 min)").
+5. Add scripts/cut-gates.json watchedAllow entries for the final quality.yml and release-checks.yml blobs, with the PR number and Lead's OK (precedent #3547).
+6. Re-PASS by an independent reviewer (Lead).
+
 ## 2026-10-22 ~15:1x +04: #3615 PASSed; the CI beta blocker is built, unpushed. READ FIRST.
 **#3615 PASS @ca6ee3a1d** (issuecomment-6338994120); Lead sets candidate:pass and K6q26 cuts on it.
 - The 23c14f870 NOT PASS (issuecomment-6338807065) was two reds from legend-copy.ts's deep imports: K12 (shard 7) and core-boundary C1 (shard 8). Combat fixed both through the doors.
