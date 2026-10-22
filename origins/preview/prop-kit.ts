@@ -54,14 +54,14 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
       const marks2 = [...f.zones.flatMap((q) => Object.values(q.landmarks)), f.giver.at], zs = f.zones.filter((q) => q.region === FRONTIER);
       for (const q of zs) {
         const w = (x: number, d: number) => toWorld({ x, d }, q.mount), hw = q.width / 2 - rc.inset!, d0 = rc.inset!, d1 = q.depth - rc.inset!;
-        const side = (ax: number, ad: number, bx: number, bd: number, ox: number, od: number) => {
-          const n = Math.max(1, Math.round(Math.hypot(bx - ax, bd - ad) / rc.every!)), a = w(ax, ad), c = w(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x);   // the piece's own x axis along this edge
+        const side = (ax: number, ad: number, bx: number, bd: number) => {
+          const len = Math.hypot(bx - ax, bd - ad), n = Math.max(1, Math.round(len / rc.every!)), a = w(ax, ad), c = w(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x), ox = (bd - ad) / len * rc.probe!, od = -(bx - ax) / len * rc.probe!;   // the piece's own x axis along this edge; (ox, od): `probe` m straight out of the zone (the sides run clockwise, so the outward normal is the edge turned a quarter back)
           for (let k = 0; k < n; k++) {
-            const t = (k + rc.phase!) / n, lx = ax + (bx - ax) * t, ld = ad + (bd - ad) * t, o = w(lx, ld), out = w(lx + ox * 2 * rc.inset!, ld + od * 2 * rc.inset!), skip = R() < rc.gap!, p = pick();
+            const t = (k + rc.phase!) / n, lx = ax + (bx - ax) * t, ld = ad + (bd - ad) * t, o = w(lx, ld), out = w(lx + ox, ld + od), skip = R() < rc.gap!, p = pick();
             if (!skip && !zs.some((r) => r !== q && inZone(r, out.x, out.z)) && !onRoad(f, o.x, o.z) && !marks2.some((m) => Math.hypot(m.x - o.x, m.z - o.z) < p.r + kit.clearLandmark)) put(p, o.x, o.z, yaw);
           }
         };
-        side(-hw, d0, hw, d0, 0, -1); side(hw, d0, hw, d1, 1, 0); side(hw, d1, -hw, d1, 0, 1); side(-hw, d1, -hw, d0, -1, 0);
+        side(-hw, d0, hw, d0); side(hw, d0, hw, d1); side(hw, d1, -hw, d1); side(-hw, d1, -hw, d0);
       }
     } else if (rc.kind === 'spot') {   // one piece at one fixed place (the post and wall the hero first sees); the row owns the place, so no free-ground test, but it stands in the way of the recipes after it
       const p = pick(); put(p, centre.x + Math.sin(rc.angle!) * rc.ringRadius!, centre.z + Math.cos(rc.angle!) * rc.ringRadius!, rc.yaw);
