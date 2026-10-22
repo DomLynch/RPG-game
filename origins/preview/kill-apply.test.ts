@@ -46,3 +46,16 @@ test('an UNLISTED zone (the Test Zone) sends no kill_report and its kill line sa
   assert.equal(killToast({ offline: 'unlisted' }, name, 'Wolf', true, null, true), 'Wolf is down. Not saved in the Test Zone. Bounty done.');
   assert.equal(killToast(withLoot, name, 'Wolf', false, null, false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'sandbox false changes nothing for a listed zone');
 });
+
+// A ladder roster kill (the spawn row says `roster`, Dungeon 1) is a ladder win the writer settles within a minute (#3587): the toast says so, in words that are a row (kill-text.json), only for a kill the server took.
+test('a ladder roster kill adds the pending line after what the server paid; a guest, an unsaved or a sandbox kill never does', async () => {
+  const { default: TEXT } = await import('./kill-text.json', { with: { type: 'json' } });
+  assert.equal(TEXT.toast.ladderPending, 'Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Bone Knight', false, null, false, true), 'Bone Knight is down. +20 CP · +3 bronze · Wolf pelt ×2. Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Bone Knight', true, null, false, true), 'Bone Knight is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done. Ladder win pending.');
+  assert.equal(killToast({ ...killed(0), bronze: 0 }, name, 'Bone Knight', false, null, false, true), 'Bone Knight is down. Nothing paid. Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Wolf', false, null, false, false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'a plain creature says nothing about the ladder');
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Bone Knight', false, null, false, true), `Bone Knight is down. ${SIGN_IN_TO_KEEP}`, 'a guest has no ladder');
+  assert.equal(killToast({ offline: 'timeout' }, name, 'Bone Knight', false, null, false, true), `Bone Knight is down. ${NOT_SAVED}`, 'an unanswered kill is not pending');
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Bone Knight', false, null, true, true), 'Bone Knight is down. Not saved in the Test Zone.', 'an unlisted zone has no ladder');
+});
