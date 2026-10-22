@@ -2,10 +2,6 @@
  "origins/npcs/row.ts": {
   "'shop'": 1
  },
- "origins/preview/ground-pickup.ts": {
-  "'ground'": 1,
-  "'refuse'": 1
- },
  "origins/preview/main.ts": {
   "'loot'": 1,
   "'fight'": 1,
