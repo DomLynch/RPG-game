@@ -20,6 +20,12 @@ try {
     for (const stop of STOPS) {
       const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
       page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)));
+      await page.addInitScript(() => {   // GL-side truth: renderer.info resets per render() call and the last call is the post-chain quad, so count the context's own draws and triangles
+        const P = window.WebGL2RenderingContext?.prototype, gl = { calls: 0, tris: 0 }; window.__gl = gl;
+        const tri = (mode, n) => (mode === 4 ? n / 3 : mode === 5 || mode === 6 ? Math.max(0, n - 2) : 0), W = (name, f) => { const o = P?.[name]; if (o) P[name] = function (...a) { f(a); return o.apply(this, a); }; };
+        W('drawElements', (a) => { gl.calls++; gl.tris += tri(a[0], a[1]); }); W('drawArrays', (a) => { gl.calls++; gl.tris += tri(a[0], a[2]); });
+        W('drawElementsInstanced', (a) => { gl.calls++; gl.tris += tri(a[0], a[1]) * a[4]; }); W('drawArraysInstanced', (a) => { gl.calls++; gl.tris += tri(a[0], a[2]) * a[3]; });
+      });
       await page.goto(base + q);
       await page.waitForFunction(() => window.originsPreview, null, { timeout: 120000 });
       await page.waitForFunction(() => window.__zoneReady, null, { timeout: 40000 }).catch(() => console.log('no [zone ready] in 40 s, shooting anyway'));   // the dev server's cold modules can hold the gate: the kit is drawn by then
@@ -33,7 +39,8 @@ try {
         await new Promise((res) => { const f = (t) => { dts.push(t - last); last = t; if (t < end) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
         dts.shift(); dts.sort((a, b) => a - b);
         const info = window.originsPreview.renderInfo();
-        return { triangles: info.triangles, calls: info.calls, programs: info.programs, frames: dts.length, p50: +dts[Math.floor(dts.length * 0.5)].toFixed(1), p95: +dts[Math.floor(dts.length * 0.95)].toFixed(1), renderer: (() => { const c = document.createElement('canvas').getContext('webgl2'); const e = c.getExtension('WEBGL_debug_renderer_info'); return e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; })() };
+        const g0 = { ...window.__gl }; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const glFrames = []; glFrames.push((window.__gl.tris - g0.tris) / 2, (window.__gl.calls - g0.calls) / 2);   // two frames, averaged
+        return { glTrisPerFrame: Math.round(glFrames[0]), glDrawsPerFrame: Math.round(glFrames[1]), triangles: info.triangles, calls: info.calls, programs: info.programs, frames: dts.length, p50: +dts[Math.floor(dts.length * 0.5)].toFixed(1), p95: +dts[Math.floor(dts.length * 0.95)].toFixed(1), renderer: (() => { const c = document.createElement('canvas').getContext('webgl2'); const e = c.getExtension('WEBGL_debug_renderer_info'); return e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; })() };
       }, SAMPLE);
       await page.screenshot({ path: path.join(out, `${arm}-stop${stop}.png`) });
       report.push({ arm, stop, ...m }); console.log(JSON.stringify({ arm, stop, ...m }));
