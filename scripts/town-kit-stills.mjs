@@ -21,8 +21,9 @@ try {
       const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
       page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)));
       await page.goto(base + q);
-      await page.waitForFunction(() => window.__zoneReady, null, { timeout: 120000 });
-      await page.waitForTimeout(2500);
+      await page.waitForFunction(() => window.originsPreview, null, { timeout: 120000 });
+      await page.waitForFunction(() => window.__zoneReady, null, { timeout: 40000 }).catch(() => console.log('no [zone ready] in 40 s, shooting anyway'));   // the dev server's cold modules can hold the gate: the kit is drawn by then
+      await page.waitForTimeout(4000);
       await page.evaluate(() => { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' })); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ShiftLeft' })); });
       await page.waitForTimeout(stop * 1000);
       await page.evaluate(() => { window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ShiftLeft' })); });
