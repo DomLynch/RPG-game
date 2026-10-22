@@ -19,8 +19,8 @@ export type BowlKnown = { readonly characters: ReadonlySet<string>; readonly zon
 /** A zone row's spawn row (`spawns.rows` of origins/zone-rows/zone<id>.row.json: src/core/world/row.ts MobRow) for a roster fighter: the creature's own source, role and loot, the ring's level band, respawn and
  *  behaviour, and `roster: true`. Leash is how far a creature chases before it goes home; roam is at most a third of it (the contract's own rule). Where the camps stand is placement (`place.spawns`), not a row field. */
 export type RosterRow = MobRow & { readonly roster: true };
-/** What a roster row borrows from the creature's own existing row: who it is (source), how it fights (role) and what it drops (loot). */
-export type RowBase = Pick<MobRow, 'source' | 'role' | 'loot'>;
+/** What a roster row takes from the creature's own character: who it is (source), how it fights (role), what it drops (loot) and its own world level (a legend's rank), which must sit in its ring's band. */
+export type RowBase = Pick<MobRow, 'source' | 'role' | 'loot' | 'level'>;
 
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n);
 const PAIR = 2;   // a [lo, hi] pair's length: the loader's shape check (exempt: scripts/as-data/allow/origins-dungeon.json)
@@ -78,7 +78,8 @@ export function rosterRows(rings: readonly BowlRing[], edges: RingEdges, base: (
     return r.groups.map((g): RosterRow => {
       const b = base(g.character);
       if (!b) throw Error(`bowl-roster "${r.id}": group ${g.id}: ${g.character} has no row to take its source, role and loot from`);
-      return { id: g.character, source: b.source, role: b.role, loot: b.loot, level: r.levels, respawnSeconds: r.respawnSeconds, roster: true,
+      if (!(b.level[0] >= r.levels[0] && b.level[1] <= r.levels[1])) throw Error(`bowl-roster "${r.id}": group ${g.id}: ${g.character} is level ${b.level[0]}-${b.level[1]}, outside the ring's band ${r.levels[0]}-${r.levels[1]}`);
+      return { id: g.character, source: b.source, role: b.role, loot: b.loot, level: b.level, respawnSeconds: r.respawnSeconds, roster: true,
         behaviour: { aggro: to1(width * r.aggroShare), leash: to1(width * r.leashShare), roam: to1(width * r.roamShare), spread: to1(width * r.spreadShare), pull: 0, campSize: g.campSize } };
     });
   });
@@ -86,14 +87,15 @@ export function rosterRows(rings: readonly BowlRing[], edges: RingEdges, base: (
 
 /** A spawn point of the zone row's `place.spawns`: one camp of one creature, anchored to a landmark of the zone's plan. */
 export type RosterPlacement = { readonly id: string; readonly at: string; readonly characters: readonly string[] };
-/** Every group's camps as `place.spawns` entries. A ring's camps are dealt round the ring's spot points in table order (`spotsOf(landmark)`: the zone plan's points that belong to that ring landmark), so the camps spread
- *  round the annulus and no spot is reused before every spot has a camp. A ring with no spot points is an error: a camp needs a place to stand. */
+/** Every group's camps as `place.spawns` entries. A ring's camps are dealt EVENLY along the ring's spot points in table order (`spotsOf(landmark)`: the zone plan's points that belong to that ring landmark): camp n of
+ *  T takes spot floor(n x spots / T), so the camps spread round the annulus and no spot is reused before every spot has a camp. A ring with no spot points is an error: a camp needs a place to stand. */
 export function rosterPlacements(rings: readonly BowlRing[], spotsOf: (landmark: string) => readonly string[]): readonly RosterPlacement[] {
   return rings.flatMap((r) => {
     const spots = spotsOf(r.landmark);
     if (spots.length === 0) throw Error(`bowl-roster "${r.id}": the zone has no spot points for ${r.landmark}, so its camps have nowhere to stand`);
+    const total = r.groups.reduce((sum, g) => sum + g.camps, 0);
     let dealt = 0;
-    return r.groups.flatMap((g) => Array.from({ length: g.camps }, (_, k): RosterPlacement => ({ id: `${r.id}-${g.id}-${k}`, at: spots[dealt++ % spots.length]!, characters: [g.character] })));
+    return r.groups.flatMap((g) => Array.from({ length: g.camps }, (_, k): RosterPlacement => ({ id: `${r.id}-${g.id}-${k}`, at: spots[Math.floor((dealt++ * spots.length) / total)]!, characters: [g.character] })));
   });
 }
 

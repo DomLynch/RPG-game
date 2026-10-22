@@ -5,7 +5,7 @@
   "exits": [
     { "id": "yard-gate", "zone": "dungeon-bowl", "landmark": "yard-gate", "to": "0", "arrive": "outer-gate", "warp": "zone0-pit-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Concord Exchange", "tradeLanding": true }
   ],
-  "band": [1, 6],
+  "band": [1, 10],
   "entry": {
     "x": 150,
     "z": 54,
@@ -68,39 +68,28 @@
   "spawns": {
     "openers": {},
     "rows": [
-      {"id": "character:cinder-scavenger", "source": {"kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\""}, "role": "beast", "loot": "loottable:cinder-scavenger", "level": [1, 2], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 2]}},
-      {"id": "character:pit-goblin", "source": {"kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\""}, "role": "beast", "loot": "loottable:pit-goblin", "level": [1, 2], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 1]}},
-      {"id": "character:ash-wolf", "source": {"kind": "folklore", "work": "Kinder- und Hausmärchen, 7th ed. (Rotkäppchen: the wolf on the forest road)", "author": "Jacob and Wilhelm Grimm", "year": 1857, "authorDied": 1863, "locator": "KHM 26, Rotkäppchen (the wolf meets her on the path)"}, "role": "beast", "loot": "loottable:ash-wolf", "level": [1, 2], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 2]}},
-      {"id": "character:ruin-ghoul", "source": {"kind": "folklore", "work": "Les Mille et une nuits (the graveyard ghouls); read in Andrew Lang's 1898 Arabian Nights Entertainments, from Galland", "author": "Antoine Galland (translator)", "year": 1704, "authorDied": 1715, "locator": "Histoire de Sidi-Nouman (\"The Story of Sidi-Nouman\"): his wife Amina and the female ghoul of the cemetery"}, "role": "brute", "loot": "loottable:ruin-ghoul", "level": [3, 4], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [2, 3]}},
-      {"id": "character:cinder-bear", "source": {"kind": "folklore", "work": "Kinder- und Hausmärchen, 7th ed. (Schneeweißchen und Rosenrot: the bear at the cottage door in the snow)", "author": "Jacob and Wilhelm Grimm", "year": 1857, "authorDied": 1863, "locator": "KHM 161, Schneeweißchen und Rosenrot (the bear knocks; the winter-door scene)"}, "role": "brute", "loot": "loottable:cinder-bear", "level": [3, 4], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
-      {"id": "character:ash-boar", "source": {"kind": "literature", "work": "Metamorphoses (the boar Diana loosed on Calydon, and the hunt that took it)", "author": "Ovid", "year": 8, "authorDied": 17, "locator": "Bk. VIII, ll. 260-424 (the boar ravages the fields; the hunt)"}, "role": "beast", "loot": "loottable:ash-boar", "level": [3, 4], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 2]}},
-      {"id": "character:ember-wolf", "source": {"kind": "literature", "work": "Prose Edda, Gylfaginning (Fenrir at Ragnarök, fire burning in his eyes and nostrils)", "author": "Snorri Sturluson", "year": 1220, "authorDied": 1241, "locator": "Gylfaginning, the account of Ragnarök and Fenrir"}, "role": "beast", "loot": "loottable:ember-wolf", "level": [3, 4], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [2, 3]}},
-      {"id": "character:ash-skeleton", "source": {"kind": "folklore", "work": "The Dance of Death (danse macabre): the skeleton procession of late-medieval church wall paintings and woodcuts", "locator": "the skeleton host that leads the living off in a line"}, "role": "brute", "loot": "loottable:ruin-ghoul", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [2, 2]}},
-      {"id": "character:pale-duelist", "source": {"kind": "literature", "work": "The Vampyre: A Tale (Lord Ruthven)", "author": "John William Polidori", "year": 1819, "authorDied": 1821, "locator": "the pale nobleman Lord Ruthven, who kills without a flush of anger"}, "role": "skirmisher", "loot": "loottable:ruin-ghoul", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
-      {"id": "character:cave-troll", "source": {"kind": "folklore", "work": "Norske Folkeeventyr (the mountain trolls of the Askeladden tales)", "author": "Peter Christen Asbjørnsen and Jørgen Moe", "year": 1841, "authorDied": 1885, "locator": "the first collection, 1841-44 (the troll in the mountain and the lad who outwits him)"}, "role": "beast", "loot": "loottable:cave-troll", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
-      {"id": "character:giant-salamander", "source": {"kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)"}, "role": "beast", "loot": "loottable:giant-salamander", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}}
+      {"id": "character:pit.crixus", "source": {"legendId": "crixus"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [1, 1], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.cacus", "source": {"legendId": "cacus"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [2, 2], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.gawain", "source": {"legendId": "gawain"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [3, 3], "respawnSeconds": 40, "roster": true, "behaviour": {"aggro": 3, "leash": 6, "roam": 1.6, "spread": 1, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.spartacus", "source": {"legendId": "spartacus"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [4, 4], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.boudica", "source": {"legendId": "boudica"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [5, 5], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.hannibal", "source": {"legendId": "hannibal"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [6, 6], "respawnSeconds": 50, "roster": true, "behaviour": {"aggro": 3, "leash": 7.5, "roam": 2, "spread": 2, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.leonidas", "source": {"legendId": "leonidas"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [7, 7], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.achilles", "source": {"legendId": "achilles"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [9, 9], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}},
+      {"id": "character:pit.mars", "source": {"legendId": "mars"}, "role": "skirmisher", "loot": "loottable:pit-legend", "level": [10, 10], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 4, "leash": 9.8, "roam": 2.6, "spread": 2.5, "pull": 0, "campSize": [1, 1]}}
     ]
   },
   "mobLooks": {
     "looks": {
-      "character:cinder-scavenger": {"opponent": "goblin", "tint": 14079702, "scale": 1.25, "loadout": "goblin.t4.gladius", "dressing": {"soot": 0, "burnt": 0}, "body": "world/kit/goblin-bare.glb"},
-      "character:pit-goblin": {"opponent": "goblin", "tint": 16777215, "scale": 1.25, "loadout": "goblin.t4.gladius", "body": "world/kit/goblin-bare.glb", "dressing": {"soot": 0, "burnt": 0}},
-      "character:ash-wolf": {"opponent": "wolf", "tint": 9077624, "dressing": {"soot": 0.4, "burnt": 0}},
-      "character:ruin-ghoul": {"opponent": "goblin", "tint": 7829114, "scale": 1.1, "dressing": {"soot": 0.5, "burnt": 0.6}, "body": "world/kit/goblin-bare.glb"},
-      "character:cinder-bear": {"opponent": "bear", "tint": 7300442, "dressing": {"soot": 0.5, "burnt": 0.1}},
-      "character:ash-boar": {"opponent": "boar", "tint": 8021330, "dressing": {"soot": 0.35, "burnt": 0}},
-      "character:ember-wolf": {"opponent": "wolf", "tint": 9062962, "scale": 2.2, "dressing": {"soot": 0.15, "burnt": 0.6}},
-      "character:ash-skeleton": {"opponent": "skeleton", "tint": 12369084, "dressing": {"soot": 0.4, "burnt": 0.2}},
-      "character:pale-duelist": {"opponent": "nightborn", "tint": 14211288, "dressing": {"soot": 0, "burnt": 0}},
-      "character:cave-troll": {"opponent": "cave-troll", "tint": 16777215, "scale": 1.52, "loadout": "troll.pit.t5.maul", "dressing": {"soot": 0.15, "burnt": 0}},
-      "character:giant-salamander": {"opponent": "giant-salamander", "tint": 16777215, "scale": 6, "dressing": {"soot": 0.2, "burnt": 0.1}}
-    },
-    "spread": {
-      "character:cinder-scavenger": {"tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver"]},
-      "character:pit-goblin": {"tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver", "goblin.t7.longsword", "goblin.t7.estoc", "goblin.t5.scythe", "goblin.t5.trident", "goblin.t6.warhammer", "goblin.t6.maul"]},
-      "character:ruin-ghoul": {"tints": [6974576, 8749178, 7367272], "scale": 0.08, "soot": 0.2, "burnt": 0.2},
-      "character:ember-wolf": {"tints": [8011824, 10115642, 7293498], "scale": 0.08, "soot": 0.1, "burnt": 0.15},
-      "character:cave-troll": {"tints": [16777215], "scale": 0, "soot": 0, "burnt": 0, "loadouts": ["troll.pit.t7.cleaver", "troll.pit.t6.warhammer", "troll.pit.t4.cleaver"]}
+      "character:pit.crixus": {"opponent": "veteran", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.cacus": {"opponent": "pitborn", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.gawain": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.spartacus": {"opponent": "veteran", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.boudica": {"opponent": "shieldmaiden", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.hannibal": {"opponent": "veteran", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.leonidas": {"opponent": "veteran", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.achilles": {"opponent": "knight", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}},
+      "character:pit.mars": {"opponent": "veteran", "tint": 16777215, "dressing": {"soot": 0, "burnt": 0}}
     }
   },
   "kit": {
@@ -409,25 +398,15 @@
       "yard-gate"
     ],
     "spawns": [
-      {"id": "outer-scavengers-0", "at": "ring-outer-0-spot", "characters": ["character:cinder-scavenger"]},
-      {"id": "outer-scavengers-1", "at": "ring-outer-1-spot", "characters": ["character:cinder-scavenger"]},
-      {"id": "outer-pit-goblins-0", "at": "ring-outer-2-spot", "characters": ["character:pit-goblin"]},
-      {"id": "outer-pit-goblins-1", "at": "ring-outer-3-spot", "characters": ["character:pit-goblin"]},
-      {"id": "outer-ash-wolves-0", "at": "ring-outer-4-spot", "characters": ["character:ash-wolf"]},
-      {"id": "outer-ash-wolves-1", "at": "ring-outer-5-spot", "characters": ["character:ash-wolf"]},
-      {"id": "middle-ghouls-0", "at": "ring-middle-0-spot", "characters": ["character:ruin-ghoul"]},
-      {"id": "middle-ghouls-1", "at": "ring-middle-1-spot", "characters": ["character:ruin-ghoul"]},
-      {"id": "middle-bears-0", "at": "ring-middle-2-spot", "characters": ["character:cinder-bear"]},
-      {"id": "middle-bears-1", "at": "ring-middle-3-spot", "characters": ["character:cinder-bear"]},
-      {"id": "middle-boars-0", "at": "ring-middle-4-spot", "characters": ["character:ash-boar"]},
-      {"id": "middle-boars-1", "at": "ring-middle-5-spot", "characters": ["character:ash-boar"]},
-      {"id": "middle-ember-wolves-0", "at": "ring-middle-0-spot", "characters": ["character:ember-wolf"]},
-      {"id": "floor-skeletons-0", "at": "floor-0-spot", "characters": ["character:ash-skeleton"]},
-      {"id": "floor-skeletons-1", "at": "floor-1-spot", "characters": ["character:ash-skeleton"]},
-      {"id": "floor-duelists-0", "at": "floor-2-spot", "characters": ["character:pale-duelist"]},
-      {"id": "floor-duelists-1", "at": "floor-0-spot", "characters": ["character:pale-duelist"]},
-      {"id": "floor-trolls-0", "at": "floor-1-spot", "characters": ["character:cave-troll"]},
-      {"id": "floor-salamanders-0", "at": "floor-2-spot", "characters": ["character:giant-salamander"]}
+      {"id": "outer-crixus-0", "at": "ring-outer-0-spot", "characters": ["character:pit.crixus"]},
+      {"id": "outer-cacus-0", "at": "ring-outer-2-spot", "characters": ["character:pit.cacus"]},
+      {"id": "outer-gawain-0", "at": "ring-outer-4-spot", "characters": ["character:pit.gawain"]},
+      {"id": "middle-spartacus-0", "at": "ring-middle-0-spot", "characters": ["character:pit.spartacus"]},
+      {"id": "middle-boudica-0", "at": "ring-middle-2-spot", "characters": ["character:pit.boudica"]},
+      {"id": "middle-hannibal-0", "at": "ring-middle-4-spot", "characters": ["character:pit.hannibal"]},
+      {"id": "floor-leonidas-0", "at": "floor-0-spot", "characters": ["character:pit.leonidas"]},
+      {"id": "floor-achilles-0", "at": "floor-1-spot", "characters": ["character:pit.achilles"]},
+      {"id": "floor-mars-0", "at": "floor-2-spot", "characters": ["character:pit.mars"]}
     ]
   }
 }

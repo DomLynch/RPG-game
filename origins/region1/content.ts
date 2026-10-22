@@ -20,6 +20,7 @@ import { LOOT_ITEMS } from '../../src/core/server.ts';
 import { placedSpawns, placedWaypoints, spawnIds } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
+import { LEGEND_CHARACTER_IDS, LEGEND_FOES, LEGEND_KILL_ROWS, PIT_LEGEND_RULE } from './legend-foes.ts';
 import townRows from './towns.json' with { type: 'json' };
 import townManifest from './towns.manifest.json' with { type: 'json' };
 import lootManifest from './loot-tables.manifest.json' with { type: 'json' };
@@ -103,7 +104,8 @@ export const FACTIONS = [
 
 // Bosses, Bounty targets and creatures (region1 §4, §8; living-world §8, §16): ROWS in origins/region1/progression.json, the contracts' character-definition shape
 // (legends for bosses and named targets, original mooks; the worm's PLACEHOLDER body is the held `minotaur` duel form, Strategy 2026-10-07).
-export const FOES: Record<string, unknown>[] = rows.foes;
+// + the Pit's legends, one character each, derived from the legend tables (origins/region1/legend-foes.ts, Dungeon 1's roster: Dom 2026-10-22), never typed here.
+export const FOES: Record<string, unknown>[] = [...rows.foes, ...LEGEND_FOES];
 
 // Town people (living-world §4.1, §12): rulers, their stand-in stewards, the service NPCs and the Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts):
 // ROWS in progression.json. Rulers are original NPCs (Brannoc and Osk named by the spec; the quarter's mayor PROPOSED); stewards and service NPCs are PROPOSED.
@@ -191,7 +193,7 @@ export const RIFTS: Record<string, unknown>[] = rows.rifts;
 //   first-win: the table rolls only on the kill that pays the once-row; a repeat kill rolls nothing (world-boss).
 //   weekly-cap: every eligible kill rolls, at most `perWeek` rolls an account a week (living-world §8.4, the PROPOSED rift-boss row).
 //   never: the table is not rolled; the win pays metal (a Bounty).
-export const KILL_ROWS: Record<string, string> = Object.fromEntries(rows.killRows.map((r) => [r.id, r.row]));
+export const KILL_ROWS: Record<string, string> = { ...Object.fromEntries(rows.killRows.map((r) => [r.id, r.row])), ...LEGEND_KILL_ROWS };   // + the Pit legends' rows (legend-foes.ts)
 export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 'never'; perWeek?: number }[] = rows.bossLoot.map((r) => ({
   encounter: r.encounter, rule: r.rule as 'first-win' | 'weekly-cap' | 'never', ...('perWeek' in r ? { perWeek: r.perWeek } : {}),
 }));
@@ -201,7 +203,8 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 // rows is a duplicate-id and an unknown creature or table is an unknown-ref, here at load and in scripts/registry-check.mjs. Order = row order.
 // Ids other tables point at come from the contracts bundle (characters here); the gate asks for the same sets.
 export const REGISTRY_EXTERNAL: Record<string, string[]> = { character: BUNDLE.map((r) => String(r.id)).filter((id) => id.startsWith('character:')) };
-const lootRegistry = loadRegistry(buildTables(lootManifest.tables.map((m) => ({ manifest: m as Manifest, parsed: lootTableRows, file: 'origins/region1/loot-tables.json' }))), REGISTRY_EXTERNAL);
+const LOOT_ROWS = lootTableRows.map((t) => (t.id === PIT_LEGEND_RULE.lootTable ? { ...t, rolledBy: [...t.rolledBy, ...LEGEND_CHARACTER_IDS] } : t));   // the shared Pit-legend table is rolled by every legend character (derived, never typed)
+const lootRegistry = loadRegistry(buildTables(lootManifest.tables.map((m) => ({ manifest: m as Manifest, parsed: LOOT_ROWS, file: 'origins/region1/loot-tables.json' }))), REGISTRY_EXTERNAL);
 export const CREATURE_LOOT: Record<string, string> = Object.fromEntries([...lootRegistry.rows.get('creatureLoot')!.values()].map((r) => [r.id as string, r.loottable as string]));
 
 export const LOCAL = { townDefs: TOWN_DEFS, towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT };

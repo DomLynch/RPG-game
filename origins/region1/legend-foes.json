@@ -1,0 +1,6 @@
+{
+  "about": "The Pit's legends as Region 1 characters (Dom 2026-10-22: Dungeon 1 is the Gladiator Pit, its creatures are the Pit ladder's own legends). One rule row: how a legend becomes a character, a kill row and a creature-loot entry. origins/region1/legend-foes.ts derives one character per legend from the legend tables (src/fight/legend-rows.json + legend-families.json): its name, source and backstory from the legend row, its body from the family, its world level = its rank (1..10). Nothing about a single legend is written here.",
+  "rules": {
+    "pitLegend": { "idPrefix": "character:pit.", "form": "mob", "role": "skirmisher", "assetDir": "characters", "killRow": "mob", "lootTable": "loottable:pit-legend" }
+  }
+}

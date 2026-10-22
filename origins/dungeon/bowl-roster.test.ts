@@ -5,30 +5,38 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadBowlRings, ringAt, rosterPlacements, rosterRows, type BowlKnown, type RingEdges, type RowBase } from './bowl-roster.ts';
 import RAW from './bowl-roster.json' with { type: 'json' };
-import PROGRESSION from '../region1/progression.json' with { type: 'json' };
+import { LEGEND_CHARACTER_IDS, legendFoeOf, legendRowBase } from '../region1/legend-foes.ts';
 import { listedZone } from '../zones/listed.ts';
 import { ringEdges } from '../zones/plan.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
-import { validateMobRow, type MobRow, type RowContext } from '../../src/core/world/row.ts';
+import { validateMobRow, type RowContext } from '../../src/core/world/row.ts';
 
-const ZONE1 = listedZone('1'), ZONE2 = listedZone('2'), ZONE7 = listedZone('7');   // a zone is read through the loader, never its row file (tests/zone-packages.test.ts)
+const ZONE7 = listedZone('7');   // a zone is read through the loader, never its row file (tests/zone-packages.test.ts)
 const edges: RingEdges = (zone, landmark) => ringEdges(zone, landmark);
-const FOES = new Set((PROGRESSION.foes as { id: string }[]).map((f) => f.id));
+const LEGENDS = new Set(LEGEND_CHARACTER_IDS);   // the Pit's legends as Region 1 characters (origins/region1/legend-foes.ts)
 const RING_LANDMARKS = new Set(['ring-outer', 'ring-middle', 'floor']);   // the marks World's bowl plan names (plan-rows.json zone 7)
-const known: BowlKnown = { characters: FOES, zones: new Set(['7']), landmarks: () => RING_LANDMARKS };
-const BASES = new Map<string, MobRow>([...(ZONE1.spawns.rows as unknown as MobRow[]), ...(ZONE2.spawns.rows as unknown as MobRow[])].map((r) => [r.id, r] as const));
-const base = (c: string): RowBase | undefined => BASES.get(c);
+const known: BowlKnown = { characters: LEGENDS, zones: new Set(['7']), landmarks: () => RING_LANDMARKS };
+const base = (c: string): RowBase | undefined => legendRowBase(c);
 const LOOKS = (ZONE7 as unknown as { mobLooks: { looks: Record<string, { opponent: string }> } }).mobLooks.looks;   // zone 7's own dress for its creatures (a creature with none draws as a capsule)
 const ctx: RowContext = { look: (id) => LOOKS[id] ?? null, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
 type RawRing = { zone: string; landmark: string; levels: number[]; aggroShare: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
 type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
 const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
 
-test('the shipped roster loads: three rings, bands ascend 1-2, 3-4, 5-6 from the outer ring in, every character is a real foe', () => {
+test('the shipped roster loads: three rings, bands ascend 1-3, 4-6, 7-10 from the outer ring in, and every character is one of the Pit\'s legends (no animal, no zone creature)', () => {
   const rings = loadBowlRings(known);
   assert.deepEqual(rings.map((r) => r.id), ['outer', 'middle', 'floor']);
-  assert.deepEqual(rings.map((r) => r.levels), [[1, 2], [3, 4], [5, 6]]);
-  for (const r of rings) for (const g of r.groups) assert.ok(FOES.has(g.character), `${r.id}/${g.id}: ${g.character}`);
+  assert.deepEqual(rings.map((r) => r.levels), [[1, 3], [4, 6], [7, 10]]);
+  for (const r of rings) for (const g of r.groups) assert.ok(LEGENDS.has(g.character), `${r.id}/${g.id}: ${g.character} is no Pit legend`);
+});
+
+test('every legend in a ring is of that ring\'s band: its rank (its world level) sits inside the ring\'s levels, and the ring is covered across its band', () => {
+  for (const r of loadBowlRings(known)) {
+    const ranks = r.groups.map((g) => legendFoeOf(g.character)!.rank);
+    assert.ok(ranks.every((k) => k >= r.levels[0] && k <= r.levels[1]), `${r.id}: ranks ${ranks} vs band ${r.levels}`);
+    assert.equal(Math.min(...ranks), r.levels[0], `${r.id}: the pool starts at the band's bottom rank`);
+    assert.equal(Math.max(...ranks), r.levels[1], `${r.id}: the pool reaches the band's top rank`);
+  }
 });
 
 test('the layout gives every ring an edge pair, and the three rings tile the bowl: floor, middle, outer, no gap and no overlap', () => {
@@ -40,13 +48,14 @@ test('the layout gives every ring an edge pair, and the three rings tile the bow
   assert.equal(middle!.outer, outer!.inner, 'the middle ring ends where the outer ring begins');
 });
 
-test('every group is one zone spawn row: roster: true, keyed by its character, its ring\'s level band, and it passes the spawn row contract', () => {
+test('every group is one zone spawn row: roster: true, keyed by its character, at its legend\'s own rank, and it passes the spawn row contract', () => {
   const rings = loadBowlRings(known), rows = rosterRows(rings, edges, base);
   assert.equal(rows.length, rings.reduce((n, r) => n + r.groups.length, 0));
   for (const row of rows) {
-    const ring = rings.find((r) => r.groups.some((g) => g.character === row.id))!;
+    const rank = legendFoeOf(row.id)!.rank;
     assert.equal(row.roster, true, row.id);
-    assert.deepEqual(row.level, ring.levels, row.id);
+    assert.deepEqual(row.level, [rank, rank], `${row.id} fights at its rank`);
+    assert.deepEqual(row.source, { legendId: legendFoeOf(row.id)!.legendId }, `${row.id} cites its legend row`);
     assert.ok((row.behaviour.aggro ?? 0) > 0, `${row.id}: the bowl's creatures are aggressive`);
     assert.deepEqual(validateMobRow(row, ctx), [], `${row.id} breaks the spawn row contract`);
   }
@@ -134,4 +143,5 @@ test('the loader refuses what would put a creature wrong: overlapping bands, unk
   assert.throws(() => rosterRows(loadBowlRings(known), () => null, base), /no edges/);
   assert.throws(() => rosterRows(loadBowlRings(known), () => ({ inner: 5, outer: 5 }), base), /no width/);
   assert.throws(() => rosterRows(loadBowlRings(known), edges, () => undefined), /no row to take/);
+  assert.throws(() => rosterRows(loadBowlRings(known), edges, (c) => ({ ...legendRowBase(c)!, level: [9, 9] as const })), /outside the ring's band/);   // a rank-9 legend in the L1-3 ring
 });
