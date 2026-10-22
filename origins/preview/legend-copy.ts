@@ -4,7 +4,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
 import type { MobRow } from '../../src/core/world/row.ts';
 import { TITLES } from '../../src/core/career-ladder.ts';
-import { ROSTER } from '../../src/roster.ts';
+import { bareName, isOpponentId } from '../../src/fight/index.ts';   // the engine door (K12)
 import COPY from './legend-copy.json' with { type: 'json' };
 import MANIFEST from './legend-copy.manifest.json' with { type: 'json' };
 
@@ -19,7 +19,7 @@ const HINTS = new Map(HINT_TABLE.rows.map((r) => [r.id as string, r as unknown a
 export const legendIdOf = (row: Pick<MobRow, 'source'> | undefined): string | null => (row?.source && 'legendId' in row.source ? row.source.legendId : null);
 
 const fill = (template: string, vars: Readonly<Record<string, string | number>>): string => template.replace(/\{(\w+)\}/g, (_m, k: string) => { if (!(k in vars)) throw Error(`legend-copy: {${k}} has no value`); return String(vars[k]); });
-const kindOf = (body: string): string => (ROSTER as unknown as Record<string, { name: string } | undefined>)[body]?.name.replace(/^the /, '') ?? body;
+const kindOf = (body: string): string => isOpponentId(body) ? bareName(body) : body;
 
 /** The creature card's three lines for a legend: line 2 keeps the con ring and danger word and adds "Rank N · <the ladder's rank title>", line 3 is the ladder's own kind line ("the Pitborn"), never rarity or pack size. A legend's world level IS its rank (1..10, the ladder's ten titles). */
 export function legendCardLines(lines: readonly [string, string, string], rank: number, body: string): [string, string, string] {
