@@ -3,28 +3,490 @@
  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
  "spots": [
   {
-   "name": "north",
-   "frames": 479,
+   "name": "corner-ne",
+   "frames": 179,
    "p50": 16.7,
    "p95": 16.7,
    "max": 16.8,
-   "over33": 0
+   "over33": 0,
+   "tris": {
+    "full": 32997,
+    "far": 37661,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 1,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 4,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 0,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 3,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 0,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 0,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 0,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 2,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 12,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 1,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 9,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 4,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 10,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 0,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 3,
+      "tris": 1200
+     }
+    },
+    "drawn": 70658,
+    "noLod": 215978
+   }
   },
   {
-   "name": "west",
-   "frames": 479,
+   "name": "corner-nw",
+   "frames": 179,
+   "p50": 16.7,
+   "p95": 16.7,
+   "max": 16.8,
+   "over33": 0,
+   "tris": {
+    "full": 66994,
+    "far": 46066,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 2,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 5,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 0,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 2,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 1,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 1,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 0,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 4,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 13,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 2,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 14,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 6,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 13,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 0,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 3,
+      "tris": 1200
+     }
+    },
+    "drawn": 113060,
+    "noLod": 292974
+   }
+  },
+  {
+   "name": "corner-se",
+   "frames": 179,
    "p50": 16.7,
    "p95": 16.8,
    "max": 16.8,
-   "over33": 0
+   "over33": 0,
+   "tris": {
+    "full": 57993,
+    "far": 43642,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 2,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 0,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 0,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 2,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 0,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 8,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 1,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 5,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 11,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 3,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 5,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 4,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 14,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 0,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 3,
+      "tris": 1200
+     }
+    },
+    "drawn": 101635,
+    "noLod": 291620
+   }
   },
   {
-   "name": "east",
-   "frames": 479,
+   "name": "corner-sw",
+   "frames": 179,
    "p50": 16.7,
-   "p95": 16.8,
+   "p95": 16.7,
    "max": 16.8,
-   "over33": 0
+   "over33": 0,
+   "tris": {
+    "full": 51993,
+    "far": 36668,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 0,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 2,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 0,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 0,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 0,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 8,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 1,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 7,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 6,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 3,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 5,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 3,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 11,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 0,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 3,
+      "tris": 1200
+     }
+    },
+    "drawn": 88661,
+    "noLod": 249625
+   }
+  },
+  {
+   "name": "centre",
+   "frames": 179,
+   "p50": 16.7,
+   "p95": 16.7,
+   "max": 16.8,
+   "over33": 0,
+   "tris": {
+    "full": 18000,
+    "far": 73961,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 0,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 6,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 0,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 3,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 0,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 4,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 1,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 0,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 27,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 0,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 14,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 0,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 28,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 3,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 0,
+      "tris": 1200
+     }
+    },
+    "drawn": 91961,
+    "noLod": 390604
+   }
+  },
+  {
+   "name": "north-edge",
+   "frames": 179,
+   "p50": 16.7,
+   "p95": 16.7,
+   "max": 16.8,
+   "over33": 0,
+   "tris": {
+    "full": 20997,
+    "far": 67158,
+    "all": 0,
+    "byNode": {
+     "goblin_gate": {
+      "count": 2,
+      "tris": 4999
+     },
+     "goblin_gate__far": {
+      "count": 6,
+      "tris": 1200
+     },
+     "goblin_tower": {
+      "count": 1,
+      "tris": 6999
+     },
+     "goblin_tower__far": {
+      "count": 2,
+      "tris": 1487
+     },
+     "goblin_hut": {
+      "count": 0,
+      "tris": 9000
+     },
+     "goblin_hut__far": {
+      "count": 2,
+      "tris": 1492
+     },
+     "goblin_spikes": {
+      "count": 0,
+      "tris": 9640
+     },
+     "goblin_spikes__far": {
+      "count": 0,
+      "tris": 1132
+     },
+     "goblin_palisade_c": {
+      "count": 0,
+      "tris": 3999
+     },
+     "goblin_palisade_c__far": {
+      "count": 24,
+      "tris": 800
+     },
+     "goblin_palisade_b": {
+      "count": 0,
+      "tris": 4000
+     },
+     "goblin_palisade_b__far": {
+      "count": 18,
+      "tris": 800
+     },
+     "goblin_palisade_a": {
+      "count": 1,
+      "tris": 4000
+     },
+     "goblin_palisade_a__far": {
+      "count": 21,
+      "tris": 800
+     },
+     "goblin_totem": {
+      "count": 0,
+      "tris": 6000
+     },
+     "goblin_totem__far": {
+      "count": 3,
+      "tris": 1200
+     }
+    },
+    "drawn": 88155,
+    "noLod": 352965
+   }
   }
  ]
 }
