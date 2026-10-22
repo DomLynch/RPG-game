@@ -71,7 +71,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   add(layers.plain!, new THREE.MeshStandardMaterial({ color: m.stone.color, roughness: 1, vertexColors: true }), 'plain');   // untextured matte in the stone's own base colour, so a prop is as bright as it was (the prop kits' wood, hide, cloth and bone): no stone pattern on a tent
 }
 
-export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
+export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -90,11 +90,13 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   // The paving and the masonry each get a clone of the arena's stone, so a look (look.ts) can grade them apart; untinted they are the arena's stone to the eye.
   const ground = m.stone.clone(), stone = m.stone.clone();
   meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground });
-  const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));
-  frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
+  if (plan.frieze) {   // a plan without a frieze row has no inscription
+    const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));
+    frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
+  }
 
   return {
-    group, ground, stone, braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z),
+    group, ground, stone, braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
       for (const c of [ground, stone]) if (c.map !== m.stone.map) { c.map = m.stone.map; c.normalMap = m.stone.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone textures in late; the clones follow
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
