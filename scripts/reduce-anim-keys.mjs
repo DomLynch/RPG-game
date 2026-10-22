@@ -16,6 +16,20 @@ function slerpInto(out, a, b, u) {
   for (let k = 0; k < 4; k++) out[k] = a[k] * s0 + b[k] * s1;
 }
 
+/** STEP sampler: a key holds its value until the next key, so a key equal (within eps) to the last kept one is redundant; first and last stay. */
+export function steppedKeys(values, width, rotation, eps) {
+  const n = values.length / width, keep = new Uint8Array(n);
+  keep[0] = keep[n - 1] = 1;
+  let last = 0;
+  for (let i = 1; i < n - 1; i++) {
+    let err = 0, errNeg = 0;
+    for (let k = 0; k < width; k++) { err = Math.max(err, Math.abs(values[i * width + k] - values[last * width + k])); errNeg = Math.max(errNeg, Math.abs(values[i * width + k] + values[last * width + k])); }
+    if (rotation) err = Math.min(err, errNeg);
+    if (err > eps) { keep[i] = 1; last = i; }
+  }
+  return keep;
+}
+
 /** Indices (ascending) of the keys to keep: Douglas-Peucker on the interpolation error, so every dropped key is within eps of the FINAL track. */
 export function keptKeys(times, values, width, rotation, eps) {
   const n = times.length, keep = new Uint8Array(n);
@@ -108,16 +122,17 @@ export function reduceAnimKeys(raw, eps = 1e-4, keep = null, dropRest = false) {
     const done = new Map();
     an.samplers = an.samplers.map((s, si) => {
       const ch = an.channels.find((c) => c.sampler === si), path = ch.target.path;
-      if ((s.interpolation || 'LINEAR') !== 'LINEAR') { assert.fail(`${an.name}: ${s.interpolation} sampler`); }
+      const mode = s.interpolation || 'LINEAR';
+      if (mode !== 'LINEAR' && mode !== 'STEP') { assert.fail(`${an.name}: ${mode} sampler`); }
       const key = `${s.input}/${s.output}/${path}`;
       if (done.has(key)) return done.get(key);
-      const t = readF(s.input), w = WIDTH[j.accessors[s.output].type], v = readF(s.output), keep = keptKeys(t, v, w, path === 'rotation', eps);
+      const t = readF(s.input), w = WIDTH[j.accessors[s.output].type], v = readF(s.output), keep = mode === 'STEP' ? steppedKeys(v, w, path === 'rotation', eps) : keptKeys(t, v, w, path === 'rotation', eps);
       const idx = []; keep.forEach((k, i) => { if (k) idx.push(i); });
       keysIn += t.length; keysOut += idx.length;
       const nt = new Float32Array(idx.length), nv = new Float32Array(idx.length * w);
       idx.forEach((i, o) => { nt[o] = t[i]; for (let k = 0; k < w; k++) nv[o * w + k] = v[i * w + k]; });
       const input = added(nt, 'SCALAR', idx.length, { min: [nt[0]], max: [nt[nt.length - 1]] }), output = added(nv, j.accessors[s.output].type, idx.length);
-      const out = { input, output }; done.set(key, out); return out;   // LINEAR is the default: no "interpolation" text on every sampler
+      const out = mode === 'STEP' ? { input, output, interpolation: 'STEP' } : { input, output }; done.set(key, out); return out;   // LINEAR is the default: no "interpolation" text on every sampler
     });
     const unique = [], at2 = new Map();   // samplers that read and write the same accessors are one
     an.channels.forEach((c) => { const s = an.samplers[c.sampler], id = `${s.input}/${s.output}`; if (!at2.has(id)) { at2.set(id, unique.length); unique.push(s); } c.sampler = at2.get(id); });

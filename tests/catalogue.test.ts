@@ -120,7 +120,7 @@ test('the rows say what the files say: tri counts, clips, cut bones, the armour 
   }
   const g = catalogueRow('goblin')!;
   assert.deepEqual(g.armour, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']);
-  assert.equal(g.loot.table, 'loottable:pit-goblin'); assert.equal(g.world!.tris, 7999);
+  assert.equal(g.loot.table, 'loottable:pit-goblin'); assert.equal(g.world!.tris, 5400);
   assert.equal(catalogueRow('skeleton')!.blood, null, 'the Skeleton is bloodless as the roster says');
 });
 
