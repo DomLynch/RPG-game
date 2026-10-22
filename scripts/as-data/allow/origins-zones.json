@@ -1,5 +1,8 @@
 {
   "tunables": [
     {"file": "origins/zones/schema.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
+  ],
+  "branchIds": [
+    {"file": "origins/zones/plan.ts", "literal": "ring", "reason": "the plan piece SHAPE vocabulary (box | cylinder | cone | sphere | pediment | ring | wedge: plan.ts Shape): the closed set of geometries a piece's footprint is read by, a mechanism category, not a content id (plan-rows.json rows name which shape they use)"}
   ]
 }

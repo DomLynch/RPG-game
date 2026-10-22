@@ -1,0 +1,16 @@
+{
+  "about": "The Pit's legends as Region 1 characters (Dom 2026-10-22: Dungeon 1 is the Gladiator Pit, its creatures are the Pit ladder's own legends). One rule row: the id prefix, the progression row and loot table a legend pays, and the character TEMPLATE every legend is made from. origins/region1/legend-foes.ts maps the legend tables (src/fight/legend-rows.json + legend-families.json) over the template: {id} {name} {source} {backstory} {opponent} {rank} are filled from the legend and its family (a value that is exactly one placeholder keeps the placeholder's type, so {rank} is a number). Nothing about a single legend is written here.",
+  "rules": {
+    "pitLegend": {
+      "idPrefix": "character:pit.", "role": "skirmisher", "killRow": "mob", "lootTable": "loottable:pit-legend",
+      "template": {
+        "kind": "character-definition", "schemaVersion": 1, "id": "{id}", "name": "{name}",
+        "lore": { "source": "{source}", "summary": "{backstory}" },
+        "faction": null, "essential": false, "relationships": [], "questRoles": [],
+        "presentations": [{ "id": "default", "asset": "characters/{opponent}.glb" }],
+        "encounterForms": [{ "id": "mob", "opponent": "{opponent}", "level": "{rank}", "encounter": null }],
+        "routine": []
+      }
+    }
+  }
+}

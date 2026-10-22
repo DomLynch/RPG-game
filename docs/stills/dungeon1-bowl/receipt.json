@@ -1,0 +1,12 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "shots": [
+  "start-375.png",
+  "terrace-375.png",
+  "middle-375.png",
+  "floor-375.png",
+  "duel-375.png"
+ ],
+ "errors": [],
+ "zoneName": "Frankendom — Dungeon 1"
+}
