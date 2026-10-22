@@ -38,7 +38,8 @@ import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { createAreaSky } from './area-sky.ts';
+import { areaSky, goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
@@ -206,6 +207,8 @@ const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), fr
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
 let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
+// The area-sky hook (area-sky.ts): an area (a frontier-plan zone id) with a `<area>:sky` names row shows that dome and light while the walker is in it; no row = nothing changes.
+const areas = createAreaSky({ skyOf: areaSky, own: () => zoneDome, blendS: goblinRule('areaBlendS'), make: (p) => { const d = createHorizonDome(scene, p, import.meta.env.BASE_URL), pitSky = arena.group.getObjectByName(d.covers); if (pitSky) pitSky.renderOrder = d.mesh.renderOrder - 1; return d; } });
 settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
 let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
@@ -213,7 +216,7 @@ if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; stampSettled(); });   // a failed kit file only leaves the ground bare
   { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; modelsDrawn = !standing.length; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => { frontierGroup?.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { modelsDrawn = true; }); }   // (the new meshes: look again at once, the last look is stale) the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
-  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); areas.refresh(); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
@@ -439,6 +442,7 @@ function step(dt: number) {
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
     if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
+    const area = areas.look(dt); if (area) look = blendLook(look, lookOf(area.preset), area.k);   // the area's own light, eased in on entering and out on leaving
     sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
@@ -497,6 +501,7 @@ function showZone(id: string | null) {
   const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange')))!;
   if (zoneNow?.zone === z.zone) return;
   zoneNow = { region: z.region, zone: z.zone, name: z.name, preset: z.preset };
+  areas.enter(z.zone);
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
@@ -740,7 +745,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) 
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
-  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
+  zoneDome?.follow(camera); areas.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (!draw) return;   // a capture tick between shots steps the world and draws nothing
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)

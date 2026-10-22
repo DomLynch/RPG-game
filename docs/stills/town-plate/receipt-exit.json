@@ -1,0 +1,22 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "375",
+      "file": "exit-375.png",
+      "pos": {
+        "x": -103.8,
+        "z": 6.1
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "exit-desktop.png",
+      "pos": {
+        "x": -103.8,
+        "z": 6.1
+      }
+    }
+  ],
+  "errors": []
+}
