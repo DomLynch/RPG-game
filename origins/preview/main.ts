@@ -10,7 +10,7 @@ import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { SPEEDS } from '../../src/fight/index.ts';
+import { SPEEDS, world } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -35,10 +35,11 @@ import { createLoadoutGate } from './loadout-gate.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
-import { legendSpecs } from './legend-mobs.ts';
-import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
+import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { createAreaSky } from './area-sky.ts';
+import { areaSky, goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
@@ -207,6 +208,8 @@ const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), fr
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
 let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
+// The area-sky hook (area-sky.ts): an area (a frontier-plan zone id) with a `<area>:sky` names row shows that dome and light while the walker is in it; no row = nothing changes.
+const areas = createAreaSky({ skyOf: areaSky, own: () => zoneDome, blendS: goblinRule('areaBlendS'), make: (p) => { const d = createHorizonDome(scene, p, import.meta.env.BASE_URL), pitSky = arena.group.getObjectByName(d.covers); if (pitSky) pitSky.renderOrder = d.mesh.renderOrder - 1; return d; } });
 settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
 // The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
 const townSkins = /[?&]skins=(?:0|off)\b/.test(location.search) ? [] : exchange.skins;   // ?skins=0: every skinned plan piece keeps its greybox shape (the A/B of the skin path's cost reads it)
@@ -218,7 +221,8 @@ if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; stampSettled(); });   // a failed kit file only leaves the ground bare
   { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; modelsDrawn = !standing.length; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => { frontierGroup?.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { modelsDrawn = true; }); }   // (the new meshes: look again at once, the last look is stale) the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
-  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); areas.refresh(); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (!frontier.pit) arena.group.visible = false;   // a page whose zone row does not own the Pit yard (the town, zone 0) shows none of the Pit's sand, stands or abyss: it was the white and cream behind the town wall
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette(), Number(new URLSearchParams(location.search).get('torchlights') ?? NaN) >= 0 ? Number(new URLSearchParams(location.search).get('torchlights')) : undefined);   // the camp fires' smoke and light; ?torchlights=N lights only the N nearest fires (the lights A/B's other arm; absent = the torchLights row)
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
@@ -299,6 +303,7 @@ if (start) { state.x = start.x; state.z = start.z; heading = fxNum('start.face-o
 if (start && goblinKit?.centre && fxNum('start.camp-on') > 0) { const a = fxNum('start.camp-angle'), r = fxNum('start.camp-radius'); state.x = goblinKit.centre.x + Math.sin(a) * r; state.z = goblinKit.centre.z + Math.cos(a) * r; }   // a zone with a camp kit starts him at a set place just inside the camp wall, by the skull post (rows start.camp-*: the angle as a ring counts it, the radius from the camp centre), as the Test Zone did   // the hero starts facing the camp wall and the sun, as the Test Zone's start did (start.face-rad is the compass heading to the sun, rad; start.face-on 0 = toward the first creatures, as before)
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
+else if (zoneRow?.set?.includes('entry')) { const at = zoneRow.fields!['entry'] as { x: number; z: number; facing?: number } | null; if (at) { state.x = at.x; state.z = at.z; if (at.facing !== undefined) heading = at.facing; } }   // a zone row's own `entry` point (a town zone opens on its plaza, not among creatures)
 const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
 function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page
   const veil = document.createElement('div'); veil.id = 'zone-cross'; veil.textContent = row.label;
@@ -444,6 +449,7 @@ function step(dt: number) {
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
     if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
+    const area = areas.look(dt); if (area) look = blendLook(look, lookOf(area.preset), area.k);   // the area's own light, eased in on entering and out on leaving
     sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
@@ -474,7 +480,7 @@ function step(dt: number) {
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
-  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -499,9 +505,10 @@ let presence: Presence | null = null, others: Other[] = [];   // the Zone 1 page
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
 function showZone(id: string | null) {
   if (!frontier) return;
-  const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange')))!;
+  const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange'))) ?? frontier.zones[0]!;   // (a town page owns only some of the concord zones: the first it has)
   if (zoneNow?.zone === z.zone) return;
   zoneNow = { region: z.region, zone: z.zone, name: z.name, preset: z.preset };
+  areas.enter(z.zone);
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
@@ -745,7 +752,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) 
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   ambience?.update(dt); goblinSmoke?.update(dt, state); updateKitViews(state, previewRule('kitViewStepM'), camera.position);   // the zone's wind and fire bed, and the camp fires' smoke and flicker; the kit's shadow, draw radius and near/far swap re-pack
-  zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
+  zoneDome?.follow(camera); areas.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (!draw) return;   // a capture tick between shots steps the world and draws nothing
   if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
@@ -846,12 +853,14 @@ onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpel
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
+// The warp that places a page's hero at its zone's own start (the page's start, a zone row's `warps` landmark `zone<N>-start`; Zone 1's is the table's `zone1-start`): never another zone's. A zone with none asks for no warp (a Zone 2 page asking for Zone 1's start was refused by presence and the hero ended in the Pit, 2026-10-22).
+const START_WARP = (() => { const z = loadZone(); return z.warps?.find((w) => w.id === `zone${z.id}-start`)?.id ?? (z.id === DEFAULT_ZONE ? 'zone1-start' : null); })();
 let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
   token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
-    if (frontier && !startWarped) { startWarped = true; presence?.warp(landed?.row.warp ?? 'zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (frontier && !startWarped && (landed || START_WARP)) { startWarped = true; presence?.warp(landed?.row.warp ?? START_WARP!); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
     if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
   },
   onOthers: (list) => { others = list; },
@@ -920,10 +929,21 @@ function settleFight(finish: Finished) {
 // A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
 // to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
 const LEGEND_REACH = previewRule('legendReach');
+// A legend aggroes like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC, so she can definitely come up and attack"): the mob loop wanders it, notices the hero inside
+// its aggro radius (the legend row, else the legendAggro rule) and walks it up (mobs-view legendChase); here, once it hunts the hero inside LEGEND_REACH, the same verified fight a tap starts begins. Not for a hero
+// more than the world's maxLevelGap levels from it (the creature is trivial or out of reach, not a pull), and not again for legendCooldown seconds after a fight (a loss must not re-pull on the respawn tick).
+const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = world.MAX_LEVEL_GAP;   // the engine's own row-backed constant (world-rules maxLevelGap) through the fight barrel, not a second read of the rules module
+let legendCool = 0;
+function legendAggro(dt: number) {
+  legendCool = Math.max(0, legendCool - dt);
+  if (!mobs) return;
+  const pulled = legendPull(mobs.legends(), state, careerLine(session.career).level, fighting || duelFailed, legendCool, { reach: LEGEND_REACH, levelGap: LEGEND_LEVEL_GAP });   // the rule is pure and unit-tested (legend-mobs.ts, legend-fight.test.ts)
+  if (pulled) { legendCool = LEGEND_COOLDOWN_S; void legendFight(pulled); }
+}
 const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
 async function legendFight(spec: MobSpec) {
   if (fighting || duelFailed) return;
-  const begun = await beginLegendFight(spec, legendNet);
+  const begun = await beginLegendFight(spec, legendNet, Date.now() >>> 0);   // a guest's fight is the same legend at the same level on our own seed: no record, no spell (Dom: sign-in is a save, never a gate)
   if (!begun.ok) { say(begun.say); return; }
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name} — a legend`;
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
@@ -931,7 +951,7 @@ async function legendFight(spec: MobSpec) {
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
   if (!fighting) return;
   // The weapon is the ledger main hand the rig can draw (what the settle checks), read now and not from rigWeapon, which lags a swap in flight; the gear is not reachable during the duel (the ☰ is hidden above).
-  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (finish, record) => { const outcome = outcomeOf(finish), won = outcome === 'win'; if (legendFelled(outcome)) mobs?.fell(spec.id); void finishLegendFight(spec, begun, record, legendNet, won).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);   // a win lays the legend down for the respawn (a loss: the cooldown below keeps it from pulling again at once)
 }
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
@@ -954,7 +974,7 @@ let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
 // stalemate shows nothing; the hero's death dims the screen for ~2 s ("You died"), then he stands up in town at full health, everything kept. The Pit keeps its own banner and rules.
-const TOWN_RESPAWN = { x: 0, z: 3 };   // TODO(World, with Characters' town kit #1825 / generator #1826): placeholder, the square the region page opens on; replace with the Zone 1 bank town's respawn point when the town is placed
+const TOWN_RESPAWN = loadZone().fields!['respawn'] as { x: number; z: number; warp: string };   // the zone row's `respawn` point and the presence warp that moves him there (schema default = the square the region page opens on, presence warp town-respawn; a town zone sets its own)
 function worldToast(text: string) {
   document.getElementById('world-toast')?.remove();
   const t = document.createElement('div'); t.id = 'world-toast'; t.className = 'glass'; t.textContent = text;
@@ -992,7 +1012,7 @@ function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
   document.body.append(veil);
-  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp(TOWN_RESPAWN.warp); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
 // The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Every zone since 2026-10-19 (row `warband.enabled` switches it).
 const warBandRun = createWarBandRun({

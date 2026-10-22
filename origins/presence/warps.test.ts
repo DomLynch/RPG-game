@@ -2,7 +2,6 @@
 // server moves a player only to a table landmark: a forged id closes the socket, a plain far pose is still a teleport, the rate is a row.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
 import { propKit } from '../preview/prop-kit.ts';
@@ -13,8 +12,9 @@ import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
 import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } from './warps.ts';
 import { openExits } from '../zones/exits.ts';
+import { loadZone } from '../zones/loader.ts';
 const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
-import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
+import { CENTRE_CM, clearOfTradeAreas, inTradeArea, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
 const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
@@ -23,7 +23,7 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone1-cave-mouth', 'zone1-road-end', 'zone1-start', 'zone5-gate']);
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-start', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate']);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);
@@ -41,6 +41,16 @@ test('the exit warps are DERIVED from the exit rows and the zone plan, not copie
   assert.throws(() => exitWarps([{ ...EXITS[0]!, arrive: 'no-such-landmark' }]), /no landing/);
 });
 
+test('a landing inside a trade area is refused unless its exit row says tradeLanding: the town\'s own gate (zone 0 listed, 2026-10-22) is the one such landing', () => {
+  const gate = EXITS.find((e) => e.warp === 'zone0-gate')!;
+  assert.equal(gate.tradeLanding, true, 'the Zone 1 -> zone 0 door is the town gate');
+  const cm = (id: string): { x: number; z: number } => warpPlace(id)!;
+  assert.ok(inTradeArea(cm('zone0-gate').x, cm('zone0-gate').z), 'its landing is inside the Exchange trade area');
+  assert.throws(() => exitWarps([{ ...gate, tradeLanding: false }]), /inside a trade area/, 'without the row flag the same landing is refused');
+  assert.deepEqual(EXITS.filter((e) => e.tradeLanding).map((e) => e.warp), ['zone0-gate'], 'no other door lands in a trade area');
+  for (const e of EXITS) if (!e.tradeLanding) assert.ok(!inTradeArea(cm(e.warp).x, cm(e.warp).z), `${e.warp} stays clear of the trade areas`);
+});
+
 test('the rows equal the places the page teleports to (a zone or mob edit that moves one fails here)', () => {
   const F = frontierPlan(false), B = frontierBuild(F);
   for (const signedIn of [true, false]) {
@@ -52,7 +62,7 @@ test('the rows equal the places the page teleports to (a zone or mob edit that m
   // The page's goBack stands at the Exchange's west gate, which is inside a trade area: a warp may not land there (Lead's rule), so the row is where presence clears it to, the Pit yard's edge.
   const cleared = clearOfTradeAreas(Math.round(CENTRE_CM + back.x * 100), Math.round(CENTRE_CM + back.z * 100));
   near(m('zone1-road-end').x, (cleared.x - CENTRE_CM) / 100, 0.006); near(m('zone1-road-end').z, (cleared.z - CENTRE_CM) / 100, 0.006);
-  assert.match(readFileSync(new URL('../preview/main.ts', import.meta.url), 'utf8'), /TOWN_RESPAWN = \{ x: 0, z: 3 \}/, 'the page\'s town respawn is the town-respawn row');
+  assert.deepEqual(loadZone('1').fields!['respawn'], { x: 0, z: 3, warp: 'town-respawn' }, 'the page\'s town respawn is a zone-row field (the schema default: the square the region page opens on) and names the town-respawn row');   // was a literal in main.ts (TOWN_RESPAWN); a town zone sets its own
   near(m('town-respawn').x, 0, 1e-9); near(m('town-respawn').z, 3, 1e-9);
 });
 
@@ -93,5 +103,5 @@ test('a package\'s warps are merged after the table\'s: open packages only, a re
   assert.throws(() => loadWarps({ landmarks: [...DEFS.landmarks, { ...DEFS.landmarks[0]! }] }), /duplicate|twice|unique/i, 'a package cannot reuse a table id');
   assert.throws(() => loadWarps({ landmarks: [...packageWarps(pkg, true)] }), /not inside any zone row/);
   assert.equal(placeProblem(0, 3), null); assert.equal(placeProblem(9e5, 9e5), 'not inside any zone row');
-  assert.deepEqual(packageWarps(), [], 'no shipped zone row carries warps yet');
+  assert.deepEqual(packageWarps(), [{ id: 'zone0-start', x: 0, z: -36, unit: 'm', tradeLanding: true }, { id: 'zone2-start', x: -39.31, z: -127.67, unit: 'm' }], 'the shipped zone-row warps are the town\'s own start (zone 0 listed, 2026-10-22: inside its trade area on purpose, so tradeLanding) and Zone 2\'s own start (a Zone 2 page no longer asks presence for Zone 1\'s start and ends in the Pit)');
 });

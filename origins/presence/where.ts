@@ -2,6 +2,7 @@
 // body). The server side is GET /internal/where in server.ts. Everything here fails closed: a presence service that cannot be reached, or answers anything but a well-formed 200, is an
 // error the caller must turn into a refusal, never into "not at the Exchange" quietly passing or "at the Exchange" assumed.
 import { presenceRule } from './presence-rules.ts';
+import { HTTP_OK } from './units.ts';
 
 export type Where =
   | { online: false }
@@ -24,7 +25,7 @@ export function parseWhere(v: unknown): Where {
 export function presenceWhere(baseUrl: string, key: string, timeoutMs = presenceRule('whereTimeoutMs'), fetchImpl: typeof fetch = fetch): WhereFn {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/where?account=${encodeURIComponent(account)}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
-    if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);
+    if (res.status !== HTTP_OK) throw new Error(`presence: HTTP ${res.status}`);
     return parseWhere(await res.json());
   };
 }
@@ -59,7 +60,7 @@ export type WornPokeFn = (account: string) => Promise<void>;
 export function presenceWornPoke(baseUrl: string, key: string, timeoutMs = presenceRule('wornPokeTimeoutMs'), fetchImpl: typeof fetch = fetch): WornPokeFn {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/worn`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ account }), signal: AbortSignal.timeout(timeoutMs) });
-    if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);
+    if (res.status !== HTTP_OK) throw new Error(`presence: HTTP ${res.status}`);
   };
 }
 

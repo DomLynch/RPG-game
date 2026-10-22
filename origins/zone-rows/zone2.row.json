@@ -1,6 +1,9 @@
 {
   "name": "The Ash Reach",
   "defaultKind": "goblin",
+  "warps": [
+    { "id": "zone2-start", "x": -39.31, "z": -127.67, "unit": "m" }
+  ],
   "look": {
     "arena": "2",
     "sky": "reach-plate",
