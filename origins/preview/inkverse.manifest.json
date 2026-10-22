@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "inkLook",
+      "file": "inkverse.json",
+      "at": "inkLooks",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}
