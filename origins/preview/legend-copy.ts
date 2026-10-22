@@ -1,9 +1,7 @@
 // What a player reads for one of the Pit's legends in the world (Combat, 2026-10-22; Strategy's two copy conditions: a legend is labelled as name, rank and title like the ladder, never as a mob / creature / monster; it is
 // "defeated", never "slain", and its reward is never called loot or a drop). The words are rows (legend-copy.json); this file only recognises a legend and fills them. A legend is a zone spawn row whose `source` is
 // `{ legendId }` (origins/region1/legend-foes.ts makes those rows' characters), so no legend, family or zone is named here; every other creature keeps its own copy. Pure.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
-import type { MobRow } from '../../src/core/world/row.ts';
-import { TITLES } from '../../src/core/career-ladder.ts';
+import { loadRegistry, tableFromFile, TITLES, type Manifest, type MobRow } from '../../src/core/index.ts';
 import { bareName, isOpponentId } from '../../src/fight/index.ts';   // the engine door (K12)
 import COPY from './legend-copy.json' with { type: 'json' };
 import MANIFEST from './legend-copy.manifest.json' with { type: 'json' };
