@@ -68,8 +68,8 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
     if (drawR > 0 || proxied || lod) {
       let far: THREE.InstancedMesh | null = null, proxy: THREE.InstancedMesh | null = null;
       if (lod && farArr) {   // the far body, drawn beyond lod.dist; it is not drawn until the first update has bucketed the instances
-        far = new THREE.InstancedMesh(lod.geometry, lod.material, list.length); far.name = `${o.name}__far`; far.castShadow = rule.castShadow && !proxied; far.receiveShadow = true; far.count = 0;
-        far.instanceMatrix.copyArray(farArr); far.computeBoundingSphere(); group.add(far);
+        far = new THREE.InstancedMesh(lod.geometry, lod.material, list.length); far.name = `${o.name}__far`; far.castShadow = rule.castShadow && !proxied; far.receiveShadow = true;
+        far.instanceMatrix.copyArray(farArr); far.computeBoundingSphere(); far.count = 0; group.add(far);   // the bounding sphere is taken over every instance BEFORE the count is zeroed (over zero instances it is empty and the mesh is culled whatever is drawn)
       }
       if (proxied) {   // only the instances near the walker cast: a second InstancedMesh (the far geometry when there is one) that is empty in the picture (count 0) and fills only for the shadow pass
         proxy = new THREE.InstancedMesh(lod?.geometry ?? mesh.geometry, SHADOW_ONLY, list.length); proxy.name = `${o.name}__shadow`; proxy.castShadow = true; proxy.receiveShadow = false; proxy.frustumCulled = false; proxy.count = 0; proxy.userData.near = 0;

@@ -30,6 +30,13 @@ test('the far body casts the shadow: the proxy holds the far geometry, the near 
   assert.equal(proxy.count, 4, 'x = 0, 10, 20 and 40 are within the 40 m shadow row');
 });
 
+// The bug the T4 stills caught last: the far mesh's bounding sphere was taken while its count was 0 (an empty sphere), so the renderer culled it whatever the update drew: the far body was never on screen.
+test('the far mesh has a real bounding sphere over all its instances', () => {
+  const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { lods: lods(15), override: {} });
+  const far = kids(g, 'goblin_hut__far')!;
+  assert.ok(far.boundingSphere && far.boundingSphere.radius > 30, `the sphere covers the 80 m spread (radius ${far.boundingSphere?.radius})`);
+});
+
 // The bug the T4 stills caught first: a jump of the walker (a teleport) leaves the camera easing behind for a moment, and the re-bucket only looked at the walker, so every hut went to the far bucket and nothing was drawn at 13 m. The eye moving counts too.
 test('the swap re-buckets when only the eye has moved', () => {
   const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { lods: lods(15), override: {} });
