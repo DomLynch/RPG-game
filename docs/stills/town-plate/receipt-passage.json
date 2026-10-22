@@ -1,0 +1,102 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "walk0",
+      "file": "passage-walk0.png",
+      "pos": {
+        "x": -14.08,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk1",
+      "file": "passage-walk1.png",
+      "pos": {
+        "x": -20.55,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk2",
+      "file": "passage-walk2.png",
+      "pos": {
+        "x": -26.9,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk3",
+      "file": "passage-walk3.png",
+      "pos": {
+        "x": -32.32,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk4",
+      "file": "passage-walk4.png",
+      "pos": {
+        "x": -34.79,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk5",
+      "file": "passage-walk5.png",
+      "pos": {
+        "x": -38.98,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk6",
+      "file": "passage-walk6.png",
+      "pos": {
+        "x": -45.63,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk7",
+      "file": "passage-walk7.png",
+      "pos": {
+        "x": -52.29,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk8",
+      "file": "passage-walk8.png",
+      "pos": {
+        "x": -58.68,
+        "z": -50
+      }
+    },
+    {
+      "name": "walk9",
+      "file": "passage-walk9.png",
+      "pos": {
+        "x": -61.72,
+        "z": -50.42
+      }
+    },
+    {
+      "name": "375",
+      "file": "passage-375.png",
+      "pos": {
+        "x": -61.71966382538695,
+        "z": -50.43997969856636
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "passage-desktop.png",
+      "pos": {
+        "x": -103.77,
+        "z": 6.12
+      }
+    }
+  ],
+  "errors": []
+}
