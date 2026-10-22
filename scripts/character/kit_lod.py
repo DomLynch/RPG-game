@@ -25,7 +25,7 @@ meshes = [o for o in scene.objects if o.type == "MESH"]
 if not meshes:
     raise SystemExit(f"kit_lod: no mesh in {SRC}")
 meshes.sort(key=lambda o: len(o.data.vertices), reverse=True)
-node_name = meshes[0].name   # the glTF node name the row and the renderer look the piece up by
+node_name = os.environ.get("NODE_NAME") or meshes[0].name  # the glTF node name the row and the renderer look the piece up by
 bpy.ops.object.select_all(action="DESELECT")
 for o in meshes:
     o.select_set(True)
@@ -44,6 +44,7 @@ if os.environ.get("GROUND_H"):   # GROUND_H=<metres>: scale the piece to this he
     hi.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation((-cx, -cy, -lo_z)))
     hi.location = (0, 0, 0)
     hi.data.update()
+    bpy.context.view_layer.update()   # hi.dimensions is read below for the bake distances: it must see the new scale
 hi_tris = sum(len(p.vertices) - 2 for p in hi.data.polygons)
 height = max(hi.dimensions)   # a kit piece may lie on any axis once imported (Blender is Z-up): its largest extent is the scale of the bake distances
 
