@@ -1,6 +1,6 @@
 {
   "lookPreset": [
     { "id": "ash-pit", "fog": "#c9a47a", "fogDensity": 0.02, "hemiSky": "#9fb2d4", "hemiGround": "#4a3426", "hemiIntensity": 1.25, "sunColor": "#ffb46a", "sunIntensity": 5.2, "sunPos": [-24, 12, -15], "exposure": 1.3, "ground": [1, 1, 1] },
-    { "id": "exchange-dusk", "fog": "#8f5f3f", "fogDensity": 0.024, "hemiSky": "#7d86ad", "hemiGround": "#3a2418", "hemiIntensity": 0.95, "sunColor": "#ff9a52", "sunIntensity": 3.4, "sunPos": [-24, 7, -15], "exposure": 1.25, "ground": [0.92, 0.88, 0.84] }
+    { "id": "exchange-dusk", "fog": "#6e5a6e", "fogDensity": 0.016, "hemiSky": "#8a9ad8", "hemiGround": "#4a3a34", "hemiIntensity": 1.1, "sunColor": "#ffc880", "sunIntensity": 4.6, "sunPos": [-24, 8, -15], "exposure": 1.25, "ground": [0.9, 0.9, 1.0] }
   ]
 }
