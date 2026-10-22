@@ -23,7 +23,8 @@ export type RosterSpawn = {
 };
 
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n);
-const pair = (v: unknown): v is readonly [number, number] => Array.isArray(v) && v.length === 2 && isInt(v[0]) && isInt(v[1]) && v[0] <= v[1];
+const PAIR = 2;   // a [lo, hi] pair's length: the loader's shape check (exempt: scripts/as-data/allow/origins-dungeon.json)
+const pair = (v: unknown): v is readonly [number, number] => Array.isArray(v) && v.length === PAIR && isInt(v[0]) && isInt(v[1]) && v[0] <= v[1];
 
 /** The rings of a table, checked, in `order`. Throws with the ring's id on the first problem. */
 export function loadBowlRings(known: BowlKnown, raw: { rings?: unknown } = DEFS): readonly BowlRing[] {
@@ -56,7 +57,8 @@ export function loadBowlRings(known: BowlKnown, raw: { rings?: unknown } = DEFS)
   return rings;
 }
 
-const to1 = (n: number): number => Math.round(n * 10) / 10;
+const TENTH = 10;   // one decimal place when metres are rounded (exempt: scripts/as-data/allow/origins-dungeon.json)
+const to1 = (n: number): number => Math.round(n * TENTH) / TENTH;
 
 /** Every ring's groups as spawn rows. The ring's width (outer - inner edge) sets the camps' spread, the roam and the leash by the ring's shares; a ring whose edges the layout cannot give is an error, never a guess. */
 export function rosterSpawns(rings: readonly BowlRing[], edges: RingEdges): readonly RosterSpawn[] {

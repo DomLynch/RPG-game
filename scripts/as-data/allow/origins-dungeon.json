@@ -1,0 +1,6 @@
+{
+  "tunables": [
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "PAIR", "kind": "exempt", "reason": "the length of a [lo, hi] pair: the loader's shape check, not tuning", "owner": "Combat & Specials"},
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "TENTH", "kind": "exempt", "reason": "one decimal place: how finely metres are rounded, a format choice, not tuning", "owner": "Combat & Specials"}
+  ]
+}
