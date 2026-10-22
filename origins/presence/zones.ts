@@ -10,6 +10,7 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import TOWN from './town-zones.json' with { type: 'json' };
 import TOWN_MANIFEST from './town-zones.manifest.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
+import { HALF } from '../units.ts';
 import { CENTRE_CM, CM_PER_M, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
 
 // The frame (docs/specs/origins/frontier-presence.md §2): u16 centimetres, world (0,0) at CENTRE_CM, so the town square (+-150 m) AND the Ash Frontier (x -334..25 m, z -205..150 m) fit.
@@ -85,7 +86,7 @@ export const zoneRowAt = (xCm: number, zCm: number): ZoneRow | null => {
 };
 // A zone id ('pit-yard', 'exchange', a Frontier zone), or null when the position is in none (the open ground of the town square, or the west road).
 export const zoneAt = (xCm: number, zCm: number): string | null => zoneRowAt(xCm, zCm)?.id ?? null;
-export const inTownSquare = (xCm: number, zCm: number): boolean => xCm >= CENTRE_CM - TOWN_CM / 2 && xCm <= CENTRE_CM + TOWN_CM / 2 && zCm >= CENTRE_CM - TOWN_CM / 2 && zCm <= CENTRE_CM + TOWN_CM / 2;
+export const inTownSquare = (xCm: number, zCm: number): boolean => xCm >= CENTRE_CM - TOWN_CM * HALF && xCm <= CENTRE_CM + TOWN_CM * HALF && zCm >= CENTRE_CM - TOWN_CM * HALF && zCm <= CENTRE_CM + TOWN_CM * HALF;
 // Where a player may stand: the town square, a Frontier zone, or the west road. Anything else is refused by the clamp.
 export const walkable = (xCm: number, zCm: number): boolean => inTownSquare(xCm, zCm) || zoneRowAt(xCm, zCm) !== null || inside(roadCorners, worldMetres(xCm, zCm));
 // The saved-location frame and v1 clients: centimetres inside the town square, centre 15000. Null for a position outside the square.

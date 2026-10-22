@@ -4,6 +4,7 @@
 // A gear change is picked up by a refresh every `wornEveryMs` through ONE bounded queue (the shape of saves.ts): one read in flight, one queued entry per account, never awaited by the
 // tick. A failed read keeps the last set. At a full shard (about 200 players / 30 s) that is about 7 reads a second at most, sequential, so the writer never sees a burst from presence.
 import type { Worn } from '../server/location.ts';
+import { ACCOUNT_TAG_CHARS } from './units.ts';
 
 export type WornRead = (account: string) => Promise<Worn>;
 export type WornApply = (account: string, worn: Worn) => void;
@@ -20,7 +21,7 @@ export function wornQueue(read: WornRead, apply: WornApply, log: (line: string) 
     try {
       for (let next = pending.values().next(); !next.done; next = pending.values().next()) {
         const account = next.value; pending.delete(account);
-        try { apply(account, await read(account)); read_++; } catch (e) { failed++; log(`presence: worn read for ${account.slice(0, 8)} failed (${(e as Error).message}); the last set stands`); }
+        try { apply(account, await read(account)); read_++; } catch (e) { failed++; log(`presence: worn read for ${account.slice(0, ACCOUNT_TAG_CHARS)} failed (${(e as Error).message}); the last set stands`); }
       }
     } finally { busy = false; }
   };
