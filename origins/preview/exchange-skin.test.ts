@@ -33,7 +33,7 @@ test('a file holds the skin ids that its hide-the-greybox step names', () => {
 test('planFor carries a piece row\'s skin and scale; a row without them is exactly today\'s piece', () => {
   const base: Record<string, number> = {}; for (const a of PLAN_ROWS.anchors) base[a.source] = a.base;
   const resolve = (s: string): number => base[s]!;
-  const bare = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r) => { const rest: Record<string, unknown> = { ...r }; for (const k of ['skin', 'cover', 'scale', 'skinOff']) delete rest[k]; return rest; }) };   // the shipped rows carry the town kit's skin / cover / scale: strip them for "today's plan"
+  const bare = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r) => { const rest: Record<string, unknown> = { ...r }; for (const k of ['skin', 'cover', 'scale', 'skinOff']) delete rest[k]; return rest as unknown as (typeof PLAN_ROWS.pieces)[number]; }) };   // the shipped rows carry the town kit's skin / cover / scale: strip them for "today's plan"
   const today = planFor('exchange', resolve, bare)!;
   assert.ok(today.pieces.every((p) => !('skin' in p) && !('scale' in p) && !('cover' in p) && !('skinOff' in p)));
   const rows = { ...bare, pieces: bare.pieces.map((r, i) => (i === 0 ? { ...r, skin: 'goblin-hut', scale: 2 } : r)) };
