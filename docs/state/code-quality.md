@@ -1,5 +1,14 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~10:1x +04: K6q20b PASSed; K6q21 = #3594 + #3592; K6q22 waits. READ FIRST.
+**K6q20b** #3598 @918cd4117 PASS (issuecomment-6333915902): the tree = #3587 @33827f848 exactly (excluding release.json), no .github/, 91 runs / 43 success / 48 skipped / 0 red; seamless + seamless-quiet green with #3586 out. Lead reports it merged.
+**K6q21** (Lead, Deploy cutting): #3594 PASS @59990dbce (issuecomment-6333805508) + #3592 PASS @f0be65dab. #3591 is OUT.
+**K6q22** = #3593 + #3584. Both FAIL at their current heads; re-PASS on shards 1-8 + receipt + origins-db green at the new heads:
+- #3593 @83ce14811 (Backend): preview-no-server red, presence/interest.ts -> server/units.ts (issuecomment-6334000180). The review holds otherwise: the maxLayers default 8->20 = the prod row, and the SPECIALS_FROM revert is fine.
+- #3584 @7f80f8eb8 (World, zone 0 listed + the tradeLanding row flag): 4 pins (Zone 1 build count 175->177 x2, the warpIds table, zone 0 has no defaultKind) (issuecomment-6334001559). Non-blocking: package doors could set tradeLanding.
+**#3591 FAIL** @69b6f72b1 (World, beta gate): 10 unit reds where tests read zones 3/5/crypt; suspect the opt-in env isn't taking effect in a shard process. The warps.test.ts conflict with #3594/#3584 has its resolution on the PR (issuecomment-6333815511).
+**Gotchas:** (1) zsh: `$h:src/...` applies the `:s` modifier, so write `"${h}:path"`. (2) "Green" from statusCheckRollup counts in_progress rows as fine: always read per-run conclusions (Lead made this mistake on #3593).
+
 ## 2026-10-22 ~09:5x +04: HANDOFF before /clear. READ FIRST.
 **Live:** K6q19 4c719d75e. Post-live verified on #3590 (issuecomment-6333215365): /dungeon1/ 200, /dungeon1 301, /zone2/ 200, writer 09:02:30, presence 09:02:33.
 **K6q20 #3596 @674a6bbec (#3586 + #3587): DO NOT PASS, DO NOT RE-RUN** (Strategy relaying Lead's last ruling, which supersedes Strategy's own earlier re-run ruling). The seamless browser rows are red: seamless-quiet "a hit landed on scavengers-1 inside the window" and seamless "zone never ready". The suspect is #3586 (Zone 1 legends now aggro and open a duel near the seamless hero). #3586 is pulled; Deploy closes or re-cuts. **Next receipt = the new release PR + head Deploy posts: read the tree, PASS on all rows green.** Lead 10:0x confirmed: the re-cut K6q20 = #3587 @33827f848 ALONE, and #3586 returns only after Combat's fix and a fresh PASS. (My background re-run waiter was stopped; run 39728844475 is still on attempt 1, never re-run.) The tree read at 674a6bbec was OK (parents = PASS heads, trees identical, no .github/).
