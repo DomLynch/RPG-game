@@ -16,21 +16,21 @@
   },
   {
    "id": "z7:outer-scavengers-0-2",
-   "x": 148.63,
+   "x": 148.61,
    "z": 26.01,
    "body": "goblin"
   },
   {
    "id": "z7:outer-scavengers-0-3",
-   "x": 151.28,
-   "z": 24,
+   "x": 151.23,
+   "z": 24.04,
    "body": "goblin"
   }
  ],
  "target": {
   "id": "z7:middle-ghouls-0-1",
-  "x": 149.62,
-  "z": 23.08,
+  "x": 149.58,
+  "z": 23.1,
   "body": "goblin"
  },
  "outside": [
@@ -41,5 +41,132 @@
  ],
  "outsideCount": 1,
  "infight": true,
- "fighters": "[{\"id\":\"me\",\"phase\":\"dead\",\"hp\":0,\"x\":148.8,\"z\":19.1,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"z7:floor-skeletons-0-1\",\"phase\":\"ready\",\"hp\":141,\"x\":150.9,\"z\":16.2,\"hunting\":false,\"returning\":true,\"duel\":false},{\"id\":\"z7:middle-ghouls-0-2\",\"phase\":\"ready\",\"hp\":98,\"x\":150.9,\"z\":16.5,\"hunt"
+ "atShot": {
+  "hero": {
+   "hp": 35,
+   "phase": "stagger"
+  },
+  "engaged": [
+   {
+    "id": "z7:floor-skeletons-0-1",
+    "hp": 141,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ghouls-0-2",
+    "hp": 98,
+    "hunting": true
+   },
+   {
+    "id": "z7:floor-skeletons-0-2",
+    "hp": 141,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-1",
+    "hp": 23,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ghouls-0-1",
+    "hp": 98,
+    "hunting": true
+   },
+   {
+    "id": "z7:outer-scavengers-0-3",
+    "hp": 32,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-2",
+    "hp": 37,
+    "hunting": true
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-1",
+    "hp": 31,
+    "hunting": true
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-2",
+    "hp": 31,
+    "hunting": true
+   },
+   {
+    "id": "z7:outer-scavengers-0-2",
+    "hp": 32,
+    "hunting": true
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-3",
+    "hp": 31,
+    "hunting": true
+   }
+  ],
+  "level": null
+ },
+ "later": {
+  "hero": {
+   "hp": 0,
+   "phase": "dead"
+  },
+  "engaged": [
+   {
+    "id": "z7:floor-skeletons-0-1",
+    "hp": 141,
+    "hunting": false
+   },
+   {
+    "id": "z7:middle-ghouls-0-2",
+    "hp": 98,
+    "hunting": false
+   },
+   {
+    "id": "z7:floor-skeletons-0-2",
+    "hp": 141,
+    "hunting": false
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-1",
+    "hp": 23,
+    "hunting": false
+   },
+   {
+    "id": "z7:middle-ghouls-0-1",
+    "hp": 98,
+    "hunting": false
+   },
+   {
+    "id": "z7:outer-scavengers-0-3",
+    "hp": 32,
+    "hunting": false
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-2",
+    "hp": 37,
+    "hunting": false
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-1",
+    "hp": 31,
+    "hunting": false
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-2",
+    "hp": 31,
+    "hunting": false
+   },
+   {
+    "id": "z7:outer-scavengers-0-2",
+    "hp": 32,
+    "hunting": false
+   },
+   {
+    "id": "z7:outer-ash-wolves-1-3",
+    "hp": 31,
+    "hunting": false
+   }
+  ],
+  "level": "16"
+ }
 }
