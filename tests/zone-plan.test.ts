@@ -23,7 +23,7 @@ const fromSources = (m: Record<string, number>): { a: Anchors; k: Knobs } => ({
 });
 const base = exchangeSources(A, K), sources = planSources('exchange');
 // The oracle is the greybox as the code built it: the kit's `skin` / `cover` / `scale` fields (the town 3D kit, plan-rows.json) are rows on top of it, so they come off before the pin.
-const greybox = <T extends { pieces: readonly object[] }>(plan: T): T => ({ ...plan, pieces: plan.pieces.map((p) => { const { skin: _s, cover: _c, scale: _k, ...rest } = p as Record<string, unknown>; return rest; }) }) as unknown as T;
+const greybox = <T extends { pieces: readonly object[] }>(plan: T): T => ({ ...plan, pieces: plan.pieces.map((p) => { const { skin: _s, cover: _c, scale: _k, skinOff: _o, ...rest } = p as Record<string, unknown>; return rest; }) }) as unknown as T;
 const compare = (m: Record<string, number>, what: string) => { const { a, k } = fromSources(m); close(greybox(planFor('exchange', (s) => m[s]!)!), oraclePlan(a, k), what); };
 
 test('the Exchange carries a plan; every source its anchors name is one its world data answers, and none is left unread', () => {

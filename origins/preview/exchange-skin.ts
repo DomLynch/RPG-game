@@ -30,7 +30,7 @@ export function skinPlacements(pieces: readonly Piece[]): ModelPlacement[] {
   const out: ModelPlacement[] = [];
   for (const [id, list] of skinnedPieces(pieces)) {
     const node = skinModels().find((m) => m.id === id)?.nodes[0]; if (!node) continue;
-    for (const p of list) out.push({ node, x: p.x, z: p.z, rotY: p.rotY, scale: p.scale ?? 1, y: shapeBaseY(p) });
+    for (const p of list) { const [dx, dy, dz, ry] = p.skinOff ?? [0, 0, 0, 0]; out.push({ node, x: p.x + dx, z: p.z + dz, rotY: p.rotY + ry, scale: p.scale ?? 1, y: shapeBaseY(p) + dy }); }
   }
   return out;
 }

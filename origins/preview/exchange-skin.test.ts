@@ -33,9 +33,9 @@ test('a file holds the skin ids that its hide-the-greybox step names', () => {
 test('planFor carries a piece row\'s skin and scale; a row without them is exactly today\'s piece', () => {
   const base: Record<string, number> = {}; for (const a of PLAN_ROWS.anchors) base[a.source] = a.base;
   const resolve = (s: string): number => base[s]!;
-  const bare = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r) => { const { skin: _s, cover: _c, scale: _k, ...rest } = r; return rest; }) };   // the shipped rows carry the town kit's skin / cover / scale: strip them for "today's plan"
+  const bare = { ...PLAN_ROWS, pieces: PLAN_ROWS.pieces.map((r) => { const { skin: _s, cover: _c, scale: _k, skinOff: _o, ...rest } = r; return rest; }) };   // the shipped rows carry the town kit's skin / cover / scale: strip them for "today's plan"
   const today = planFor('exchange', resolve, bare)!;
-  assert.ok(today.pieces.every((p) => !('skin' in p) && !('scale' in p) && !('cover' in p)));
+  assert.ok(today.pieces.every((p) => !('skin' in p) && !('scale' in p) && !('cover' in p) && !('skinOff' in p)));
   const rows = { ...bare, pieces: bare.pieces.map((r, i) => (i === 0 ? { ...r, skin: 'goblin-hut', scale: 2 } : r)) };
   const skinned = planFor('exchange', resolve, rows)!;
   assert.equal(skinned.pieces[0]!.skin, 'goblin-hut'); assert.equal(skinned.pieces[0]!.scale, 2);
@@ -49,7 +49,7 @@ test('the shipped town kit rows: every skin and cover id is a model row, and eve
     assert.ok(ids.has(id), `${id} is a building-skins model row`);
     const carriers = list.filter((p) => p.skin === id);
     for (const p of list.filter((q) => q.cover === id)) {
-      const c = carriers.find((k) => Math.hypot(k.x - p.x, k.z - p.z) < 1);
+      const c = carriers.find((k) => Math.hypot(k.x - p.x, k.z - p.z) < 4);   // a group is one structure: the smithy's far wall stands 3.4 m from its carrier
       assert.ok(c, `${id}: a covered piece at ${p.x.toFixed(1)},${p.z.toFixed(1)} has a carrier`); assert.ok(shapeBaseY(p) >= shapeBaseY(c!) - 1e-9, `${id}: the carrier is the lowest piece of its group`);
     }
   }
