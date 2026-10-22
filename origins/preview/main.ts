@@ -213,7 +213,7 @@ const areas = createAreaSky({ skyOf: areaSky, own: () => zoneDome, blendS: gobli
 settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
 // The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
 const townSkins = /[?&]skins=(?:0|off)\b/.test(location.search) ? [] : exchange.skins;   // ?skins=0: every skinned plan piece keeps its greybox shape (the A/B of the skin path's cost reads it)
-let exchangeSkinsDrawn = !townSkins.length;
+let exchangeSkinsDrawn = REGION || !townSkins.length;   // only the Exchange's own page (region=0) waits on its skins before it is ready; a zone that merely shows the Exchange streams them in after ready (the Auditor, #3608: ~4.7 MB must not move Zone 1's ready)
 if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });
 let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
