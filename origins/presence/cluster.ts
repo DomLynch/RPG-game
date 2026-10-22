@@ -1,6 +1,6 @@
 // The moving cluster of the S1 load test's run R2c (docs/specs/origins/s1-load-test.md): a share of the bots gathers in one small square (the Exchange: bank, smith, trade) that
 // jumps to a new place every couple of minutes while the rest wander. Pure, so the placement rules are pinned by a test and the script only drives sockets.
-import { HALF } from '../server/units.ts';
+import { HALF } from '../units.ts';
 export type Square = { x: number; z: number; sizeCm: number };   // centre and side, centimetres
 
 // How many of `bots` join the cluster: the share rounded to the nearest bot, never more than all of them and never negative.

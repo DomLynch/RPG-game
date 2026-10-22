@@ -3,7 +3,7 @@
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
 import { interestRules, presenceRule } from './presence-rules.ts';
 import { CELL_STRIDE } from './units.ts';
-import { HALF, MS_PER_SECOND } from '../server/units.ts';
+import { HALF, MS_PER_SECOND } from '../units.ts';
 import type { Worn } from '../server/location.ts';
 import { LEGACY_SHIFT_CM, SPAWN, TOWN_CM, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
 

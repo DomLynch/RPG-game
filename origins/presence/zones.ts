@@ -10,7 +10,7 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import TOWN from './town-zones.json' with { type: 'json' };
 import TOWN_MANIFEST from './town-zones.manifest.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
-import { HALF } from '../server/units.ts';
+import { HALF } from '../units.ts';
 import { CENTRE_CM, CM_PER_M, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
 
 // The frame (docs/specs/origins/frontier-presence.md §2): u16 centimetres, world (0,0) at CENTRE_CM, so the town square (+-150 m) AND the Ash Frontier (x -334..25 m, z -205..150 m) fit.
