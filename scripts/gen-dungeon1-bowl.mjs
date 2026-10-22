@@ -8,8 +8,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const FILE = new URL('../origins/zones/plan-rows.json', import.meta.url);
 const STEP = 2.2, BASE = -7.5;                        // one band's drop; the rows' solids go down to BASE so a wall face reads as sand
 const SAND_TILE = 3;                                  // metres per repeat of the Pit's sand on the bowl's surfaces
-const BANDS = [{ tint: [1.1, 1.04, 0.9] }, { tint: [0.9, 0.52, 0.44] }, { tint: [0.62, 0.24, 0.2] }];   // the 1-2 / 3-4 / 5+ bands (outer to centre): plain sand, then sand taking on blood toward the floor
-const WALL = [0.78, 0.6, 0.52], YARD = [1.02, 0.96, 0.84], DUEL = [0.66, 0.26, 0.22];                                                  // the rim wall and yard walls (blood-stained sand), the yard, the Duel pit's floor
+const STAIN_GAIN = 4;                               // how far the stain mask's edges grow: blotches, not specks
+const STAIN_SPAN = 14;                              // metres per repeat of the Pit's blood-stain mask (the sand's world-space patch), strongest on the lowest ground
+const BANDS = [{ tint: [1.1, 1.04, 0.9] }, { tint: [1, 0.9, 0.8] }, { tint: [0.92, 0.8, 0.7] }];   // the 1-2 / 3-4 / 5+ bands (outer to centre): plain sand, then sand taking on blood toward the floor
+const WALL = [0.78, 0.6, 0.52], YARD = [1.02, 0.96, 0.84], DUEL = [0.92, 0.8, 0.7];                                                  // the rim wall and yard walls (blood-stained sand), the yard, the Duel pit's floor
 const ZONE = '7', EDGES = { outer: 'ring-outer', middle: 'ring-middle', floor: 'floor' };
 const rows = { pieces: [], people: [], marks: [], layers: [] };
 let n = 0;
@@ -46,7 +48,7 @@ for (const a of [0.9, Math.PI + 0.9]) { const [dx, dz] = dir(a), rc = R.mid - AR
 yardAndDuel(R.rim + 2, R.rim + 30);
 slab(0, R.rim + 1, 12, 3, 0, YARD, true);                                     // the mouth: a bridge from the yard onto the terrace
 mark(EDGES.outer, (R.mid + R.rim) / 2, 0, 0); mark(EDGES.middle, (R.floor + R.mid) / 2, -STEP, 0); mark(EDGES.floor, 0, -2 * STEP, 0);   // a landmark on each ring, for the roster's spawn rows
-for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE });   // no brick: the bowl's surfaces are the Pit's own sand
+for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: 0, bottom: -STEP, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
 
 // ---- write the rows ----------------------------------------------------------------------------------------------
 const raw = JSON.parse(readFileSync(FILE, 'utf8'));

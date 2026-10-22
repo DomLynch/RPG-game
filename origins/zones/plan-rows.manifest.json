@@ -6,6 +6,6 @@
     { "table": "plan-person", "file": "plan-rows.json", "at": "people", "key": "id", "required": { "zone": "string", "x": "number", "z": "number", "color": "string" }, "optional": { "follow": "object", "y": "number" } },
     { "table": "plan-brazier", "file": "plan-rows.json", "at": "braziers", "key": "id", "required": { "zone": "string", "x": "number", "z": "number" }, "optional": { "follow": "object" } },
     { "table": "plan-mark", "file": "plan-rows.json", "at": "marks", "key": "id", "required": { "zone": "string", "x": "number", "y": "number", "z": "number" }, "optional": { "follow": "object", "text": "string", "facing": "number" } },
-    { "table": "plan-layer", "file": "plan-rows.json", "at": "layers", "key": "id", "required": { "zone": "string", "layer": "string", "material": "string" }, "optional": { "tile": "number" } }
+    { "table": "plan-layer", "file": "plan-rows.json", "at": "layers", "key": "id", "required": { "zone": "string", "layer": "string", "material": "string" }, "optional": { "tile": "number", "stain": "object" } }
   ]
 }

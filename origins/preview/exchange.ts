@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { ZoneMaterials } from './zone-scenery.ts';
 import { previewRule } from './preview-rules.ts';
 import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
+import type { Stain } from '../zones/plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
 // bank's front. Blocking only: massing, scale, light and the arena's own materials, so Dom judges proportion and mood before any asset.
@@ -98,6 +99,17 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   // A zone's layer rows can name another of the arena's materials for a layer (the Dungeon 1 bowl: the Pit's own sand, no brick); the clone follows ITS source's late textures.
   const sourceOf = (layer: string): THREE.MeshStandardMaterial => ((m as unknown as Record<string, THREE.MeshStandardMaterial | undefined>)[plan.layers?.[layer]?.material ?? ''] ?? m.stone);
   const ground = sourceOf('paving').clone(), stone = sourceOf('stone').clone(), sources = [[ground, sourceOf('paving')], [stone, sourceOf('stone')]] as const;
+  // A layer row's `stain` gives the clone the Pit's own blood-stain mask (the sand's world-space patch: the clone does not inherit the source's shader hook): repeated every `span` m, faded in with depth from `top` to `bottom`.
+  const stained = (clone: THREE.MeshStandardMaterial, source: THREE.MeshStandardMaterial, stain: Stain | undefined): void => {
+    if (!stain || !source.onBeforeCompile) return;
+    const base = source.onBeforeCompile, { span, top, bottom, gain } = stain, key = `stain-${span}-${top}-${bottom}-${gain}`;
+    clone.onBeforeCompile = (shader, renderer) => {
+      base.call(clone, shader, renderer);      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vStainY;').replace('vPatchUv =', 'vStainY = (modelMatrix * vec4(transformed, 1.0)).y; vPatchUv =').replace(/\/ [0-9.]+ \+ 0\.5;/, `/ ${span.toFixed(1)} + 0.5;`);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vStainY;').replace('texture2D(patchMap, vPatchUv)', 'texture2D(patchMap, fract(vPatchUv))').replace(/(patchSample\.rgb \* [0-9.]+, )patchSample\.a\)/, `$1clamp(patchSample.a * ${gain.toFixed(1)}, 0.0, 1.0) * clamp((vStainY - (${top.toFixed(1)})) / (${(bottom - top).toFixed(1)}), 0.0, 1.0))`);
+    };
+    clone.customProgramCacheKey = () => `${source.customProgramCacheKey()}-${key}`;
+  };
+  stained(ground, sourceOf('paving'), plan.layers?.paving?.stain); stained(stone, sourceOf('stone'), plan.layers?.stone?.stain);
   meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground }, Object.fromEntries(Object.entries(plan.layers ?? {}).map(([layer, row]) => [layer, row.tile])));
   if (plan.frieze) {   // a plan without a frieze row has no inscription
     const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));

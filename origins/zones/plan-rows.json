@@ -237,8 +237,8 @@
     {"id":"exchange/piece-213","zone":"exchange","layer":"stone","shape":["box",0.1,2.3,0.1],"x":9.750000000000005,"y":1.15,"z":-51.300000000000004,"tint":[0.45,0.33,0.22],"rotY":0,"foot":0,"follow":{"x":{"gate.x":1},"z":{"gate.z":1}}},
     {"id":"exchange/piece-214","zone":"exchange","layer":"stone","shape":["box",0.1,2.3,0.1],"x":9.750000000000005,"y":1.15,"z":-49.70000000000001,"tint":[0.45,0.33,0.22],"rotY":0,"foot":0,"follow":{"x":{"gate.x":1},"z":{"gate.z":1}}},
     {"id":"7/piece-000","zone":"7","layer":"paving","shape":["ring",23,31,7.5,48],"x":0,"y":-3.75,"z":0,"tint":[1.1,1.04,0.9],"rotY":0,"foot":-7.5,"walk":true,"edge":"ring-outer"},
-    {"id":"7/piece-001","zone":"7","layer":"paving","shape":["ring",13,23,5.3,48],"x":0,"y":-4.85,"z":0,"tint":[0.9,0.52,0.44],"rotY":0,"foot":-7.5,"walk":true,"edge":"ring-middle"},
-    {"id":"7/piece-002","zone":"7","layer":"paving","shape":["cylinder",13,13,3.0999999999999996,48],"x":0,"y":-5.95,"z":0,"tint":[0.62,0.24,0.2],"rotY":0,"foot":-7.5,"walk":true,"edge":"floor"},
+    {"id":"7/piece-001","zone":"7","layer":"paving","shape":["ring",13,23,5.3,48],"x":0,"y":-4.85,"z":0,"tint":[1,0.9,0.8],"rotY":0,"foot":-7.5,"walk":true,"edge":"ring-middle"},
+    {"id":"7/piece-002","zone":"7","layer":"paving","shape":["cylinder",13,13,3.0999999999999996,48],"x":0,"y":-5.95,"z":0,"tint":[0.92,0.8,0.7],"rotY":0,"foot":-7.5,"walk":true,"edge":"floor"},
     {"id":"7/piece-003","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":13.397,"y":-3.1,"z":28.73,"tint":[0.78,0.6,0.52],"rotY":0.436,"foot":-7.5},
     {"id":"7/piece-004","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":18.182,"y":-3.1,"z":25.967,"tint":[0.78,0.6,0.52],"rotY":0.611,"foot":-7.5},
     {"id":"7/piece-005","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":22.415,"y":-3.1,"z":22.415,"tint":[0.78,0.6,0.52],"rotY":0.785,"foot":-7.5},
@@ -271,13 +271,13 @@
     {"id":"7/piece-032","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":-22.415,"y":-3.1,"z":22.415,"tint":[0.78,0.6,0.52],"rotY":5.498,"foot":-7.5},
     {"id":"7/piece-033","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":-18.182,"y":-3.1,"z":25.967,"tint":[0.78,0.6,0.52],"rotY":5.672,"foot":-7.5},
     {"id":"7/piece-034","zone":"7","layer":"stone","shape":["box",5.646781267543582,8.8,1.4],"x":-13.397,"y":-3.1,"z":28.73,"tint":[0.78,0.6,0.52],"rotY":5.847,"foot":-7.5},
-    {"id":"7/piece-035","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":8.8,"y":-3.3,"z":0,"tint":[0.9,0.52,0.44],"rotY":0,"foot":-10.4,"walk":true},
-    {"id":"7/piece-036","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":-8.8,"y":-3.3,"z":0,"tint":[0.9,0.52,0.44],"rotY":3.142,"foot":-10.4,"walk":true},
+    {"id":"7/piece-035","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":8.8,"y":-3.3,"z":0,"tint":[1,0.9,0.8],"rotY":0,"foot":-10.4,"walk":true},
+    {"id":"7/piece-036","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":-8.8,"y":-3.3,"z":0,"tint":[1,0.9,0.8],"rotY":3.142,"foot":-10.4,"walk":true},
     {"id":"7/piece-037","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":14.727,"y":-1.1,"z":11.686,"tint":[1.1,1.04,0.9],"rotY":-0.671,"foot":-8.2,"walk":true},
     {"id":"7/piece-038","zone":"7","layer":"paving","shape":["wedge",8.4,2.2,4.5],"x":-14.727,"y":-1.1,"z":-11.686,"tint":[1.1,1.04,0.9],"rotY":2.471,"foot":-8.2,"walk":true},
     {"id":"7/piece-039","zone":"7","layer":"paving","shape":["box",28,7.5,28],"x":0,"y":-3.75,"z":47,"tint":[1.02,0.96,0.84],"rotY":0,"foot":-7.5,"walk":true},
-    {"id":"7/piece-040","zone":"7","layer":"paving","shape":["cylinder",9,9,5.3,48],"x":26,"y":-4.85,"z":47,"tint":[0.66,0.26,0.22],"rotY":0,"foot":-7.5,"walk":true},
-    {"id":"7/piece-041","zone":"7","layer":"paving","shape":["wedge",8,2.2,4],"x":18,"y":-1.1,"z":47,"tint":[0.66,0.26,0.22],"rotY":-3.142,"foot":-8.2,"walk":true},
+    {"id":"7/piece-040","zone":"7","layer":"paving","shape":["cylinder",9,9,5.3,48],"x":26,"y":-4.85,"z":47,"tint":[0.92,0.8,0.7],"rotY":0,"foot":-7.5,"walk":true},
+    {"id":"7/piece-041","zone":"7","layer":"paving","shape":["wedge",8,2.2,4],"x":18,"y":-1.1,"z":47,"tint":[0.92,0.8,0.7],"rotY":-3.142,"foot":-8.2,"walk":true},
     {"id":"7/piece-042","zone":"7","layer":"stone","shape":["box",1.2,8.7,28],"x":-14.6,"y":-3.15,"z":47,"tint":[0.78,0.6,0.52],"rotY":0,"foot":-7.5},
     {"id":"7/piece-043","zone":"7","layer":"stone","shape":["box",30,9.1,1.2],"x":0,"y":-2.95,"z":61.6,"tint":[0.78,0.6,0.52],"rotY":0,"foot":-7.5},
     {"id":"7/piece-044","zone":"7","layer":"paving","shape":["box",12,7.5,3],"x":0,"y":-3.75,"z":32,"tint":[1.02,0.96,0.84],"rotY":0,"foot":-7.5,"walk":true}
@@ -321,7 +321,7 @@
     {"id":"7/floor","zone":"7","x":0,"y":-4.4,"z":0}
   ],
   "layers": [
-    {"id":"7/paving","zone":"7","layer":"paving","material":"sand","tile":3},
-    {"id":"7/stone","zone":"7","layer":"stone","material":"sand","tile":3}
+    {"id":"7/paving","zone":"7","layer":"paving","material":"sand","tile":3,"stain":{"span":14,"top":0,"bottom":-2.2,"gain":4}},
+    {"id":"7/stone","zone":"7","layer":"stone","material":"sand","tile":3,"stain":{"span":14,"top":0,"bottom":-2.2,"gain":4}}
   ]
 }

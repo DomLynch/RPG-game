@@ -21,7 +21,7 @@ export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: numbe
 export type Figure = { x: number; z: number; color: string; y?: number };   // y: the ground he stands on (a layout with levels); absent = 0
 export type Plan = {
   pieces: Piece[];
-  layers?: Record<string, { material: string; tile?: number }>;   // a layer a zone draws in its own material (the Pit's sand); none = the stone default
+  layers?: Record<string, { material: string; tile?: number; stain?: Stain }>;   // a layer a zone draws in its own material (the Pit's sand); none = the stone default
 
   awnings: (Figure & { y: number })[];
   people: Figure[];
@@ -39,7 +39,8 @@ export type AwningRow = Row & { readonly x: number; readonly y: number; readonly
 export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string; readonly y?: number };
 export type BrazierRow = Row & { readonly x: number; readonly z: number };
 export type MarkRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly text?: string; readonly facing?: number };
-export type LayerRow = Row & { readonly layer: Layer; readonly material: string; readonly tile?: number };   // a layer of the zone drawn in this material ('sand' = the Pit's own sand, `tile` m per repeat) instead of the stone default
+export type Stain = { span: number; top: number; bottom: number; gain: number };   // the Pit's own blood-stain mask (the sand's world-space patch) drawn on this layer: it repeats every `span` m, its edges grow by `gain` (a bigger gain = broader, denser blotches), and it fades in from height `top` (none) to `bottom` (full), so the stains are densest on the lowest ground
+export type LayerRow = Row & { readonly layer: Layer; readonly material: string; readonly tile?: number; readonly stain?: Stain };   // a layer of the zone drawn in this material ('sand' = the Pit's own sand, `tile` m per repeat) instead of the stone default
 export type PlanRows = { readonly anchors: readonly AnchorRow[]; readonly pieces: readonly PieceRow[]; readonly awnings: readonly AwningRow[]; readonly people: readonly PersonRow[]; readonly braziers: readonly BrazierRow[]; readonly marks: readonly MarkRow[]; readonly layers: readonly LayerRow[] };
 
 const TABLES = ['anchors', 'pieces', 'awnings', 'people', 'braziers', 'marks', 'layers'] as const;
@@ -69,7 +70,7 @@ export function planFor(zone: string, resolve: (source: string) => number, rows:
   const frieze = mark('frieze'), hearth = mark('hearth');
   return {
     pieces,
-    layers: Object.fromEntries(of(rows.layers).map((r) => [r.layer, { material: r.material, ...(r.tile !== undefined ? { tile: r.tile } : {}) }])),
+    layers: Object.fromEntries(of(rows.layers).map((r) => [r.layer, { material: r.material, ...(r.tile !== undefined ? { tile: r.tile } : {}), ...(r.stain ? { stain: r.stain } : {}) }])),
     awnings: of(rows.awnings).map((r) => ({ x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), color: r.color })),
     braziers: of(rows.braziers).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z') })),
     people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color, ...(r.y !== undefined ? { y: at(r.y, r, 'y') } : {}) })),
