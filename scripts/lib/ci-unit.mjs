@@ -9,6 +9,21 @@ const count = (log, name) => { const m = [...log.matchAll(new RegExp(`^# ${name}
 // One shard's node:test TAP summary -> { shard, of, pass, fail, exit, seconds, node }. Anything unreadable is fail: null (never a pass).
 export const parseShard = ({ log, shard, of, exit, seconds, node }) => ({ shard, of, pass: count(log, 'pass'), fail: count(log, 'fail'), exit, seconds, node });
 
+// The shard files the receipt reads: per shard, the LATEST run attempt only. unit-ci.yml uploads each shard as `unit-shard-<n>-a<run_attempt>` and downloads them
+// un-merged (one dir per artifact), because a `--failed` rerun keeps attempt 1's artifacts in the run beside attempt 2's: merged, the two `shard-<n>.json` files
+// collided and either could win (K6q14 2026-10-21: the receipt read attempt 1's red shard 2 after attempt 2 went green). A flat `shard-<n>.json` counts as attempt 0.
+// Pure: relative paths in, the chosen relative paths out (sorted by shard). A shard that was not rerun keeps its only (earlier) attempt.
+export function latestShardFiles(paths) {
+  const best = new Map();
+  for (const p of paths) {
+    const m = /^(?:unit-shard-(\d+)-a(\d+)\/)?shard-(\d+)\.json$/.exec(p);
+    if (!m || (m[1] && m[1] !== m[3])) continue;
+    const shard = Number(m[3]), attempt = m[2] ? Number(m[2]) : 0, prev = best.get(shard);
+    if (!prev || attempt > prev.attempt) best.set(shard, { attempt, path: p });
+  }
+  return [...best.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.path);
+}
+
 // Every one of the N shards present exactly once, each exit 0 with zero failures, and a positive pass count -> the receipt; anything else -> { ok: false, reason }.
 export function buildReceipt({ shards, sha, tree, runId, node, repo }) {
   const fail = (reason) => ({ ok: false, reason });
