@@ -81,9 +81,18 @@ export function rosterRows(rings: readonly BowlRing[], edges: RingEdges, base: (
   });
 }
 
-/** The camps to place, per group: how many camps of which creature stand at which ring (the zone row's `place.spawns` entries are these, each anchored to one of the ring's landmark points). */
-export const rosterCamps = (rings: readonly BowlRing[]): readonly { readonly ring: string; readonly landmark: string; readonly group: string; readonly character: string; readonly camps: number }[] =>
-  rings.flatMap((r) => r.groups.map((g) => ({ ring: r.id, landmark: r.landmark, group: g.id, character: g.character, camps: g.camps })));
+/** A spawn point of the zone row's `place.spawns`: one camp of one creature, anchored to a landmark of the zone's plan. */
+export type RosterPlacement = { readonly id: string; readonly at: string; readonly characters: readonly string[] };
+/** Every group's camps as `place.spawns` entries. A ring's camps are dealt round the ring's spot points in table order (`spotsOf(landmark)`: the zone plan's points that belong to that ring landmark), so the camps spread
+ *  round the annulus and no spot is reused before every spot has a camp. A ring with no spot points is an error: a camp needs a place to stand. */
+export function rosterPlacements(rings: readonly BowlRing[], spotsOf: (landmark: string) => readonly string[]): readonly RosterPlacement[] {
+  return rings.flatMap((r) => {
+    const spots = spotsOf(r.landmark);
+    if (spots.length === 0) throw Error(`bowl-roster "${r.id}": the zone has no spot points for ${r.landmark}, so its camps have nowhere to stand`);
+    let dealt = 0;
+    return r.groups.flatMap((g) => Array.from({ length: g.camps }, (_, k): RosterPlacement => ({ id: `${r.id}-${g.id}-${k}`, at: spots[dealt++ % spots.length]!, characters: [g.character] })));
+  });
+}
 
 /** The ring a point stands in, or null (the safe yard, outside the bowl). Used by the tests and by whoever places a camp: a camp's centre must sit inside its ring. */
 export const ringAt = (rings: readonly BowlRing[], edges: RingEdges, dist: number): string | null =>

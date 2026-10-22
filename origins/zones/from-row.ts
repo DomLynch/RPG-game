@@ -3,7 +3,7 @@
 import type { Zone } from './loader.ts';
 import { dungeonParts } from './dungeon.ts';
 
-export const ROW_KEYS = ['dungeon', 'name','defaultKind', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'camera', 'look', 'unlisted', 'alias', 'presence', 'exits', 'warps', 'pvp', 'safeAreas', 'entry', 'respawn', 'level', 'notes'] as const;
+export const ROW_KEYS = ['dungeon', 'name','defaultKind', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'camera', 'look', 'unlisted', 'alias', 'presence', 'exits', 'warps', 'pvp', 'safeAreas', 'entry', 'respawn', 'level', 'band', 'notes'] as const;   // band: the zone's own level band [lo, hi] (a dungeon spans several levels); absent = the zone-number rule
 export type ZoneRow = { [k: string]: unknown };
 
 /** A zone row that names a dungeon (`"dungeon": "<id>"`, origins/zones/dungeon-rows.json) takes its `place`, `spawns` and `look` from the compiled dungeon, and may not also carry them. */

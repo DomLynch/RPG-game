@@ -4,6 +4,7 @@
   "unlisted": true,
   "alias": "dungeon1",
   "level": 1,
+  "band": [1, 6],
   "entry": {
     "x": 0,
     "z": 54,
@@ -79,6 +80,28 @@
       {"id": "character:cave-troll", "source": {"kind": "folklore", "work": "Norske Folkeeventyr (the mountain trolls of the Askeladden tales)", "author": "Peter Christen Asbjørnsen and Jørgen Moe", "year": 1841, "authorDied": 1885, "locator": "the first collection, 1841-44 (the troll in the mountain and the lad who outwits him)"}, "role": "beast", "loot": "loottable:cave-troll", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 10, "leash": 9.8, "roam": 2.6, "spread": 13, "pull": 0, "campSize": [1, 1]}},
       {"id": "character:giant-salamander", "source": {"kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)"}, "role": "beast", "loot": "loottable:giant-salamander", "level": [5, 6], "respawnSeconds": 60, "roster": true, "behaviour": {"aggro": 10, "leash": 9.8, "roam": 2.6, "spread": 13, "pull": 0, "campSize": [1, 1]}}
     ]
+  },
+  "mobLooks": {
+    "looks": {
+      "character:cinder-scavenger": {"opponent": "goblin", "tint": 14079702, "scale": 1.25, "loadout": "goblin.t4.gladius", "dressing": {"soot": 0, "burnt": 0}, "body": "world/kit/goblin-bare.glb"},
+      "character:pit-goblin": {"opponent": "goblin", "tint": 16777215, "scale": 1.25, "loadout": "goblin.t4.gladius", "body": "world/kit/goblin-bare.glb", "dressing": {"soot": 0, "burnt": 0}},
+      "character:ash-wolf": {"opponent": "wolf", "tint": 9077624, "dressing": {"soot": 0.4, "burnt": 0}},
+      "character:ruin-ghoul": {"opponent": "goblin", "tint": 7829114, "scale": 1.1, "dressing": {"soot": 0.5, "burnt": 0.6}, "body": "world/kit/goblin-bare.glb"},
+      "character:cinder-bear": {"opponent": "bear", "tint": 7300442, "dressing": {"soot": 0.5, "burnt": 0.1}},
+      "character:ash-boar": {"opponent": "boar", "tint": 8021330, "dressing": {"soot": 0.35, "burnt": 0}},
+      "character:ember-wolf": {"opponent": "wolf", "tint": 9062962, "scale": 2.2, "dressing": {"soot": 0.15, "burnt": 0.6}},
+      "character:ash-skeleton": {"opponent": "skeleton", "tint": 12369084, "dressing": {"soot": 0.4, "burnt": 0.2}},
+      "character:pale-duelist": {"opponent": "nightborn", "tint": 14211288, "dressing": {"soot": 0, "burnt": 0}},
+      "character:cave-troll": {"opponent": "cave-troll", "tint": 16777215, "scale": 1.52, "loadout": "troll.pit.t5.maul", "dressing": {"soot": 0.15, "burnt": 0}},
+      "character:giant-salamander": {"opponent": "giant-salamander", "tint": 16777215, "scale": 6, "dressing": {"soot": 0.2, "burnt": 0.1}}
+    },
+    "spread": {
+      "character:cinder-scavenger": {"tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver"]},
+      "character:pit-goblin": {"tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.t4.gladius", "goblin.t4.cleaver", "goblin.t7.longsword", "goblin.t7.estoc", "goblin.t5.scythe", "goblin.t5.trident", "goblin.t6.warhammer", "goblin.t6.maul"]},
+      "character:ruin-ghoul": {"tints": [6974576, 8749178, 7367272], "scale": 0.08, "soot": 0.2, "burnt": 0.2},
+      "character:ember-wolf": {"tints": [8011824, 10115642, 7293498], "scale": 0.08, "soot": 0.1, "burnt": 0.15},
+      "character:cave-troll": {"tints": [16777215], "scale": 0, "soot": 0, "burnt": 0, "loadouts": ["troll.pit.t7.cleaver", "troll.pit.t6.warhammer", "troll.pit.t4.cleaver"]}
+    }
   },
   "kit": {
     "url": "/world/kit/zone1-kit.glb",
@@ -379,6 +402,27 @@
       "floor-1-spot",
       "floor-2-spot"
     ],
-    "spawns": []
+    "spawns": [
+      {"id": "outer-scavengers-0", "at": "ring-outer-0-spot", "characters": ["character:cinder-scavenger"]},
+      {"id": "outer-scavengers-1", "at": "ring-outer-1-spot", "characters": ["character:cinder-scavenger"]},
+      {"id": "outer-scavengers-2", "at": "ring-outer-2-spot", "characters": ["character:cinder-scavenger"]},
+      {"id": "outer-pit-goblins-0", "at": "ring-outer-3-spot", "characters": ["character:pit-goblin"]},
+      {"id": "outer-pit-goblins-1", "at": "ring-outer-4-spot", "characters": ["character:pit-goblin"]},
+      {"id": "outer-ash-wolves-0", "at": "ring-outer-5-spot", "characters": ["character:ash-wolf"]},
+      {"id": "outer-ash-wolves-1", "at": "ring-outer-0-spot", "characters": ["character:ash-wolf"]},
+      {"id": "middle-ghouls-0", "at": "ring-middle-0-spot", "characters": ["character:ruin-ghoul"]},
+      {"id": "middle-ghouls-1", "at": "ring-middle-1-spot", "characters": ["character:ruin-ghoul"]},
+      {"id": "middle-bears-0", "at": "ring-middle-2-spot", "characters": ["character:cinder-bear"]},
+      {"id": "middle-bears-1", "at": "ring-middle-3-spot", "characters": ["character:cinder-bear"]},
+      {"id": "middle-boars-0", "at": "ring-middle-4-spot", "characters": ["character:ash-boar"]},
+      {"id": "middle-boars-1", "at": "ring-middle-5-spot", "characters": ["character:ash-boar"]},
+      {"id": "middle-ember-wolves-0", "at": "ring-middle-0-spot", "characters": ["character:ember-wolf"]},
+      {"id": "floor-skeletons-0", "at": "floor-0-spot", "characters": ["character:ash-skeleton"]},
+      {"id": "floor-skeletons-1", "at": "floor-1-spot", "characters": ["character:ash-skeleton"]},
+      {"id": "floor-duelists-0", "at": "floor-2-spot", "characters": ["character:pale-duelist"]},
+      {"id": "floor-duelists-1", "at": "floor-0-spot", "characters": ["character:pale-duelist"]},
+      {"id": "floor-trolls-0", "at": "floor-1-spot", "characters": ["character:cave-troll"]},
+      {"id": "floor-salamanders-0", "at": "floor-2-spot", "characters": ["character:giant-salamander"]}
+    ]
   }
 }

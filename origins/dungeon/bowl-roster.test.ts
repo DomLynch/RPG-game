@@ -3,7 +3,7 @@
 // can never disagree).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadBowlRings, ringAt, rosterCamps, rosterRows, type BowlKnown, type RingEdges, type RowBase } from './bowl-roster.ts';
+import { loadBowlRings, ringAt, rosterPlacements, rosterRows, type BowlKnown, type RingEdges, type RowBase } from './bowl-roster.ts';
 import RAW from './bowl-roster.json' with { type: 'json' };
 import PROGRESSION from '../region1/progression.json' with { type: 'json' };
 import ZONE1 from '../zone-rows/zone1.row.json' with { type: 'json' };
@@ -11,7 +11,6 @@ import ZONE2 from '../zone-rows/zone2.row.json' with { type: 'json' };
 import ZONE7 from '../zone-rows/zone7.row.json' with { type: 'json' };
 import { ringEdges } from '../zones/plan.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
-import { mobLook } from '../preview/mob-looks.ts';
 import { validateMobRow, type MobRow, type RowContext } from '../../src/core/world/row.ts';
 
 const edges: RingEdges = (zone, landmark) => ringEdges(zone, landmark);
@@ -20,7 +19,8 @@ const RING_LANDMARKS = new Set(['ring-outer', 'ring-middle', 'floor']);   // the
 const known: BowlKnown = { characters: FOES, zones: new Set(['7']), landmarks: () => RING_LANDMARKS };
 const BASES = new Map<string, MobRow>([...(ZONE1.spawns.rows as unknown as MobRow[]), ...(ZONE2.spawns.rows as unknown as MobRow[])].map((r) => [r.id, r] as const));
 const base = (c: string): RowBase | undefined => BASES.get(c);
-const ctx: RowContext = { look: mobLook, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
+const LOOKS = (ZONE7 as unknown as { mobLooks: { looks: Record<string, { opponent: string }> } }).mobLooks.looks;   // zone 7's own dress for its creatures (a creature with none draws as a capsule)
+const ctx: RowContext = { look: (id) => LOOKS[id] ?? null, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
 type RawRing = { zone: string; landmark: string; levels: number[]; aggro: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
 type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
 const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
@@ -71,10 +71,27 @@ test('zone 7\'s shipped spawn rows are exactly the roster rows (a drift test): t
   assert.deepEqual(ZONE7.spawns.rows, rosterRows(loadBowlRings(known), edges, base), 'origins/zone-rows/zone7.row.json spawns.rows != the rows the roster table compiles to');
 });
 
-test('rosterCamps: one entry per group with its ring landmark and camp count, for the zone row\'s place.spawns', () => {
-  const rings = loadBowlRings(known), camps = rosterCamps(rings);
-  assert.equal(camps.length, rings.reduce((n, r) => n + r.groups.length, 0));
-  for (const c of camps) assert.ok(c.camps >= 1 && RING_LANDMARKS.has(c.landmark), `${c.ring}/${c.group}`);
+const LAYOUT = (ZONE7.place as unknown as { zones: Record<string, { layout: Record<string, unknown> }> }).zones['dungeon-bowl']!.layout;
+const spotsOf = (landmark: string): string[] => Object.keys(LAYOUT).filter((k) => k.startsWith(`${landmark}-`));   // the plan's points that belong to a ring landmark: its name, a dash, the point's own name
+
+test('rosterPlacements: one place.spawns entry per camp, anchored to a spot point of its own ring, dealt round the ring so no spot is reused before each has a camp', () => {
+  const rings = loadBowlRings(known), placed = rosterPlacements(rings, spotsOf);
+  assert.equal(placed.length, rings.reduce((n, r) => n + r.groups.reduce((m, g) => m + g.camps, 0), 0), 'one entry per camp');
+  assert.equal(new Set(placed.map((p) => p.id)).size, placed.length, 'ids are unique');
+  for (const r of rings) {
+    const mine = placed.filter((p) => r.groups.some((g) => p.characters[0] === g.character));
+    assert.ok(mine.every((p) => spotsOf(r.landmark).includes(p.at)), `${r.id}: every camp stands at its own ring's spot`);
+    const spots = spotsOf(r.landmark), seen = new Set(mine.slice(0, spots.length).map((p) => p.at));
+    assert.equal(seen.size, Math.min(spots.length, mine.length), `${r.id}: the first ${spots.length} camps take ${spots.length} different spots`);
+  }
+  assert.throws(() => rosterPlacements(rings, () => []), /nowhere to stand/);
+});
+
+test('zone 7\'s shipped place.spawns are exactly the roster placements (a drift test), and its band covers every roster row', () => {
+  const rings = loadBowlRings(known);
+  assert.deepEqual((ZONE7.place as unknown as { spawns: unknown }).spawns, rosterPlacements(rings, spotsOf), 'origins/zone-rows/zone7.row.json place.spawns != the placements the roster table compiles to');
+  const band = (ZONE7 as unknown as { band: [number, number] }).band;
+  for (const r of rings) assert.ok(r.levels[0] >= band[0] && r.levels[1] <= band[1], `${r.id} levels ${r.levels} sit in the zone band ${band}`);
 });
 
 test('ringAt: the centre is the floor, a point in each band its ring, the yard and beyond are no ring', () => {

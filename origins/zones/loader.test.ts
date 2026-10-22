@@ -29,6 +29,11 @@ test('the validator names each way a package can be wrong', () => {
   assert.equal(edit((c) => { c.spawns.rows[0]!.level = [1, 1]; }), '', 'a row may be narrower than the zone band (the level-1 Pit goblin camp)');
   assert.match(edit((c) => { c.spawns.rows[0]!.level = [1, 3]; }), /not the zone rule 1-2/);
   assert.match(edit((c) => { c.spawns.openers['x'] = 'character:nobody'; }), /not a row/);
+  // A zone's own `band` (a dungeon spans several levels) replaces the zone-number rule for its rows; a zone without one is unchanged (every case above).
+  assert.equal(edit((c) => { c.band = [1, 6]; c.spawns.rows[0]!.level = [4, 5]; }), '', 'a row inside the zone\'s own band is valid');
+  assert.match(edit((c) => { c.band = [1, 6]; c.spawns.rows[0]!.level = [5, 7]; }), /outside the zone's band 1-6/);
+  assert.match(edit((c) => { c.band = [3, 2]; }), /band \[3,2\] is not \[lo, hi\]/);
+  assert.match(edit((c) => { c.band = [0, 4]; }), /is not \[lo, hi\]/);
   assert.match(edit((c) => { c.kit.kinds[0]!.nodes = ['no_such_node']; }), /not a kit node/);
   assert.match(edit((c) => { c.kit.landmarks.push(c.kit.nodes[0]!); }), /both a node and a landmark/);
   assert.match(edit((c) => { c.kit.url = '/elsewhere.glb'; }), /kit url/);
