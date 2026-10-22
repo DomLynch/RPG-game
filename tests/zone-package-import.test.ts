@@ -32,6 +32,12 @@ test('a package as exported passes in generate mode, and an unlisted one passes 
   assert.deepEqual(problems(unlisted(true)), []);
 });
 
+test('a package may be zone 0 (the town, Dom 2026-10-22): a whole number from 0; -1 and 1.5 are refused', () => {
+  const zoned = (zone: number): Files => { const m = JSON.parse(bone()['package.json']!); m.zone = zone; return { ...bone(), 'package.json': canon(m) }; };
+  assert.equal(problems(zoned(0), ctx({ mode: 'generate' })).some((p) => /manifest zone must/.test(p)), false, 'zone 0 passes the zone-number rule');
+  for (const bad of [-1, 1.5]) assert.match(problems(zoned(bad), ctx({ mode: 'generate' })).join(';'), /manifest zone must be a whole number from 0/, String(bad));
+});
+
 test('the manifest hash check is mandatory: a changed file, a missing file and an unlisted extra file are all refused', () => {
   const f = bone();
   assert.match(problems({ ...f, 'dungeon.row.json': f['dungeon.row.json']!.replace('Bone Hollow', 'Bone Hollo') }, ctx({ mode: 'generate' })).join(';'), /"dungeon.row.json" does not match its manifest hash/);

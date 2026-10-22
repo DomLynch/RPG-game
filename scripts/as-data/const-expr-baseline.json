@@ -86,7 +86,6 @@
   "STEP": 1
  },
  "src/fight/world.ts": {
-  "TICK": 1,
   "EVADE_HEAL_TO_FULL": 1,
   "RETARGET_CONE": 1
  },

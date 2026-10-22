@@ -14,7 +14,7 @@
 // The key is `<hash>:<defeat #>:<pc>`, where <hash> is the encounter id's short hash (hash.ts): the first 12 RFC 4648 base32 characters
 // (lowercase a-z2-7, no padding) of sha-256 of the id's UTF-8 bytes. 12 + ':' + defeat digits + ':' + the longest pc id ("pc:" + 96)
 // stays inside MINT_KEY_PATTERN's 128 for any defeat count below 10^15, so a boss id needs only the contracts' id rules, no length cap.
-import { MAX_LEVEL, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, type Kill } from '../../src/core/server.ts';
+import { MAX_LEVEL, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, PARTY_KEY_MAX, type Kill } from '../../src/core/server.ts';
 import { Issues, fail, ok, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterInstanceId, type EncounterId, type LootTableId } from '../../src/core/server.ts';
 import { parseEncounterDefinition, type EncounterDefinition } from '../../src/core/server.ts';
@@ -104,7 +104,7 @@ export function step(def: BossEncounter, state: BossState, action: Action): Resu
       const { amount, level, party } = action;
       if (!Number.isSafeInteger(amount) || amount < 1) issues.add('out-of-range', 'amount', 'damage is a whole number above 0');
       if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) issues.add('out-of-range', 'level', `a career level is 1..${MAX_LEVEL}`);
-      if (party !== null && (typeof party !== 'string' || party.length < 1 || party.length > 64)) issues.add('wrong-type', 'party', 'a party key is 1..64 characters, or null');
+      if (party !== null && (typeof party !== 'string' || party.length < 1 || party.length > PARTY_KEY_MAX)) issues.add('wrong-type', 'party', `a party key is 1..${PARTY_KEY_MAX} characters, or null`);
       if (!character || !issues.empty) return issues.finish(undefined as never);
       const prior = state.contributors.get(character);
       if (!prior && party !== null && [...state.contributors.values()].filter(c => c.party === party).length >= MAX_PARTY) {

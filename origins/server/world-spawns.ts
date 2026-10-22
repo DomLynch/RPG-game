@@ -73,14 +73,14 @@ export const defaultZoneSpawns = (content: EncounterContent): Map<string, Spawn>
 // The database's spawn key is the spec id as it is: Zone 1 ids are the live rows, Zone N >= 2 ids already carry `z<N>:` (migration 202610090016's rule), so two zones never share a creature's life.
 // A zone id is its folder number: one or more digits, no leading zero, no ceiling (migration 202610090017's rule). A key that starts like a zone (`z` and a digit) but does not parse is NOT Zone 1: null,
 // and the caller refuses it, so a malformed zone key is never stored or priced as Zone 1.
-export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z([1-9][0-9]*):/.exec(key)?.[1] ?? null : DEFAULT_ZONE;
+export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z(0|[1-9][0-9]*):/.exec(key)?.[1] ?? null : DEFAULT_ZONE;   // Zone 0 is the town (Dom 2026-10-22): `z0:` parses; `z01:` still does not
 
 // The rule the database column and the writer both read, checked on every registered zone (origins/zone-rows/): ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry
 // `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone row fails at install.
 export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
   for (const id of listedZoneIds()) {
-    if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
+    if (!/^(0|[1-9][0-9]*)$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero (0 itself is the town)`); continue; }
     const f = frontierPlan(false, id);
     problems.push(...keyProblemsOf(id, mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows).map((s) => s.id), seen));
   }

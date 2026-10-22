@@ -184,6 +184,59 @@
             2
           ]
         }
+      },
+      {
+        "id": "character:ash-skeleton",
+        "source": {
+          "kind": "folklore",
+          "work": "The Dance of Death (danse macabre): the skeleton procession of late-medieval church wall paintings and woodcuts",
+          "locator": "the skeleton host that leads the living off in a line"
+        },
+        "role": "brute",
+        "loot": "loottable:ruin-ghoul",
+        "level": [
+          2,
+          3
+        ],
+        "respawnSeconds": 45,
+        "behaviour": {
+          "aggro": 8,
+          "roam": 6,
+          "spread": 8,
+          "pull": 6,
+          "campSize": [
+            3,
+            4
+          ]
+        }
+      },
+      {
+        "id": "character:pale-duelist",
+        "source": {
+          "kind": "literature",
+          "work": "The Vampyre: A Tale (Lord Ruthven)",
+          "author": "John William Polidori",
+          "year": 1819,
+          "authorDied": 1821,
+          "locator": "the pale nobleman Lord Ruthven, who kills without a flush of anger"
+        },
+        "role": "skirmisher",
+        "loot": "loottable:ruin-ghoul",
+        "level": [
+          2,
+          3
+        ],
+        "respawnSeconds": 60,
+        "behaviour": {
+          "aggro": 10,
+          "roam": 9,
+          "spread": 4,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
       }
     ]
   },
@@ -424,6 +477,22 @@
           "soot": 0.15,
           "burnt": 0.6
         }
+      },
+      "character:ash-skeleton": {
+        "opponent": "skeleton",
+        "tint": 12369084,
+        "dressing": {
+          "soot": 0.4,
+          "burnt": 0.2
+        }
+      },
+      "character:pale-duelist": {
+        "opponent": "nightborn",
+        "tint": 14211288,
+        "dressing": {
+          "soot": 0,
+          "burnt": 0
+        }
       }
     },
     "spread": {
@@ -558,6 +627,20 @@
         "at": "reach-ruin",
         "characters": [
           "character:cinder-scavenger"
+        ]
+      },
+      {
+        "id": "reach-skeletons",
+        "at": "reach-ruin",
+        "characters": [
+          "character:ash-skeleton"
+        ]
+      },
+      {
+        "id": "reach-duelist",
+        "at": "reach-cairn",
+        "characters": [
+          "character:pale-duelist"
         ]
       }
     ]
