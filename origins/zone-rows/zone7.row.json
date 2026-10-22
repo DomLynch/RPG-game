@@ -7,14 +7,14 @@
   ],
   "band": [1, 10],
   "entry": {
-    "x": 150,
+    "x": 200,
     "z": 54,
     "facing": 3.142
   },
   "warps": [
     {
       "id": "zone7-start",
-      "x": 150,
+      "x": 200,
       "z": 54,
       "unit": "m"
     }
@@ -26,11 +26,11 @@
       "name": "The yard",
       "shape": "rect",
       "min": [
-        136,
+        186,
         33
       ],
       "max": [
-        164,
+        214,
         61
       ],
       "pvp": "off",
@@ -41,11 +41,11 @@
       "name": "The Duel pit",
       "shape": "rect",
       "min": [
-        167,
+        217,
         38
       ],
       "max": [
-        185,
+        235,
         56
       ],
       "pvp": "on",
