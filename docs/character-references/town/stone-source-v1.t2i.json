@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A round marble dais of two stacked circular steps with a gold inlaid ring, bearing a tall slender carved marble obelisk stone with faint blue glowing rune lines, a tapered pointed top, the Covenant Stone. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 84.6,
+  "sha256": "f41ce0b02274af4c47d612d87b364a217e9c09f0bc3e55f5ac0c5b1c0bd9b828"
+}

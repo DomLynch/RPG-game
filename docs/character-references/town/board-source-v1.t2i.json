@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A public contract notice board: a tall wooden board frame with a carved marble cap set on two stone posts, many parchment notices pinned to it, a small bronze plaque and a crimson ribbon, whole board visible. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 66.6,
+  "sha256": "67ebbb399841535256ddcdfb9df8f1b15a497533f4dabe9b408037d5ef5a2f51"
+}

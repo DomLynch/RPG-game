@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A flat square marble paving slab seen from directly above, pale weathered white-grey marble with fine cracks and veining, a thin inlaid gold line border and a faint glowing blue seam in one crack, worn edges. Top-down orthographic view, the slab fills the frame, plain flat neutral grey background, soft even lighting, no text, no people, stylised high-fantasy painted realism, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 59.0,
+  "sha256": "37a0517264adf8c017bf59fa8e5f10ac1666b4c9c037062ffbb392317faa3b83"
+}

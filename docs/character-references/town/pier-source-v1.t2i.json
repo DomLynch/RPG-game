@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A massive square-section marble pier pillar, tall and heavy, with carved vertical fluting panels, a stepped moulded base and a stepped cornice capital with a gold trim band and a small bronze crest plaque on the face. A single pier only, full pier visible top to bottom. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 51.0,
+  "sha256": "101bf7f493da68a3d0c67fa9faa154564417ff07390e3c2d46f83329c8f4e9ab"
+}

@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/balustrade-source-v1.png",
+  "preprocess_s": 10.2,
+  "image_to_3d_s": 25.0,
+  "extract_glb_s": 23.2,
+  "glb": "src/assets/source/creatures/town_balustrade.glb",
+  "bytes": 4256056,
+  "sha256": "b23617ad2aeb8ad579bea7b83680c74d1c397c870caa48f66ad1bdcb33c23472",
+  "attempts": 1
+}

@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { ZoneMaterials } from './zone-scenery.ts';
 import { previewRule } from './preview-rules.ts';
+import { skinModels } from '../world/building-skins-rules.ts';
+import { greyboxOfSkins, skinPlacements } from './exchange-skin.ts';
+import type { ModelPlacement } from './frontier-skin.ts';
 import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 import type { Stain } from '../zones/plan.ts';
 
@@ -66,7 +69,15 @@ function inscription(text: string): THREE.MeshStandardMaterial {
 
 // Every piece of a plan, merged into one mesh per layer (stone, iron, dark, coal) named `<prefix>-<layer>`, added to the group.
 // `own` gives the stone and paving layers materials of their own (the Exchange's clones, so a look can tint them without touching the arena's).
-export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}, tiles: Readonly<Record<string, number | undefined>> = {}): void {
+// A piece whose `skin` names a model row is drawn in a group of its own per skin (`<prefix>-fallback-<skin>`, returned): the greybox stands until that model's file lands, then main.ts hides the group (a failed file keeps it).
+// `tiles` is a layer's own texture tile size (a zone's layer row), so a bowl's sand repeats at its own scale.
+export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}, tiles: Readonly<Record<string, number | undefined>> = {}): Map<string, THREE.Group> {
+  const fallbacks = new Map<string, THREE.Group>(), known = new Set(skinModels().map((s) => s.id));
+  for (const [id, list] of greyboxOfSkins(pieces)) if (known.has(id)) {
+    const g = new THREE.Group(); g.name = `${prefix}-fallback-${id}`; group.add(g); fallbacks.set(id, g);
+    meshPieces(g, list.map((p) => ({ ...p, skin: undefined, cover: undefined })), m, `${prefix}-${id}`, own, tiles);
+  }
+  pieces = pieces.filter((p) => !((p.skin && known.has(p.skin)) || (p.cover && known.has(p.cover))));
   const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [], plain: [] };
   for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot, tiles[p.layer]));
   const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
@@ -77,9 +88,10 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   add(layers.soot!, new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }), 'dark');
   add(layers.coal!, m.coal, 'coal');
   add(layers.plain!, new THREE.MeshStandardMaterial({ color: m.stone.color, roughness: 1, vertexColors: true }), 'plain');   // untextured matte in the stone's own base colour, so a prop is as bright as it was (the prop kits' wood, hide, cloth and bone): no stone pattern on a tent
+  return fallbacks;
 }
 
-export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
+export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -110,14 +122,14 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
     clone.customProgramCacheKey = () => `${source.customProgramCacheKey()}-${key}`;
   };
   stained(ground, sourceOf('paving'), plan.layers?.paving?.stain); stained(stone, sourceOf('stone'), plan.layers?.stone?.stain);
-  meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground }, Object.fromEntries(Object.entries(plan.layers ?? {}).map(([layer, row]) => [layer, row.tile])));
+  const fallbacks = meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground }, Object.fromEntries(Object.entries(plan.layers ?? {}).map(([layer, row]) => [layer, row.tile])));
   if (plan.frieze) {   // a plan without a frieze row has no inscription
     const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));
     frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
   }
 
   return {
-    group, ground, stone, braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
+    group, ground, stone, fallbacks, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
       for (const [c, source] of sources) if (c.map !== source.map) { c.map = source.map; c.normalMap = source.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone and sand textures in late; the clones follow
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
