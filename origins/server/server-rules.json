@@ -141,7 +141,8 @@
       "graceS": 5,
       "everyS": 60,
       "batch": 50,
-      "note": "a world-boss kill is one ladder mark (migration 20261022100000, docs/specs/origins/pit-live-zone.md, Lead ruling 2026-10-22): once the kill's join window (worldShare.joinWindowS) plus graceS seconds have passed, the whole damage ledger decides, and every account whose damage is at least ofTop of the TOP damager's earns one mark (ModernUO's qualify-at-death rule, relative to the top; credit uses the looser worldShare.qualifyOfTop). The writer settles up to batch kills every everyS seconds. Total marks stay under the beta cut (career-ladder.ts betaMarks)."
+      "perHour": 6,
+      "note": "killing a ladder ROSTER fighter (a spawn row flagged roster) is one ladder mark, like a Pit duel win (migration 20261022100000, Dom 2026-10-22, Lead ruling): once the kill's join window (worldShare.joinWindowS) plus graceS seconds have passed, the whole damage ledger decides, and every account whose damage is at least ofTop of the TOP damager's earns one mark (ModernUO's qualify-at-death rule, relative to the top; credit uses the looser worldShare.qualifyOfTop). The writer settles up to batch kills every everyS seconds. Total marks stay under the beta cut (career-ladder.ts betaMarks), and an account earns at most perHour world marks an hour (Dom can tune it: the brake on farming a respawning roster)."
     }
   ],
   "spawnLayers": [

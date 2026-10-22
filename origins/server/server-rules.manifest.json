@@ -188,6 +188,7 @@
         "graceS": "integer",
         "everyS": "integer",
         "batch": "integer",
+        "perHour": "integer",
         "note": "string"
       }
     },

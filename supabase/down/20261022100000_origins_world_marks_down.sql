@@ -12,7 +12,7 @@ create or replace function public.standing_of(account uuid, before_claim bigint)
             union
             select a.piece from public.awards a join earlier e on e.id = a.claim_id) pieces)
 $$;
-drop function public.origins_world_marks_settle(int, numeric, int, int);
+drop function public.origins_world_marks_settle(int, numeric, int, int, text[], int);
 drop table public.origins_world_marks_settled;
 drop table public.origins_world_marks;
 commit;

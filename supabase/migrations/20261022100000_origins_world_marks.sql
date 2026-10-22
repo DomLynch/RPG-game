@@ -5,10 +5,12 @@
 -- ORDER-FREE: it is decided on the whole damage ledger of the kill once its join window has closed (ModernUO decides who qualified at death, relative to the top damager), never on who reported first.
 --   origins_world_marks          one row per (account, layer, instance, generation) = one mark per account per spawn kill. RLS on, no policy, no grant: reachable only through the definer functions.
 --   origins_world_marks_settled  one row per incarnation already settled, so a settle is idempotent and never rescans it.
---   origins_world_marks_settle(p_wait_s, p_of_top, p_cap, p_limit)
---        the writer calls it once a minute. For up to p_limit unsettled incarnations whose FIRST ledger row is older than p_wait_s (the join window plus a grace, both rows of server-rules.json): the top
---        damage is the largest ledger damage of the incarnation; every account whose own damage is at least p_of_top (the row `worldMarks.ofTop`, 0.5) of the top earns ONE mark, while that account's
---        TOTAL standing marks (seed + verified claims + world marks) are below p_cap (the beta cut, betaMarks: world marks alone can never lift a player past it). Returns the marks written.
+--   origins_world_marks_settle(p_wait_s, p_of_top, p_cap, p_per_hour, p_instances, p_limit)
+--        the writer calls it once a minute. For up to p_limit unsettled incarnations of the spawns in p_instances (the roster fighters, flagged in their spawn rows; any other creature is no ladder win)
+--        whose FIRST ledger row is older than p_wait_s (the join window plus a grace, both rows of server-rules.json): the top damage is the largest ledger damage of the incarnation; every account whose
+--        own damage is at least p_of_top (the row `worldMarks.ofTop`, 0.5) of the top earns ONE mark, while that account's TOTAL standing marks (seed + verified claims + world marks) are below p_cap
+--        (the beta cut, betaMarks: world marks alone can never lift a player past it) AND it has earned fewer than p_per_hour world marks in the last hour (the row `worldMarks.perHour`, a brake
+--        on farming a respawning roster). Returns the marks written.
 --   standing_of  gains the second source: + the account's world marks. With before_claim, only marks created BEFORE that claim count, the same earlier-than rule as claims.
 -- Unverified damage is 0 in the ledger (the kill_report path writes damage 0 when the record did not verify), so it never qualifies. The cap is checked per account under an advisory lock; a verified claim
 -- landing in the same instant can overshoot it by one at worst (the client shows betaMarks anyway).
@@ -52,15 +54,17 @@ create or replace function public.standing_of(account uuid, before_claim bigint)
             select a.piece from public.awards a join earlier e on e.id = a.claim_id) pieces)
 $$;
 
-create function public.origins_world_marks_settle(p_wait_s int, p_of_top numeric, p_cap int, p_limit int) returns integer language plpgsql security definer set search_path = '' as $$
-declare inc record; r record; have integer; written integer := 0;
+create function public.origins_world_marks_settle(p_wait_s int, p_of_top numeric, p_cap int, p_per_hour int, p_instances text[], p_limit int) returns integer language plpgsql security definer set search_path = '' as $$
+declare inc record; r record; have integer; recent integer; written integer := 0;
 begin
-  if p_wait_s is null or p_wait_s < 0 or p_of_top is null or p_of_top <= 0 or p_of_top > 1 or p_cap is null or p_cap < 0 or p_limit is null or p_limit < 1 then
+  if p_wait_s is null or p_wait_s < 0 or p_of_top is null or p_of_top <= 0 or p_of_top > 1 or p_cap is null or p_cap < 0 or p_per_hour is null or p_per_hour < 1
+     or p_instances is null or p_limit is null or p_limit < 1 then
     raise exception 'bad settle arguments' using errcode = 'O0002'; end if;
   for inc in
     select d.layer, d.instance, d.generation
     from public.origins_spawn_damage d
-    where not exists (select 1 from public.origins_world_marks_settled s where s.layer = d.layer and s.instance = d.instance and s.generation = d.generation)
+    where d.instance = any (p_instances)   -- only the spawns the writer flags as roster fighters (the spawn row's data); every other creature's kill is no ladder win
+      and not exists (select 1 from public.origins_world_marks_settled s where s.layer = d.layer and s.instance = d.instance and s.generation = d.generation)
     group by d.layer, d.instance, d.generation
     having min(d.at) + make_interval(secs => p_wait_s) < now()
     order by min(d.at)
@@ -77,7 +81,8 @@ begin
     loop
       perform pg_advisory_xact_lock(hashtextextended(r.account::text, 0));
       select s.marks into have from public.standing_of(r.account, null) s;
-      if have < p_cap then
+      select count(*) into recent from public.origins_world_marks w where w.user_id = r.account and w.created_at > now() - interval '1 hour';
+      if have < p_cap and recent < p_per_hour then
         insert into public.origins_world_marks (user_id, layer, instance, generation, damage, top) values (r.account, inc.layer, inc.instance, inc.generation, r.damage, r.t) on conflict do nothing;
         if found then written := written + 1; end if;
       end if;
@@ -86,8 +91,8 @@ begin
   return written;
 end $$;
 
-revoke all on function public.origins_world_marks_settle(int, numeric, int, int) from public, anon, authenticated;
-grant execute on function public.origins_world_marks_settle(int, numeric, int, int) to frankendom_origins;
+revoke all on function public.origins_world_marks_settle(int, numeric, int, int, text[], int) from public, anon, authenticated;
+grant execute on function public.origins_world_marks_settle(int, numeric, int, int, text[], int) to frankendom_origins;
 
 comment on table public.origins_world_marks is 'One ladder mark per account per world-boss kill (spawn incarnation), settled by origins_world_marks_settle on the whole damage ledger. Read through standing_of only.';
 commit;

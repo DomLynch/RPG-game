@@ -205,9 +205,11 @@ export const spawnLayersSweep = async (db: Db, live: readonly number[]): Promise
   return out === null ? null : Number(out);
 };
 // World marks (migration 20261022100000): settle the kills whose join window has closed. `waitS` = joinWindowS + graceS, `ofTop` the qualify share, `cap` the beta cut on TOTAL marks. `null` = the migration is not applied.
-const HAS_MARKS = `select to_regprocedure('public.origins_world_marks_settle(integer,numeric,integer,integer)') is not null as marks \\gset\n`;
-export const worldMarksSettle = async (db: Db, waitS: number, ofTop: number, cap: number, limit: number): Promise<number | null> => {
-  const out = await gated(db, 'world marks', HAS_MARKS, 'marks', `select public.origins_world_marks_settle(:'w'::int, :'o'::numeric, :'c'::int, :'n'::int)::text;`, { w: String(waitS), o: String(ofTop), c: String(cap), n: String(limit) });
+const HAS_MARKS = `select to_regprocedure('public.origins_world_marks_settle(integer,numeric,integer,integer,text[],integer)') is not null as marks \\gset\n`;
+export const worldMarksSettle = async (db: Db, rule: { waitS: number; ofTop: number; cap: number; perHour: number; instances: readonly string[]; limit: number }): Promise<number | null> => {
+  const out = await gated(db, 'world marks', HAS_MARKS, 'marks',
+    `select public.origins_world_marks_settle(:'w'::int, :'o'::numeric, :'c'::int, :'h'::int, array(select jsonb_array_elements_text(:'i'::jsonb)), :'n'::int)::text;`,
+    { w: String(rule.waitS), o: String(rule.ofTop), c: String(rule.cap), h: String(rule.perHour), i: JSON.stringify(rule.instances), n: String(rule.limit) });
   return out === 'absent' ? null : Number(out);
 };
 export const spawnEngageGet = async (db: Db, account: string, token: string): Promise<SpawnEngage | 'none' | null> => {

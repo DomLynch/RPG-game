@@ -37,6 +37,7 @@ export type MobRow = {
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
   respawnSeconds?: number;       // seconds until a killed member of this kind stands again (Dom's animal rule: 60-90 s); the server writer reads it per row
+  roster?: boolean;              // a ladder roster fighter (Dom 2026-10-22): killing it is a ladder win, settled by the writer's world marks (origins/server/world-marks.ts); absent or anything but `true` = an ordinary creature
   later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
