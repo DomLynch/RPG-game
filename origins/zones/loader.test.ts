@@ -53,6 +53,14 @@ test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; all
   assert.equal(zoneFromAddress('/zone2/', '?zone=3'), '3', '?zone= still wins on a short link');
   assert.equal(zoneFromAddress('/zone/3/', ''), '3', '/zone/<id>/ is unchanged');
   assert.equal(zoneFromAddress('/zone2/x', ''), '1', 'only the bare short link names a zone');
+  assert.equal(zoneFromAddress('/zone0/', ''), '0', 'Zone 0 (the town) is the text "0": not lost to the default (?? keeps it, || would not)');
+  assert.equal(zoneFromAddress('/zone0', '?x=1'), '0');
+  assert.equal(zoneFromAddress('/dungeon1/', ''), 'dungeon1', '/dungeon<digits>/ names the id dungeon1');
+  assert.equal(zoneFromAddress('/dungeon12', ''), 'dungeon12');
+  assert.equal(zoneFromAddress('/dungeon1/', '?zone=2'), '2', '?zone= still wins');
+  assert.equal(zoneFromAddress('/dungeon/', ''), '1', 'a dungeon with no number names nothing');
+  assert.equal(zoneFromAddress('/dungeon1/x', ''), '1');
+  assert.throws(() => loadZone(zoneFromAddress('/dungeon7/', '')), /no zone dungeon7/, 'an id the registry does not hold is the loader\'s "no such place"');
   assert.throws(() => loadZone(zoneFromAddress('/zone99/', '')), /no zone 99/, 'an unlisted number is the loader\'s "no such place"');
   assert.equal(pageZoneId(), '1', 'no page (the server, the tests): Zone 1');
   assert.throws(() => loadZone(zoneFromAddress('/zone/99/', '')), /no zone 99/);
