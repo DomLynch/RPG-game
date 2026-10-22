@@ -50,6 +50,11 @@ slab(0, R.rim + 1, 12, 3, 0, YARD, true);                                     //
 mark(EDGES.outer, (R.mid + R.rim) / 2, 0, 0); mark(EDGES.middle, (R.floor + R.mid) / 2, -STEP, 0); mark(EDGES.floor, 0, -2 * STEP, 0);   // a landmark on each ring, for the roster's spawn rows
 for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: 0, bottom: -STEP, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
 
+// ---- the bowl's place in the world frame: presence keeps ONE table of zones (no overlap), and the Pit and the Exchange stand at the origin, so the bowl's centre is a free spot east of them; its `origin` mark names it ----
+const FRAME = [150, 0];
+for (const q of [...rows.pieces, ...rows.marks]) { q.x = r(q.x + FRAME[0]); q.z = r(q.z + FRAME[1]); }
+rows.marks.push({ id: `${ZONE}/origin`, zone: ZONE, x: FRAME[0], y: 0, z: FRAME[1] });
+
 // ---- write the rows ----------------------------------------------------------------------------------------------
 const raw = JSON.parse(readFileSync(FILE, 'utf8'));
 const keep = (t) => (raw[t] ?? []).filter((q) => !String(q.zone).startsWith('dungeon1-') && q.zone !== ZONE);   // also sweeps the retired look-test keys
@@ -57,10 +62,13 @@ const out = { about: raw.about, anchors: keep('anchors'), pieces: [...keep('piec
 const rowsOf = (name, list) => `  "${name}": [\n${list.map((q) => `    ${JSON.stringify(q)}`).join(',\n')}\n  ]`;
 writeFileSync(FILE, `{\n  "about": ${JSON.stringify(out.about)},\n${['anchors', 'pieces', 'awnings', 'people', 'braziers', 'marks', 'layers'].map((t) => rowsOf(t, out[t])).join(',\n')}\n}\n`);
 // ---- the zone row's place: camp points the roster's spawn rows anchor to (frontier landmarks, in the bowl's own frame) ----
-const PLACE_SIZE = 80, CAMPS = [[EDGES.outer, (R.mid + R.rim) / 2, 6], [EDGES.middle, (R.floor + R.mid) / 2, 6], [EDGES.floor, R.floor / 2, 3]];   // the place zone's width and depth (m); per ring: its mid-radius and how many camp points round it
+const PLACE_W = 80, PLACE_D = 130, CAMPS = [[EDGES.outer, (R.mid + R.rim) / 2, 6], [EDGES.middle, (R.floor + R.mid) / 2, 6], [EDGES.floor, R.floor / 2, 3]];   // the place zone's width and depth (m); per ring: its mid-radius and how many camp points round it
 const ROW = new URL('../origins/zone-rows/zone7.row.json', import.meta.url), row7 = JSON.parse(readFileSync(ROW, 'utf8')), layout = {};
-for (const [edge, radius, count] of CAMPS) for (let i = 0; i < count; i++) { const a = (i * 2 * Math.PI) / count, x = Math.sin(a) * radius, z = Math.cos(a) * radius; layout[`${edge}-${i}-spot`] = { u: r(0.5 - x / PLACE_SIZE), v: r((z + PLACE_SIZE / 2) / PLACE_SIZE), facing: 0 }; }   // world x = mount.x - local x, world z = mount.z + local d, the zone centred on the origin (frontier-plan.ts)
+for (const [edge, radius, count] of CAMPS) for (let i = 0; i < count; i++) { const a = (i * 2 * Math.PI) / count, x = Math.sin(a) * radius, z = Math.cos(a) * radius; layout[`${edge}-${i}-spot`] = { u: r(0.5 - x / PLACE_W), v: r((z + PLACE_D / 2) / PLACE_D), facing: 0 }; }   // world x = mount.x - local x, world z = mount.z + local d, the zone centred on the plan's `origin` mark (frontier-plan.ts); the zone spans the yard too (z to +61), so every spot of the page is inside a presence zone
+const start = rows.marks.find((q) => q.id === `${ZONE}/start`), [ox, oz] = FRAME;
+row7.entry = { x: start.x, z: start.z, facing: start.facing }; row7.warps = [{ id: `zone${ZONE}-start`, x: start.x, z: start.z, unit: 'm' }];
+row7.safeAreas = [{ id: 'yard', name: 'The yard', shape: 'rect', min: [ox - 14, oz + R.rim + 2], max: [ox + 14, oz + R.rim + 30], pvp: 'off', spawnsAllowed: false }, { id: 'duel-pit', name: 'The Duel pit', shape: 'rect', min: [ox + 17, oz + 38], max: [ox + 35, oz + 56], pvp: 'on', spawnsAllowed: false }];   // the yard slab (28 m wide, rim+2 .. rim+30) and the Duel pit's room (9 m round at x 26, z 47), in the world frame
 row7.world = ['dungeon-bowl']; row7.names = { ...row7.names, 'dungeon-bowl': row7.name };
-row7.place = { zones: { 'dungeon-bowl': { zoneSize: { width: PLACE_SIZE, depth: PLACE_SIZE }, layout, connections: {}, density: { creatures: 0.3 }, ambience: { preset: 'frontier-haze' } } }, joins: [], waypoints: Object.keys(layout), spawns: row7.place?.spawns ?? [] };
+row7.place = { zones: { 'dungeon-bowl': { zoneSize: { width: PLACE_W, depth: PLACE_D }, layout, connections: {}, density: { creatures: 0.3 }, ambience: { preset: 'frontier-haze' } } }, joins: [], waypoints: Object.keys(layout), spawns: row7.place?.spawns ?? [] };
 writeFileSync(ROW, `${JSON.stringify(row7, null, 2)}\n`);
 console.log(`dungeon1 bowl (zone ${ZONE}): ${rows.pieces.length} pieces, ${rows.people.length} fighters, ${rows.marks.length} marks, ${rows.layers.length} layer rows`);
