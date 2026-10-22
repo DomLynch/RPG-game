@@ -168,20 +168,25 @@ jobs:
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       # Bounded apt (Lead 2026-10-22: on K6q26 the Azure mirror stalled ~16 min in this job and cost row 57 three CI attempts). Every apt call below, playwright's
       # --with-deps included, gives up on a stalled fetch after 20 s and retries it 3 times, instead of sitting until the job's 30-min cap.
+      # Mirror fallback (Lead 2026-10-22, after K6q27's four stalled groups): apt-or-mirror runs an apt call; if it fails, it points apt at archive.ubuntu.com
+      # instead of the runner's Azure mirror, refreshes the lists, and runs the same call once more. Every apt call below goes through it.
       - name: Bound apt fetches
-        run: printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch
-      - run: npx playwright install --with-deps chromium
+        run: |
+          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch
+          printf '#!/bin/bash\n"$@" && exit 0\necho "apt-or-mirror: failed, retrying once on archive.ubuntu.com"\nsudo sed -i s#azure.archive.ubuntu.com#archive.ubuntu.com#g $(ls /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null)\ntimeout 300 sudo apt-get update\n"$@"\n' | sudo tee /usr/local/bin/apt-or-mirror
+          sudo chmod +x /usr/local/bin/apt-or-mirror
+      - run: apt-or-mirror npx playwright install --with-deps chromium
       # Row 49 (browser-replay-check --engine webkit, Strategy 2026-09-29): Safari's engine, installed only for the rows that name it.
       - if: matrix.group.webkit
-        run: npx playwright install --with-deps webkit
+        run: apt-or-mirror npx playwright install --with-deps webkit
       # jpegtran in every group: npm run build packs textures through scripts/lossless-jpeg.mjs.
       - name: Lossless JPEG build tool
-        run: timeout 300 sudo apt-get install -y libjpeg-turbo-progs
+        run: apt-or-mirror timeout 300 sudo apt-get install -y libjpeg-turbo-progs
       # ffmpeg (dozens of packages: the K6q26 stall was in its deps) only for a group that runs arena-audio-check, the row that spawns it (#2613, Deploy 2026-10-13;
       # a Mac-only row today, so CI installs it for no group). matrix.group.rows is the group's row list as JSON, so this matches the row's script name.
       - name: ffmpeg for arena-audio-check
         if: contains(matrix.group.rows, 'arena-audio')
-        run: timeout 600 sudo apt-get install -y ffmpeg
+        run: apt-or-mirror timeout 600 sudo apt-get install -y ffmpeg
       - run: npm run build
       - name: Release checks ${{ matrix.group.id }}
         env:
