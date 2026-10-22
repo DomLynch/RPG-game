@@ -589,7 +589,7 @@ function planUpload() {
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
-  if (!mobs || !skyReady) return;
+  if ((!mobs && !noMobZone(loadZone().spawns.rows.length)) || !skyReady) return;   // a zone row with no spawns has no creature view: its scene is still planned and uploaded
   if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + previewRule(replanGapRow(lateLookAt, zoneReadyAt)); uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
