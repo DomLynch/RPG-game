@@ -87,6 +87,7 @@
     { "id": "tapRange", "value": 14, "unit": "m" },
     { "id": "walkSand", "value": 8.3, "unit": "m" },
     { "id": "layoutSlope", "value": 0.45, "unit": "ratio" },
+    { "id": "layoutSlack", "value": 0.02, "unit": "m" },
     { "id": "walkPassageMargin", "value": 0.35, "unit": "m" },
     { "id": "walkPassageNear", "value": 6, "unit": "m" },
     { "id": "walkPassageEnd", "value": 0.5, "unit": "m" },
