@@ -1,5 +1,10 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~16:2x +04 addendum
+- **K6q26 publish:** manual, Deploy with DEPLOY_TRUST_ROWS=57 (Lead's GO).
+- **#3625 open** (mine, supersedes #2613): bounded apt + ffmpeg only for the arena-audio group, plus a watchedAllow blob afed6f2e9 with Lead's OK. VPS 45/45. Lead reviews it. Its own CI cut after K6q27.
+- **CI PR branch code-quality/ci-delta-rows is now @0afc7f7a7, pushed, no PR yet.** It adds the Lead TRUST line path: pickPublish/verify plus DEPLOY_TRUST_ROWS through release-train-publish.sh. VPS 114/114. The pre-push steps below still apply: the zone-pages area and watchedAllow for its two workflow blobs.
+
 ## 2026-10-22 ~16:1x +04: K6q26 PASSed and publishing; K6q27 members PASSed; CI PR = 3 local commits. READ FIRST.
 **K6q26 #3621 @3d4226586 PASS** (issuecomment-6339900928, plus the VPS row-57 receipt in issuecomment-6340290293).
 - The tree = live + #3615 @ca6ee3a1d.
