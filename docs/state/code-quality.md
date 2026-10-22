@@ -1,5 +1,24 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~22:4x +04: queue clear except lane-blocked PRs. READ FIRST.
+**PASSed since 21:0x:**
+- Releases: K6q30 #3641 @f45d70bd1, K6q31 #3646 @889474ca3.
+- PRs: #3629 @5b0dccf7a, #3622 @5aaea3b5f, #3591 @748704483 (+ a correction: its shards were patch-id trusted, so the VPS full suite is the receipt), #3639 @351fbe429, #3645 @25b658207, #3642 @a84d0fac1, #3632 @18c1acf2d.
+- K6q32 = #3591 + #3639 + #3645 (Lead).
+
+**#3627 candidate:pass was PULLED** (Combat: zone 7 quiet red 2/2, knights' weapons missing from the warm plan). My PASS ran 3 times against one pitborn target only.
+- New rule (memory feedback_rotating_camps_engage_every_kind): engage every body kind, 2+ runs each, plus default, plus shards, on the VPS.
+- Waiting on Backend's ping with #3644's zoneKinds commit.
+
+**Blocked:** #3627 (Backend), #3637 (retargets after #3627), #3644 (Lead's order).
+- At the #3627 + #3632 cut, creature-clips.test.ts must be green on the combined tree.
+
+**How gates run now:** VPS `bash /srv/dev-jobs/auditor-tools-20261022/run-pr-on-trunk.sh <job> <pr> <full-head-sha> "NAME|cmd"...`.
+- Use absolute paths in the cmds: $T isn't exported into them.
+- Release PRs: post the PASS within minutes of the last check (Lead: K6q30 lost about 1 h waiting on me). Arm a watcher at cut.
+
+**Follow-ups:** Zone 2 town-kit KitLod late link (World). The Mac Metal /dungeon1/ fight for #3633. Sweep the VPS auditor-* dirs when their PRs merge.
+
 ## 2026-10-22 ~21:0x +04: K6q27b/K6q28/K6q29 PASSed; #3633, #3627, #3635 PASSed; #3639 and #3591 bounced. READ FIRST.
 **Live:** K6q28 80934b31f. K6q29 #3640 @3e23ebd22 (= #3636) has PASS (issuecomment-6346088665) and is publishing. Trunk is 3e23ebd22.
 **Train after K6q29 (Lead):** #3633 → #3627 → the CI cut #3635 (it carries #3630; #3638 was closed). #3637 retargets to trunk after #3627 merges.
