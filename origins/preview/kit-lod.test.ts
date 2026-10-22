@@ -34,9 +34,9 @@ test('the far body casts the shadow: the proxy holds the far geometry, the near 
 test('the swap re-buckets when only the eye has moved', () => {
   const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { lods: lods(15), override: {} });
   const near = kids(g, 'goblin_hut')!;
-  updateKitViews({ x: 500, z: 0 }, 1, { x: 500, z: 0 });   // the walker jumps; the camera has not followed yet (it is still at x = 500 here, far from every hut)
-  assert.equal(near.count, 0);
-  updateKitViews({ x: 500, z: 0 }, 1, { x: 5, z: 0 });   // the walker has not moved again, the camera has arrived near the huts
+  updateKitViews({ x: 10, z: 0 }, 1, { x: 500, z: 0 });   // the walker jumps to the huts; the camera has not followed yet (it is still far away)
+  assert.equal(near.count, 0, 'seen from the stale eye every hut is far');
+  updateKitViews({ x: 10, z: 0 }, 1, { x: 5, z: 0 });   // the walker has not moved again, the camera has arrived
   assert.equal(near.count, 2, 'x = 0 and 10 are within 15 m of the eye at x = 5');
 });
 
