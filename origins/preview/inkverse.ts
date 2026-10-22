@@ -12,7 +12,7 @@ export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly 
 export type InkLook = {
   readonly id: string; readonly paper: Rgb; readonly ink: Rgb;
   readonly tone: { readonly gamma: number; readonly exposure: number; readonly pivot: number; readonly contrast: number; readonly low: number; readonly high: number; readonly cellPx: number; readonly angleDeg: number };
-  readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number };
+  readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
 };
 
@@ -32,7 +32,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
   const out = new Map<string, InkLook>();
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
     const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high', 'cellPx', 'angleDeg']);
-    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength']), tags = fields.tags as Record<string, unknown> | undefined;
+    const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength', 'darkBelow']), tags = fields.tags as Record<string, unknown> | undefined;
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
     out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], edges: edges as InkLook['edges'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
   }
@@ -48,7 +48,7 @@ const INK_FRAG = `
 uniform sampler2D tColor, tDepth, tTag;
 uniform vec2 texel, projScale; uniform float ratio, cameraNear, cameraFar;
 uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle;
-uniform float thick, depthRel, normalDot, edgeStrength;
+uniform float thick, depthRel, normalDot, edgeStrength, darkBelow;
 uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep;
 varying vec2 vUv;
 float viewZ(vec2 uv) { float d = texture2D(tDepth, uv).x; return (cameraNear * cameraFar) / ((cameraFar - cameraNear) * d - cameraFar); }   // perspective: negative view-space z
@@ -76,7 +76,7 @@ void main() {
   float turn = 1.0 - abs(dot(nA, nB));   // the surface turns across the pixel (a fold or a corner), not a depth step
   float edge = edgeStrength * max(step(depthRel, depthEdge), step(1.0 - normalDot, turn));
   vec3 col = mix(inkCol, paper, lit);
-  col = mix(col, inkCol, edge);
+  col = mix(col, l < darkBelow ? paper : inkCol, edge);   // an outline in the dark is paper-coloured, or a figure in shadow would vanish into the ink
   // Selective colour: the tag buffer holds 1 in .r for red, 1 in .b for blue where a tagged material is the nearest surface.
   vec3 tg = texture2D(tTag, vUv).rgb;
   col = mix(col, redCol * (redKeep + (1.0 - redKeep) * l), tg.r * (1.0 - edge));
@@ -97,7 +97,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     uniforms: {
       tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(T.cellPx), angle: u(T.angleDeg * rad),
-      thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength),
+      thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow),
       paper: u(new THREE.Vector3(...look.paper)), inkCol: u(new THREE.Vector3(...look.ink)), redCol: u(new THREE.Vector3(...look.tags.red.color)), blueCol: u(new THREE.Vector3(...look.tags.blue.color)), redKeep: u(look.tags.red.keepLuma), blueKeep: u(look.tags.blue.keepLuma),
     },
   });
