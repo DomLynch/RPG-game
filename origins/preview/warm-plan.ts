@@ -7,6 +7,9 @@ export const PLAYER = 'player';
 /** Everything a zone must have linked and uploaded before it is ready: the player's actor first, then the zone's creature kinds. */
 export const warmList = (kinds: readonly string[]): string[] => [PLAYER, ...kinds.filter((k) => k !== PLAYER)];
 /** Ready when every entry is warmed or failed (a failed one is logged and skipped, never waited for forever). */
+// A zone whose row lists no spawns (the town) never makes a creature view, so it has no body kinds to wait for: only the hero gates it. The count comes from the zone row, never a zone id.
+export const noMobZone = (spawnRows: number): boolean => spawnRows === 0;
+export const emptyWarmState = (): { kinds: string[]; warmed: string[]; failed: string[] } => ({ kinds: [], warmed: [], failed: [] });
 export const warmDone = (list: readonly string[], warmed: readonly string[], failed: readonly string[]): boolean => list.every((k) => warmed.includes(k) || failed.includes(k));
 
 /** Link the programs, upload the textures of `root` (the player's actor), off-frame: a clone with EVERY part visible (a drawn sword, a tabard, the eyes: three compiles only visible objects, and a part hidden until the first cut compiled at engage). */
