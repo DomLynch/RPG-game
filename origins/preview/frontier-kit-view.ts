@@ -21,8 +21,8 @@ type KitView = { inst: THREE.InstancedMesh; proxy: THREE.InstancedMesh | null; s
 const VIEWS: KitView[] = []; let lastAt: { x: number; z: number } | null = null, stale = false;
 const SHADOW_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });   // the proxy draws nothing in the picture: only the shadow pass (the depth material) reads its geometry
 const pack = (target: THREE.InstancedMesh, src: Float32Array, xs: number[], zs: number[], hero: { x: number; z: number }, radius: number): number => {
-  const arr = target.instanceMatrix.array as Float32Array, r2 = radius * radius; let n = 0;
-  for (let i = 0; i < xs.length; i++) if ((xs[i] - hero.x) ** 2 + (zs[i] - hero.z) ** 2 <= r2) { arr.set(src.subarray(i * 16, i * 16 + 16), n * 16); n++; }
+  const arr = target.instanceMatrix.array as Float32Array, size = target.instanceMatrix.itemSize; let n = 0;   // itemSize: the floats of one instance's matrix
+  for (let i = 0; i < xs.length; i++) if (Math.hypot(xs[i] - hero.x, zs[i] - hero.z) <= radius) { arr.set(src.subarray(i * size, (i + 1) * size), n * size); n++; }
   target.instanceMatrix.needsUpdate = true; return n;
 };
 /** Once per frame from the page's loop: the instances within drawRadius are the ones drawn, the ones within shadowRadius the ones cast. Re-packs only after the walker moved `stepM` (a row: previewRule kitViewStepM) or a kind was added. */
