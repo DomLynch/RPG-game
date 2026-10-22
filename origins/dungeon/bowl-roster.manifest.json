@@ -1,0 +1,8 @@
+{
+  "tables": [
+    {
+      "table": "bowlRing", "file": "bowl-roster.json", "at": "rings", "keyed": true, "key": "id",
+      "required": { "order": "integer", "zone": "string", "landmark": "string", "levels": "array", "respawnSeconds": "integer", "aggro": "number", "roamShare": "number", "leashShare": "number", "groups": "array" }
+    }
+  ]
+}
