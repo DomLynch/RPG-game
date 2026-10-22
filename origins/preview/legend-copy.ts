@@ -21,9 +21,10 @@ const kindOf = (body: string): string => isOpponentId(body) ? bareName(body) : b
 
 /** The creature card's three lines for a legend: line 2 keeps the con ring and danger word and adds "Rank N · <the ladder's rank title>", line 3 is the ladder's own kind line ("the Pitborn"), never rarity or pack size. A legend's world level IS its rank (1..10, the ladder's ten titles). */
 export function legendCardLines(lines: readonly [string, string, string], rank: number, body: string): [string, string, string] {
-  const title = TITLES[rank - 1] ?? '';
-  return [lines[0], `${lines[1]} · ${fill(text('cardRank'), { rank, title })}`, fill(text('cardKind'), { kind: kindOf(body) })];
+  return [lines[0], `${lines[1]} · ${legendRankLine(rank)}`, fill(text('cardKind'), { kind: kindOf(body) })];
 }
+/** "Rank N · <the ladder's rank title>" for a legend of that rank: the one line the creature card and the fight bar both read, from the `cardRank` row. */
+export const legendRankLine = (rank: number): string => fill(text('cardRank'), { rank, title: TITLES[rank - 1] ?? '' });
 
 export type KillCopy = { readonly defeated: string; readonly reward: string; readonly noReward: string };
 /** The words of a legend's kill toast: `defeated` takes {name}, `reward` takes {paid}. */

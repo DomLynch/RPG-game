@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import COPY from './legend-copy.json' with { type: 'json' };
-import { defeatedLine, killCopy, legendCardLines, legendIdOf, rewardLine, zoneHint } from './legend-copy.ts';
+import { defeatedLine, killCopy, legendCardLines, legendIdOf, legendRankLine, rewardLine, zoneHint } from './legend-copy.ts';
 import { cardLines } from './creature-card.ts';
 import { killToast } from './kill-apply.ts';
 import { creatureInfo } from '../../src/core/index.ts';
@@ -35,6 +35,8 @@ test('a legend\'s card: line 2 keeps the con ring and danger word and adds "Rank
   assert.ok(!/Rare|Uncommon|Common|Alone|Packs/.test(card.join(' ')), `no rarity or pack copy: ${card.join(' | ')}`);
   assert.ok(base[2]!.includes('Alone') || /Rare|Uncommon|Common/.test(base[2]!), 'a creature card still says it (the base lines carry it)');
   assert.ok(legendCardLines(base, 10, 'knight')[1].endsWith('Rank 10 · Origin'), 'the top rank is the ladder\'s top title');
+  assert.equal(legendRankLine(1), 'Rank 1 · Recruit', 'the fight bar reads the same row as the card');
+  assert.ok(card[1].endsWith(legendRankLine(1)), 'the card\'s rank line IS legendRankLine');
   assert.ok(!BANNED.test(card.join(' ')));
 });
 

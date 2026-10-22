@@ -82,6 +82,15 @@ test('createZoneBars.feed: shown while the hero is hurt, a foe is in reach or a 
   m.feed({ hero: hero(100), target: () => null, inCombat: () => true }); assert.equal(body.classes.has('zone-bars'), true);
 });
 
+test('createZoneBars: a foe\'s `sub` line (a Pit legend\'s "Rank N · title") is drawn small after the level, and a foe with none draws none', () => {
+  const { m, pit } = mount(), name = pit['opponent-name']!;
+  m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Cacus', level: 2, hp: 10, max: 40, sub: 'Rank 2 · Gladiator' } }, true);
+  const small = name.children.filter((c) => c.tag === 'small');
+  assert.deepEqual(small.map((c) => [c.className, c.textContent]), [['opponent-class', 'Lv 2'], ['opponent-rank', 'Rank 2 · Gladiator']], 'the level, then the rank line');
+  m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Wolf', level: 2, hp: 10, max: 40 } }, true);
+  assert.deepEqual(name.children.filter((c) => c.tag === 'small').map((c) => c.className), ['opponent-class'], 'a creature that is no legend has no rank line');
+});
+
 test('createZoneBars.flash: the hit vignette goes on, and off again after 120 ms', async () => {
   const { m, flash } = mount();
   m.flash(); assert.equal(flash.dataset.on, 'true');
