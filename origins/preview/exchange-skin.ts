@@ -8,6 +8,7 @@ import type { ModelPlacement } from './frontier-skin.ts';
 /** Metres from a shape's centre down to its base (the model's origin stands on the base): a pediment extrudes up from y 0 already. */
 const BASE_DROP: Record<Shape[0], (s: Shape) => number> = {
   box: (s) => (s[2] as number) / 2, cylinder: (s) => (s[3] as number) / 2, cone: (s) => (s[2] as number) / 2, sphere: (s) => s[1] as number, pediment: () => 0,
+  ring: (s) => (s[3] as number) / 2, wedge: (s) => (s[2] as number) / 2,   // a ring (a bowl's terrace) is [inner, outer, height, segments] and a wedge (a ramp) [length, rise, width], each centred on its height / its rise
 };
 export const shapeBaseY = (p: Pick<Piece, 'shape' | 'y'>): number => p.y - BASE_DROP[p.shape[0]](p.shape);
 

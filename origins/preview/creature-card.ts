@@ -3,6 +3,7 @@
 import { BANDS, creatureInfo, type CreatureInfo } from '../../src/core/index.ts';
 import type { MobRow } from '../../src/core/index.ts';
 import type { MobSpec } from './mobs.ts';
+import { legendCardLines, legendIdOf } from './legend-copy.ts';
 
 type Seen = { id: string; x: number; z: number; mode: string };
 // Pure pick: the creature the hero is fighting now (`engaged`, the world fight's target: a nearer creature that has only noticed him must not take the card
@@ -29,7 +30,8 @@ export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], r
       const m = slim ? (focus ? seen.find((s) => s.id === focus) ?? null : null) : nearestNoticing(seen, hero, focus, engaged), spec = m && byId.get(m.id);
       if (!spec) { if (shown) { el.hidden = true; shown = ''; } return null; }
       if (shown !== spec.id) {
-        const info = creatureInfo(spec, rows.find((r) => r.id === spec.character), heroLevel(), rows), [a, b, c] = cardLines(info);
+        const row = rows.find((r) => r.id === spec.character), info = creatureInfo(spec, row, heroLevel(), rows);
+        const [a, b, c] = legendIdOf(row) ? legendCardLines(cardLines(info), spec.level, spec.body) : cardLines(info);   // a Pit legend reads as name, rank and title like the ladder, not as a creature (legend-copy.ts)
         l1.textContent = a; l2.textContent = b; l2.style.color = info.color; l3.textContent = c; if (slim) l1.style.color = info.color; el.hidden = false; shown = spec.id;
       }
       return spec.id;   // main.ts hides this creature's own name label while the card is up
