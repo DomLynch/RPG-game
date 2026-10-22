@@ -19,7 +19,7 @@ const known: BowlKnown = { characters: LEGENDS, zones: new Set(['7']), landmarks
 const base = (c: string): RowBase | undefined => legendRowBase(c);
 const LOOKS = (ZONE7 as unknown as { mobLooks: { looks: Record<string, { opponent: string }> } }).mobLooks.looks;   // zone 7's own dress for its creatures (a creature with none draws as a capsule)
 const ctx: RowContext = { look: (id) => LOOKS[id] ?? null, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
-type RawRing = { zone: string; landmark: string; levels: number[]; aggroShare: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
+type RawRing = { zone: string; landmark: string; levels: number[]; rotation?: string; camps?: number; aggroShare: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps?: number; campSize: number[] }[] };
 type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
 const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
 
@@ -84,7 +84,7 @@ const spotsOf = (landmark: string): string[] => Object.keys(LAYOUT).filter((k) =
 
 test('rosterPlacements: one place.spawns entry per camp, anchored to a spot point of its own ring, dealt round the ring so no spot is reused before each has a camp', () => {
   const rings = loadBowlRings(known), placed = rosterPlacements(rings, spotsOf);
-  assert.equal(placed.length, rings.reduce((n, r) => n + r.groups.reduce((m, g) => m + g.camps, 0), 0), 'one entry per camp');
+  assert.equal(placed.length, rings.reduce((n, r) => n + (r.rotation ? r.camps! : r.groups.reduce((m, g) => m + g.camps!, 0)), 0), 'one entry per camp');
   assert.equal(new Set(placed.map((p) => p.id)).size, placed.length, 'ids are unique');
   for (const r of rings) {
     const mine = placed.filter((p) => r.groups.some((g) => p.characters[0] === g.character));
@@ -139,7 +139,13 @@ test('the loader refuses what would put a creature wrong: overlapping bands, unk
   bad((d) => { d.rings.floor.spreadShare = 0; }, /spreadShare/);
   bad((d) => { d.rings.outer.groups[1]!.id = d.rings.outer.groups[0]!.id; }, /twice/);
   bad((d) => { d.rings.middle.groups[0]!.character = d.rings.outer.groups[0]!.character; }, /two groups/);
-  bad((d) => { d.rings.outer.groups[0]!.camps = 0; }, /camps/);
+  bad((d) => { d.rings.outer.groups[0]!.camps = 1; }, /pool members and carry no camps/);   // a rotating ring's camps are the ring's
+  bad((d) => { delete d.rings.outer.camps; }, /needs camps/);
+  bad((d) => { d.rings.outer.camps = 0; }, /needs camps/);
+  bad((d) => { d.rings.outer.rotation = 'hash'; }, /is not one of cycle/);
+  bad((d) => { d.rings.outer.groups[1]!.campSize = [1, 2]; }, /share one campSize/);
+  bad((d) => { delete d.rings.outer.rotation; }, /camps must be a whole number >= 1/);   // a fixed ring counts camps per group
+  bad((d) => { delete d.rings.outer.rotation; for (const g of d.rings.outer.groups) g.camps = 1; }, /camps on a ring with no rotation/);
   assert.throws(() => rosterRows(loadBowlRings(known), () => null, base), /no edges/);
   assert.throws(() => rosterRows(loadBowlRings(known), () => ({ inner: 5, outer: 5 }), base), /no width/);
   assert.throws(() => rosterRows(loadBowlRings(known), edges, () => undefined), /no row to take/);

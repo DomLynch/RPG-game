@@ -399,15 +399,15 @@
       "yard-gate"
     ],
     "spawns": [
-      {"id": "outer-pit-thrall-0", "at": "ring-outer-0-spot", "characters": ["character:pit.pit-thrall"]},
-      {"id": "outer-cacus-0", "at": "ring-outer-2-spot", "characters": ["character:pit.cacus"]},
-      {"id": "outer-gawain-0", "at": "ring-outer-4-spot", "characters": ["character:pit.gawain"]},
-      {"id": "middle-roland-0", "at": "ring-middle-0-spot", "characters": ["character:pit.roland"]},
-      {"id": "middle-grendel-0", "at": "ring-middle-2-spot", "characters": ["character:pit.grendel"]},
-      {"id": "middle-lancelot-0", "at": "ring-middle-4-spot", "characters": ["character:pit.lancelot"]},
-      {"id": "floor-siegfried-0", "at": "floor-0-spot", "characters": ["character:pit.siegfried"]},
-      {"id": "floor-achilles-0", "at": "floor-1-spot", "characters": ["character:pit.achilles"]},
-      {"id": "floor-typhon-0", "at": "floor-2-spot", "characters": ["character:pit.typhon"]}
+      {"id": "outer-camp-0", "at": "ring-outer-0-spot", "characters": ["character:pit.pit-thrall", "character:pit.cacus", "character:pit.gawain"], "rotation": "cycle"},
+      {"id": "outer-camp-1", "at": "ring-outer-2-spot", "characters": ["character:pit.pit-thrall", "character:pit.cacus", "character:pit.gawain"], "rotation": "cycle"},
+      {"id": "outer-camp-2", "at": "ring-outer-4-spot", "characters": ["character:pit.pit-thrall", "character:pit.cacus", "character:pit.gawain"], "rotation": "cycle"},
+      {"id": "middle-camp-0", "at": "ring-middle-0-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
+      {"id": "middle-camp-1", "at": "ring-middle-2-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
+      {"id": "middle-camp-2", "at": "ring-middle-4-spot", "characters": ["character:pit.roland", "character:pit.grendel", "character:pit.lancelot"], "rotation": "cycle"},
+      {"id": "floor-camp-0", "at": "floor-0-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
+      {"id": "floor-camp-1", "at": "floor-1-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"},
+      {"id": "floor-camp-2", "at": "floor-2-spot", "characters": ["character:pit.siegfried", "character:pit.achilles", "character:pit.typhon"], "rotation": "cycle"}
     ]
   }
 }
