@@ -20,7 +20,7 @@
     -150,
     -40
    ],
-   "file": "goblin_hut-near-lod-on.png"
+   "file": "goblin_hut-near-lod-on.jpg"
   },
   {
    "arm": "lod-on",
@@ -30,7 +30,7 @@
     -107,
     -57
    ],
-   "file": "goblin_hut-far-lod-on.png"
+   "file": "goblin_hut-far-lod-on.jpg"
   },
   {
    "arm": "lod-on",
@@ -40,7 +40,7 @@
     -94,
     0
    ],
-   "file": "goblin_totem-near-lod-on.png"
+   "file": "goblin_totem-near-lod-on.jpg"
   },
   {
    "arm": "lod-on",
@@ -50,7 +50,7 @@
     -51,
     -17
    ],
-   "file": "goblin_totem-far-lod-on.png"
+   "file": "goblin_totem-far-lod-on.jpg"
   },
   {
    "arm": "lod-off",
@@ -60,7 +60,7 @@
     -150,
     -40
    ],
-   "file": "goblin_hut-near-lod-off.png"
+   "file": "goblin_hut-near-lod-off.jpg"
   },
   {
    "arm": "lod-off",
@@ -70,7 +70,7 @@
     -107,
     -57
    ],
-   "file": "goblin_hut-far-lod-off.png"
+   "file": "goblin_hut-far-lod-off.jpg"
   },
   {
    "arm": "lod-off",
@@ -80,7 +80,7 @@
     -94,
     0
    ],
-   "file": "goblin_totem-near-lod-off.png"
+   "file": "goblin_totem-near-lod-off.jpg"
   },
   {
    "arm": "lod-off",
@@ -90,7 +90,7 @@
     -51,
     -17
    ],
-   "file": "goblin_totem-far-lod-off.png"
+   "file": "goblin_totem-far-lod-off.jpg"
   }
  ]
 }
