@@ -1,17 +1,16 @@
 // The Pit's legends as Region 1 characters (Combat, 2026-10-22; Dom: Dungeon 1 is the Gladiator Pit, so its creatures are the Pit ladder's own legends, 10 per rank). This file is the only code that reads legend-foes.json and
-// the only place a legend becomes a character: one `character-definition` per legend of the legend tables (src/fight/legend-families.ts: LEGEND_FAMILIES + legendText), with
-//   id            the rule's idPrefix + the legend's own id (a prefix, so no legend can collide with a creature's id)
-//   name, lore    the legend row's name, source citation and backstory (nothing about a single legend is written here)
-//   form          one open-world form (encounter: null): the FAMILY's body at the legend's RANK as its world level (1..10; the Pit's own archetype row at that ladder level prices it, no world-level row)
-//   kill row      the rule's `killRow`, the same progression row an ordinary mob pays
-//   loot          the rule's one shared loot table (the loot table row lists these characters in its `rolledBy`, derived in content.ts, not typed)
-// Pure. content.ts merges the results into FOES, KILL_ROWS and the loot registry, so the registry, the writer's fightSetup and the kill rewards see a legend like any open-world creature.
+// the only place a legend becomes a character, and it writes NO character row: it maps the legend tables (src/fight/legend-families.ts: LEGEND_FAMILIES + legendText) over the character TEMPLATE row of legend-foes.json, filling
+//   {id}         the rule's idPrefix + the legend's own id (a prefix, so no legend can collide with a creature's id; `character:legend.` is the contracts' legacy form)
+//   {name} {source} {backstory}   the legend row's name, source citation and backstory
+//   {opponent}   the legend's FAMILY body; {rank} the legend's rank, its world level (1..10; the Pit's own archetype row at that ladder level prices it, no world-level row)
+// The rule row also names the progression row a legend pays (`killRow`) and the one shared loot table (`lootTable`; its loot-table row lists these characters in `rolledBy`, derived in content.ts, not typed).
+// Pure. content.ts merges the results into the bundle, KILL_ROWS and the loot registry, so the registry, the writer's fightSetup and the kill rewards see a legend like any open-world creature.
 import { tableFromFile, loadRegistry, type Manifest } from '../../src/core/server.ts';
 import { LEGEND_FAMILIES, legendText } from '../../src/fight/safe.ts';
 import RULES from './legend-foes.json' with { type: 'json' };
 import MANIFEST from './legend-foes.manifest.json' with { type: 'json' };
 
-export type PitLegendRule = { readonly id: string; readonly idPrefix: string; readonly form: string; readonly role: string; readonly assetDir: string; readonly killRow: string; readonly lootTable: string };
+export type PitLegendRule = { readonly id: string; readonly idPrefix: string; readonly role: string; readonly killRow: string; readonly lootTable: string; readonly template: Readonly<Record<string, unknown>> };
 const TABLE = tableFromFile(MANIFEST.tables[0] as unknown as Manifest, RULES, 'legend-foes.json');
 loadRegistry([TABLE]);
 if (TABLE.rows.length !== 1) throw Error('legend-foes.json: exactly one rule row (the Pit legend rule)');
@@ -20,19 +19,25 @@ export const PIT_LEGEND_RULE = TABLE.rows[0] as unknown as PitLegendRule;
 /** The character id of a legend (a legend's id is its spell row's id, the one legend key). */
 export const legendCharacterId = (legendId: string): string => `${PIT_LEGEND_RULE.idPrefix}${legendId}`;
 
+type Vars = Readonly<Record<string, string | number>>;
+/** The template with its `{name}` placeholders filled: a string that is exactly one placeholder takes the variable's own type (a number stays a number), a placeholder inside a longer string is spliced in. A placeholder the vars lack is an error, never an empty hole. */
+const fill = (node: unknown, vars: Vars, at = 'template'): unknown => {
+  if (typeof node === 'string') {
+    const whole = /^\{(\w+)\}$/.exec(node);
+    if (whole) { if (!(whole[1]! in vars)) throw Error(`legend-foes: ${at} names {${whole[1]}}, which a legend does not have`); return vars[whole[1]!]; }
+    return node.replace(/\{(\w+)\}/g, (_m, k: string) => { if (!(k in vars)) throw Error(`legend-foes: ${at} names {${k}}, which a legend does not have`); return String(vars[k]); });
+  }
+  if (Array.isArray(node)) return node.map((x, i) => fill(x, vars, `${at}[${i}]`));
+  if (node && typeof node === 'object') return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, fill(v, vars, `${at}.${k}`)]));
+  return node;
+};
+
 type Derived = { readonly id: string; readonly legendId: string; readonly rank: number; readonly opponent: string; readonly record: Record<string, unknown> };
 const DERIVED: readonly Derived[] = LEGEND_FAMILIES.flatMap((f) => f.legends.map((e): Derived => {
   const text = legendText(e.legendId);
   if (!text) throw Error(`legend-foes: legend ${e.legendId} of family ${f.id} has no legend row (name, source, backstory)`);
   const id = legendCharacterId(e.legendId);
-  return {
-    id, legendId: e.legendId, rank: e.rank, opponent: f.opponent,
-    record: {
-      kind: 'character-definition', schemaVersion: 1, id, name: text.name, lore: { source: text.source, summary: text.backstory }, faction: null, essential: false, relationships: [], questRoles: [],
-      presentations: [{ id: 'default', asset: `${PIT_LEGEND_RULE.assetDir}/${f.opponent}.glb` }],
-      encounterForms: [{ id: PIT_LEGEND_RULE.form, opponent: f.opponent, level: e.rank, encounter: null }], routine: [],
-    },
-  };
+  return { id, legendId: e.legendId, rank: e.rank, opponent: f.opponent, record: fill(PIT_LEGEND_RULE.template, { id, name: text.name, source: text.source, backstory: text.backstory, opponent: f.opponent, rank: e.rank }) as Record<string, unknown> };
 }));
 if (new Set(DERIVED.map((d) => d.id)).size !== DERIVED.length) throw Error('legend-foes: a legend is in two families (its character id would repeat)');
 

@@ -104,8 +104,7 @@ export const FACTIONS = [
 
 // Bosses, Bounty targets and creatures (region1 §4, §8; living-world §8, §16): ROWS in origins/region1/progression.json, the contracts' character-definition shape
 // (legends for bosses and named targets, original mooks; the worm's PLACEHOLDER body is the held `minotaur` duel form, Strategy 2026-10-07).
-// + the Pit's legends, one character each, derived from the legend tables (origins/region1/legend-foes.ts, Dungeon 1's roster: Dom 2026-10-22), never typed here.
-export const FOES: Record<string, unknown>[] = [...rows.foes, ...LEGEND_FOES];
+export const FOES: Record<string, unknown>[] = rows.foes;   // the Frontier's own foes: each has its look in a zone row (origins/preview/mob-looks.test.ts). The Pit's legends are NOT here: they join the BUNDLE below (derived from the legend tables by origins/region1/legend-foes.ts, Dungeon 1's roster, Dom 2026-10-22) and are dressed by the zone that places them.
 
 // Town people (living-world §4.1, §12): rulers, their stand-in stewards, the service NPCs and the Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts):
 // ROWS in progression.json. Rulers are original NPCs (Brannoc and Osk named by the spec; the quarter's mayor PROPOSED); stewards and service NPCs are PROPOSED.
@@ -163,7 +162,7 @@ export const REGIONS = [
 
 loadRegistry(progressionManifest.tables.map((m) => tableFromFile(m as unknown as Manifest, rows, 'origins/region1/progression.json')));
 
-export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
+export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...LEGEND_FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
 
 // ---- 2. kinds the contracts do not have yet --------------------------------------------------------------------------------------
 
