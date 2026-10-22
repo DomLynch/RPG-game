@@ -9,10 +9,10 @@ const CELL = 0.25;   // metres per grid cell
 /** `slope`: the steepest rise per metre the hero may walk (the layoutSlope rule); between two neighbouring cells that is slope x CELL. */
 export function measureLayout(zone: string, slope: number, duel: { x: number; z: number }, extent = 70): Measure {
   const stepM = slope * CELL;
-  const plan = planFor(zone, () => 0)!, pieces: readonly Piece[] = plan.pieces, start = plan.marks!.start!;
+  const plan = planFor(zone, () => 0)!, pieces: readonly Piece[] = plan.pieces, start = plan.marks!.start!, origin = plan.marks!.origin ?? { x: 0, z: 0 };   // the grid is in metres from the plan's `origin` mark (the bowl's centre in the world frame); `duel` is too
   const key = (i: number, j: number) => `${i},${j}`, seen = new Map<string, number>(), queue: [number, number, number][] = [];
-  const cell = (i: number, j: number) => walkHeight(pieces, i * CELL, j * CELL);
-  const si = Math.round(start.x / CELL), sj = Math.round(start.z / CELL), h0 = cell(si, sj);
+  const cell = (i: number, j: number) => walkHeight(pieces, origin.x + i * CELL, origin.z + j * CELL);
+  const si = Math.round((start.x - origin.x) / CELL), sj = Math.round((start.z - origin.z) / CELL), h0 = cell(si, sj);
   if (h0 === null) throw new Error(`${zone}: the start mark is not on a walkable piece`);
   seen.set(key(si, sj), h0); queue.push([si, sj, h0]);
   let maxSlope = 0, maxStep = 0;
