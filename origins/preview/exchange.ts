@@ -18,12 +18,13 @@ export const STONE_CENTRE = { ...A.stone, radius: STONE_RADIUS };
 export const BANK_STEP_Z = A.bank.z;
 export const FORGE = { ...A.forge, halfX: FORGE_HALF.x, halfZ: FORGE_HALF.z };   // the blacksmith (Dom 2026-10-06: NPC upgrade service), open toward the plaza
 
-// One placed piece: world transform, box-projected UVs in metres (the arena's stone texture tiles at 2 m), a tint darkened toward its foot.
+export const UV_TILE_M = 2;   // the arena's stone texture tiles at 2 m: a piece's UVs are metres / this
+// One placed piece: world transform, box-projected UVs in metres (the arena's stone texture tiles at UV_TILE_M), a tint darkened toward its foot.
 function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10): THREE.BufferGeometry {
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)), new THREE.Vector3(1, 1, 1)));
   g.computeVertexNormals();
-  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), color = new Float32Array(p.count * 3), tile = 2;
+  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), color = new Float32Array(p.count * 3), tile = UV_TILE_M;
   for (let i = 0; i < p.count; i++) {
     const px = p.getX(i), py = p.getY(i), pz = p.getZ(i), nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i)), nz = Math.abs(n.getZ(i));
     const [u, v] = ny >= nx && ny >= nz ? [px, pz] : nx >= nz ? [pz, py] : [px, py];
