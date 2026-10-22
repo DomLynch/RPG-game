@@ -4,7 +4,8 @@
 # Steps: join the skinned body meshes (rigid carried parts such as weapons are dropped), decimate on geometry (vertex-group weights follow the collapse), unwrap fresh,
 # bake every source material's base colour into ONE atlas through Emission (copied, not relit), export the armature and actions untouched.
 #   blender -b -P scripts/character/world_body.py -- <duel.glb> <out.glb> [tris 8000] [size 1024]
-# BAKE_DROP=<comma list of material-name prefixes to drop> (default Weapon), BAKE_FMT=WEBP|PNG, BAKE_LIFT=<gamma> as in herolook_bake.py.
+# BAKE_DROP=<comma list of material-name prefixes to drop> (default Weapon), BAKE_FMT=WEBP|PNG, BAKE_LIFT=<gamma> as in herolook_bake.py,
+# BAKE_CAGE / BAKE_RAY=<fraction of body height> for the bake cage extrusion and max ray distance (default 0.01 / 0.03).
 import os
 import sys
 import time
@@ -103,8 +104,8 @@ scene.cycles.device = "CPU"
 scene.cycles.samples = 1
 bake = scene.render.bake
 bake.use_selected_to_active = True
-bake.cage_extrusion = height * 0.01
-bake.max_ray_distance = height * 0.03
+bake.cage_extrusion = height * float(os.environ.get("BAKE_CAGE", "0.01"))   # a layered body (cloth over skin) needs a wider cage, or rays start under the cloth and bake the skin as white flecks
+bake.max_ray_distance = height * float(os.environ.get("BAKE_RAY", "0.03"))
 bake.margin = 6
 bpy.ops.object.select_all(action="DESELECT")
 hi.select_set(True)
