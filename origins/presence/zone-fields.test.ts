@@ -1,7 +1,10 @@
 // The per-zone presence fields are rows: the town's (town-zones.json) and each zone package's `presence` block, by world-zone name. Today's launch values hold: 1.0 everywhere, the Pit quiet.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CENTRE_CM, PORTALS, REJOIN_EDGE, TRADE_ZONES, ZONE_ROWS, clearOfTradeAreas, inTradeArea, landmarkCm, rejoinOf, zoneFields } from './zones.ts';
+import { CENTRE_CM, PORTALS, REJOIN_EDGE, TRADE_ZONES, ZONE_ROWS, clearOfTradeAreas, inTradeArea, inside, landmarkCm, rejoinOf, zoneFields } from './zones.ts';
+import { CM_PER_M } from './frame.ts';
+import { presenceRule } from './presence-rules.ts';
+import { toWorld } from '../world/derive.ts';
 import { exchangePlace } from '../server/upgrade.ts';
 import { BANK_PLACE } from '../../src/core/server.ts';
 import type { WhereFn } from './where.ts';
@@ -42,17 +45,30 @@ test('the trade areas are the rows flagged trade: the Exchange today, with its o
 });
 
 // Presence refuses to start on a bad trade row (zones.ts, at import). This test runs the same checks over EVERY shipped row, listed or unlisted, so a bad row reds CI and never reaches a live presence restart.
-test('every shipped trade row (town-zones.json and every zone package, unlisted too) names a rejoin landmark that exists, and loads clean', () => {
+test('every shipped trade row (town-zones.json and every zone package, unlisted too) names a rejoin landmark that exists, loads clean, and has a rejoin point outside every trade area', () => {
   assert.ok(rejoinOf('exchange'), 'the shipped town-zones.json trade row resolved its rejoin point at load');
+  // Every trade box in world metres: the town's rows plus every package's trade zone, unlisted ones too (what presence only sees for listed zones).
+  const boxes: { id: string; corners: { x: number; z: number }[] }[] = ZONE_ROWS.filter((r) => r.trade).map((r) => ({ id: r.id, corners: [...r.corners] }));
+  const rejoins: { id: string; p: { x: number; z: number } }[] = [...TRADE_ZONES].map((id) => { const e = rejoinOf(id)!; return { id, p: { x: (e.x - CENTRE_CM) / CM_PER_M, z: (e.z - CENTRE_CM) / CM_PER_M } }; });
   for (const id of allZoneIds()) {
     const z = loadZone(id, true);   // throws on any zoneProblems: trade without rejoin, rejoin without trade, a presence key that is no world zone
     for (const [w, p] of Object.entries(z.presence ?? {})) {
       if (p.trade !== true) continue;
       const plan = frontierPlan(true, id).zones.find((q) => q.zone === w);
       assert.ok(plan, `${id}/${w}: a trade zone has a placed plan`);
-      assert.ok(plan.landmarks[p.rejoin!], `${id}/${w}: rejoin landmark "${p.rejoin}" exists`);
+      const at = plan.landmarks[p.rejoin!];
+      assert.ok(at, `${id}/${w}: rejoin landmark "${p.rejoin}" exists`);
+      const hw = plan.width / 2;
+      boxes.push({ id: w, corners: ([[-hw, 0], [hw, 0], [hw, plan.depth], [-hw, plan.depth]] as const).map(([x, d]) => toWorld({ x, d }, plan.mount)) });
+      rejoins.push({ id: w, p: { x: at.x, z: at.z + presenceRule('rejoinPastGateCm') / CM_PER_M } });
     }
   }
+  for (const r of rejoins) for (const b of boxes) assert.equal(inside(b.corners, r.p), false, `trade zone ${r.id}: its rejoin point is outside the trade area of ${b.id}`);
+});
+
+test('inside: a convex quad, edges inclusive (the box test the rejoin check uses)', () => {
+  const q = [{ x: 0, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 10 }, { x: 0, z: 10 }];
+  assert.deepEqual([inside(q, { x: 5, z: 5 }), inside(q, { x: 10, z: 5 }), inside(q, { x: 10.01, z: 5 }), inside(q, { x: 5, z: -0.01 })], [true, true, false, false]);
 });
 
 test('landmarkCm resolves a zone package landmark as well as a town one', () => {

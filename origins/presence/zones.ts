@@ -67,7 +67,7 @@ const roadCorners: Pt[] = (() => {
 })();
 
 const EPS = 1e-6;
-const inside = (corners: readonly Pt[], p: Pt): boolean => {   // a convex quad, edges inclusive
+export const inside = (corners: readonly Pt[], p: Pt): boolean => {   // a convex quad, edges inclusive
   let sign = 0;
   for (let i = 0; i < corners.length; i++) {
     const a = corners[i]!, b = corners[(i + 1) % corners.length]!;
