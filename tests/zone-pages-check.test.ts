@@ -13,10 +13,11 @@ test('every zone row gives /zone<N>/ and, when it names an alias, /<alias>/; unl
   const dir = dirWith({ 'zone0.row.json': { name: 'Town' }, 'zone2.row.json': { name: 'Two' }, 'zone7.row.json': { name: 'Dungeon 1', unlisted: true, alias: 'dungeon1' }, 'zone12.row.json': { name: 'Twelve', alias: 'twelve12' } });
   const zones = zonePages(dir);
   assert.deepEqual(zones.map((z) => z.id), ['0', '2', '7', '12']);   // zone-number order, "0" is the town
-  assert.deepEqual(pagesToOpen(zones).map((p) => p.path), ['/zone0/', '/zone2/', '/zone12/', '/twelve12/']);
-  assert.deepEqual(pagesToOpen(zones, true).map((p) => p.path), ['/zone0/', '/zone2/', '/zone7/', '/dungeon1/', '/zone12/', '/twelve12/']);
+  type Page = { id: string; name: string; path: string };
+  assert.deepEqual((pagesToOpen(zones) as Page[]).map((p) => p.path), ['/zone0/', '/zone2/', '/zone12/', '/twelve12/']);
+  assert.deepEqual((pagesToOpen(zones, true) as Page[]).map((p) => p.path), ['/zone0/', '/zone2/', '/zone7/', '/dungeon1/', '/zone12/', '/twelve12/']);
   assert.deepEqual(shortPaths(zones).includes('/dungeon1/'), true);   // the server answers an unlisted zone's address too
-  assert.equal(pagesToOpen(zones, true).find((p) => p.path === '/dungeon1/')!.name, 'Dungeon 1');
+  assert.equal((pagesToOpen(zones, true) as Page[]).find((p) => p.path === '/dungeon1/')!.name, 'Dungeon 1');
   assert.equal(titleOf('Dungeon 1'), 'Frankendom — Dungeon 1');
 });
 
