@@ -53,6 +53,7 @@
     }
   ],
   "look": {
+    "sky": "exchange-plate",
     "fog": {
       "colour": "#8a6a4a",
       "density": 0.004
