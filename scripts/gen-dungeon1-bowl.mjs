@@ -56,7 +56,7 @@ mark(EDGES.outer, (R.mid + R.rim) / 2, 0, 0); mark(EDGES.middle, (R.floor + R.mi
 for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: 0, bottom: -STEP, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
 
 // ---- the bowl's place in the world frame: presence keeps ONE table of zones (no overlap), and the Pit and the Exchange stand at the origin, so the bowl's centre is a free spot east of them; its `origin` mark names it ----
-const FRAME = [150, 0];
+const FRAME = [200, 0];   // east of the town square's edge (x 150: the presence clamp test pins "nothing walkable beyond it"), inside the frame's east limit (255 m)
 for (const q of [...rows.pieces, ...rows.marks]) { q.x = r(q.x + FRAME[0]); q.z = r(q.z + FRAME[1]); }
 rows.marks.push({ id: `${ZONE}/origin`, zone: ZONE, x: FRAME[0], y: 0, z: FRAME[1] });
 

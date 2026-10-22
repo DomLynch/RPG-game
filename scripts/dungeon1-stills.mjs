@@ -8,7 +8,7 @@ import { launchBrowser } from './lib/harness-browser-launch.mjs';
 const out = process.argv[2], base = process.env.BASE ?? 'http://127.0.0.1:5199';
 if (!out) throw new Error('usage: dungeon1-stills.mjs <out dir>');
 fs.mkdirSync(out, { recursive: true });
-const spots = (process.env.POS ?? 'terrace=150,29,3.1416;middle=150,19,3.1416;floor=150,8,3.1416;duel=174,48,3.1416').split(';').filter(Boolean).map((s) => { const [n, at] = s.split('='); return [n, at.split(',').map(Number)]; });
+const spots = (process.env.POS ?? 'terrace=200,29,3.1416;middle=200,19,3.1416;floor=200,8,3.1416;duel=224,48,3.1416').split(';').filter(Boolean).map((s) => { const [n, at] = s.split('='); return [n, at.split(',').map(Number)]; });
 const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME || undefined, args: process.env.SOFT ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
 const receipt = { renderer: null, shots: [], errors: [] };
 try {
