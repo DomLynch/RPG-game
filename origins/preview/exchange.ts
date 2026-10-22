@@ -83,7 +83,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   return fallbacks;
 }
 
-export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
+export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void; setLayerTexture(layer: string, tex: THREE.Texture, slabM: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -107,10 +107,15 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
     frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
   }
 
+  const layerMaps = new Map<string, THREE.Texture>();   // a texture row that names a plan layer: that layer draws it (one `slabM` tile at a time) instead of the arena's stone
   return {
+    setLayerTexture(layer: string, tex: THREE.Texture, slabM: number) {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace; tex.repeat.set(UV_TILE_M / slabM, UV_TILE_M / slabM); tex.anisotropy = 8;   // the pieces' UVs are metres / UV_TILE_M
+      layerMaps.set(layer, tex);
+    },
     group, ground, stone, fallbacks, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
-      for (const c of [ground, stone]) if (c.map !== m.stone.map) { c.map = m.stone.map; c.normalMap = m.stone.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone textures in late; the clones follow
+      for (const [layer, c] of [['paving', ground], ['stone', stone]] as const) { const own = layerMaps.get(layer), want = own ?? m.stone.map; if (c.map !== want) { c.map = want; c.normalMap = own ? null : m.stone.normalMap; c.needsUpdate = true; } }   // the arena swaps its heavy stone textures in late; the clones follow
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
     },
   };
