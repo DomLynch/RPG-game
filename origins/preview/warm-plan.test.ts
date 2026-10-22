@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList, noMobZone, emptyWarmState } from './warm-plan.ts';
 import { previewRule } from './preview-rules.ts';
 
 test('the slow-device verdict is keyed to the release: same release kept, new release re-measured, unreadable release uses the time limit, malformed record re-measured', async () => {
@@ -45,6 +45,14 @@ test('a zone is ready only when the player and every kind are warmed or failed',
   assert.equal(warmDone(list, ['player', 'goblin'], []), false);
   assert.equal(warmDone(list, ['player', 'goblin', 'wolf'], []), true);
   assert.equal(warmDone(list, ['goblin', 'wolf'], ['player']), true, 'a player actor that failed to load does not hold the zone');
+});
+
+test('a zone row with no spawns is ready on the hero alone', () => {
+  assert.equal(noMobZone(0), true); assert.equal(noMobZone(3), false);
+  const list = warmList(emptyWarmState().kinds);
+  assert.equal(warmDone(list, [], []), false, 'the hero still gates a creatureless zone');
+  assert.equal(warmDone(list, [PLAYER], []), true);
+  assert.equal(warmDone(list, [], [PLAYER]), true);
 });
 
 // The kit warm-up is bounded: at the cap it stops before its next kit, reports failed, and compiles nothing further (the Auditor on #2938).

@@ -81,7 +81,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList, noMobZone, emptyWarmState } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { wideCombatCam } from './combat-cam.ts';
@@ -590,7 +590,7 @@ function planUpload() {
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
-  if (!mobs || !skyReady) return;
+  if ((!mobs && !noMobZone(loadZone().spawns.rows.length)) || !skyReady) return;   // a zone row with no spawns has no creature view: its scene is still planned and uploaded
   if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + previewRule(replanGapRow(lateLookAt, zoneReadyAt)); uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
@@ -737,13 +737,14 @@ async function warmRemoteKits() {
   kitsResult = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed, maxLongTaskMs: Math.max(0, ...longTasks.map((t) => t.ms)), longTasks, phases };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
-  const w = mobs?.warmState();
-  return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
+  const none = noMobZone(loadZone().spawns.rows.length), w = mobs?.warmState() ?? (none ? emptyWarmState() : undefined);   // a zone row with no spawns has no creature view and no kinds: the hero alone gates it
+  return !!w && (none || w.kinds.length > 0) && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
 }
 let lateLookAt = -1;   // when zoneReadyCheck first found something streamed in after the last plan (the bound's start)
 function zoneReadyCheck() {
-  if (zoneReadyAt >= 0 || !mobs) return;
-  const w = mobs.warmState();
+  const none = noMobZone(loadZone().spawns.rows.length);
+  if (zoneReadyAt >= 0 || (!mobs && !none)) return;
+  const w = mobs?.warmState() ?? emptyWarmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!selfSettled()) return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !gfxDrawn || !modelsDrawn || !exchangeSkinsDrawn) return;
