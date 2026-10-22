@@ -30,7 +30,7 @@
     { "id": "town-board", "url": "world/kit/town_board.glb", "nodes": ["town_board"], "budget": { "width": 3.1, "tris": 3000 } }
   ],
   "textures": [
-    { "id": "town-paving", "url": "world/town/paving.jpg", "slabM": 2.4 }
+    { "id": "town-paving", "url": "world/town/paving.jpg", "slabM": 2.4, "layer": "paving" }
   ],
   "fits": [
     { "id": "goblin.default", "skin": "goblin", "kind": "default", "model": "goblin-hut", "node": "goblin_hut", "w": 5.24, "d": 3.3, "min": 0.6, "max": 2.5 },

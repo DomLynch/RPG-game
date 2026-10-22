@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PLAN_ROWS, planFor, type Piece } from '../zones/plan.ts';
-import { skinModels } from '../world/building-skins-rules.ts';
+import { layerTextures, skinModels } from '../world/building-skins-rules.ts';
 import { greyboxOfSkins, shapeBaseY, skinnedPieces, skinPlacements, skinsOfFile } from './exchange-skin.ts';
 
 const box = (over: Partial<Piece>): Piece => ({ layer: 'stone', shape: ['box', 1, 4, 1], x: 3, y: 2, z: -40, tint: [1, 1, 1], rotY: 0.5, foot: 0, ...over });
@@ -28,6 +28,10 @@ test('placements come from the pieces that name a model row, with the row\'s own
 test('a file holds the skin ids that its hide-the-greybox step names', () => {
   assert.deepEqual(skinsOfFile('world/kit/goblin_hut.glb'), ['goblin-hut']);
   assert.deepEqual(skinsOfFile('world/kit/nothing.glb'), []);
+});
+
+test('a texture row that names a plan layer is read with its tile size (the engine draws it on that layer; the loader names no layer)', () => {
+  const rows = layerTextures(); assert.ok(rows.length >= 1 && rows.every((t) => t.layer.length > 0 && t.slabM > 0 && t.url.startsWith('world/')));
 });
 
 test('planFor carries a piece row\'s skin and scale; a row without them is exactly today\'s piece', () => {

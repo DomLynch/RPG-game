@@ -49,6 +49,7 @@ import { goblinDirtMaterial } from './goblin-ground.ts';
 import { buildingSkin } from './building-skin.ts';
 import { loadSkinModels } from './skin-models.ts';
 import { skinsOfFile } from './exchange-skin.ts';
+import { layerTextures } from '../world/building-skins-rules.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
@@ -221,7 +222,7 @@ settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the
 // The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
 const townSkins = /[?&]skins=(?:0|off)\b/.test(location.search) ? [] : exchange.skins;   // ?skins=0: every skinned plan piece keeps its greybox shape (the A/B of the skin path's cost reads it)
 let exchangeSkinsDrawn = REGION || !townSkins.length;   // only the Exchange's own page (region=0) waits on its skins before it is ready; a zone that merely shows the Exchange streams them in after ready (the Auditor, #3608: ~4.7 MB must not move Zone 1's ready)
-if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });
+if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).then(() => Promise.all(layerTextures().map(async (t) => exchange.setLayerTexture(t.layer, await new THREE.TextureLoader().loadAsync(`/${t.url}`), t.slabM, async (probe) => { const holder = new THREE.Group(); holder.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), probe)); await renderer.compileAsync(holder, camera, scene); if (probe.map) renderer.initTexture(probe.map); })))).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });   // a texture row that names a plan layer draws on that layer once its file lands (a failed file keeps the arena's stone)
 let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
   const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
