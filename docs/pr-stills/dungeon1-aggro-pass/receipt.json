@@ -1,0 +1,85 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "ring": "outer",
+ "shots": [
+  "ready-idle-375.png",
+  "mid-fight-375.png"
+ ],
+ "errors": [],
+ "heroCareer": {
+  "level": 1,
+  "credit": 200,
+  "into": 0,
+  "need": 200,
+  "fillPermille": 0,
+  "top": false
+ },
+ "mobCount": 29,
+ "sample": [
+  {
+   "id": "z7:outer-scavengers-0-1",
+   "x": 149.26,
+   "z": 27.47,
+   "body": "goblin"
+  },
+  {
+   "id": "z7:outer-scavengers-0-2",
+   "x": 150.37,
+   "z": 26.87,
+   "body": "goblin"
+  },
+  {
+   "id": "z7:outer-scavengers-1-1",
+   "x": 173.16,
+   "z": 13.08,
+   "body": "goblin"
+  }
+ ],
+ "target": {
+  "id": "z7:outer-scavengers-0-1",
+  "x": 149.26,
+  "z": 27.47,
+  "body": "goblin"
+ },
+ "outside": [],
+ "outsideCount": 0,
+ "infight": true,
+ "atShot": {
+  "hero": {
+   "hp": 150,
+   "phase": "ready"
+  },
+  "engaged": [
+   {
+    "id": "z7:outer-scavengers-0-1",
+    "hp": 32,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-1",
+    "hp": 37,
+    "hunting": true
+   }
+  ],
+  "level": null
+ },
+ "later": {
+  "hero": {
+   "hp": 106,
+   "phase": "ready"
+  },
+  "engaged": [
+   {
+    "id": "z7:outer-scavengers-0-1",
+    "hp": 32,
+    "hunting": true
+   },
+   {
+    "id": "z7:middle-ember-wolves-0-1",
+    "hp": 37,
+    "hunting": true
+   }
+  ],
+  "level": null
+ }
+}
