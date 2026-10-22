@@ -153,9 +153,10 @@ if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no
 export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
-// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short link /zone<id>/ (/zone2/, the same for every row; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
+// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short links /zone<digits>/ (/zone2/, the same for every row) and /dungeon<digits>/ (/dungeon1/ is the id `dungeon1`; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? /^\/zone([0-9]+)\/?$/.exec(pathname)?.[1] ?? DEFAULT_ZONE;
+  const short = /^\/(?:zone([0-9]+)|(dungeon[0-9]+))\/?$/.exec(pathname);   // /zone0/, /zone2/ name the digits ("0" is text, so ?? and not || keeps it); /dungeon1/ names the id `dungeon1` itself
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? short?.[1] ?? short?.[2] ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
