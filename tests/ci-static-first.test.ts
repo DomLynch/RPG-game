@@ -293,7 +293,7 @@ test('the train fast-forward of a tested candidate (a push whose merge commit sa
   const push = (message: string): Ctx => ({ event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: { head_commit: { message } } });
   const candidate = push('Merge pull request #2600 (release-EK candidate)'), other = push('Merge pull request #2599 from DomLynch/deploy/x');
   assert.deepEqual([...schedule(U, candidate)], [], 'unit-ci: nothing');
-  assert.deepEqual([...schedule(Q, candidate, {}, game)], [], 'quality: nothing');
+  assert.deepEqual([...schedule(Q, candidate, {}, game)].sort(), [...POST_PUBLISH_JOBS].sort(), 'quality: only the post-publish load times (Lead 2026-10-22); deploy.sh still finds the candidate PR run (quality_run_with reads every run of the sha)');
   const unit = schedule(U, other), qual = schedule(Q, other, {}, game);
   for (const j of ['shard', 'origins-db', 'receipt']) assert.ok(unit.has(j), `unit-ci ${j} still runs on an ordinary trunk push`);
   for (const j of ['plan', 'quality-shard', 'quality']) assert.ok(qual.has(j), `quality ${j} still runs on an ordinary trunk push`);
