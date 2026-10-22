@@ -7,7 +7,6 @@
         "ink": [0.02, 0.02, 0.03],
         "tone": { "gamma": 2.2, "exposure": 1.9, "pivot": 0.3, "contrast": 1.5, "low": 0.2, "high": 0.66, "cellPx": 4, "angleDeg": 45 },
         "edges": { "thicknessPx": 1.2, "depthRel": 0.012, "normalDot": 0.9, "strength": 1, "darkBelow": 0.3 },
-        "stainKey": { "dominance": 2.4, "minRed": 0.05 },
         "tags": {
           "red": { "color": [0.78, 0.07, 0.06], "keepLuma": 0.55, "materials": ["cloth"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"] },
           "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.55, "materials": [], "objects": [] }

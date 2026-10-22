@@ -14,8 +14,6 @@ export type InkLook = {
   readonly tone: { readonly gamma: number; readonly exposure: number; readonly pivot: number; readonly contrast: number; readonly low: number; readonly high: number; readonly cellPx: number; readonly angleDeg: number };
   readonly edges: { readonly thicknessPx: number; readonly depthRel: number; readonly normalDot: number; readonly strength: number; readonly darkBelow: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
-  /** Blood on the sand is a stain mask inside the sand's shader, not a material of its own, so it cannot carry a tag: a pixel whose red is `dominance` times its other channels, and at least `minRed` bright (scene-linear), is red too. */
-  readonly stainKey: { readonly dominance: number; readonly minRed: number };
 };
 
 const num = (id: string, what: string, v: unknown): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`ink look "${id}": ${what} is a number`); return v; };
@@ -36,7 +34,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tone = group(id, 'tone', fields.tone, ['gamma', 'exposure', 'pivot', 'contrast', 'low', 'high', 'cellPx', 'angleDeg']);
     const edges = group(id, 'edges', fields.edges, ['thicknessPx', 'depthRel', 'normalDot', 'strength', 'darkBelow']), tags = fields.tags as Record<string, unknown> | undefined;
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], edges: edges as InkLook['edges'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, stainKey: group(id, 'stainKey', fields.stainKey, ['dominance', 'minRed']) as InkLook['stainKey'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], edges: edges as InkLook['edges'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
   }
   return out;
 }
@@ -51,7 +49,7 @@ uniform sampler2D tColor, tDepth, tTag;
 uniform vec2 texel, projScale; uniform float ratio, cameraNear, cameraFar;
 uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle;
 uniform float thick, depthRel, normalDot, edgeStrength, darkBelow;
-uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep, stainDominance, stainMinRed;
+uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep;
 varying vec2 vUv;
 float viewZ(vec2 uv) { float d = texture2D(tDepth, uv).x; return (cameraNear * cameraFar) / ((cameraFar - cameraNear) * d - cameraFar); }   // perspective: negative view-space z
 vec3 viewPos(vec2 uv, float z) { return vec3((uv * 2.0 - 1.0) * projScale * -z, z); }
@@ -81,8 +79,7 @@ void main() {
   col = mix(col, l < darkBelow ? paper : inkCol, edge);   // an outline in the dark is paper-coloured, or a figure in shadow would vanish into the ink
   // Selective colour: the tag buffer holds 1 in .r for red, 1 in .b for blue where a tagged material is the nearest surface.
   vec3 tg = texture2D(tTag, vUv).rgb;
-  float stain = step(stainMinRed, hdr.r) * step(stainDominance * max(hdr.g, hdr.b), hdr.r);   // blood in the sand's stain mask and decals' own red
-  col = mix(col, redCol * (redKeep + (1.0 - redKeep) * l), max(tg.r, stain) * (1.0 - edge));
+  col = mix(col, redCol * (redKeep + (1.0 - redKeep) * l), tg.r * (1.0 - edge));   // red comes from the tag buffer only, never from a surface's own hue
   col = mix(col, blueCol * (blueKeep + (1.0 - blueKeep) * l), tg.b * (1.0 - edge));
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -101,12 +98,13 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(T.cellPx), angle: u(T.angleDeg * rad),
       thick: u(E.thicknessPx), depthRel: u(E.depthRel), normalDot: u(E.normalDot), edgeStrength: u(E.strength), darkBelow: u(E.darkBelow),
-      paper: u(new THREE.Vector3(...look.paper)), inkCol: u(new THREE.Vector3(...look.ink)), redCol: u(new THREE.Vector3(...look.tags.red.color)), blueCol: u(new THREE.Vector3(...look.tags.blue.color)), stainDominance: u(look.stainKey.dominance), stainMinRed: u(look.stainKey.minRed), redKeep: u(look.tags.red.keepLuma), blueKeep: u(look.tags.blue.keepLuma),
+      paper: u(new THREE.Vector3(...look.paper)), inkCol: u(new THREE.Vector3(...look.ink)), redCol: u(new THREE.Vector3(...look.tags.red.color)), blueCol: u(new THREE.Vector3(...look.tags.blue.color)), redKeep: u(look.tags.red.keepLuma), blueKeep: u(look.tags.blue.keepLuma),
     },
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false;
   const post = new THREE.Scene(); post.add(quad); const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const tagMats = new Map<number, THREE.MeshBasicMaterial>([[1, new THREE.MeshBasicMaterial({ color: 0xff0000, fog: false })], [2, new THREE.MeshBasicMaterial({ color: 0x0000ff, fog: false })]]);
+  const flat = (color: number) => new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });   // pulled toward the camera: the tag pass redraws surfaces the scene already wrote to the shared depth
+  const tagMats = new Map<number, THREE.MeshBasicMaterial>([[1, flat(0xff0000)], [2, flat(0x0000ff)]]);
   // The tag pass: each tagged object is on a camera layer (1 red, 2 blue) as well as 0; the scene draws once more through those layers with a flat colour over the scene's own depth.
   let tagCount = 0;
   const nameIn = (list: readonly string[], n: string | undefined): boolean => !!n && list.includes(n);
