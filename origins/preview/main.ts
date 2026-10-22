@@ -687,7 +687,7 @@ async function warmGearScreen() {
     if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
     while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
     let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
-    const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    const settled = await settleWithin('gear-screen', gearMount.warm(() => kitSlice(t0 + previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'))).then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
     if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
     gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
   } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }

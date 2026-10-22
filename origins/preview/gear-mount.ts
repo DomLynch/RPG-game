@@ -33,7 +33,7 @@ export function mountGear(d: Deps) {
     // After [zone ready], on the kit warm's queue: the mannequin dressed with the worn set the sheet would show (the server's view once it answered, else the device's), built off the main thread, so opening Gear links no program (signedin-gear row).
     release: zone.release,
     hold: zone.hold,   // from the moment the warm is queued the sheet shows its empty stage until the warm ends (gear-stage.ts)
-    warm: async () => { const loot = (server?.profileFor(profile) ?? profile).loot; zone.wear(wornIdsOf(loot), wornTiersOf(loot)); return zone.warm(); },
+    warm: async (gate?: () => Promise<void>) => { const loot = (server?.profileFor(profile) ?? profile).loot; zone.wear(wornIdsOf(loot), wornTiersOf(loot)); return zone.warm(gate); },
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
     // What the hero fights on: the stored build (none = level 0, as the server's heroLimitOf reads it) with the worn set's deltas, from the server's view of the character; the server holds a world record's sheet EQUAL to the books' own.
     // A signed-in character: nothing until the SERVER's view has answered (an unanswered writer fights bare). A GUEST has no server view: he fights on his session build (build-guest.ts) and the device's own worn set, as the Pit does (sheetFor).

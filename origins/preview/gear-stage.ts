@@ -38,22 +38,23 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   let held = false;
   const hold = () => { held = true; };
   const release = () => { held = false; };   // the warm was skipped or ran out of its bound: the sheet draws as it did before the warm existed
-  const warm = async () => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
+  const warm = async (gate: () => Promise<void> = async () => {}) => {   // `gate` is awaited before each step that compiles or draws (the page's tap-range wait: no program links while a creature is within reach, the engage window); it throws to give the warm up. Resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
     let drawMs = 0;
     const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0, slowest: '' };
     const count = () => renderer.info.programs?.length ?? -1;
     const timed = (label = 'all') => { const t = performance.now(), before = count(); paint(); const ms = performance.now() - t; if (ms > drawMs) { drawMs = ms; trace.slowest = label; } trace.drawPrograms += count() - before; };
     // compileAsync builds the programs off the main thread, but the GPU's first draw with each still costs (T4: 13 programs, one 226 ms frame): so the backdrop and then each mesh are drawn alone, one per frame.
     const slices = async (s: THREE.Scene, c: THREE.Camera) => {
+      await gate();
       const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before;
       const meshes: THREE.Object3D[] = []; s.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) meshes.push(o); });
       for (const m of meshes) m.visible = false;
       for (let i = 0; i < previewRule('gearWarmSettle'); i++) await nextFrame();   // the driver's own pipeline builds for the compiled programs finish while no frame waits on them (T4: the first draw after compileAsync was a 179 ms wait)
-      try { timed('backdrop'); await nextFrame(); for (const m of meshes) { m.visible = true; timed(`${m.name}|${(m as THREE.SkinnedMesh).isSkinnedMesh ? 'skinned' : 'mesh'}|${String(((m as THREE.Mesh).material as THREE.Material).name)}`); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
+      try { await gate(); timed('backdrop'); await nextFrame(); for (const m of meshes) { await gate(); m.visible = true; timed(`${m.name}|${(m as THREE.SkinnedMesh).isSkinnedMesh ? 'skinned' : 'mesh'}|${String(((m as THREE.Mesh).material as THREE.Material).name)}`); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
     };
     try {
       await load();
-      if (actor) await uploadSlices();
+      if (actor) { await gate(); await uploadSlices(); }
       if (actor) await warmGearRoom({ ...stage, draw: timed }, slices);
     } finally { held = false; }
     return { drawMs, ...trace };
