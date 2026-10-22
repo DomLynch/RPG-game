@@ -32,8 +32,9 @@ try {
   const page = await (await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   receipt.viewport = desktop ? '1280x800 desktop' : '375x812 touch';
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
+  if (process.env.SEAMLESS_TRACE_LINKS) await page.addInitScript(() => { window.__links = []; for (const C of [WebGL2RenderingContext, WebGLRenderingContext]) { const o = C.prototype.linkProgram; C.prototype.linkProgram = function (p) { if (window.__zoneReady) window.__links.push({ at: Math.round(performance.now()), stack: String(new Error().stack).split('\n').slice(2, 9).map((s) => s.trim().replace(/https?:\/\/[^/]+/, '')).join(' < ') }); return o.call(this, p); }; } });   // SEAMLESS_TRACE_LINKS=1: who links a program after [zone ready] (receipt.linkStacks), to find the owner of a late newPrograms entry
   const zone = process.env.SEAMLESS_ZONE || '1';   // the zone page to run (the pageZoneId ?zone=N fallback): Zone 2 is data, so the same gate must pass on it
-  await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}${process.env.SEAMLESS_QS || ''}`, { waitUntil: 'load' });   // SEAMLESS_QS='&kitwarm=soft': forces the remote-kit warm a fast device runs after [zone ready] (software GL skips it as a slow device), the race the late-program reds of zone 7 came from
   const want = process.env.SEAMLESS_TARGET || '';   // a creature id to engage (default: the first drawn one), e.g. bounty-shrine-1 or wolves-1
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
   // The default foe is the drawn creature farthest from any legend boss: a legend notices a hero inside its aggro radius and opens the verified duel (Dom 2026-10-22: bosses aggro like every NPC), which is the legend row's business (legend-fight.test.ts), not the engage hitch's. K6q20 #3596: the walk stood 2.5 m from scavengers-1, 10 m from the Zone 1 kobold, and the duel took the canvas before [zone ready]. Zones with no legend keep the first drawn creature.
@@ -61,6 +62,8 @@ try {
   await page.waitForFunction(() => window.originsPreview.kindsLinked?.() !== false, null, { timeout: 150000 }).catch(() => {});
   const namesBefore = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsBeforeTap = namesBefore.length;
+  if (process.env.SEAMLESS_DUMP) receipt.mobsAtReady = await page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => `${m.id}|${m.body}|${m.drawn ? 'drawn' : 'hidden'}|${Math.round(m.x)},${Math.round(m.z)}`));   // SEAMLESS_DUMP=1: which creatures are drawn at [zone ready] (a creature whose view does not exist yet links its weapon at the engage)
+  receipt.glAtReady = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { programs: i.programs, geometries: i.geometries, textures: i.textures }; });   // the zone's GL footprint at [zone ready] (the pool-widening A/B: more bodies warmed = more textures / geometries resident)
   // The target roams while the walk and [zone ready] run (31 s+): put the hero 2.5 m from where it is NOW, so the tap is in reach (Zone 1 refuses a tap past 3.5 m).
   { const at = await page.evaluate((id) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === id); return m && [m.x, m.z]; }, target.id); assert.ok(at, `${target.id} is gone before the tap`); await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), at); }
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
@@ -92,6 +95,7 @@ try {
   // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
   receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
+  if (process.env.SEAMLESS_TRACE_LINKS) receipt.linkStacks = await page.evaluate(() => window.__links ?? []);
   receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer) && !process.env.SEAMLESS_PROGRAMS;   // SEAMLESS_PROGRAMS=1: assert the program rule on any renderer (a real GPU compiles fast, so the hitch bar alone would hide a late link)
   if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
   else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');
