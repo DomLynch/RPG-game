@@ -1,6 +1,8 @@
 // Per-object breakdown of ONE Zone 1 fight frame (read-only; Lead 2026-10-22: which meshes own the triangles and draws at ?crowd=0). Counts, for the frame the renderer draws, every mesh that is visible and inside the camera's frustum:
 // triangles (index or position count, x instances, honouring the draw range), draws (one per drawn mesh/group), and whether it also casts into the shadow pass. Grouped by owner (the nearest named ancestor chain), top N by triangles,
 // reconciled against the GL context's own draw/triangle counters for the same frame. No game code: the scene and the camera are read through three's __THREE_DEVTOOLS__ hook and a wrapped renderer.render.
+// Limits: an InstancedMesh is tested as one object (its geometry's bounds), not per instance, so instanced props read as "in view 0" and are NOT in `counted`; their share is read from SHADOW CASTERS (all instances, which three also draws in the main
+// pass) and from the GL total. Run it on a real-GPU tier (scripts/gpu-run/frame-breakdown.sh on the T4): a software-GL page picks a lighter tier and reads about a fifth of the triangles.
 //   node scripts/frame-breakdown.mjs <built origins-preview dist> <out dir> [--query "&crowd=0"] [--topn 10]
 /* global process, console, window, document, performance */
 import fs from 'node:fs';
