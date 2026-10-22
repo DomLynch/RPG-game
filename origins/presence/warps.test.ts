@@ -103,5 +103,5 @@ test('a package\'s warps are merged after the table\'s: open packages only, a re
   assert.throws(() => loadWarps({ landmarks: [...DEFS.landmarks, { ...DEFS.landmarks[0]! }] }), /duplicate|twice|unique/i, 'a package cannot reuse a table id');
   assert.throws(() => loadWarps({ landmarks: [...packageWarps(pkg, true)] }), /not inside any zone row/);
   assert.equal(placeProblem(0, 3), null); assert.equal(placeProblem(9e5, 9e5), 'not inside any zone row');
-  assert.deepEqual(packageWarps(), [{ id: 'zone2-start', x: -39.31, z: -127.67, unit: 'm' }], 'the one shipped zone-row warp is Zone 2\'s own start (the first, 2026-10-22: a Zone 2 page no longer asks presence for Zone 1\'s start and ends in the Pit)');
+  assert.deepEqual(packageWarps(), [{ id: 'zone0-start', x: 0, z: -36, unit: 'm', tradeLanding: true }, { id: 'zone2-start', x: -39.31, z: -127.67, unit: 'm' }], 'the shipped zone-row warps are the town\'s own start (zone 0 listed, 2026-10-22: inside its trade area on purpose, so tradeLanding) and Zone 2\'s own start (a Zone 2 page no longer asks presence for Zone 1\'s start and ends in the Pit)');
 });
