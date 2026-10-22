@@ -27,9 +27,11 @@ export function classify({ status, stdout, stderr = '' }) {
   return { exit: status, kind: total > 0 ? 'vulnerable' : 'clean', total };
 }
 
+const TIMEOUT_MS = 180_000;   // a hung registry call is killed and fails the gate (run.error below), never hangs the job
+
 function main(args) {
   const npm = process.env.NPM_AUDIT_SOFT_NPM || 'npm';
-  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: TIMEOUT_MS });
   if (run.error) { console.error(`npm-audit-soft: could not run ${npm}: ${run.error.message}`); return 1; }
   const verdict = classify({ status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr });
   if (verdict.kind === 'outage') {
@@ -39,7 +41,7 @@ function main(args) {
     console.log('npm audit: found 0 vulnerabilities');
   } else {
     // Re-run in human form so the log shows what failed (or npm's own error text when the JSON was unreadable).
-    spawnSync(npm, ['audit', ...args], { stdio: 'inherit' });
+    spawnSync(npm, ['audit', ...args], { stdio: 'inherit', timeout: TIMEOUT_MS });
     if (verdict.kind !== 'vulnerable') console.error(`npm-audit-soft: npm audit failed (${verdict.kind}${verdict.detail ? `: ${verdict.detail}` : ''}).`);
   }
   return verdict.exit;
