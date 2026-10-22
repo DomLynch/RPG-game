@@ -11,7 +11,8 @@
       "partyGapFloor": 5,
       "topTier": 10,
       "boardMax": 50,
-      "partyStep": 200
+      "partyStep": 200,
+      "partyKeyMax": 64
     }
   ],
   "typeWeight": [
