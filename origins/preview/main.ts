@@ -37,7 +37,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
-import { killCopy, legendIdOf } from './legend-copy.ts';
+import { killCopy, legendIdOf, zoneHint } from './legend-copy.ts';
 import { hintDismissSec, hintLine } from './hint-copy.ts';
 import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
