@@ -14,8 +14,8 @@ export type Shape =
   | ['sphere', number, number, number] // radius, width segments, height segments
   | ['pediment', number, number, number]; // base width, height, depth: a triangle extruded and centred on its depth
 export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal' | 'plain';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
-// One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()).
-export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number };
+// One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()). `skin` = a building-skins model id this piece stands as (its glb draws it; the shape stays as the fallback and the footprint); `scale` = that model's size on the ground (default 1).
+export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number; skin?: string; scale?: number };
 export type Figure = { x: number; z: number; color: string };
 export type Plan = {
   pieces: Piece[];
@@ -29,7 +29,7 @@ export type Plan = {
 type Follow = Readonly<Record<string, Readonly<Record<string, number>>>>;   // field -> {anchor local name: weight}
 type Row = { readonly id: string; readonly zone: string; readonly follow?: Follow };
 export type AnchorRow = { readonly id: string; readonly zone: string; readonly source: string; readonly base: number };
-export type PieceRow = Row & { readonly layer: Layer; readonly shape: Shape; readonly x: number; readonly y: number; readonly z: number; readonly tint: Tint; readonly rotY: number; readonly foot: number };
+export type PieceRow = Row & { readonly layer: Layer; readonly shape: Shape; readonly x: number; readonly y: number; readonly z: number; readonly tint: Tint; readonly rotY: number; readonly foot: number; readonly skin?: string; readonly scale?: number };
 export type AwningRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly color: string };
 export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string };
 export type BrazierRow = Row & { readonly x: number; readonly z: number };
@@ -58,7 +58,7 @@ export function planFor(zone: string, resolve: (source: string) => number, rows:
   const delta: Record<string, number> = {}; for (const r of anchors) delta[local(r)] = resolve(r.source) - r.base;
   const of = <T extends Row>(t: readonly T[]) => t.filter((r) => r.zone === zone);
   const at = (v: number, r: Row, field: string): number => { let s = v; for (const [n, w] of Object.entries(r.follow?.[field] ?? {})) s += w * delta[n]!; return s; };
-  const pieces: Piece[] = of(rows.pieces).map((r) => ({ layer: r.layer, shape: [r.shape[0], ...r.shape.slice(1).map((n, i) => at(n as number, r, `s${i + 1}`))] as Shape, x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), tint: [...r.tint] as Tint, rotY: at(r.rotY, r, 'rotY'), foot: at(r.foot, r, 'foot') }));
+  const pieces: Piece[] = of(rows.pieces).map((r) => ({ layer: r.layer, shape: [r.shape[0], ...r.shape.slice(1).map((n, i) => at(n as number, r, `s${i + 1}`))] as Shape, x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), tint: [...r.tint] as Tint, rotY: at(r.rotY, r, 'rotY'), foot: at(r.foot, r, 'foot'), ...(r.skin ? { skin: r.skin } : {}), ...(r.scale !== undefined ? { scale: r.scale } : {}) }));
   const mark = (name: string) => of(rows.marks).find((m) => local(m) === name);   // the marks are optional: a zone that has no frieze or no hearth row simply has none
   const frieze = mark('frieze'), hearth = mark('hearth');
   return {
