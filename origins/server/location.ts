@@ -8,7 +8,7 @@
 // the exchange zone (the whole zone is the trade area, Lead 05:4x) is served just outside the Exchange's outer gate, Pit side, 50 cm in.
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, TRADE_ZONE, zoneAt as zoneAtCm } from '../presence/zones.ts';
+import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, TRADE_ZONES, rejoinOf, zoneAt as zoneAtCm } from '../presence/zones.ts';
 import { presenceRule } from '../presence/presence-rules.ts';
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
@@ -23,7 +23,10 @@ export const ZONE_CM = 30000;   // the saved x/z columns' bound, check (between 
 const shift = (x: number, z: number): [number, number] => [x + LEGACY_SHIFT_CM, z + LEGACY_SHIFT_CM];
 export const zoneAt = (x: number, z: number): string | null => zoneAtCm(...shift(x, z));
 export const inTradeArea = (x: number, z: number): boolean => inTradeAreaCm(...shift(x, z));
-export const REJOIN_EDGE = { x: REJOIN_EDGE_CM.x - LEGACY_SHIFT_CM, z: REJOIN_EDGE_CM.z - LEGACY_SHIFT_CM };
+const unshift = (p: { x: number; z: number }) => ({ x: p.x - LEGACY_SHIFT_CM, z: p.z - LEGACY_SHIFT_CM });
+export const REJOIN_EDGE = unshift(REJOIN_EDGE_CM);
+// A trade spot rejoins at its own zone's edge (the zone the row names, else the zone the spot is in), else the default edge.
+const rejoinFor = (zone: string | null, x: number, z: number) => unshift(rejoinOf(zone ?? '') ?? rejoinOf(zoneAtCm(...shift(x, z)) ?? '') ?? REJOIN_EDGE_CM);
 
 // Strategy's rule (a), no logout escape: a server-owned state that decides where the character stands (Feuds jail, an active bounty or feud, a duel in
 // progress) overrides the saved spot and never expires. The writer holds NO such state today (origins/feuds is a pure engine with no table; duels are not in
@@ -38,7 +41,7 @@ export type Served = { saved: false; name?: string | null; worn?: Worn } | { sav
 export function serve(saved: store.SavedRow | null, held: HeldPlace | null): Served {
   if (held) return { saved: true, zone: held.zone, x: held.x, z: held.z, source: held.reason };
   if (!saved) return { saved: false };
-  if (saved.zone === TRADE_ZONE || inTradeArea(saved.x, saved.z)) return { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' };
+  if ((saved.zone !== null && TRADE_ZONES.has(saved.zone)) || inTradeArea(saved.x, saved.z)) { const edge = rejoinFor(saved.zone, saved.x, saved.z); return { saved: true, zone: zoneAt(edge.x, edge.z), x: edge.x, z: edge.z, source: 'trade-edge' }; }
   return { saved: true, zone: saved.zone, x: saved.x, z: saved.z, source: 'saved' };
 }
 

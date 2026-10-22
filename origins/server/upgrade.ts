@@ -17,6 +17,7 @@ import type { Location } from '../../src/core/server.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../../src/core/server.ts';
 import { standingLevel } from '../../src/core/server.ts';
 import { inZone, type WhereFn } from '../presence/where.ts';
+import { TRADE_ZONES } from '../presence/zones.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
@@ -28,10 +29,10 @@ export const COIN_NOT_BUILT = 'coin costs need the metals ledger, not built yet'
 // How old presence's last pose may be and still place the player (presence drops an idle socket at 30 s; a walking client poses many times a second).
 export const PRESENCE_FRESH_MS = SERVER_RULES.serverLimits[0]!.presenceFreshMs;
 
-// X1: the bank's place when presence holds the account freshly in the Exchange zone, else nothing. Any failure to ask is "not there".
+// X1: the bank's place when presence holds the account freshly in a trade zone (a zone row flagged `trade`: the Exchange, or any town a zone package adds), else nothing. One bank for all of them. Any failure to ask is "not there".
 export async function exchangePlace(where: WhereFn | undefined, account: string): Promise<typeof BANK_PLACE | undefined> {
   if (!where) return undefined;
-  try { return inZone(await where(account), 'exchange', PRESENCE_FRESH_MS) ? BANK_PLACE : undefined; }
+  try { const w = await where(account); return [...TRADE_ZONES].some((z) => inZone(w, z, PRESENCE_FRESH_MS)) ? BANK_PLACE : undefined; }
   catch (e) { console.error('origins-writer: presence did not answer, the player counts as away from the Exchange:', e instanceof Error ? e.message : e); return undefined; }
 }
 

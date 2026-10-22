@@ -117,7 +117,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
 async function atCounter(where: WhereFn | undefined, account: string, counter: { zone: string; at: string }, rangeCm: number | undefined): Promise<boolean> {
   if (!where || rangeCm === undefined) return false;
   try {
-    const spot = landmarkCm(counter.zone as 'exchange', counter.at);
+    const spot = landmarkCm(counter.zone, counter.at);
     return standsWithin(await where(account), { x: spot.x, z: spot.z, radiusCm: rangeCm }, PRESENCE_FRESH_MS);
   } catch (e) { console.error('origins-writer: shop counter check failed, the buyer counts as away:', e instanceof Error ? e.message : e); return false; }
 }
