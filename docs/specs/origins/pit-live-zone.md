@@ -1,6 +1,6 @@
 # "The Dungeon" (was the Pit) as a live zone: one-page design (Lead, 2026-10-21)
 
-**Name (Dom, 23:2x):** the gladiator Pit is now called "the Dungeon". It is a NORMAL zone where players land, made of the two connected rooms below. The zone row and id are `dungeon` ("The Dungeon"). The rooms keep Pit names: the **Pit yard** (safe, new-player start) and the **Duel pit** (PvP). Where this page says "the Pit" for the new zone, read "the Dungeon"; existing code names (`pit-yard`, the Pit scene) are what trunk has today.
+**Name (Dom, 23:2x):** the gladiator Pit is now called "the Dungeon". It is a NORMAL zone where players land, made of the two connected rooms below. The zone row and id are `dungeon1` ("Dungeon 1", address /dungeon1/). Beta map (Dom 10-22): Zone 0 = the town (Concord Exchange), Zone 1, Zone 2, Dungeon 1; zones 3-6 are unlisted. The rooms keep Pit names: the **Pit yard** (safe, new-player start) and the **Duel pit** (PvP). Where this page says "the Pit" for the new zone, read "the Dungeon"; existing code names (`pit-yard`, the Pit scene) are what trunk has today.
 
 Dom's ruling of 10-21 19:4x-19:5x (docs/SCOPE.md, item 7): the gladiator Pit becomes a walled live area like Zones 1-2. It is ONE zone with TWO rooms:
 - a SAFE boss yard where new players start, with bosses spawning at the gates;
@@ -18,7 +18,7 @@ Town is always PvP off. Every other zone is per-player PvP opt-in, which can be 
 - **Duel links** (`src/net/lobby.ts:13`, `?duel=<token>`) open the relay duel inside the Pit scene.
 
 ## The design
-1. **One zone row, "The Dungeon"** (id `dungeon`, `origins/zone-rows/`), on the zone-row path like Zones 1-2. It holds walls, the bridge entrance from town, the gate points and a walkable exit to the duel room. The zone's `pvp` is `on`. The yard is a `safeAreas` entry with `pvp: off`, so the default is PvP and the yard is the carve-out. Donor: rathena mapflags (a town/nopvp volume inside a pvp map).
+1. **One zone row, "The Dungeon"** (id `dungeon1`, `origins/zone-rows/`), on the zone-row path like Zones 1-2. It holds walls, the bridge entrance from town, the gate points and a walkable exit to the duel room. The zone's `pvp` is `on`. The yard is a `safeAreas` entry with `pvp: off`, so the default is PvP and the yard is the carve-out. Donor: rathena mapflags (a town/nopvp volume inside a pvp map).
    - safeArea entry shape (new, data): `{ id, name, shape: "rect", min: [x,z], max: [x,z], pvp: "off", spawnsAllowed: true }`.
    - The server decides which area a player is in from the position presence already holds. The client only draws the border.
 2. **Gate bosses** are a new spawn-row kind, `scheduled`: `{ kind: "scheduled", rotation: [opponent ids], gate: <point>, everySeconds: 300, despawnSeconds, shout: <text row id>, level: <ladder level> }`.
@@ -43,7 +43,7 @@ Town is always PvP off. Every other zone is per-player PvP opt-in, which can be 
 | # | Slice | Owner | Notes |
 |---|---|---|---|
 | A | Wire `pvp` + `safeAreas`: the server sets the fighter `pvp` flag by area, plus tests | Backend | no visuals, unblocks B and F |
-| B | Dungeon zone row (`dungeon`): walls, bridge entrance, gates, yard safeArea, duel-room exit, entry point = new-player start | World | stills in chat for Dom, no preview URL |
+| B | Dungeon 1 zone row (`dungeon1`): walls, bridge entrance, gates, yard safeArea, duel-room exit, entry point = new-player start | World | stills in chat for Dom, no preview URL |
 | C | `scheduled` spawn kind + rotation + skeleton rows; re-pin the Pit byte-identical guard (`origins/combat/open-world.test.ts:38`) under an RV bump | Combat | era-on twins for the live rule |
 | D | `announce` frame + `world_marks` source in `standing_of` | Backend | migration: APPLY-READY, then Dom applies |
 | E | Shout banner; duel link lands at the room gate | Web | 375 portrait stills |
