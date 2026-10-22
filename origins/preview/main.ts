@@ -11,6 +11,7 @@ import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
+import { worldRule } from '../../src/fight/world-rules.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -469,7 +470,7 @@ function step(dt: number) {
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
-  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -915,10 +916,24 @@ function settleFight(finish: Finished) {
 // A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
 // to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
 const LEGEND_REACH = previewRule('legendReach');
+// A legend aggroes like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC, so she can definitely come up and attack"): the mob loop wanders it, notices the hero inside
+// its aggro radius (the legend row, else the legendAggro rule) and walks it up (mobs-view legendChase); here, once it hunts the hero inside LEGEND_REACH, the same verified fight a tap starts begins. Not for a hero
+// more than the world's maxLevelGap levels from it (the creature is trivial or out of reach, not a pull), and not again for legendCooldown seconds after a fight (a loss must not re-pull on the respawn tick).
+const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = worldRule('maxLevelGap');
+let legendCool = 0;
+function legendAggro(dt: number) {
+  legendCool = Math.max(0, legendCool - dt);
+  if (!mobs || fighting || duelFailed || legendCool > 0) return;
+  const level = careerLine(session.career).level;
+  for (const l of mobs.legends()) {
+    if (!l.hunting || Math.hypot(l.x - state.x, l.z - state.z) > LEGEND_REACH || Math.abs(l.spec.level - level) > LEGEND_LEVEL_GAP) continue;
+    legendCool = LEGEND_COOLDOWN_S; void legendFight(l.spec); return;
+  }
+}
 const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
 async function legendFight(spec: MobSpec) {
   if (fighting || duelFailed) return;
-  const begun = await beginLegendFight(spec, legendNet);
+  const begun = await beginLegendFight(spec, legendNet, Date.now() >>> 0);   // a guest's fight is the same legend at the same level on our own seed: no record, no spell (Dom: sign-in is a save, never a gate)
   if (!begun.ok) { say(begun.say); return; }
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name} — a legend`;
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
@@ -926,7 +941,7 @@ async function legendFight(spec: MobSpec) {
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
   if (!fighting) return;
   // The weapon is the ledger main hand the rig can draw (what the settle checks), read now and not from rigWeapon, which lags a swap in flight; the gear is not reachable during the duel (the ☰ is hidden above).
-  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (finish, record) => { const won = outcomeOf(finish) === 'win'; if (won) mobs?.fell(spec.id); void finishLegendFight(spec, begun, record, legendNet, won).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);   // a win lays the legend down for the respawn (a loss: the cooldown below keeps it from pulling again at once)
 }
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {

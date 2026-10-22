@@ -24,7 +24,7 @@ import { labelSprite } from './label-sprite.ts';
 import { fetchKinds, pickDrawn } from './draw-pick.ts';
 import { farHide } from './far-detail.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
-import { legendSpecs } from './legend-mobs.ts';
+import { legendChase, legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
 import { previewRule } from './preview-rules.ts';
 
@@ -70,6 +70,7 @@ export type Mobs = {
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   setAggro(id: string, aggro: number): number | null;   // a creature's notice radius for now (the war band's rally); returns the one it had so the caller can restore it, null for an unknown creature
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
+  legends(): { spec: MobSpec; x: number; z: number; hunting: boolean }[];   // the placed legend bosses where they stand now (they are not in `within`: a legend fights through the verified encounter path, not the open-world loop); hunting = it noticed the hero
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
   setAggro(id: string, aggro: number): number | null;   // a creature's notice radius for now (the war band's rally); returns the one it had so the caller can restore it
   locate(body: string, x: number, z: number): { x: number; z: number } | null;   // the nearest creature of a body to a point, drawn or not (a test link `?fight=wolf` walks the hero to a wolf that is still out of draw range)
@@ -251,7 +252,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   return {
     update(dt, hero, hideLabel) {
       lastHero = hero; zoneFinisher.update(dt);
-      mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? m : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss stands where it is placed (it never wanders or chases: the player walks up and taps it)
+      mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? legendChase(stepMob(m, specs[i]!, hero, dt, stands[i]!), hero, dt, stands[i]!) : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss wanders, notices and returns home like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC"); main.ts starts its verified fight when it hunts the hero in reach
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
       shown = (opts.phone ? pickDrawn(mobs, hero, cap, TUNING.range, mustDraw()) : pickVisible(mobs, hero, cap)).filter((i) => !down.has(i));   // a phone's cap never hides a creature that matters (draw-pick.ts, Dom 2026-10-20): the desktop pick is unchanged
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
@@ -327,6 +328,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
+    legends() { const out: { spec: MobSpec; x: number; z: number; hunting: boolean }[] = []; specs.forEach((s, i) => { if (s.legend && !down.has(i)) out.push({ spec: s, x: mobs[i]!.x, z: mobs[i]!.z, hunting: mobs[i]!.mode === 'aggro' }); }); return out; },
     warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKey(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },

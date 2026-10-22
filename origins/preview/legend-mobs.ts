@@ -5,14 +5,23 @@
 import { LEGEND_SPAWNS, legendView, type LegendSpawn } from '../boss/legend-view.ts';
 import { zoneKeyPrefix } from '../zones/loader.ts';
 import type { Frontier } from './frontier-plan.ts';
-import type { MobSpec } from './mobs.ts';
+import { NAMED, type Mob, type MobSpec } from './mobs.ts';
+import { previewRule } from './preview-rules.ts';
+import { SPEEDS } from '../../src/fight/speeds.ts';
+
+/** A legend that noticed the hero walks up to its reach: the mob sim's aggro only turns a creature to face the hero (the open world's creatures are pulled in by the combat loop, and a legend has none), so this closes the gap at the creature chase speed and stops at legendStopShare of the legend reach. */
+export const legendChase = (m: Mob, hero: { x: number; z: number }, dt: number, stand: (x: number, z: number) => boolean): Mob => {
+  if (m.mode !== 'aggro' || Math.hypot(hero.x - m.x, hero.z - m.z) <= previewRule('legendReach') * previewRule('legendStopShare')) return m;
+  const nx = m.x + Math.sin(m.facing) * SPEEDS.creature.chase * dt, nz = m.z + Math.cos(m.facing) * SPEEDS.creature.chase * dt;
+  return stand(nx, nz) ? { ...m, x: nx, z: nz } : m;
+};
 
 export const legendSpecs = (f: Frontier, spawns: readonly LegendSpawn[] = LEGEND_SPAWNS): MobSpec[] => {
   const prefix = zoneKeyPrefix(f.zone), out: MobSpec[] = [];
   for (const s of spawns) {
     const boss = legendView(s.legend), zone = f.zones.find((z) => z.zone === s.zone && Object.hasOwn(z.landmarks, s.at));
     if (!boss || !zone) continue;   // another zone's legend, or a landmark this build lacks
-    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]!, x: zone.landmarks[s.at]!.x + (s.dx ?? 0), z: zone.landmarks[s.at]!.z + (s.dz ?? 0) }, roam: 0, aggro: 1, named: true, legend: boss.legend });
+    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]!, x: zone.landmarks[s.at]!.x + (s.dx ?? 0), z: zone.landmarks[s.at]!.z + (s.dz ?? 0) }, roam: s.roam ?? NAMED.roam, aggro: s.aggro ?? previewRule('legendAggro'), named: true, legend: boss.legend });
   }
   return out;
 };
