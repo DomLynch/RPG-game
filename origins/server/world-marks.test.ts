@@ -38,7 +38,7 @@ test('no roster spawn loaded: nothing is sent, nothing is a ladder win', async (
 test('the migration not applied: null and silent; a database error is skipped and logged, never thrown; one settle at a time', async () => {
   const logs: string[] = [];
   assert.equal(await createMarksSettler(fake({ absent: true }).db, () => ['r'], 1000, (m) => logs.push(m)).settle(), null);
-  assert.deepEqual(logs, []);
+  assert.equal(logs.length, 0);
   const boom = { async run() { throw new Error('db down'); } } as unknown as Db;
   assert.equal(await createMarksSettler(boom, () => ['r'], 1000, (m) => logs.push(m)).settle(), null);
   assert.match(logs[0]!, /skipped, nothing settled: db down/);
