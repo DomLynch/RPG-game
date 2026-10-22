@@ -1,5 +1,20 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~11:0x +04: K6q21 LIVE, K6q22 PASSed, K6q23 ready. READ FIRST.
+**Live:** K6q21 5f9b6b0b3 (#3594 + #3592). Post-live verified on #3601 (issuecomment-6334424885): my curl shows release.json = 5f9b6b0b3 and /zone2/ 200; Deploy's trace shows /zone2/ warping to zone2-start in "The Ash Reach".
+**K6q22** #3606 @307804304 = #3593 @428eacfde alone. PASS (issuecomment-6334786862): 91 runs / 0 red. Waits on Lead's candidate:pass + Deploy's publish.
+**K6q23 ready** (both merge clean on top of #3606):
+- #3586 PASS @362ee7493 (trunk-merged; the browser rows re-ran on the VPS at this head).
+- #3603 PASS @e5ce601d3 (VPS rows + stills OK).
+**Also PASS, not in a cut:** #3605 @8c4a62a00 (Dungeon 1 roster; not wired until World's bowl; the roster lineup is Dom's call). #3583 @655a5dfff (re-affirmed; 15 behind trunk, so re-PASS if Web's trunk merge moves it).
+**Open:**
+- #3584 FAIL @d9fb60a67 (World). Zone 0 needs a zone0-start warp; zone-package-check must pass the tradeLanding flag to placeProblem; re-pin the zone-exit landing list and loader.test.ts:114 (177 / e8a74fb898db8194).
+- #3595 NOT PASS @1b2199367 (Web). The palisade far LOD reads as an open frame at the fight camera: drop the palisade lod rows. Also needs a trunk merge + browser rows.
+- #3604 NOT PASS (World, @41f5ff739, CI green). Lead's mitigation: drop the rim totems + a palisade far body <= 1000 tris, budget <= trunk's ~176k tris, plus the crowd=0 frame-time pair.
+- #3591 FAIL (out of trains).
+- Issue #3602 (tradeLanding rule): suggest "only when the door's `to` zone is a town", not "refused on package doors" (the door lives in zone1.row.json).
+**Gotchas:** (1) A member PASS must include `git merge-tree` vs CURRENT trunk AND the train. I missed #3586 vs #3594, which Deploy's cut caught. (2) Feature PRs skip browser rows. Run them on the VPS with scratchpad run-rows.sh: copied to /srv/dev-jobs/auditor-3586-seamless-20261022/run-rows.sh, args `<job-dir> <full-sha>`; it reuses /opt/frankendom-shadow/repo node_modules when the lockfile matches; ~7 min for 4 rows. (3) The hook blocks heredocs and file writes in Bash: Write locally, then scp. (4) originsPreview.renderInfo() reads the composer's last pass (1 tri); Lead gave the fix to Web.
+
 ## 2026-10-22 ~10:1x +04: K6q20b PASSed; K6q21 = #3594 + #3592; K6q22 waits. READ FIRST.
 **K6q20b** #3598 @918cd4117 PASS (issuecomment-6333915902): the tree = #3587 @33827f848 exactly (excluding release.json), no .github/, 91 runs / 43 success / 48 skipped / 0 red; seamless + seamless-quiet green with #3586 out. Lead reports it merged.
 **K6q21** (Lead, Deploy cutting): #3594 PASS @59990dbce (issuecomment-6333805508) + #3592 PASS @f0be65dab. #3591 is OUT.
