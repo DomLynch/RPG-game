@@ -2653,7 +2653,7 @@
      "class": "plain-creature",
      "over": {
       "skinnedVerts": 14165,
-      "bytes": 1447772
+      "bytes": 1429964
      },
      "figures": {
       "tris": 8000,
@@ -2661,7 +2661,7 @@
       "joints": 65,
       "draws": 1,
       "textureSide": 1024,
-      "bytes": 1447772,
+      "bytes": 1429964,
       "pngBytes": 0
      }
     },
