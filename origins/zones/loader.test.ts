@@ -29,6 +29,9 @@ test('the validator names each way a package can be wrong', () => {
   assert.equal(edit((c) => { c.spawns.rows[0]!.level = [1, 1]; }), '', 'a row may be narrower than the zone band (the level-1 Pit goblin camp)');
   assert.match(edit((c) => { c.spawns.rows[0]!.level = [1, 3]; }), /not the zone rule 1-2/);
   assert.match(edit((c) => { c.spawns.openers['x'] = 'character:nobody'; }), /not a row/);
+  // A zone row's mobLooks must have both `looks` and `spread` (the page reads spread[id]; a JSON row is not type-checked): a row without `spread` crashed the zone 7 page (Combat, 2026-10-22), so it is a load problem now.
+  assert.match(edit((c) => { delete (c.mobLooks as { spread?: unknown } | undefined)!.spread; }), /needs both a `looks` object and a `spread` object/);
+  assert.match(edit((c) => { delete (c.mobLooks as { looks?: unknown } | undefined)!.looks; }), /needs both a `looks` object and a `spread` object/);
   // A zone's own `band` (a dungeon spans several levels) replaces the zone-number rule for its rows; a zone without one is unchanged (every case above).
   assert.equal(edit((c) => { c.band = [1, 6]; c.spawns.rows[0]!.level = [4, 5]; }), '', 'a row inside the zone\'s own band is valid');
   assert.match(edit((c) => { c.band = [1, 6]; c.spawns.rows[0]!.level = [5, 7]; }), /outside the zone's band 1-6/);
@@ -43,6 +46,14 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.kit.tint = { [c.kit.nodes[0]!]: { color: [1, 1, 1], roughness: 2 } }; }), /roughness is 0..1/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.fog = 'red'; }), /not #rrggbb/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
+});
+
+test('every listed zone\'s mobLooks has the Zone shape the page reads (both `looks` and `spread` objects), and every listed zone passes its own validator', () => {
+  for (const id of zoneIds()) {
+    const z = loadZone(id);
+    if (z.mobLooks) assert.ok(typeof z.mobLooks.looks === 'object' && typeof z.mobLooks.spread === 'object', `zone ${id}: mobLooks needs looks and spread (the page reads spread[id])`);
+    assert.deepEqual(zoneProblems(z), [], `zone ${id}`);
+  }
 });
 
 test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {

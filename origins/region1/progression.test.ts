@@ -21,7 +21,8 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned 2026-10-21 (World, Lead/Strategy: a few salamanders and trolls along the route): four spawn-only waypoints pool-spot, fell-spot, sedge-spot, pier-spot and four spawn groups in Zone 1's place; the sha before it 0d287515be0973d82a1c73730ee7a086ad6ba0f1bf5f46b87017a38d7572b825.
 // Re-pinned 2026-10-22 (#3558, Combat, Zone 2 creatures): two character definitions (the Ash skeleton, the Pale duelist) and their two mob rows in progression.json; the sha before it d2c4639bc742295cd1f75d792dea11fd5b14be4d7738175026f5be3ea8d4dd15.
 // Re-pinned 2026-10-22 (Dungeon 1, Combat): the Pit's 100 legends as characters in the BUNDLE (derived from the legend tables by origins/region1/legend-foes.ts from a template row, one open-world form each at its rank), their 100 kill rows in KILL_ROWS and loottable:pit-legend; FOES (the Frontier's own foes) is unchanged; the sha before it 6b886c7d606207e81dd9d256094bed8b3bb414ba1162e2717075ad8c14d27ca2.
-const TRUNK_SHA = 'c62cb4f0946b7caba89f0a2b2ac7a26c208dcba1f94cfbc0e18b8e27de642e58';
+// Re-pinned again 2026-10-22 (Dungeon 1, Combat): the BUNDLE's region carries zone 7's camps, and the roster pool moved to the four families the world draws a body for (pitborn, knight: pit-thrall, cacus, gawain / roland, grendel, lancelot / siegfried, achilles, typhon); the sha before it c62cb4f0946b7caba89f0a2b2ac7a26c208dcba1f94cfbc0e18b8e27de642e58.
+const TRUNK_SHA = 'a7d09f3d1756a69dc3c4f6a6d7691b745dead8d5186a42a5506a1828dbe6e0d1';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };

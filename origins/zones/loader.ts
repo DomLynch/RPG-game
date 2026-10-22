@@ -71,6 +71,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: string): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
   const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
+  if (z.mobLooks && !(z.mobLooks.looks && typeof z.mobLooks.looks === 'object' && z.mobLooks.spread && typeof z.mobLooks.spread === 'object')) return [...bad, 'mobLooks needs both a `looks` object and a `spread` object (spread may be empty): the page reads both (a JSON zone row is not type-checked, so the shape is checked here, before the checks that read them)'];
   const own: Record<string, unknown> = { ...z };
   delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
