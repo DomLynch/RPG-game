@@ -70,7 +70,7 @@ export function planFor(zone: string, resolve: (source: string) => number, rows:
   const frieze = mark('frieze'), hearth = mark('hearth');
   return {
     pieces,
-    layers: Object.fromEntries(of(rows.layers).map((r) => [r.layer, { material: r.material, ...(r.tile !== undefined ? { tile: r.tile } : {}), ...(r.stain ? { stain: r.stain } : {}) }])),
+    ...(of(rows.layers).length ? { layers: Object.fromEntries(of(rows.layers).map((r) => [r.layer, { material: r.material, ...(r.tile !== undefined ? { tile: r.tile } : {}), ...(r.stain ? { stain: r.stain } : {}) }])) } : {}),   // a zone with no layer rows has no `layers` key (the Exchange's plan equals the frozen code plan)
     awnings: of(rows.awnings).map((r) => ({ x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), color: r.color })),
     braziers: of(rows.braziers).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z') })),
     people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color, ...(r.y !== undefined ? { y: at(r.y, r, 'y') } : {}) })),
