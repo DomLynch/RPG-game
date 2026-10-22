@@ -23,13 +23,15 @@ const mounts = concordMounts();
 if (!mounts.ok) throw new Error('presence: the Concord frame does not resolve');
 // ---- the zone table: ROWS, so a new zone or a 1.2x zone is a data edit (Strategy) -------------------------------------------------------------
 // speed: a multiplier on the walking cap while standing in the zone. quiet: nobody outside the zone sees or is seen from inside it. Launch values (Lead 2026-10-13): 1.0 everywhere, quiet = the Pit only.
-export type ZoneRow = { id: string; corners: Pt[]; speed: number; quiet: boolean };
+export type ZoneRow = { id: string; corners: Pt[]; speed: number; quiet: boolean; trade: boolean };
 export type PortalRow = { zone: string; landmark: string; to: string };   // a link the plan does not walk (the night boat): the only legal pose jump, once the wire has its portal frame
-export type ZoneFieldRow = { id: string; speed?: number; quiet?: boolean };
+// trade: bank, smith and trade work in the zone (one shared bank across every trade zone). rejoin: a landmark of the zone a rejoin is moved just outside of; required with trade.
+export type ZoneField = { speed?: number; quiet?: boolean; trade?: boolean; rejoin?: string };
+export type ZoneFieldRow = ZoneField & { id: string };
 /** The per-zone presence fields by world-zone name: the town's rows (town-zones.json: the Pit is quiet) plus every zone package's `presence` block (zone row, keyed by its world zones). A name given twice is refused. */
-export function zoneFields(town: readonly ZoneFieldRow[], packages: readonly { presence?: Readonly<Record<string, { speed?: number; quiet?: boolean }>> }[]): ReadonlyMap<string, { speed?: number; quiet?: boolean }> {
-  const out = new Map<string, { speed?: number; quiet?: boolean }>();
-  const put = (name: string, f: { speed?: number; quiet?: boolean }): void => { if (out.has(name)) throw new Error(`presence: zone "${name}" has its fields given twice`); out.set(name, { speed: f.speed, quiet: f.quiet }); };
+export function zoneFields(town: readonly ZoneFieldRow[], packages: readonly { presence?: Readonly<Record<string, ZoneField>> }[]): ReadonlyMap<string, ZoneField> {
+  const out = new Map<string, ZoneField>();
+  const put = (name: string, f: ZoneField): void => { if (out.has(name)) throw new Error(`presence: zone "${name}" has its fields given twice`); out.set(name, { speed: f.speed, quiet: f.quiet, trade: f.trade, rejoin: f.rejoin }); };
   for (const t of town) put(t.id, t);
   for (const p of packages) for (const [name, f] of Object.entries(p.presence ?? {})) put(name, f);
   return out;
@@ -39,7 +41,7 @@ const FIELDS = zoneFields(TOWN.zones, zoneIds().map(id => loadZone(id)));
 
 const corners = (width: number, depth: number, mount: Parameters<typeof toWorld>[1]): Pt[] =>
   ([[-width / 2, 0], [width / 2, 0], [width / 2, depth], [-width / 2, depth]] as const).map(([x, d]) => toWorld({ x, d }, mount));
-const row = (id: string, c: Pt[]): ZoneRow => ({ id, corners: c, speed: FIELDS.get(id)?.speed ?? 1, quiet: FIELDS.get(id)?.quiet ?? false });
+const row = (id: string, c: Pt[]): ZoneRow => ({ id, corners: c, speed: FIELDS.get(id)?.speed ?? 1, quiet: FIELDS.get(id)?.quiet ?? false, trade: FIELDS.get(id)?.trade === true });
 
 // Town zones first (a point on a shared edge belongs to the first), then every Frontier zone of every zone package.
 // A town row's `mount` names its frame in concordMounts() (town-zones.json: pit-yard sits on the Pit's, exchange on the Exchange's), so no zone name is compared here.
@@ -65,7 +67,7 @@ const roadCorners: Pt[] = (() => {
 })();
 
 const EPS = 1e-6;
-const inside = (corners: readonly Pt[], p: Pt): boolean => {   // a convex quad, edges inclusive
+export const inside = (corners: readonly Pt[], p: Pt): boolean => {   // a convex quad, edges inclusive
   let sign = 0;
   for (let i = 0; i < corners.length; i++) {
     const a = corners[i]!, b = corners[(i + 1) % corners.length]!;
@@ -93,23 +95,41 @@ export const fromLegacy = (p: Pt): Pt => ({ x: p.x + LEGACY_SHIFT_CM, z: p.z + L
 // Where every fresh join starts (Lead, 2026-10-07): the Pit yard's centre, a constant the server chooses, never the client's first pose.
 export const SPAWN: Pt = { x: CENTRE_CM, z: CENTRE_CM };
 
-// A landmark's position in presence centimetres, from the zone data (the same frame as zoneAt).
-const mountOf = (zone: 'pit-yard' | 'exchange') => mountNamed(zone);
-export function landmarkCm(zone: 'pit-yard' | 'exchange', name: string): Pt {
-  const params = resolveZone(CONCORD, CONCORD_REGION, zone);
-  const l = params.ok ? toMetres(params.value).landmarks[name] : undefined;
-  if (!l) throw new Error(`presence: no landmark ${zone}/${name}`);
-  const w = toWorld({ x: l.x, d: l.d }, mountOf(zone));
-  return { x: Math.round(CENTRE_CM + w.x * CM_PER_M), z: Math.round(CENTRE_CM + w.z * CM_PER_M) };
+// A landmark's position in presence centimetres, from the zone data (the same frame as zoneAt): a town zone's (Concord data) or any zone package's (its placed plan, already world metres).
+export function landmarkCm(zone: string, name: string): Pt {
+  if (TOWN.zones.some((z) => z.id === zone)) {
+    const params = resolveZone(CONCORD, CONCORD_REGION, zone);
+    const l = params.ok ? toMetres(params.value).landmarks[name] : undefined;
+    if (!l) throw new Error(`presence: no landmark ${zone}/${name}`);
+    const w = toWorld({ x: l.x, d: l.d }, mountNamed(zone));
+    return { x: Math.round(CENTRE_CM + w.x * CM_PER_M), z: Math.round(CENTRE_CM + w.z * CM_PER_M) };
+  }
+  const at = frontier.get(zone)?.landmarks[name];
+  if (!at) throw new Error(`presence: no landmark ${zone}/${name}`);
+  return { x: Math.round(CENTRE_CM + at.x * CM_PER_M), z: Math.round(CENTRE_CM + at.z * CM_PER_M) };
 }
 
-// The trade area IS the whole `exchange` zone (Expansion's rule for launch gate X1, adopted: bank, smith and trade are Exchange-wide, so a smaller box would let a rejoin land
-// "at the Exchange" without walking in). The edge between the Pit yard and the Exchange belongs to the Pit yard (zoneAt), so it is outside.
-export const TRADE_ZONE: string | undefined = TOWN.zones.find((z) => 'trade' in z && z.trade)?.id;   // the town row flagged `trade` in town-zones.json
-export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === TRADE_ZONE;
+// A trade area IS the whole of a zone flagged `trade` (Expansion's rule for launch gate X1, adopted: bank, smith and trade are zone-wide, so a smaller box would let a rejoin land "at the Exchange"
+// without walking in). The Exchange's flag is in town-zones.json, a zone package's in its presence block. The edge between the Pit yard and the Exchange belongs to the Pit yard (zoneAt), so it is outside.
+// One bank is shared by every trade zone (Lead 2026-10-22; UO: a bank box at any banker, WoW: the bank in any capital).
+export const TRADE_ZONES: ReadonlySet<string> = new Set(rows.filter((r) => r.trade).map((r) => r.id));
+export const inTradeArea = (x: number, z: number): boolean => zoneRowAt(x, z)?.trade === true;
 
-// Where a rejoin goes when its remembered or saved spot is in a trade area (Strategy's rule f; Lead's ruling 2026-10-07): just outside the Exchange's outer gate on the Pit side, 50 cm
-// into the Pit yard, so a rejoin is never "at the Exchange" at all and the player must walk in fresh (the stricter of the two edges Expansion offered).
-const OUTER_GATE = landmarkCm('exchange', 'outer-gate');
-export const REJOIN_EDGE: Pt = { x: OUTER_GATE.x, z: OUTER_GATE.z + presenceRule('rejoinPastGateCm') };
-export const clearOfTradeAreas = (x: number, z: number): Pt => (inTradeArea(x, z) ? REJOIN_EDGE : { x, z });
+// Where a rejoin goes when its remembered or saved spot is in a trade area (Strategy's rule f; Lead's ruling 2026-10-07): just outside the zone's rejoin landmark (the Exchange: its outer gate, on the Pit side),
+// `rejoinPastGateCm` further along +z, so a rejoin is never "at the Exchange" at all and the player must walk in fresh (the stricter of the two edges Expansion offered).
+// A trade zone must name a rejoin landmark whose point is itself outside every trade area, or presence refuses to start (fail closed).
+const REJOINS = new Map<string, Pt>();
+for (const id of TRADE_ZONES) {
+  const landmark = FIELDS.get(id)?.rejoin;
+  if (landmark === undefined) throw new Error(`presence: trade zone ${id} names no rejoin landmark`);
+  const g = landmarkCm(id, landmark), p = { x: g.x, z: g.z + presenceRule('rejoinPastGateCm') };
+  if (inTradeArea(p.x, p.z)) throw new Error(`presence: the rejoin point of trade zone ${id} (landmark ${landmark}) is itself in a trade area`);
+  REJOINS.set(id, p);
+}
+/** A trade zone's rejoin point in presence centimetres; undefined for a zone that is no trade area. */
+export const rejoinOf = (zone: string): Pt | undefined => REJOINS.get(zone);
+// The default edge (a saved spot in a trade area whose own zone is not known) is a row: town-zones.json `defaultRejoin` names a trade zone. No order rule, no fallback.
+const DEFAULT_REJOIN = REJOINS.get(TOWN.defaultRejoin);
+if (!DEFAULT_REJOIN) throw new Error(`presence: town-zones.json defaultRejoin "${TOWN.defaultRejoin}" is not a trade zone with a rejoin point`);
+export const REJOIN_EDGE: Pt = DEFAULT_REJOIN;
+export const clearOfTradeAreas = (x: number, z: number): Pt => { const id = zoneAt(x, z); return (id !== null ? REJOINS.get(id) : undefined) ?? { x, z }; };
