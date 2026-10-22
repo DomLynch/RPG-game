@@ -33,6 +33,7 @@ export type Giver = { character: CharacterId; name: string; at: At; bounty: Boun
 export type Frontier = {
   zone: string;   // the zone package this plan is for (frontierPlan's zoneId)
   zones: ZonePlan[];
+  pit: boolean;   // the page owns the Pit yard (a town zone's page does not: its row names only some of the concord zones)
   road: { from: Point & { z: number }; to: { x: number; z: number }; width: number; facing: number; inward: number }; // the west road, world metres
   signs: Sign[];
   giver: Giver;
@@ -77,7 +78,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
   const end = toWorld(road.to, mounts.value.exchange), start = toWorld(road.from, mounts.value.exchange);
   // Across the portal pair: the east road's exchange gate stands at the road's end, facing back down it.
   const portal = data.registry.regions.get(EXCHANGE)!.portals.find((q) => q.to === FRONTIER)!, back = data.registry.regions.get(FRONTIER)!.portals.find((q) => q.id === portal.toPortal)!;
-  if (portal.at !== 'west-gate') throw new Error(`the Frontier portal is at ${portal.at}, not the west gate`);
+  if (portal.at !== road.from) throw new Error(`the Frontier portal is at ${portal.at}, not the west road's gate ${road.from}`);   // the west road leaves from the gate the portal pair stands at (both are rows)
   const firstZone = [...frZones].find(([, p]) => Object.hasOwn(p.layout, back.at))![0];
   const placed = new Map<string, ZonePlan>();
   const first = zonePlan(FRONTIER, firstZone, frZones.get(firstZone)!, mountAt(frZones.get(firstZone)!, back.at, end, gate.facing + Math.PI), townOf(FRONTIER, firstZone));
@@ -127,7 +128,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
     at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, frontierRule('giverStand')), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
   if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
-  return { zone: zoneId, zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
+  return { zone: zoneId, zones, pit: zones.includes(pitYard), road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
 }
 // A spot `metres` from a building toward the town centre, facing the centre: where its keeper stands.
 function standBefore(building: At, centre: { x: number; z: number }, metres: number): At {
