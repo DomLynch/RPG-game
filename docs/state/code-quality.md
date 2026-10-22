@@ -1,5 +1,35 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~21:0x +04: K6q27b/K6q28/K6q29 PASSed; #3633, #3627, #3635 PASSed; #3639 and #3591 bounced. READ FIRST.
+**Live:** K6q28 80934b31f. K6q29 #3640 @3e23ebd22 (= #3636) has PASS (issuecomment-6346088665) and is publishing. Trunk is 3e23ebd22.
+**Train after K6q29 (Lead):** #3633 → #3627 → the CI cut #3635 (it carries #3630; #3638 was closed). #3637 retargets to trunk after #3627 merges.
+
+**PASSed today since 17:3x:** K6q27b #3631 @e29670000, K6q28 #3634 @80934b31f, #3636 @c19a8c7f7, K6q29 #3640 @3e23ebd22, #3633 @3b4d51f24 (kit + gear-sheet warm guards), #3627 @751261147 (legend rotation), #3635 @52623753a (mine; Lead re-review OK).
+
+**#3635 = CI delta rows + #3630 + the apt fold-in.** APT_OR_MIRROR is a workflow-level env helper, identical in quality/unit-ci/release-checks (a test pins it).
+- It bounds each fetch (20 s), caps the call (APT_TRY_S 300), and on failure or slowness repairs dpkg, moves to archive.ubuntu.com and retries once.
+- It's env, not a repo script, because jobs check out the PR head (UNIT_SHA) or the candidate tree, which may predate a script.
+- Container proof: /srv/dev-jobs/auditor-3630/apt-env-proof.sh.
+
+**Bounced (waiting on the lane):**
+- **#3639** (Characters, far bodies) @eb6cc33eb: CI lint TS7016 in town-people.test.ts (glb-stats.mjs has no types). The rest is OK: the town probe shows 6 late programs with far bodies against 13 with ?far=0. Rerun the Zone 1 + D1 seamless on the VPS at the fixed head; the Mac runs timed out at load 12.6.
+- **#3591** (World, zones 3-5 unlisted) @c690443dd: behind trunk (base 3d4226586). Asked World to merge trunk 3e23ebd22. Row 58 on trunk already skips unlisted rows.
+
+**In flight:** the VPS gates for #3629 (town zone ready) and #3622 (ladder-pending toast) via /srv/dev-jobs/auditor-tools-20261022/run-pr-on-trunk.sh `<job> <pr> <head> "NAME|cmd"...`. Both PR heads are behind trunk but merge clean.
+
+**Rulings today (Lead/Strategy):**
+- Per-PR full-tree checks run on the VPS or CI, not Mac worktree copies (the scratchpad filled the Mac at ~12 GB/h). The Mac is only for WebKit/iPhone rows.
+- Remove each worktree as its check ends.
+
+**Gotchas:**
+- GitHub job status lags: a job can show in_progress/null with every step done (load-time-zone1, base, shard 3). Read the steps and the run conclusion before calling it stuck.
+- Real apt stalls showed up in unit-ci's jpegtran step (K6q28b shard 2), which #3635 fixes.
+- The zone-7 "world live: N creatures moved" assertion is a roam flake (Lead: doesn't block).
+- `renderInfo()` is post-processing's last pass (1 tri / 1 call): use screenshots for "is it drawn".
+- The Edit tool trims a trailing space at the end of new_string: put a needed space inside the string.
+
+**Owed:** the Mac Metal cold /dungeon1/ fight for #3633 (once Deploy posts FREE); the post-publish phone check of the town plaza.
+
 ## 2026-10-22 ~17:3x +04: K6q27 + #3628 PASSed, #3630 open. READ FIRST (the ~17:0x entry below still holds for the CI PR).
 - **K6q27 #3626 PASS @50bdfdb64** (issuecomment-6341675050). All 44 latest CI runs are green, including the apt rerun that carried row 13, so no TRUST line was needed.
 - **#3628 PASS @9b903aaff** (issuecomment-6341791560), for K6q28 = #3616 → #3624 → #3628.
