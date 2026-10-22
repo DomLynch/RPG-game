@@ -64,6 +64,7 @@ try {
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   // The engage: the engine's own combat loop sets body.infight the frame it is in combat (main.ts, wc.inCombat()). Read the engage THEN, bounded at 15 s; a miss fails below on infight, with the receipt.
   await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
+  if (process.env.SEAMLESS_SHOT) { await page.waitForTimeout(2500); await page.screenshot({ path: process.env.SEAMLESS_SHOT }); receipt.bar = await page.evaluate(() => document.getElementById('opponent-name')?.textContent ?? ''); }   // SEAMLESS_SHOT=<png>: a still of the page once the engage is on (the fight bar's text goes in the receipt as `bar`)
   const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
   if (process.env.SEAMLESS_STRIKE) {   // SEAMLESS_STRIKE=1: cut the foe inside the engage window, so a hit's effects (sparks, blood splat) are drawn for the first time THERE unless the zone warm covered them (the check passes by luck of timing without it)
     const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id);
