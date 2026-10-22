@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CENTRE_CM, PORTALS, REJOIN_EDGE, TRADE_ZONES, ZONE_ROWS, clearOfTradeAreas, inTradeArea, inside, landmarkCm, rejoinOf, zoneFields } from './zones.ts';
 import { CM_PER_M } from './frame.ts';
+import TOWN from './town-zones.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import { exchangePlace } from '../server/upgrade.ts';
@@ -37,7 +38,8 @@ test('the trade areas are the rows flagged trade: the Exchange today, with its o
     const edge = rejoinOf(id)!;
     assert.equal(inTradeArea(edge.x, edge.z), false, `${id}: the rejoin point is outside every trade area`);
   }
-  assert.deepEqual(rejoinOf('exchange'), REJOIN_EDGE, 'the Exchange is the first trade zone: its edge is the default');
+  assert.ok(TRADE_ZONES.has(TOWN.defaultRejoin), 'town-zones.json defaultRejoin names a trade zone');
+  assert.deepEqual(rejoinOf(TOWN.defaultRejoin), REJOIN_EDGE, 'REJOIN_EDGE is the row-named default zone\'s edge, not the first row\'s');
   assert.equal(rejoinOf('pit-yard'), undefined);
   const bank = landmarkCm('exchange', 'bank');
   assert.deepEqual(clearOfTradeAreas(bank.x, bank.z), REJOIN_EDGE, 'a spot in the Exchange rejoins at its edge');

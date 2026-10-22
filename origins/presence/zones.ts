@@ -128,6 +128,8 @@ for (const id of TRADE_ZONES) {
 }
 /** A trade zone's rejoin point in presence centimetres; undefined for a zone that is no trade area. */
 export const rejoinOf = (zone: string): Pt | undefined => REJOINS.get(zone);
-function defaultRejoin(): Pt { const first = REJOINS.values().next(); return first.done ? SPAWN : first.value; }   // the first trade zone's (town rows come first: the Exchange's): the default for a spot whose zone is unknown
-export const REJOIN_EDGE: Pt = defaultRejoin();
+// The default edge (a saved spot in a trade area whose own zone is not known) is a row: town-zones.json `defaultRejoin` names a trade zone. No order rule, no fallback.
+const DEFAULT_REJOIN = REJOINS.get(TOWN.defaultRejoin);
+if (!DEFAULT_REJOIN) throw new Error(`presence: town-zones.json defaultRejoin "${TOWN.defaultRejoin}" is not a trade zone with a rejoin point`);
+export const REJOIN_EDGE: Pt = DEFAULT_REJOIN;
 export const clearOfTradeAreas = (x: number, z: number): Pt => { const id = zoneAt(x, z); return (id !== null ? REJOINS.get(id) : undefined) ?? { x, z }; };

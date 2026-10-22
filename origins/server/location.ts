@@ -26,7 +26,10 @@ export const inTradeArea = (x: number, z: number): boolean => inTradeAreaCm(...s
 const unshift = (p: { x: number; z: number }) => ({ x: p.x - LEGACY_SHIFT_CM, z: p.z - LEGACY_SHIFT_CM });
 export const REJOIN_EDGE = unshift(REJOIN_EDGE_CM);
 // A trade spot rejoins at its own zone's edge (the zone the row names, else the zone the spot is in), else the default edge.
-const rejoinFor = (zone: string | null, x: number, z: number) => unshift(rejoinOf(zone ?? '') ?? rejoinOf(zoneAtCm(...shift(x, z)) ?? '') ?? REJOIN_EDGE_CM);
+function rejoinFor(zone: string | null, x: number, z: number) {
+  const id = zone !== null && TRADE_ZONES.has(zone) ? zone : zoneAtCm(...shift(x, z));
+  return unshift((id !== null ? rejoinOf(id) : undefined) ?? REJOIN_EDGE_CM);
+}
 
 // Strategy's rule (a), no logout escape: a server-owned state that decides where the character stands (Feuds jail, an active bounty or feud, a duel in
 // progress) overrides the saved spot and never expires. The writer holds NO such state today (origins/feuds is a pure engine with no table; duels are not in
