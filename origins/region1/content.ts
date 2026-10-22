@@ -203,7 +203,7 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 // rows is a duplicate-id and an unknown creature or table is an unknown-ref, here at load and in scripts/registry-check.mjs. Order = row order.
 // Ids other tables point at come from the contracts bundle (characters here); the gate asks for the same sets.
 export const REGISTRY_EXTERNAL: Record<string, string[]> = { character: BUNDLE.map((r) => String(r.id)).filter((id) => id.startsWith('character:')) };
-const LOOT_ROWS = lootTableRows.map((t) => (t.id === PIT_LEGEND_RULE.lootTable ? { ...t, rolledBy: [...t.rolledBy, ...LEGEND_CHARACTER_IDS] } : t));   // the shared Pit-legend table is rolled by every legend character (derived, never typed)
+const LOOT_ROWS = lootTableRows.map((t) => (t.id === PIT_LEGEND_RULE.lootTable ? { ...t, rolledBy: [...(t.rolledBy ?? []), ...LEGEND_CHARACTER_IDS] } : t));   // the shared Pit-legend table is rolled by every legend character (derived, never typed)
 const lootRegistry = loadRegistry(buildTables(lootManifest.tables.map((m) => ({ manifest: m as Manifest, parsed: LOOT_ROWS, file: 'origins/region1/loot-tables.json' }))), REGISTRY_EXTERNAL);
 export const CREATURE_LOOT: Record<string, string> = Object.fromEntries([...lootRegistry.rows.get('creatureLoot')!.values()].map((r) => [r.id as string, r.loottable as string]));
 
