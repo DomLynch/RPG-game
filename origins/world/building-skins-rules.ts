@@ -9,7 +9,8 @@ import { propTint, shapeArgs, shapeNames } from './props-rules.ts';
 
 export type SkinShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type SkinPart = { readonly id: string; readonly skin: string; readonly kind: string; readonly shape: SkinShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'plain' };
-export type SkinModel = { readonly id: string; readonly url: string; readonly nodes: readonly string[] };   // a model file (served by URL, one material) and the nodes it holds
+export type SkinLod = { readonly url: string; readonly dist: number };   // a far body for a model: a file holding the SAME node names at about 1-1.5k tris (Characters kit_lod.py), drawn beyond `dist` metres from the camera
+export type SkinModel = { readonly id: string; readonly url: string; readonly nodes: readonly string[]; readonly lod?: SkinLod };   // a model file (served by URL, one material), the nodes it holds, and its optional far body
 export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number; readonly min: number; readonly max: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
 type Raw = { skins?: readonly unknown[]; parts?: readonly unknown[]; models?: readonly unknown[]; fits?: readonly unknown[] };
 const VEC3 = 3;   // components of a position (x, y, z): the loader's shape check (exempt: scripts/as-data/allow/origins-world.json)
@@ -19,6 +20,7 @@ export function loadSkins(raw: Raw) {
   loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, raw, 'building-skins.json')));
   const skins = (raw.skins ?? []) as readonly { id: string }[], parts = (raw.parts ?? []) as readonly SkinPart[], models = (raw.models ?? []) as readonly SkinModel[], fits = (raw.fits ?? []) as readonly SkinFit[];
   for (const m of models) if (!/^world\/[\w/.-]+\.glb$/.test(m.url) || !m.nodes.length || !m.nodes.every((n) => /^[a-z][a-z0-9_-]*$/.test(n))) throw Error(`building skin model "${m.id}": url is world/....glb and nodes are lower-case names`);
+  for (const m of models) if (m.lod && (!/^world\/[\w/.-]+\.glb$/.test(m.lod.url) || m.lod.url === m.url || !(Number.isFinite(m.lod.dist) && m.lod.dist > 0))) throw Error(`building skin model "${m.id}": lod is { url: world/....glb (not the model's own file), dist: metres > 0 }`);
   for (const f of fits) {
     if (!models.find((m) => m.id === f.model)!.nodes.includes(f.node)) throw Error(`building skin fit "${f.id}": node "${f.node}" is not in model ${f.model}`);
     if (!(f.w > 0 && f.d > 0 && f.min > 0 && f.max >= f.min)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0 and 0 < min <= max`);
@@ -42,6 +44,8 @@ export const fitScale = (f: SkinFit, w: number, d: number): number => Math.min(f
 /** The model file(s) every node name belongs to (a prop row's `glb` name or a fit's node): null = no model holds it. */
 export const modelOfNode = (node: string): SkinModel | null => LOADED.models.find((m) => m.nodes.includes(node)) ?? null;
 export const skinModels = (): readonly SkinModel[] => LOADED.models;
+/** The far body of the model that holds this node ({ url, dist }), or null: then the node is drawn at full detail at every distance. */
+export const skinLod = (node: string): SkinLod | null => modelOfNode(node)?.lod ?? null;
 /** A skin's parts for exactly this kind (no fallback): `gate` and `marker` are landmark kinds a skin may dress or leave bare. null = none. */
 export const skinKind = (skin: string, kind: string): readonly SkinPart[] | null => { const own = LOADED.parts.filter((p) => p.skin === skin && p.kind === kind); return own.length ? own : null; };
 /** A skin's parts for one building kind (hall, house, watchtower...), else its default; null = no such skin. */
