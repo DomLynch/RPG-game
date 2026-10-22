@@ -31,7 +31,8 @@
     { "path": ".github/workflows/release-checks.yml", "blob": "6deb1ebbd104a3d713582ab5e71fb764f138cfc5", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
     { "path": ".github/workflows/release-train.yml", "blob": "4abd3f5a82d02c6fed2787474529655740c5d381", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
     { "path": ".github/workflows/special-battery.yml", "blob": "a17c8d35054574627aa74eb223f1b57488364625", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
-    { "path": ".github/workflows/unit-ci.yml", "blob": "4b284bea8728359a1152bd42d37aca02d5429a30", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." }
+    { "path": ".github/workflows/unit-ci.yml", "blob": "4b284bea8728359a1152bd42d37aca02d5429a30", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/unit-ci.yml", "blob": "6ba201328047c9bce83152c745d456bb886defc1", "pr": 3566, "note": "Lead's written OK on #3566 (2026-10-21 19:17Z @7d945f458), re-confirmed @645bc3052 (2026-10-22): the receipt reads each shard's latest attempt only; this blob is unchanged since." }
   ],
   "noPrExempt": [
     {

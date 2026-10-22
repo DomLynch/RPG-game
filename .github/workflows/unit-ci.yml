@@ -113,7 +113,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: unit-shard-${{ matrix.shard }}
+          name: unit-shard-${{ matrix.shard }}-a${{ github.run_attempt }}   # per attempt: a --failed rerun keeps attempt 1's artifact beside the new one (scripts/lib/ci-unit.mjs latestShardFiles)
           path: out/shard-${{ matrix.shard }}.json
           if-no-files-found: ignore
   origins-db:
@@ -181,8 +181,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: unit-shard-*
-          path: shards
-          merge-multiple: true
+          path: shards   # NOT merge-multiple: one dir per attempt's artifact, and the receipt keeps each shard's latest attempt (K6q14: merged, a stale attempt-1 file won)
       - if: needs.delta.outputs.unchanged != 'true'
         uses: actions/setup-node@v4
         with:

@@ -18,6 +18,7 @@
     { "id": "glowR", "value": 0.16, "unit": "ratio" },
     { "id": "columnW", "value": 0.012, "unit": "ratio" },
     { "id": "columnAlpha", "value": 0.67, "unit": "ratio" },
+    { "id": "torchLights", "value": 64, "unit": "count" },
     { "id": "torchY", "value": 1.6, "unit": "m" },
     { "id": "torchRange", "value": 14, "unit": "m" },
     { "id": "torchDecay", "value": 1.6, "unit": "ratio" },
