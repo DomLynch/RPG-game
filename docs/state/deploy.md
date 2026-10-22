@@ -1,5 +1,15 @@
 # Deploy lane — state
 
+## 2026-10-22 07:5x (+04) — K6q17 LIVE 0235532f3, provision.sh done, /zone2/ live
+
+Cut 06:36 by me (`cut-release.mjs K6q17 3570@7fb059f94… 3567@30d6d9b1b… 3568@2773a0db0… --live 2bf101977…`) -> PR #3572 @0235532f367ab5247e06cb156cb314e7c4745e17. The first quality run went red on an npm audit registry outage (Bad Request); the Auditor owned the single rerun, Lead reran once more at 07:26 and it went green; Auditor PASS @0235532f3 + Lead's candidate:pass; the train published at 07:28-07:30 (+04), Mac row 9 passed in 136 s. The train then STOPPED on its own final preview check (`/preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle`): a race with the swap, live was fine. I verified it myself, removed release-train.stopped and the stale deploy_hold (pid 42647 dead), reason: preview check raced the swap. I did NOT run release-train-resume.sh: it refuses when the sha is already live. A Bash append to release-train.log is refused by the hook, so the reason lives here and in the messages to Lead/Auditor/Strategy.
+
+provision.sh (Lead's GO) run from ~/Developer/frankendom-train-deploy at 0235532f3: dry-run diff = only the /zoneN pattern + 301 in deploy/frankendom.com.conf lines 171-177; real run nginx -t ok, nginx active. Curls: /zone1/ 200, /zone2/ 200, /zone2 301 -> /zone2/, /zone/2/ 200, /preview/origins/ 200, /zone1 301, /zone99/ 200; /zone1/ and /zone2/ both serve index-Dm9cfDNg.js. Auditor and Strategy re-verified.
+
+CI tail run 39717498809: overall success, 12 of 13 groups green; "checks 9 (polearm-browser-check)" timed out at the 600 s CI ceiling (exit 124), not an assertion; the Mac row 9 passed on the live tree. Not chased (Dom: one retry, no investigation unless it recurs).
+
+**Next:** K6q18 = #3566 (PASS @645bc3052 present) + #3578 npm-audit-soft (@f103bd752, no Auditor PASS yet); cut when #3578 has its line-start PASS, then Lead's candidate:pass, then the train publishes; then the big Zone 2/town batch. Steam is PARKED by Dom (10-22 ~06:4x): no Steam prep, Dom owns branding. Live check 5 (`v:<N>`) still undefined.
+
 ## 2026-10-21 23:5x (+04) — STAND-DOWN for the night (Lead: Dom closes the laptop ~8 h). READ FIRST
 
 **LIVE: K6q16 `2bf101977755f8540c46af0b87103b17eb9dce80`** (CI tail 39652593340 green). Nothing in flight: no cut, no deploy.sh, no release-K6q PR (open release-ish PRs are only #2613 and #3531, not candidates), no deploy_hold, no in-flight marker. Lead's order: do NOT cut or publish tonight (the Mac sleeps; a deploy dying mid-publish is worse than waiting).
