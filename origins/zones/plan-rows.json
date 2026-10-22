@@ -280,7 +280,11 @@
     {"id":"7/piece-041","zone":"7","layer":"paving","shape":["wedge",8,2.2,4],"x":168,"y":-1.1,"z":47,"tint":[0.92,0.8,0.7],"rotY":-3.142,"foot":-8.2,"walk":true},
     {"id":"7/piece-042","zone":"7","layer":"stone","shape":["box",1.2,8.7,28],"x":135.4,"y":-3.15,"z":47,"tint":[0.78,0.6,0.52],"rotY":0,"foot":-7.5},
     {"id":"7/piece-043","zone":"7","layer":"stone","shape":["box",30,9.1,1.2],"x":150,"y":-2.95,"z":61.6,"tint":[0.78,0.6,0.52],"rotY":0,"foot":-7.5},
-    {"id":"7/piece-044","zone":"7","layer":"paving","shape":["box",12,7.5,3],"x":150,"y":-3.75,"z":32,"tint":[1.02,0.96,0.84],"rotY":0,"foot":-7.5,"walk":true}
+    {"id":"7/piece-044","zone":"7","layer":"paving","shape":["box",12,7.5,3],"x":150,"y":-3.75,"z":32,"tint":[1.02,0.96,0.84],"rotY":0,"foot":-7.5,"walk":true},
+    {"id":"7/piece-045","zone":"7","layer":"paving","shape":["box",1.4,4.5,1.4],"x":146.5,"y":2.25,"z":58,"tint":[0.55,0.45,0.38],"rotY":0,"foot":0},
+    {"id":"7/piece-046","zone":"7","layer":"paving","shape":["box",1.4,4.5,1.4],"x":153.5,"y":2.25,"z":58,"tint":[0.55,0.45,0.38],"rotY":0,"foot":0},
+    {"id":"7/piece-047","zone":"7","layer":"paving","shape":["box",8.4,1.2,1.6],"x":150,"y":5.1,"z":58,"tint":[0.55,0.45,0.38],"rotY":0,"foot":0},
+    {"id":"7/piece-048","zone":"7","layer":"paving","shape":["cylinder",2.5,2.5,0.12,32],"x":150,"y":0.06,"z":58,"tint":[1.35,1.2,0.8],"rotY":0,"foot":0}
   ],
   "awnings": [
     {"id":"exchange/awning-000","zone":"exchange","x":8.500000000000005,"y":2.35,"z":-31.000000000000007,"color":"#6e2a20","follow":{"x":{"gate.x":1},"z":{"gate.z":1}}},

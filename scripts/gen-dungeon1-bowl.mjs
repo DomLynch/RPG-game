@@ -47,6 +47,11 @@ for (const a of [Math.PI / 2, (3 * Math.PI) / 2]) { const [dx, dz] = dir(a), rc 
 for (const a of [0.9, Math.PI + 0.9]) { const [dx, dz] = dir(a), rc = R.mid - ARM / 2; ramp(dx * rc, dz * rc, ARM, 4.5, -STEP, STEP, a, BANDS[0].tint); }   // outer ramps: middle ring up to the terrace
 yardAndDuel(R.rim + 2, R.rim + 30);
 slab(0, R.rim + 1, 12, 3, 0, YARD, true);                                     // the mouth: a bridge from the yard onto the terrace
+// The yard's door (the exit to the town stands on the `yard-gate` landmark, its stepping zone 2.5 m round): a plain arch (two pillars and a lintel, dark sandstone) over a pale ring on the ground, so a player can see where to walk out.
+const GATE_Z = R.rim + 27, ARCH = [0.55, 0.45, 0.38], SPAN = 3.5;   // the landmark's z (m from the bowl's centre), the arch's tint, half the gap between the pillars
+for (const side of [-1, 1]) add('paving', ['box', 1.4, 4.5, 1.4], side * SPAN, 2.25, GATE_Z, ARCH, { foot: 0, walk: false });
+add('paving', ['box', 2 * SPAN + 1.4, 1.2, 1.6], 0, 5.1, GATE_Z, ARCH, { foot: 0, walk: false });
+add('paving', ['cylinder', 2.5, 2.5, 0.12, 32], 0, 0.06, GATE_Z, [1.35, 1.2, 0.8], { foot: 0, walk: false });
 mark(EDGES.outer, (R.mid + R.rim) / 2, 0, 0); mark(EDGES.middle, (R.floor + R.mid) / 2, -STEP, 0); mark(EDGES.floor, 0, -2 * STEP, 0);   // a landmark on each ring, for the roster's spawn rows
 for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: 0, bottom: -STEP, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
 
@@ -71,5 +76,5 @@ row7.entry = { x: start.x, z: start.z, facing: start.facing }; row7.warps = [{ i
 row7.safeAreas = [{ id: 'yard', name: 'The yard', shape: 'rect', min: [ox - 14, oz + R.rim + 2], max: [ox + 14, oz + R.rim + 30], pvp: 'off', spawnsAllowed: false }, { id: 'duel-pit', name: 'The Duel pit', shape: 'rect', min: [ox + 17, oz + 38], max: [ox + 35, oz + 56], pvp: 'on', spawnsAllowed: false }];   // the yard slab (28 m wide, rim+2 .. rim+30) and the Duel pit's room (9 m round at x 26, z 47), in the world frame
 row7.world = ['dungeon-bowl']; row7.names = { ...row7.names, 'dungeon-bowl': row7.name };
 row7.place = { zones: { 'dungeon-bowl': { zoneSize: { width: PLACE_W, depth: PLACE_D }, layout, connections: {}, density: { creatures: 0.3 }, ambience: { preset: 'frontier-haze' } } }, joins: [], waypoints: Object.keys(layout), spawns: row7.place?.spawns ?? [] };
-writeFileSync(ROW, `${JSON.stringify(row7, null, 2)}\n`);
+if (process.env.ROW === '1') writeFileSync(ROW, `${JSON.stringify(row7, null, 2)}\n`);   // the zone row is hand-edited now (Combat's spawn rows, the exits, the listing): ROW=1 rewrites it from this script and reformats those rows, so it is for the first generation only
 console.log(`dungeon1 bowl (zone ${ZONE}): ${rows.pieces.length} pieces, ${rows.people.length} fighters, ${rows.marks.length} marks, ${rows.layers.length} layer rows`);
