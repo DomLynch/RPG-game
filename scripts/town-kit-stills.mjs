@@ -1,4 +1,4 @@
-// Characters: the town 3D kit in the real Exchange page, before (?townkit=0, the greybox) and after, at 375 wide: stills at three stops of the walk out (the same keys held the same time), and per stop
+// Characters: the town 3D kit in the real Exchange page, before (?skins=0, the greybox) and after, at 375 wide: stills at three stops of the walk out (the same keys held the same time), and per stop
 // the renderer's own triangles and draw calls plus the frame-time p95 over a few seconds. Reads the origins preview served by vite (or a built dist) at <base>.
 //   node scripts/town-kit-stills.mjs <base url, e.g. http://localhost:5190/preview/origins/> <out dir> [--stops 5,8,11] [--sample 4]
 // Mac note: a real GPU (Apple Metal) draws the high tier; the number is a pair read (same page, same stops), not a phone figure. Run the A/B on the T4 with the gpu-run wrapper for the receipt.
@@ -16,7 +16,7 @@ const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--i
 const report = [];
 try {
   for (const arm of ['greybox', 'kit']) {
-    const q = `?region=0${arm === 'greybox' ? '&townkit=0' : ''}`;
+    const q = `?region=0${arm === 'greybox' ? '&skins=0' : ''}`;
     for (const stop of STOPS) {
       const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
       page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)));
