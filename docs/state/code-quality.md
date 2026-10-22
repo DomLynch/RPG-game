@@ -1,5 +1,23 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~15:1x +04: #3615 PASSed; the CI beta blocker is built, unpushed. READ FIRST.
+**#3615 PASS @ca6ee3a1d** (issuecomment-6338994120); Lead sets candidate:pass and K6q26 cuts on it.
+- The 23c14f870 NOT PASS (issuecomment-6338807065) was two reds from legend-copy.ts's deep imports: K12 (shard 7) and core-boundary C1 (shard 8). Combat fixed both through the doors.
+- Zone 7 seamless failed once, then passed twice. Combat's follow-up: pre-warm the legend materials.
+- Lead ruled load-time-zone1 trusted for it.
+
+**CI PR built:** branch code-quality/ci-delta-rows @daeb78832, worktree at scratchpad wtci (session cbdb14d7). Push it and open the PR only after K6q26 cuts; it's workflow-only, so it gets its own cut.
+- Candidate release-checks run only the deployRowsFor scope (6 of 57 rows for a zone diff); the scope map is now the data row scripts/release-scope.json.
+- load-time and load-time-zone1 skip release-* and run on the "(release-X candidate)" merge push.
+- deploy.sh's Published summary adds "cut to live N min", from the release PR's createdAt, looked up by the release branch named in the merge subject.
+- New and edited tests: tests/release-scope.test.ts and tests/ci-static-first.test.ts. They have not run yet (the hook blocks node --test on the Mac), so the PR's shards are the first receipt.
+- Asked Lead: keep deploy.sh's 24 h full run (Mac --full-age) or add a nightly trunk full dispatch?
+
+**Gotchas:**
+- zsh doesn't word-split `set -- $P`; use `${=P}`.
+- The train's merge subject "#N" is a MEMBER PR; the release PR is the one whose head is the merged revision (branch release-X).
+- macOS has no `timeout`: use node `execFileSync` with `timeout:`.
+
 ## 2026-10-22 ~14:4x +04: HANDOFF before /clear. K6q25 PASSed; #3615 (Dungeon 1) is the open gate. READ FIRST.
 **Live:** K6q24 514646933. **K6q25 #3617 @7c564f7cc PASS** (#3608 alone; issuecomment-6338430089; load-time-zone1 +0.31 s), publishing.
 **NOW: #3615 @23c14f870 (Dungeon 1, FINAL head per Lead; K6q26 cuts on it).**
