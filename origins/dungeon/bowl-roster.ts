@@ -6,11 +6,15 @@
 import { loadRegistry, tableFromFile, type Manifest, type MobRow } from '../../src/core/server.ts';
 import MANIFEST from './bowl-roster.manifest.json' with { type: 'json' };
 import DEFS from './bowl-roster.json' with { type: 'json' };
+import { ROTATION_RULES, type RotationRule } from './legend-at.ts';   // importless: the closed list of rotation rules
 
-export type RosterGroup = { readonly id: string; readonly character: string; readonly camps: number; readonly campSize: readonly [number, number] };
+/** A creature of a ring. In a FIXED ring (no `rotation`) it carries its own `camps`: that many camps of it stand for life. In a ROTATING ring it is a member of the ring's pool and carries no `camps` (the ring's `camps` count the camps). */
+export type RosterGroup = { readonly id: string; readonly character: string; readonly camps?: number; readonly campSize: readonly [number, number] };
 export type BowlRing = {
   readonly id: string; readonly order: number; readonly zone: string; readonly landmark: string; readonly levels: readonly [number, number]; readonly respawnSeconds: number;
   readonly aggroShare: number; readonly spreadShare: number; readonly roamShare: number; readonly leashShare: number; readonly groups: readonly RosterGroup[];
+  /** ROTATING ring (docs/specs/origins/dungeon-legend-rotation.md): `rotation` names the rule (origins/dungeon/legend-at.ts) and `camps` is how many camps the ring has; every group is a member of the pool each camp walks, one per respawn generation. Both absent = a fixed ring. */
+  readonly rotation?: RotationRule; readonly camps?: number;
 };
 /** A ring's edges in metres from the bowl's centre. The real reader derives them from the bowl layout's paving pieces; a test passes a fixture until that row lands. */
 export type RingEdges = (zone: string, landmark: string) => { readonly inner: number; readonly outer: number } | null;
@@ -53,8 +57,17 @@ export function loadBowlRings(known: BowlKnown, raw: { rings?: unknown } = DEFS)
       if (seen.has(g.id)) throw Error(`${at}: group ${g.id} twice`);
       seen.add(g.id);
       if (!known.characters.has(g.character)) throw Error(`${at}: group ${g.id}: ${g.character} is not a known creature`);
-      if (!isInt(g.camps) || g.camps < 1) throw Error(`${at}: group ${g.id}: camps must be a whole number >= 1`);
+      if (r.rotation === undefined) {
+        if (!isInt(g.camps) || g.camps < 1) throw Error(`${at}: group ${g.id}: camps must be a whole number >= 1`);
+      } else if (g.camps !== undefined) throw Error(`${at}: group ${g.id}: a rotating ring's groups are pool members and carry no camps (the ring's camps count them)`);
       if (!pair(g.campSize) || g.campSize[0] < 1) throw Error(`${at}: group ${g.id}: campSize must be [min, max], min >= 1`);
+    }
+    if (r.rotation === undefined) {
+      if (r.camps !== undefined) throw Error(`${at}: camps on a ring with no rotation (a fixed ring counts camps per group)`);
+    } else {
+      if (!(ROTATION_RULES as readonly string[]).includes(r.rotation)) throw Error(`${at}: rotation "${String(r.rotation)}" is not one of ${ROTATION_RULES.join(', ')}`);
+      if (!isInt(r.camps) || r.camps < 1) throw Error(`${at}: a rotating ring needs camps, a whole number >= 1`);
+      if (new Set(r.groups.map((g) => g.campSize.join('-'))).size > 1) throw Error(`${at}: a rotating ring's groups share one campSize (a camp is sized once, whichever legend stands in it)`);
     }
   }
   const groupIds = rings.flatMap((r) => r.groups.map((g) => `${r.id}-${g.id}`));
@@ -86,16 +99,20 @@ export function rosterRows(rings: readonly BowlRing[], edges: RingEdges, base: (
 }
 
 /** A spawn point of the zone row's `place.spawns`: one camp of one creature, anchored to a landmark of the zone's plan. */
-export type RosterPlacement = { readonly id: string; readonly at: string; readonly characters: readonly string[] };
+export type RosterPlacement = { readonly id: string; readonly at: string; readonly characters: readonly string[]; readonly rotation?: RotationRule };
 /** Every group's camps as `place.spawns` entries. A ring's camps are dealt EVENLY along the ring's spot points in table order (`spotsOf(landmark)`: the zone plan's points that belong to that ring landmark): camp n of
  *  T takes spot floor(n x spots / T), so the camps spread round the annulus and no spot is reused before every spot has a camp. A ring with no spot points is an error: a camp needs a place to stand. */
 export function rosterPlacements(rings: readonly BowlRing[], spotsOf: (landmark: string) => readonly string[]): readonly RosterPlacement[] {
   return rings.flatMap((r) => {
     const spots = spotsOf(r.landmark);
     if (spots.length === 0) throw Error(`bowl-roster "${r.id}": the zone has no spot points for ${r.landmark}, so its camps have nowhere to stand`);
-    const total = r.groups.reduce((sum, g) => sum + g.camps, 0);
+    if (r.rotation !== undefined) {   // a rotating ring: `camps` camps, each owning the ring's whole pool (group order = pool order) and dealt over the spots the same way
+      const pool = r.groups.map((g) => g.character), camps = r.camps!;
+      return Array.from({ length: camps }, (_, k): RosterPlacement => ({ id: `${r.id}-camp-${k}`, at: spots[Math.floor((k * spots.length) / camps)]!, characters: pool, rotation: r.rotation! }));
+    }
+    const total = r.groups.reduce((sum, g) => sum + g.camps!, 0);
     let dealt = 0;
-    return r.groups.flatMap((g) => Array.from({ length: g.camps }, (_, k): RosterPlacement => ({ id: `${r.id}-${g.id}-${k}`, at: spots[Math.floor((dealt++ * spots.length) / total)]!, characters: [g.character] })));
+    return r.groups.flatMap((g) => Array.from({ length: g.camps! }, (_, k): RosterPlacement => ({ id: `${r.id}-${g.id}-${k}`, at: spots[Math.floor((dealt++ * spots.length) / total)]!, characters: [g.character] })));
   });
 }
 

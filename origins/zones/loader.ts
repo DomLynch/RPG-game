@@ -88,6 +88,12 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
     const first = z.spawns.rows.find((r) => r.id === spawnIds(g)[0]);
     bad.push(...spawnProblems(g, first?.behaviour.campSize?.[1] ?? 1));
+    if (g.rotation !== undefined) {   // a rotating pool: every member has a row (a pool never skips a generation), a FLAT level band (the server prices a generation at the row's level, not by distance), and all or none are roster fighters (the camp is one ladder spawn)
+      const members = spawnIds(g).map((id) => z.spawns.rows.find((r) => r.id === id));
+      spawnIds(g).forEach((id, i) => { if (!members[i]) bad.push(`group ${g.id}: pool character ${id} has no spawn row, so a respawn that picks it would stand nowhere (a pool never skips a generation)`); });
+      for (const r of members) if (r && r.level[0] !== r.level[1]) bad.push(`group ${g.id}: pool row ${r.id} level ${r.level.join('-')} is not a flat band [N, N]`);
+      if (new Set(members.filter((r) => r).map((r) => r!.roster === true)).size > 1) bad.push(`group ${g.id}: a pool is all roster fighters or none (the camp is one ladder spawn)`);
+    }
   }
   const nodes = new Set(z.kit.nodes), landmarks = new Set(z.kit.landmarks);
   if (!z.kit.url.startsWith('/world/kit/')) bad.push(`kit url ${z.kit.url}`);

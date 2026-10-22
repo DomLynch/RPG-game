@@ -30,6 +30,12 @@ export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => 
 
 /** The key a creature's body is fetched, warmed and shared under: its kind, or `<kind>@<file>` when its look names a bare body of its own (`look.body`, e.g. world/kit/goblin-bare.glb). Two looks of one kind with different bare bodies are two bodies, not one (residual of #3242, C07 S3). */
 export const bodyKeyOf = (kind: string, look: { body?: string } | null | undefined): string => (look?.body ? `${kind}@${look.body}` : kind);
+/** The body keys a zone must fetch and warm: every spec's own, and (a ROTATING camp, `spec.pool`) the key of each pool character, so the first rotated-in legend of a family no camp shows now is already linked and uploaded. `pool` also maps each pool-only key to a pool character (and the camp's id) that wears it, for the warm to dress its probe like him. Pure. */
+export function zoneKinds(specs: readonly { id: string; body: string; character: string; pool?: readonly string[] }[], lookOf: (id: string) => MobLook | null = mobLook): { keys: string[]; pool: Map<string, { character: string; id: string }> } {
+  const own = specs.map((s) => bodyKeyOf(s.body, lookOf(s.character))), pool = new Map<string, { character: string; id: string }>();
+  for (const s of specs) for (const character of s.pool ?? []) { const look = lookOf(character), key = bodyKeyOf(look?.opponent ?? s.body, look); if (!own.includes(key) && !pool.has(key)) pool.set(key, { character, id: s.id }); }
+  return { keys: [...new Set([...own, ...pool.keys()])], pool };
+}
 /** The file a body key names (the part after `@`), or null for a plain kind: the caller resolves a plain kind from the catalogue. */
 export const bodyFileOfKey = (key: string): string | null => { const at = key.indexOf('@'); return at < 0 ? null : key.slice(at + 1); };
 

@@ -1,11 +1,13 @@
 // Where a zone sits on the Region 1 map, as DATA in the zone's own folder (origins/zones/zone<N>/place.ts; Dom 2026-10-09, scalable zones without micromanagement). A zone folder adds its world-data
 // zone, the landmark + road it hangs off an EXISTING zone, its waypoints and its spawn groups; region1 reads every folder's place from the generated registry (applyPlaces) and names no zone itself.
 // Pure data and pure functions: no DOM, no clock; node-safe (the server reads region1 too).
+import { ROTATION_RULES, type RotationRule } from '../dungeon/legend-at.ts';   // importless and page-safe
 export type Slot = { u: number; v: number; facing: number };
 export type Join = { zone: string; landmark: string; at: Slot; before?: string; link?: string; to?: string; here?: string; there?: string };   // a join WITHOUT `link` adds only its landmark (a door a zone package brings into an existing zone: the crossing is an exit row, and an unlisted package brings nothing into a normal build)   // landmark `at` + connection `link` added to the EXISTING zone `zone`; `before` keeps the landmark's key order (the plan walks it)
 /** A spawn group's creature: a bare id (weight 1) or `{ id, weight, max? }` (docs/specs/origins/weighted-spawns.md; donor EQEmu spawnentry.chance / spawn_limit, shape only). */
 export type SpawnEntry = string | { id: string; weight: number; max?: number };
-export type SpawnGroup = { id: string; at: string; characters: SpawnEntry[] };
+/** `rotation`: the group's `characters` are a POOL and its camp shows the next one each respawn generation (`legendAt`, docs/specs/origins/dungeon-legend-rotation.md). Absent = the camp is what it was. */
+export type SpawnGroup = { id: string; at: string; characters: SpawnEntry[]; rotation?: RotationRule };
 export type Entry = { id: string; weight: number; max?: number };
 export const entryOf = (e: SpawnEntry): Entry => (typeof e === 'string' ? { id: e, weight: 1 } : e);
 /** The ids a group names, in order, each once: what the registry (and every reader that only asks WHO) sees. */
@@ -34,6 +36,11 @@ export function spawnProblems(g: SpawnGroup, campMax: number): string[] {
     if (e.max !== undefined && !(Number.isInteger(e.max) && e.max >= 1)) bad.push(`group ${g.id}: ${e.id} max ${String(e.max)} is not a whole number >= 1`);
   }
   if (es.length && !es.some((e) => e.max === undefined || e.max >= campMax)) bad.push(`group ${g.id}: every entry has a max below the camp size ${campMax}`);
+  if (g.rotation !== undefined) {   // a rotating group: a pool of bare ids walked in order; a weight or a max means nothing to a cycle, so it is refused, not ignored
+    if (!(ROTATION_RULES as readonly string[]).includes(g.rotation)) bad.push(`group ${g.id}: rotation "${String(g.rotation)}" is not one of ${ROTATION_RULES.join(', ')}`);
+    if (!es.length) bad.push(`group ${g.id}: a rotating group needs a pool of characters`);
+    for (const e of g.characters) if (typeof e !== 'string') bad.push(`group ${g.id}: a rotating group lists bare ids (${entryOf(e).id} carries a weight or a max)`);
+  }
   return bad;
 }
 export type Place = { zones: Record<string, Record<string, unknown>>; joins: Join[]; waypoints: string[]; spawns: SpawnGroup[] };

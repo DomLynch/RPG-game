@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createMarksSettler, SETTLE_WAIT_S, MARKS_CAP } from './world-marks.ts';
-import { rosterSpawnIds, zoneOfKey, zoneSpawns } from './world-spawns.ts';
+import { rosterSpawnIds, spawnAt, zoneOfKey, zoneSpawns } from './world-spawns.ts';
+import { legendAt } from '../dungeon/legend-at.ts';
 import { fightSetup, loadEncounterContent } from '../encounters/encounters.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
@@ -31,8 +32,9 @@ test('every zone 7 roster row survives zoneSpawns, and every roster spawn is fig
   assert.ok(loaded.ok);
   const spawns = [...zoneSpawns(loaded.value, DUNGEON).values()], rows = listedZone(DUNGEON).spawns.rows.filter((r) => r.roster === true);
   assert.ok(rows.length > 0, 'zone 7 has no roster:true spawn row');
-  for (const row of rows) assert.ok(spawns.some((s) => s.spec.character === row.id), `${row.id}: a roster row zoneSpawns dropped (fightSetup or healthOf refused it: its creatureLoot row, form, body or level)`);
-  for (const s of spawns.filter((x) => x.roster === true)) {
+  const standing = spawns.flatMap((s) => (s.pool ? [...s.pool.values()] : [s]));   // a rotating camp stands as every legend of its pool
+  for (const row of rows) assert.ok(standing.some((s) => s.spec.character === row.id), `${row.id}: a roster row zoneSpawns dropped (fightSetup or healthOf refused it: its creatureLoot row, form, body or level)`);
+  for (const s of standing.filter((x) => x.roster === true)) {
     const at = `${s.spec.id} (${s.spec.character})`, setup = fightSetup(s.fight, loaded.value);
     assert.ok(setup.ok, `${at}: fightSetup refused ${s.fight}`);
     assert.ok(s.hp >= 1, `${at}: no health`);
@@ -53,4 +55,47 @@ test('the settle sends those ids with the worldMarks / worldShare rows and the b
   const r = SERVER_RULES.worldMarks[0]!;
   assert.deepEqual(sent, [{ w: String(SETTLE_WAIT_S), o: String(r.ofTop), c: String(MARKS_CAP), h: String(r.perHour), i: JSON.stringify(ids), n: String(r.batch) }]);
   assert.match(logs[0]!, /settled 1 ladder mark /);
+});
+
+// Zone 7's camps ROTATE (docs/specs/origins/dungeon-legend-rotation.md): three camps per ring, each walking the ring's whole pool, one legend per respawn generation. The ledger and settle are keyed (instance, generation), so
+// they never see the legend; what must hold is that every camp is a roster spawn, every pool member is priced, and each generation resolves one legend of the camp's own ring band.
+test('zone 7 is nine rotating roster camps, three per ring, and every pool member is priced, paid and looted at its own rank', () => {
+  const loaded = loadEncounterContent();
+  assert.ok(loaded.ok);
+  const camps = [...zoneSpawns(loaded.value, DUNGEON).values()];
+  assert.equal(camps.length, 9, 'three camps in each of the three rings');
+  assert.deepEqual(rosterSpawnIds(loaded.value).filter((id) => zoneOfKey(id) === DUNGEON).sort(), camps.map((c) => c.spec.id).sort(), 'the settle is sent the camps, one id per camp');
+  for (const c of camps) {
+    const at = c.spec.id;
+    assert.equal(c.roster, true, `${at}: a camp is a ladder win only when every legend of its pool is`);
+    assert.ok(c.pool && c.pool.size === 3 && c.spec.pool?.length === 3, `${at}: a pool of the ring's three legends`);
+    assert.match(c.poolKind!, /^pool:(outer|middle|floor)-camp-[0-2]$/, `${at}: the database's kind is the camp's, never a legend`);
+    for (const [id, m] of c.pool!) {
+      const setup = fightSetup(m.fight, loaded.value);
+      assert.ok(setup.ok, `${at}/${id}: fightSetup refused ${m.fight}`);
+      assert.ok(m.hp >= 1 && m.roster === true, `${at}/${id}: priced and a roster fighter`);
+      assert.ok(Object.hasOwn(loaded.value.local.killRows, id), `${at}/${id}: no kill row`);
+      assert.ok(Object.hasOwn(loaded.value.local.creatureLoot, m.fight) || m.loot, `${at}/${id}: no loot table`);
+    }
+  }
+});
+
+test('a zone 7 camp shows a different legend each generation, always of its own ring band, and all three in three generations', () => {
+  const loaded = loadEncounterContent();
+  assert.ok(loaded.ok);
+  const rows = listedZone(DUNGEON).spawns.rows;
+  for (const c of zoneSpawns(loaded.value, DUNGEON).values()) {
+    const seen = new Set<string>(), ring = c.spec.spawn.split('-')[0]!;
+    const band = { outer: [1, 3], middle: [4, 6], floor: [7, 10] }[ring as 'outer' | 'middle' | 'floor']!;
+    for (let g = 0; g < 9; g++) {
+      const now = spawnAt(c, g), next = spawnAt(c, g + 1);
+      assert.equal(now.spec.character, legendAt(c.spec.pool!, c.spec.id, g), `${c.spec.id} g${g}: the writer and the page's function agree`);
+      assert.notEqual(now.spec.character, next.spec.character, `${c.spec.id}: the same legend twice running at g${g}`);
+      const lvl = rows.find((r) => r.id === now.spec.character)!.level[0];
+      assert.ok(lvl >= band[0]! && lvl <= band[1]!, `${c.spec.id} g${g}: ${now.spec.character} rank ${lvl} is outside the ${ring} band ${band}`);
+      assert.equal(now.spec.level, lvl, `${c.spec.id} g${g}: priced at the legend's rank`);
+      if (g < 3) seen.add(now.spec.character);
+    }
+    assert.equal(seen.size, 3, `${c.spec.id}: three generations show the whole pool`);
+  }
 });

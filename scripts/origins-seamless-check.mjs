@@ -58,6 +58,8 @@ try {
   const canvasesBefore = await page.evaluate(() => document.querySelectorAll('canvas').length);
   await page.evaluate(() => { window.__gaps = []; });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });   // a regression that breaks zone-ready must fail the row, never skip it
+  // [zone ready] releases a slow kind's warm-up after the reveal bound (the creature stops being a capsule), but the warm-up keeps running: on software GL a kind's compile takes tens of seconds, and a program it links DURING the tap is a late link by timing, not a missing warm. The row waits for the warm-ups to finish (kindsLinked, like the remote-kit rows wait on remoteKitsWarm) and then counts what the engage adds. A wait that times out falls through and the row fails on the programs.
+  await page.waitForFunction(() => window.originsPreview.kindsLinked?.() !== false, null, { timeout: 150000 }).catch(() => {});
   const namesBefore = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsBeforeTap = namesBefore.length;
   // The target roams while the walk and [zone ready] run (31 s+): put the hero 2.5 m from where it is NOW, so the tap is in reach (Zone 1 refuses a tap past 3.5 m).
