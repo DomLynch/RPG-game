@@ -34,9 +34,9 @@ if len(meshes) > 1:
     bpy.ops.object.join()
 hi = bpy.context.view_layer.objects.active
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-if os.environ.get("GROUND_H"):   # GROUND_H=<metres>: scale the piece to this height and put its origin at the centre of its base (TRELLIS centres a piece on its middle; a kit row places it by its foot)
+if os.environ.get("GROUND_H") or os.environ.get("GROUND_W"):   # GROUND_H=<metres>: scale the piece to this height; GROUND_W=<metres>: to this largest horizontal extent (a wide facade); either puts its origin at the centre of its base (TRELLIS centres a piece on its middle; a kit row places it by its foot)
     from mathutils import Matrix
-    k = float(os.environ["GROUND_H"]) / hi.dimensions.z
+    k = float(os.environ["GROUND_H"]) / hi.dimensions.z if os.environ.get("GROUND_H") else float(os.environ["GROUND_W"]) / max(hi.dimensions.x, hi.dimensions.y)
     corners = [hi.matrix_world @ v.co for v in hi.data.vertices]
     lo_z = min(c.z for c in corners)
     cx = (min(c.x for c in corners) + max(c.x for c in corners)) / 2
@@ -98,6 +98,7 @@ img = bpy.data.images.new("KitColour", SIZE, SIZE, alpha=False)
 img.colorspace_settings.name = "sRGB"
 mat = bpy.data.materials.new("KitLod")
 mat.use_nodes = True
+mat.use_backface_culling = False   # exported as doubleSided: a remeshed or decimated thin wall (cloth, an open pier face) keeps its back face, so it never culls to a see-through frame
 nt = mat.node_tree
 bsdf = nt.nodes["Principled BSDF"]
 tex = nt.nodes.new("ShaderNodeTexImage")

@@ -45,13 +45,22 @@ test('a model\'s far body (lod) is a row: its own file with the SAME node names,
 });
 test('a model with a budget row stays inside it: near and far triangle counts (the glTF index accessors) and the piece height', () => {
   const tris = (url: string) => { const buf = readFileSync(`public/${url}`), len = buf.readUInt32LE(12), json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8')) as { meshes: { primitives: { indices?: number }[] }[]; accessors: { count: number; max?: number[]; min?: number[] }[] }; return json.meshes.flatMap((m) => m.primitives).reduce((n, p) => n + (p.indices === undefined ? 0 : json.accessors[p.indices]!.count / 3), 0); };
-  const withBudget = DEFS.models.filter((m) => 'budget' in m) as (typeof DEFS.models[number] & { lod: { url: string }; budget: { height: number; tris: number; lodTris: number } })[];
+  const withBudget = DEFS.models.filter((m) => 'budget' in m) as (typeof DEFS.models[number] & { lod?: { url: string }; budget: { height?: number; width?: number; tris: number; lodTris?: number } })[];
   assert.ok(withBudget.length > 0);
   for (const m of withBudget) {
-    assert.ok(m.budget.height > 0 && m.budget.tris > 0 && m.budget.lodTris > 0 && m.budget.lodTris < m.budget.tris, `${m.id}: budget is positive, the far body smaller than the near`);
+    assert.ok((m.budget.height ?? m.budget.width ?? 0) > 0 && m.budget.tris > 0, `${m.id}: budget names a height or a width (metres) and the near triangles`);
     assert.ok(tris(m.url) <= m.budget.tris, `${m.id}: ${tris(m.url)} near tris over ${m.budget.tris}`);
-    assert.ok(tris(m.lod.url) <= m.budget.lodTris, `${m.id}: ${tris(m.lod.url)} lod tris over ${m.budget.lodTris}`);
+    assert.equal(m.lod !== undefined, m.budget.lodTris !== undefined, `${m.id}: a far body and its triangle budget go together`);
+    if (m.lod) assert.ok(m.budget.lodTris! > 0 && m.budget.lodTris! < m.budget.tris && tris(m.lod.url) <= m.budget.lodTris!, `${m.id}: ${tris(m.lod.url)} far tris over ${m.budget.lodTris}`);
   }
+});
+test('a texture row names a real file and a slab size in metres, and the loader refuses a bad one', () => {
+  const tex = (DEFS as unknown as { textures: { id: string; url: string; slabM: number }[] }).textures;
+  assert.ok(tex.length > 0);
+  for (const t of tex) assert.ok(readFileSync(`public/${t.url}`).length > 0 && t.slabM > 0, t.id);
+  const load = (textures: unknown[]) => loadSkins({ skins: DEFS.skins, parts: DEFS.parts, fits: DEFS.fits, models: DEFS.models, textures });
+  assert.throws(() => load([{ id: 'x', url: 'world/x.jpg', slabM: 0 }]), /slabM/); assert.throws(() => load([{ id: 'x', url: 'x.jpg', slabM: 2 }]), /texture/);
+  assert.doesNotThrow(() => load([{ id: 'x', url: 'world/town/x.webp', slabM: 2 }]));
 });
 test('every fit names a node of its model; a fit scales its natural footprint into a block, capped and floored by its own row', () => {
   for (const f of DEFS.fits) assert.ok(DEFS.models.find((m) => m.id === f.model)!.nodes.includes(f.node), `${f.id} -> ${f.node}`);

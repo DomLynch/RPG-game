@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A wide monumental marble staircase of four broad shallow steps with moulded edges, flanked by low stone cheek walls each topped with a gilded bronze finial, the whole flight seen from the front at a slight angle. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 83.1,
+  "sha256": "1aa28a0b98495879ae1b2edaa966f9b587d86cb67038a0d357255c9ce1702b9e"
+}

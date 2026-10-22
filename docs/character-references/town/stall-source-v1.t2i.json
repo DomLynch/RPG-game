@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A market stall: a sturdy wooden counter on a stone base with a crimson canvas awning stretched over four turned wooden posts with gold finials, crates and cloth bolts on the counter, whole stall visible. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 68.3,
+  "sha256": "0ca6761ab797204cff7a4bb3d2222be645920ddfdba9ba21b41c3007d46b2f30"
+}

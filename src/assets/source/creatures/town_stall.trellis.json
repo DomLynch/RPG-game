@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/stall-source-v1.png",
+  "preprocess_s": 15.9,
+  "image_to_3d_s": 57.4,
+  "extract_glb_s": 51.2,
+  "glb": "src/assets/source/creatures/town_stall.glb",
+  "bytes": 4891016,
+  "sha256": "48e640e1b79497712c03d32d2de6f26dda2f38ed08ba01006a353f64682507b9",
+  "attempts": 1
+}

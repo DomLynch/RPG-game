@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/stone-source-v1.png",
+  "preprocess_s": 15.9,
+  "image_to_3d_s": 38.2,
+  "extract_glb_s": 52.2,
+  "glb": "src/assets/source/creatures/town_stone.glb",
+  "bytes": 5074196,
+  "sha256": "e2ee31404554955468fc42d8102414714d30f45460727d8c8cffb1a50a4d0dcb",
+  "attempts": 1
+}
