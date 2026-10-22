@@ -30,6 +30,7 @@
     { "id": "puffCore", "value": 0.95, "unit": "ratio" },
     { "id": "campView", "value": 9, "unit": "m" },
     { "id": "pitHideM", "value": 60, "unit": "m" },
+    { "id": "areaBlendS", "value": 1.5, "unit": "s" },
     { "id": "sectorInset", "value": 0.99, "unit": "ratio" }
   ],
   "names": [
