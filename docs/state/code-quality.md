@@ -8,6 +8,7 @@
    - Tree read OK: candidate tree 457f603d4 = the replay of trunk + the 3 PASS heads, no .github/.
    - 4 CI row groups stalled in apt: rows 3,13,14,17,19,27,35,37,41,43,50,53,57,58. Deploy is rerunning them once.
    - My VPS receipt run of those 14 rows at that tree was in flight. Read `ssh root@49.12.7.18 cat /srv/dev-jobs/auditor-k6q27-rows-20261022/rows.log` and `rows-receipt.json`. The script is /srv/dev-jobs/auditor-tools-20261022/run-rows-only.sh `<job-dir> <sha> <rows>`; re-run it if the ssh died with /clear.
+   - **VPS result (13:04Z, log /srv/dev-jobs/auditor-k6q27-rows-20261022/rows.log):** 13 of 14 PASS (3,14,17,19,27,35,37,41,43,50,53,57,58). Row 13 (account-database-check) could not run there: `spawnSync initdb ENOENT`, as the VPS has no Postgres. That's an environment gap, not a red. Row 13 needs CI's rerun green, or a box with postgres-16.
    - PASS when every latest CI row is green, OR when the rerun stalls again and the VPS receipt is green: cite it, and Lead posts a `Lead: TRUST @50bdfdb64 rows … — <reason>` line or Deploy uses DEPLOY_TRUST_ROWS.
    - Lead's watcher sets candidate:pass.
 2. **Gate #3628** (World, Dungeon look: blood + irregular rim/floor, rows only) @9b903aaff, for K6q28 with #3616 + #3624.
