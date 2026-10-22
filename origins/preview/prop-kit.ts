@@ -7,7 +7,7 @@ import { toWorld } from '../world/derive.ts';
 import { stageRule } from '../world/stage-rules.ts';
 import type { Piece, Shape } from './exchange-plan.ts';
 import { footprintOf, rng, type Dress } from './frontier-dress.ts';
-import { inZone, onRoad, type Build, type Frontier, type ModelPlacement, type Solid } from './frontier-plan.ts';
+import { FRONTIER, inZone, onRoad, type Build, type Frontier, type ModelPlacement, type Solid } from './frontier-plan.ts';
 import { modelOfNode } from '../world/building-skins-rules.ts';
 
 export type KitResult = { dress: Dress; fires: { x: number; z: number }[]; centre: { x: number; z: number } | null; models: ModelPlacement[] };   // models: props whose `glb` node a model file holds stand as that node (drawn by loadKit), the rest as their parts
@@ -50,12 +50,19 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
       for (let k = 0; k < rc.count; k++) {
         const p = pick(), o = k === 0 && rc.first === 'centre' && free(centre.x, centre.z, p.r) ? centre : spot(p.r, rc.near ?? 1); if (o) put(p, o.x, o.z);
       }
-    } else if (rc.kind === 'rim') {   // a thin, see-through line just inside the zone's edge: a piece every `every` m, lying along the edge, a share `gap` of the spots empty (and none on a road or by a landmark: the gate stays open)
-      const hw = z.width / 2 - rc.inset!, d0 = rc.inset!, d1 = z.depth - rc.inset!, side = (ax: number, ad: number, bx: number, bd: number) => {
-        const n = Math.max(1, Math.round(Math.hypot(bx - ax, bd - ad) / rc.every!)), a = world(ax, ad), c = world(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x);   // the piece's own x axis along this edge
-        for (let k = 0; k < n; k++) { const t = (k + rc.phase!) / n, o = world(ax + (bx - ax) * t, ad + (bd - ad) * t), skip = R() < rc.gap!, p = pick(); if (!skip && free(o.x, o.z, p.r, -p.r)) put(p, o.x, o.z, yaw); }
-      };
-      side(-hw, d0, hw, d0); side(hw, d0, hw, d1); side(hw, d1, -hw, d1); side(-hw, d1, -hw, d0);
+    } else if (rc.kind === 'rim') {   // the closed outskirts line (Dom 2026-10-22: fences only at the mist boundary, consistent all round): in EVERY plan zone of the page, a piece every `every` m just inside each edge that no other zone of the page lies beyond (the world's edge), lying along the edge, a share `gap` of the spots empty (a row value; 0 = closed), and none on a road or by a landmark: the gate stays open
+      const marks2 = [...f.zones.flatMap((q) => Object.values(q.landmarks)), f.giver.at], zs = f.zones.filter((q) => q.region === FRONTIER);
+      for (const q of zs) {
+        const w = (x: number, d: number) => toWorld({ x, d }, q.mount), hw = q.width / 2 - rc.inset!, d0 = rc.inset!, d1 = q.depth - rc.inset!;
+        const side = (ax: number, ad: number, bx: number, bd: number, ox: number, od: number) => {
+          const n = Math.max(1, Math.round(Math.hypot(bx - ax, bd - ad) / rc.every!)), a = w(ax, ad), c = w(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x);   // the piece's own x axis along this edge
+          for (let k = 0; k < n; k++) {
+            const t = (k + rc.phase!) / n, lx = ax + (bx - ax) * t, ld = ad + (bd - ad) * t, o = w(lx, ld), out = w(lx + ox * 2 * rc.inset!, ld + od * 2 * rc.inset!), skip = R() < rc.gap!, p = pick();
+            if (!skip && !zs.some((r) => r !== q && inZone(r, out.x, out.z)) && !onRoad(f, o.x, o.z) && !marks2.some((m) => Math.hypot(m.x - o.x, m.z - o.z) < p.r + kit.clearLandmark)) put(p, o.x, o.z, yaw);
+          }
+        };
+        side(-hw, d0, hw, d0, 0, -1); side(hw, d0, hw, d1, 1, 0); side(hw, d1, -hw, d1, 0, 1); side(-hw, d1, -hw, d0, -1, 0);
+      }
     } else if (rc.kind === 'spot') {   // one piece at one fixed place (the post and wall the hero first sees); the row owns the place, so no free-ground test, but it stands in the way of the recipes after it
       const p = pick(); put(p, centre.x + Math.sin(rc.angle!) * rc.ringRadius!, centre.z + Math.cos(rc.angle!) * rc.ringRadius!, rc.yaw);
     } else if (rc.kind === 'ring') {
