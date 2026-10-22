@@ -16,11 +16,11 @@ export const BANK_STEP_Z = A.bank.z;
 export const FORGE = { ...A.forge, halfX: FORGE_HALF.x, halfZ: FORGE_HALF.z };   // the blacksmith (Dom 2026-10-06: NPC upgrade service), open toward the plaza
 
 // One placed piece: world transform, box-projected UVs in metres (the arena's stone texture tiles at 2 m), a tint darkened toward its foot.
-function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10): THREE.BufferGeometry {
+function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10, tile = 2): THREE.BufferGeometry {   // tile: metres per repeat, a plan layer row's own (the Pit's sand tiles at 3 m)
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)), new THREE.Vector3(1, 1, 1)));
   g.computeVertexNormals();
-  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), color = new Float32Array(p.count * 3), tile = 2;
+  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), color = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
     const px = p.getX(i), py = p.getY(i), pz = p.getZ(i), nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i)), nz = Math.abs(n.getZ(i));
     const [u, v] = ny >= nx && ny >= nz ? [px, pz] : nx >= nz ? [pz, py] : [px, py];
@@ -63,9 +63,9 @@ function inscription(text: string): THREE.MeshStandardMaterial {
 
 // Every piece of a plan, merged into one mesh per layer (stone, iron, dark, coal) named `<prefix>-<layer>`, added to the group.
 // `own` gives the stone and paving layers materials of their own (the Exchange's clones, so a look can tint them without touching the arena's).
-export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}): void {
+export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}, tiles: Readonly<Record<string, number | undefined>> = {}): void {
   const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [], plain: [] };
-  for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
+  for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot, tiles[p.layer]));
   const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
     if (!parts.length) return;
     const mesh = new THREE.Mesh(mergeGeometries(parts), material); mesh.name = `${prefix}-${name}`; mesh.castShadow = name !== 'coal'; mesh.receiveShadow = true; group.add(mesh);
@@ -93,8 +93,10 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   }
 
   // The paving and the masonry each get a clone of the arena's stone, so a look (look.ts) can grade them apart; untinted they are the arena's stone to the eye.
-  const ground = m.stone.clone(), stone = m.stone.clone();
-  meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground });
+  // A zone's layer rows can name another of the arena's materials for a layer (the Dungeon 1 bowl: the Pit's own sand, no brick); the clone follows ITS source's late textures.
+  const sourceOf = (layer: string): THREE.MeshStandardMaterial => ((m as unknown as Record<string, THREE.MeshStandardMaterial | undefined>)[plan.layers?.[layer]?.material ?? ''] ?? m.stone);
+  const ground = sourceOf('paving').clone(), stone = sourceOf('stone').clone(), sources = [[ground, sourceOf('paving')], [stone, sourceOf('stone')]] as const;
+  meshPieces(group, plan.pieces, m, 'exchange', { stone, paving: ground }, Object.fromEntries(Object.entries(plan.layers ?? {}).map(([layer, row]) => [layer, row.tile])));
   if (plan.frieze) {   // a plan without a frieze row has no inscription
     const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));
     frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
@@ -103,7 +105,7 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   return {
     group, ground, stone, braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
-      for (const c of [ground, stone]) if (c.map !== m.stone.map) { c.map = m.stone.map; c.normalMap = m.stone.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone textures in late; the clones follow
+      for (const [c, source] of sources) if (c.map !== source.map) { c.map = source.map; c.normalMap = source.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone and sand textures in late; the clones follow
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
     },
   };
