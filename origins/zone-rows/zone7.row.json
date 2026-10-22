@@ -1,11 +1,23 @@
 {
-  "name": "The Dungeon",
+  "name": "Dungeon 1",
   "defaultKind": "goblin",
   "unlisted": true,
   "alias": "dungeon1",
   "level": 1,
   "entry": { "x": 0, "z": 54, "facing": 3.14159 },
-  "names": {},
+  "warps": [
+    { "id": "zone7-start", "x": 0, "z": 54, "unit": "m" }
+  ],
+  "pvp": "on",
+  "safeAreas": [
+    { "id": "yard", "name": "The yard", "shape": "rect", "min": [-14, 33], "max": [14, 61], "pvp": "off", "spawnsAllowed": false },
+    { "id": "duel-pit", "name": "The Duel pit", "shape": "rect", "min": [17, 38], "max": [35, 56], "pvp": "on", "spawnsAllowed": false }
+  ],
+  "look": {
+    "fog": { "colour": "#8a6a4a", "density": 0.004 },
+    "exposure": 1.2
+  },
+  "names": { "pit-yard": "Dungeon 1" },
   "world": [],
   "spawns": {
     "openers": {},
