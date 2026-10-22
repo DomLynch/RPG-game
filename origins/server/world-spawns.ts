@@ -56,7 +56,7 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
-export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's)
+export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string; roster?: true };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's); roster: the row says killing it is a ladder win (world-marks.ts)
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
@@ -64,23 +64,25 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
   for (const spec of mobSpecs(f, frontierBuild(f), rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    const loot = rows.find((r) => r.id === spec.character)?.loot;
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
+    const row = rows.find((r) => r.id === spec.character), loot = row?.loot;
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}), ...(row?.roster === true ? { roster: true as const } : {}) });
   }
   return out;
 }
+/** The spawn instance ids (the database's spawn keys) of every listed zone whose row says `roster`: the kills the world-marks settle may turn into ladder marks. */
+export const rosterSpawnIds = (content: EncounterContent): string[] => listedZoneIds().flatMap((zoneId) => [...zoneSpawns(content, zoneId).values()].filter((s) => s.roster === true).map((s) => s.spec.id));
 export const defaultZoneSpawns = (content: EncounterContent): Map<string, Spawn> => zoneSpawns(content, DEFAULT_ZONE);
 // The database's spawn key is the spec id as it is: Zone 1 ids are the live rows, Zone N >= 2 ids already carry `z<N>:` (migration 202610090016's rule), so two zones never share a creature's life.
 // A zone id is its folder number: one or more digits, no leading zero, no ceiling (migration 202610090017's rule). A key that starts like a zone (`z` and a digit) but does not parse is NOT Zone 1: null,
 // and the caller refuses it, so a malformed zone key is never stored or priced as Zone 1.
-export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z([1-9][0-9]*):/.exec(key)?.[1] ?? null : DEFAULT_ZONE;
+export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z(0|[1-9][0-9]*):/.exec(key)?.[1] ?? null : DEFAULT_ZONE;   // Zone 0 is the town (Dom 2026-10-22): `z0:` parses; `z01:` still does not
 
 // The rule the database column and the writer both read, checked on every registered zone (origins/zone-rows/): ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry
 // `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone row fails at install.
 export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
   for (const id of listedZoneIds()) {
-    if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
+    if (!/^(0|[1-9][0-9]*)$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero (0 itself is the town)`); continue; }
     const f = frontierPlan(false, id);
     problems.push(...keyProblemsOf(id, mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows).map((s) => s.id), seen));
   }

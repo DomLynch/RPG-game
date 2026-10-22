@@ -19,8 +19,9 @@ const text = (what: string, v: unknown): string => { if (typeof v !== 'string' |
 export function loadPickupRules(raw: unknown): PickupRules {
   const table = tableFromFile(MANIFEST.tables[0] as Manifest, raw, 'ground-pickup.json');
   loadRegistry([table]);
-  const f = (table.rows as unknown as { id: string; fields: Record<string, unknown> }[]).find((r) => r.id === 'ground')?.fields;
-  if (!f) throw new Error('ground-pickup: the "ground" row is missing');
+  const rows = table.rows as unknown as { id: string; fields: Record<string, unknown> }[];
+  if (rows.length !== 1) throw new Error('ground-pickup: the table is exactly one row');   // the one row, whatever its id (the file names it, the code does not)
+  const f = rows[0].fields;
   if (typeof f.pollSec !== 'number' || !(f.pollSec >= 1)) throw new Error('ground-pickup: pollSec is at least 1');
   if (typeof f.emptyPollSec !== 'number' || !(f.emptyPollSec >= f.pollSec)) throw new Error('ground-pickup: emptyPollSec is at least pollSec');
   if (typeof f.pollRangeM !== 'number' || !(f.pollRangeM > 0)) throw new Error('ground-pickup: pollRangeM is above 0');
@@ -29,10 +30,12 @@ export function loadPickupRules(raw: unknown): PickupRules {
   if (!l) throw new Error('ground-pickup: labels is missing');
   const labels = { take: text('labels.take', l.take), guestTaken: text('labels.guestTaken', l.guestTaken), taken: text('labels.taken', l.taken) };
   for (const [k, v] of Object.entries(labels)) if (!v.includes('{item}')) throw new Error(`ground-pickup: labels.${k} names the {item}`);
+  if (!Array.isArray(f.cues) || !f.cues.every((c) => typeof c === 'string' && c)) throw new Error('ground-pickup: cues is a list of cue names');
+  const cues = f.cues as string[];   // the cue names an outcome may play (the row's list, so a new cue is a row edit plus feedback.groundLoot's cue)
   const outcomes: Record<string, Outcome> = {};
   for (const [k, v] of Object.entries((f.outcomes ?? {}) as Record<string, { line?: unknown; cue?: unknown }>)) {
-    if (v.cue !== null && v.cue !== 'refuse') throw new Error(`ground-pickup: outcomes.${k}.cue is "refuse" or null`);
-    outcomes[k] = { line: text(`outcomes.${k}.line`, v.line), cue: v.cue };
+    if (v.cue !== null && !cues.includes(v.cue as string)) throw new Error(`ground-pickup: outcomes.${k}.cue is one of ${JSON.stringify(cues)} or null`);
+    outcomes[k] = { line: text(`outcomes.${k}.line`, v.line), cue: v.cue as Outcome['cue'] };
   }
   for (const need of ['offline', 'taken']) if (!outcomes[need]) throw new Error(`ground-pickup: outcomes.${need} is missing`);
   return { pollSec: f.pollSec, emptyPollSec: f.emptyPollSec, pollRangeM: f.pollRangeM, lineSec: f.lineSec, labels, outcomes };

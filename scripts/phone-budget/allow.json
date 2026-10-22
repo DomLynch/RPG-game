@@ -2544,7 +2544,7 @@
   },
   {
    "fix": "owed: creature body trim pass (Characters)",
-   "count": 9,
+   "count": 11,
    "entries": [
     {
      "file": "public/world/bear.glb",
@@ -2649,6 +2649,23 @@
      }
     },
     {
+     "file": "public/world/nightborn.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 14165,
+      "bytes": 1429964
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 14165,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 1429964,
+      "pngBytes": 0
+     }
+    },
+    {
      "file": "public/world/pitborn.glb",
      "class": "plain-creature",
      "over": {
@@ -2661,6 +2678,23 @@
       "draws": 1,
       "textureSide": 1024,
       "bytes": 1422948,
+      "pngBytes": 0
+     }
+    },
+    {
+     "file": "public/world/skeleton.glb",
+     "class": "plain-creature",
+     "over": {
+      "skinnedVerts": 16991,
+      "bytes": 2026588
+     },
+     "figures": {
+      "tris": 8000,
+      "skinnedVerts": 16991,
+      "joints": 65,
+      "draws": 1,
+      "textureSide": 1024,
+      "bytes": 2026588,
       "pngBytes": 0
      }
     },
