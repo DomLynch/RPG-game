@@ -81,8 +81,9 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
     const members = spec.pool.map((c) => [c, priced(poolSpec(f, rows, spec, c), rows, content, zoneId)] as const);
     if (members.some(([, p]) => p === null)) continue;
     const pool = new Map(members.map(([c, p]) => [c, p!] as const));
-    const { roster: _gen0, ...rest } = base;   // the camp is a ladder win only when EVERY member is (the loader refuses a mixed pool)
-    out.set(spec.id, { ...rest, pool, poolKind: `pool:${spec.spawn}`, ...(members.every(([, p]) => p!.roster === true) ? { roster: true as const } : {}) });
+    const camp: Spawn = { ...base, pool, poolKind: `pool:${spec.spawn}` };
+    if (!members.every(([, p]) => p!.roster === true)) delete camp.roster;   // the camp is a ladder win only when EVERY member is (the loader refuses a mixed pool), not just generation 0's
+    out.set(spec.id, camp);
   }
   return out;
 }

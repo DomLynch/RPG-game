@@ -48,7 +48,7 @@ test('a rotating camp stands as generation 0 of its pool, carries the pool and e
       assert.ok(s.poolBodies!.includes(s.body));
     }
     assert.ok(new Set(camp.map((s) => s.character)).size > 1 || camp.length === 1, 'camp members start on different pool entries (their ids hash apart)');
-    const stand = (xs: typeof specs) => xs.filter((s) => s.spawn !== 'scavengers').map(({ level: _level, ...rest }) => rest);   // a level follows the distance from the hero's start, which the scavenger camp's own spread can move (as for a weighted camp)
+    const stand = (xs: typeof specs) => xs.filter((s) => s.spawn !== 'scavengers').map((s) => ({ ...s, level: 0 }));   // a level follows the distance from the hero's start, which the scavenger camp's own spread can move (as for a weighted camp)
     assert.deepEqual(stand(specs), stand(before), 'other groups stand where they stood');
     assert.deepEqual(mobSpecs(withPool, b), specs, 'deterministic');
     const bodies = poolBodies(POOL.map((c) => f.data.registry.characters.get(c as never)!.encounterForms.find((x) => x.id === 'mob')!.opponent ?? 'goblin'));
