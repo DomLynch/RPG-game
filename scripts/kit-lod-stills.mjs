@@ -58,12 +58,13 @@ for (const [arm, query] of [['lod-on', ''], ['lod-off', '&kitlod=0']]) {
     const target = spots[node]?.[0]; if (!target) { receipt.shots.push({ arm, node, error: 'no instance' }); continue; }
     for (const [dist, label] of [[NEAR, 'near'], [FAR, 'far']]) {
       const x = target[0] + dist, z = target[1] - dist * 0.4, yaw = Math.atan2(target[0] - x, target[1] - z);   // from the east-south of it, looking at it
-      await page.evaluate(([px, pz, yw]) => window.originsPreview.place(px, pz, yw), [x, z, yaw]);
-      await page.waitForTimeout(3500);
+      for (let k = 0; k < 14; k++) { await page.evaluate(([px, pz, yw]) => window.originsPreview.place(px, pz, yw), [x, z, yaw]); await page.waitForTimeout(300); }   // held: the camera lock on a nearby foe turns the heading back, so the spot and heading are set again every 300 ms
+      await page.waitForTimeout(1500);
+      const pos = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
       // the picture only: the tutorial card and the HUD cover the middle of the phone screen, so hide every element that is not the canvas or one of its ancestors
       await page.evaluate(() => { const cv = document.querySelector('canvas'); document.querySelectorAll('body *').forEach((el) => { if (el !== cv && !el.contains(cv) && !cv.contains(el)) el.style.visibility = 'hidden'; }); });
       const file = `${node}-${label}-${arm}.jpg`; await page.screenshot({ path: path.join(out, file), type: 'jpeg', quality: 82 });   // jpeg: the runner brings back a bounded artifacts folder (the PNG set of 8 lost all but the last)
-      receipt.shots.push({ arm, node, label, at: [Math.round(x), Math.round(z)], file });
+      receipt.shots.push({ arm, node, label, asked: [Math.round(x), Math.round(z)], stood: [Math.round(pos.x), Math.round(pos.z)], distToPiece: Math.round(Math.hypot(pos.x - target[0], pos.z - target[1])), file });
     }
   }
   await ctx.close();
