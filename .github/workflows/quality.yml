@@ -220,8 +220,10 @@ jobs:
     # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
     # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    # Post-publish, not on a candidate (Lead 2026-10-22: no candidate row over 10 min, cut-to-live <= 25 min): a release-* PR skips it, and the train's
+    # "... candidate)" merge push runs it against `before` (the trunk the release replaced) while the release publishes. A red there is fix-forward.
     needs: [plan, static]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
+    if: ${{ !cancelled() && ((github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) || (needs.plan.result == 'success' && (github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release-') && needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -271,8 +273,9 @@ jobs:
     # already takes ~30 of its 40 minutes. The zone page is its own build (origins/preview/vite.config.mjs -> artifacts/origins-preview, a guest build:
     # no .env.production.local here, which a load measurement does not need), base and head on ONE runner, the same 9 Mbps / 85 ms, +1 s delta, 30 s
     # tripwire and `load-time-ruled` label as `load-time`; ready = the page's settledAt stamp (hero + kit loaded; load-bound, not render cost), plus a whole-load byte/file tripwire (scripts/load-time-check.mjs --page zone1).
+    # Post-publish like `load-time` (Lead 2026-10-22): a release-* PR skips it; the train's candidate merge push runs it against the trunk it replaced.
     needs: [plan, static]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
+    if: ${{ !cancelled() && ((github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) || (needs.plan.result == 'success' && (github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release-') && needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

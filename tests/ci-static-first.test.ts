@@ -66,6 +66,7 @@ const pr = (action: string, labels: string[] = [], extra: Record<string, unknown
   ({ event_name: 'pull_request', head_ref: 'deploy-b/x', event: { action, pull_request: { number: 7, draft: false, labels: labels.map(name => ({ name })) }, ...extra } });
 const Q = '.github/workflows/quality.yml', U = '.github/workflows/unit-ci.yml', R = '.github/workflows/release-checks.yml';
 const BROWSER = ['load-time', 'load-time-zone1', 'browser', 'net-engines', 'asset-rows', 'duel-two-page'];
+const POST_PUBLISH_JOBS = ['load-time', 'load-time-zone1'];   // ~30 min each: off a candidate, on its merge push (Lead 2026-10-22, cut-to-live <= 25 min)
 const game = { plan: { game: 'true', browser: 'true' } };
 // Actions resolves github.event.pull_request.labels.*.name; the files use it only inside contains(...)
 const withLabelNames = (c: Ctx) => { const p = c.event.pull_request as { labels?: { name: string }[] } | undefined; if (p?.labels) Object.assign(p.labels, { '*': { name: p.labels.map(l => l.name) } }); return c; };
@@ -92,7 +93,8 @@ test('runner queue (Strategy 2026-10-12 21:5x): a push to an UNLABELLED feature 
   for (const j of ['static', 'quality-shard', 'quality']) assert.ok(ready.has(j), `${j} runs when auditor:ready is added`);
   for (const j of ['base', ...BROWSER]) assert.ok(!ready.has(j), `${j} does not run on a feature PR`);
   const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-DB' };
-  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j} on every push`);
+  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER.filter(j => !POST_PUBLISH_JOBS.includes(j))]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j} on every push`);
+  for (const j of POST_PUBLISH_JOBS) assert.ok(!schedule(Q, cand, {}, game).has(j), `release-* skips ${j}: it runs post-publish on the candidate's merge push (Lead 2026-10-22)`);
   for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, cand).has(j), `release-* unit-ci ${j}`);
   // adding auditor:ready starts unit-ci; any other label runs nothing and never shares (so never cancels) the real run's group
   const added = (l: string) => withLabelNames(pr('labeled', [l], { label: { name: l } }));
@@ -159,6 +161,13 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
   assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
   assert.ok(schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: the receipt JOB runs and its guard step goes red (fail closed, hardening item 3); no receipt artifact is made, so nothing vouches for the tree');
+});
+
+test('post-publish load times (Lead 2026-10-22): the train\'s "... candidate)" merge push runs load-time and load-time-zone1 and nothing else heavy; a plain trunk push still runs everything', () => {
+  const merged: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: { head_commit: { message: 'Merge pull request #3620 (release-K6q27 candidate)' } } };
+  const ran = schedule(Q, merged, {}, game);
+  for (const j of POST_PUBLISH_JOBS) assert.ok(ran.has(j), `${j} runs on the candidate merge push`);
+  for (const j of ['plan', 'quality-shard', 'quality', 'browser', 'net-engines', 'duel-two-page']) assert.ok(!ran.has(j), `${j}: the candidate's own PR run covered this tree`);
 });
 
 test('fail closed (the Auditor on #2476): a red static or a red plan still runs the verdict job, so a skip never stands in for a red', () => {
