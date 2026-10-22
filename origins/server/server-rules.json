@@ -134,6 +134,17 @@
       "note": "kill credit is split by damage dealt (Dom 2026-10-19, rules from Lead's donor research): a contributor qualifies at this share of the TOP contributor's damage; a hit counts for tagExpiryS seconds after the contributor's last hit (the replay drops older damage); a report may join an already-killed spawn for joinWindowS seconds after the kill, only with a token engaged before the kill; at most replaysPerAccount replays of one account queued at once (the rest pay as an unreplayed kill). A contributor whose own verified damage reaches the creature's full health is a solo kill at 100% (interim until a shared server health bar). No first-hit and no last-hit bonus."
     }
   ],
+  "worldMarks": [
+    {
+      "id": "marks",
+      "ofTop": 0.5,
+      "graceS": 5,
+      "everyS": 60,
+      "batch": 50,
+      "perHour": 6,
+      "note": "killing a ladder ROSTER fighter (a spawn row flagged roster) is one ladder mark, like a Pit duel win (migration 20261022100000, Dom 2026-10-22, Lead ruling): once the kill's join window (worldShare.joinWindowS) plus graceS seconds have passed, the whole damage ledger decides, and every account whose damage is at least ofTop of the TOP damager's earns one mark (ModernUO's qualify-at-death rule, relative to the top; credit uses the looser worldShare.qualifyOfTop). The writer settles up to batch kills every everyS seconds. Total marks stay under the beta cut (career-ladder.ts betaMarks), and an account earns at most perHour world marks an hour (Dom can tune it: the brake on farming a respawning roster)."
+    }
+  ],
   "spawnLayers": [
     {
       "id": "layers",
