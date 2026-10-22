@@ -343,8 +343,8 @@ const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag a
 const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-let hintTimer = 0;
-const armHint = (text: string) => { hint.textContent = text; clearTimeout(hintTimer); hintTimer = window.setTimeout(() => { if (!hintMoved && hint.textContent === text) hint.hidden = true; }, hintDismissSec() * 1000); };   // the box also goes at the first move; left alone it goes after hint-copy.json timing.hint.dismissSec, unless another line has taken it (a rim or say() line is not ours to hide)
+let hintTimer = 0, hintStart: (() => void) | null = null;
+const armHint = (text: string) => { hint.textContent = text; clearTimeout(hintTimer); hintStart = () => { hintTimer = window.setTimeout(() => { if (!hintMoved && hint.textContent === text) hint.hidden = true; }, hintDismissSec() * 1000); }; if (cover.lifted()) { hintStart(); hintStart = null; } };   // the box also goes at the first move; left alone it goes hint-copy.json timing.hint.dismissSec AFTER the load cover lifts (a slow load must not spend it unseen), unless another line has taken it (a rim or say() line is not ours to hide)
 if (frontier) armHint(hintLine(pageZoneId(), loadZone(), 'watch'));   // the words come from the zone's traits (its spawn rows, hint-copy.json); a zone's own row (legend-copy.json zoneHints: Dungeon 1's opponents) wins
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
@@ -776,7 +776,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) 
   zoneDome?.follow(camera); areas.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (!draw) return;   // a capture tick between shots steps the world and draws nothing
   if (gfx) gfx.render(); else renderer.render(scene, camera);
-  if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
+  if (!cover.lifted()) cover.frame(); else if (hintStart) { hintStart(); hintStart = null; }   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true, clock.getElapsedTime()); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
 renderer.setAnimationLoop(walkLoop);
