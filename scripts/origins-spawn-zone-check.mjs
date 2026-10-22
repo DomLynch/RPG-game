@@ -20,7 +20,7 @@ const fail = message => { throw Error(message); };
 let checks = 0;
 const eq = (got, want, what) => { checks++; if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`); };
 const KEYS = ['wolves-1', 'z0:town-1', 'z2:wolves-1', 'z10:x', 'z700:wolves-1', 'z1000:wolves-1', 'z01:x', 'z2wolves-1', 'z0'];
-const zones = () => Object.fromEntries(psql(`select instance || '=' || zone from public.origins_spawns order by instance`).split('\n').map(l => l.split('=')));
+const zones = () => Object.fromEntries(psql(`select instance || '=' || zone from public.origins_spawns order by instance collate "C"`).split('\n').map(l => l.split('=')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
 let started = false;
 try {
@@ -44,7 +44,8 @@ try {
   psql(readFileSync(join(dir, UP), 'utf8'));
   psql(files.filter(n => n > UP).map(n => readFileSync(join(dir, n), 'utf8')).join('\n') || 'select 1;');
   insert();
-  eq(zones(), { 'wolves-1': '1', 'z0:town-1': '0', 'z2:wolves-1': '2', 'z10:x': '10', 'z700:wolves-1': '700', 'z1000:wolves-1': '1000', 'z01:x': '1', 'z2wolves-1': '1', 'z0': '1' }, 'after: z0: reads as zone 0, every other key as before');
+  const want = { 'wolves-1': '1', 'z0:town-1': '0', 'z2:wolves-1': '2', 'z10:x': '10', 'z700:wolves-1': '700', 'z1000:wolves-1': '1000', 'z01:x': '1', 'z2wolves-1': '1', 'z0': '1' };
+  eq(Object.entries(zones()), Object.entries(want).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)), 'after: z0: reads as zone 0, every other key as before');
   eq(psql(`select count(*) from pg_indexes where tablename = 'origins_spawns' and indexname = 'origins_spawns_zone'`), '1', 'the zone index is back');
   eq(psql(`select is_generated from information_schema.columns where table_name = 'origins_spawns' and column_name = 'zone'`), 'ALWAYS', 'the column is still generated');
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
