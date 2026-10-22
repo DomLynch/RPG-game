@@ -5,6 +5,8 @@ import { CENTRE_CM, PORTALS, REJOIN_EDGE, TRADE_ZONES, ZONE_ROWS, clearOfTradeAr
 import { exchangePlace } from '../server/upgrade.ts';
 import { BANK_PLACE } from '../../src/core/server.ts';
 import type { WhereFn } from './where.ts';
+import { allZoneIds, loadZone } from '../zones/loader.ts';
+import { frontierPlan } from '../preview/frontier-plan.ts';
 
 test('launch values: speed 1 everywhere and the Pit the only quiet zone', () => {
   for (const z of ZONE_ROWS) assert.deepEqual([z.id, z.speed, z.quiet], [z.id, 1, z.id === 'pit-yard']);
@@ -37,6 +39,20 @@ test('the trade areas are the rows flagged trade: the Exchange today, with its o
   const bank = landmarkCm('exchange', 'bank');
   assert.deepEqual(clearOfTradeAreas(bank.x, bank.z), REJOIN_EDGE, 'a spot in the Exchange rejoins at its edge');
   assert.deepEqual(clearOfTradeAreas(CENTRE_CM, CENTRE_CM), { x: CENTRE_CM, z: CENTRE_CM }, 'a spot elsewhere is left alone');
+});
+
+// Presence refuses to start on a bad trade row (zones.ts, at import). This test runs the same checks over EVERY shipped row, listed or unlisted, so a bad row reds CI and never reaches a live presence restart.
+test('every shipped trade row (town-zones.json and every zone package, unlisted too) names a rejoin landmark that exists, and loads clean', () => {
+  assert.ok(rejoinOf('exchange'), 'the shipped town-zones.json trade row resolved its rejoin point at load');
+  for (const id of allZoneIds()) {
+    const z = loadZone(id, true);   // throws on any zoneProblems: trade without rejoin, rejoin without trade, a presence key that is no world zone
+    for (const [w, p] of Object.entries(z.presence ?? {})) {
+      if (p.trade !== true) continue;
+      const plan = frontierPlan(true, id).zones.find((q) => q.zone === w);
+      assert.ok(plan, `${id}/${w}: a trade zone has a placed plan`);
+      assert.ok(plan.landmarks[p.rejoin!], `${id}/${w}: rejoin landmark "${p.rejoin}" exists`);
+    }
+  }
 });
 
 test('landmarkCm resolves a zone package landmark as well as a town one', () => {
