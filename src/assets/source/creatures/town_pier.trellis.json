@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/pier-source-v1.png",
+  "preprocess_s": 12.8,
+  "image_to_3d_s": 37.6,
+  "extract_glb_s": 24.8,
+  "glb": "src/assets/source/creatures/town_pier.glb",
+  "bytes": 4404428,
+  "sha256": "4b950a4d4cea2f5f7b05ced681344d9456b0668b4146dad4f85fc5e4976c0771",
+  "attempts": 1
+}

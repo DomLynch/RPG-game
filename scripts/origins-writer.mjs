@@ -20,6 +20,8 @@ import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
 import { presenceLayerCounts, presenceLayers, presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
 import { createSpawnJanitor } from '../origins/server/spawn-janitor.ts';
+import { createMarksSettler } from '../origins/server/world-marks.ts';
+import { rosterSpawnIds } from '../origins/server/world-spawns.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
@@ -65,9 +67,16 @@ const spawnFlagProblem = spawnFlagError(process.env, presenceKey);   // the laye
 if (spawnFlagProblem) { console.error(`origins-writer: ${spawnFlagProblem}`); process.exit(1); }
 const spawnJanitor = spawnLayersOn && presenceKey ? createSpawnJanitor(db, presenceLayers(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey)) : undefined;
 spawnJanitor?.start();
+// World marks (migration 20261022100000; OFF unless ORIGINS_WORLD_MARKS=1, set once the migration is applied): killing a ladder roster fighter (a spawn row flagged `roster`) is a ladder mark, settled from the
+// damage ledger once the kill's join window has closed. Without the migration the settle answers null and logs nothing; without a roster spawn it does nothing.
+const marksContent = process.env.ORIGINS_WORLD_MARKS === '1' ? loadEncounterContent() : null;
+if (marksContent && !marksContent.ok) { console.error('origins-writer: ORIGINS_WORLD_MARKS=1 but the encounter content does not load'); process.exit(1); }
+const rosterIds = marksContent ? rosterSpawnIds(marksContent.value) : [];
+const marksSettler = marksContent ? createMarksSettler(db, () => rosterIds) : undefined;
+marksSettler?.start();
 // Dynamic respawn inside a layer (rows `dynamicRespawn`; the kill switch is unsetting it): a crowded layer respawns its creatures faster, down to a floor. Needs the layers flag (the layer is what it reads), the presence key
 // and ORIGINS_DAMAGE_SHARE (checked above by spawnFlagError): the damage-share pre-check is what holds the cross-layer hop window at the row respawn.
 const dynamicRespawnOn = process.env.ORIGINS_DYNAMIC_RESPAWN === '1';
 const layerCounts = dynamicRespawnOn && presenceKey ? presenceLayerCounts(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : undefined;
 const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1', damageShare: process.env.ORIGINS_DAMAGE_SHARE === '1', spawnLayers: spawnLayersOn, dynamicRespawn: dynamicRespawnOn, layerCounts }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
-for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); spawnJanitor?.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); spawnJanitor?.stop(); marksSettler?.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });

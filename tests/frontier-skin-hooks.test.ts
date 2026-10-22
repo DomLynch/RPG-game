@@ -28,7 +28,7 @@ const solidsKey = (b: Build) => JSON.stringify(b.solids);
 const brickCount = (b: Build) => b.pieces.filter((p) => !(p.tint[0] === MARK[0] && p.tint[1] === MARK[1])).length;
 
 test('no skin: the build is what it was (Zone 1 pins) and has no models', () => {
-  assert.deepEqual([base.pieces.length, base.solids.length, base.people.length, base.boards.length, base.models.length], [178, 61, 8, 22, 0]);   // 175/60/8/21 -> 178/61/8/22 (2026-10-22, beta gate: zones 3-5 unlisted, the cave-mouth door closed; Dom 10-22)   // 174/59 -> 175/60 (2026-10-20, the `shrine-field` landmark's stone post and collider)
+  assert.deepEqual([base.pieces.length, base.solids.length, base.people.length, base.boards.length, base.models.length], [180, 61, 8, 23, 0]);   // 177/60/8/22 -> 180/61/8/23 (2026-10-22, the beta gate, Dom 10-22: the cave-mouth door to the unlisted Bone Hollow closes; Zone 1 keeps its landmark as a plain post and a sign);175 -> 177 pieces and 21 -> 22 boards (2026-10-22, zone 0 listed: the open door to the town keeps the exchange-gate landmark and its signpost, the sign being the new board); 174/59 -> 175/60 (2026-10-20, the `shrine-field` landmark's stone post and collider)
   assert.equal(JSON.stringify(frontierBuild(f, null)), JSON.stringify(base), 'null skin = default');
 });
 

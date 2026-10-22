@@ -30,7 +30,7 @@ import { paceOf } from './pace.ts';
 import { ticksFor,MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
-import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './units.ts';
+import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND, bandMultiplier } from './units.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
 // Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
@@ -42,7 +42,7 @@ const KILL = SERVER_RULES.worldKill[0]!, SHARE = SERVER_RULES.worldShare[0]!;   
 export const SLACK = KILL.slack;
 const MAX_HITS = KILL.maxHits, ENGAGE_TOKEN_BYTES = KILL.engageTokenBytes;   // rows of the worldKill table: the most hits a report may claim; the random bytes of a spawn-engage token
 const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
-const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
+const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * bandMultiplier(ROLL_BAND) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
 const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained ? [m.chained.windup] : [])]));
 const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.recovery, ...(m.chained ? [m.chained.windup + m.chained.active + m.chained.recovery] : [])]));
@@ -56,7 +56,7 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
-export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's)
+export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number; loot?: string; roster?: true };   // loot: the spawn row's own loot table (mobBatch rolls it in place of the character's); roster: the row says killing it is a ladder win (world-marks.ts)
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
@@ -64,11 +64,13 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
   for (const spec of mobSpecs(f, frontierBuild(f), rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    const loot = rows.find((r) => r.id === spec.character)?.loot;
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}) });
+    const row = rows.find((r) => r.id === spec.character), loot = row?.loot;
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content, undefined, zoneId) / MS_PER_SECOND), ...(loot ? { loot } : {}), ...(row?.roster === true ? { roster: true as const } : {}) });
   }
   return out;
 }
+/** The spawn instance ids (the database's spawn keys) of every listed zone whose row says `roster`: the kills the world-marks settle may turn into ladder marks. */
+export const rosterSpawnIds = (content: EncounterContent): string[] => listedZoneIds().flatMap((zoneId) => [...zoneSpawns(content, zoneId).values()].filter((s) => s.roster === true).map((s) => s.spec.id));
 export const defaultZoneSpawns = (content: EncounterContent): Map<string, Spawn> => zoneSpawns(content, DEFAULT_ZONE);
 // The database's spawn key is the spec id as it is: Zone 1 ids are the live rows, Zone N >= 2 ids already carry `z<N>:` (migration 202610090016's rule), so two zones never share a creature's life.
 // A zone id is its folder number: one or more digits, no leading zero, no ceiling (migration 202610090017's rule). A key that starts like a zone (`z` and a digit) but does not parse is NOT Zone 1: null,

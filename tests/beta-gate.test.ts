@@ -7,7 +7,7 @@ import { openExits } from '../origins/zones/exits.ts';
 
 test('a normal build lists only the beta zones: zones 3, 4, 5 and 6 are unlisted and cannot be loaded', () => {
   assert.equal(process.env.VITE_UNLISTED_ZONES, undefined, 'the closed build: no opt-in in this process');
-  assert.deepEqual(zoneIds(), ['1', '2']);
+  assert.deepEqual(zoneIds(), ['0', '1', '2', '7']);   // beta = Zone 0 (the town), Zone 1, Zone 2 and Dungeon 1 (zone 7): Zone 0 and zone 7 were listed after this test was written
   for (const id of ['3', '4', '5', '6']) assert.throws(() => loadZone(id), /no zone/, `zone ${id} is closed on a normal build`);
 });
 test('the doors to the closed zones are closed too: no open exit leads to zone 5 (the cave mouth) or 6 (the crypt), and the doors exist for the opt-in build', () => {

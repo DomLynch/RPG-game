@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/column-source-v1.png",
+  "preprocess_s": 9.8,
+  "image_to_3d_s": 24.4,
+  "extract_glb_s": 24.5,
+  "glb": "src/assets/source/creatures/town_column.glb",
+  "bytes": 4800800,
+  "sha256": "afea55daf995dcb62e477d6b82606e5e812c3ccbc6f6981b4e019b4a8cbe0e0d",
+  "attempts": 1
+}

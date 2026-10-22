@@ -45,7 +45,7 @@ const memo = new Map<string, MobLook>();
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 /** Variant `v` (0..VARIANTS-1) of a kind: the same object every call, so the cloth-clone cache is one entry per (kind, v), at most VARIANTS a kind. */
 export function variantLook(id: string, v: number, zone: Zone = loadZone()): MobLook | null {
-  const base = mobLook(id, zone), spread = zone.mobLooks?.spread[id] ?? MOB_SPREAD[id];
+  const base = mobLook(id, zone), spread = zone.mobLooks?.spread?.[id] ?? MOB_SPREAD[id];   // `?.` on spread too: a zone with looks and no spreads is valid (zoneProblems checks the shape at load)
   if (!base || !spread || v % VARIANTS === 0) return base;
   v = ((v % VARIANTS) + VARIANTS) % VARIANTS;
   const key = `${zone.id}:${id}#${v}`, known = memo.get(key); if (known) return known;

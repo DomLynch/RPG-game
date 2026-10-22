@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A small blacksmith's forge building front: a stone-and-marble back wall with a tall chimney, an open brick hearth with an iron anvil and tools rack beside it, a dark timber lean-to roof with crimson trim, soot-stained, whole small structure visible. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 67.6,
+  "sha256": "7257830e3396095ae4a956d32f851be42d40ab97a1d447273bf216027eeaf461"
+}

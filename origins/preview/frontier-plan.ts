@@ -15,6 +15,7 @@ import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Piece } from './exchange-plan.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
+import { planFor } from '../zones/plan.ts';
 import { frontierBlock, frontierRule } from './frontier-plan-rules.ts';
 import { off } from './frontier-geom.ts';
 import type { BuildingSkin, ModelPlacement } from './frontier-skin.ts';
@@ -33,6 +34,7 @@ export type Giver = { character: CharacterId; name: string; at: At; bounty: Boun
 export type Frontier = {
   zone: string;   // the zone package this plan is for (frontierPlan's zoneId)
   zones: ZonePlan[];
+  pit: boolean;   // the page owns the Pit yard (a town zone's page does not: its row names only some of the concord zones)
   road: { from: Point & { z: number }; to: { x: number; z: number }; width: number; facing: number; inward: number }; // the west road, world metres
   signs: Sign[];
   giver: Giver;
@@ -68,16 +70,16 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
   if (!mounts.ok) throw new Error('the Exchange mounts do not resolve');
   const exZones = data.zones.get(EXCHANGE)!, frZones = data.zones.get(FRONTIER)!;
   const townOf = (region: RegionId, zone: string) => data.towns.find((t) => t.region === region && t.zone === zone) ?? null;
-  const zones: ZonePlan[] = [
-    zonePlan(EXCHANGE, 'pit-yard', exZones.get('pit-yard')!, mounts.value.pit, null),
-    zonePlan(EXCHANGE, 'exchange', exZones.get('exchange')!, mounts.value.exchange, null),
-  ];
+  const owned = new Set(loadZone(zoneId).world);
+  const pitYard = zonePlan(EXCHANGE, 'pit-yard', exZones.get('pit-yard')!, mounts.value.pit, null), exchange = zonePlan(EXCHANGE, 'exchange', exZones.get('exchange')!, mounts.value.exchange, null);
+  // The concord zones (the Pit yard, the Exchange) are on every page, unless the page's zone row names some of them in `world` (a town zone): then only those it names (the rows say which, no zone id in code).
+  const concordOwned = [pitYard, exchange].filter((q) => owned.has(q.zone)), zones: ZonePlan[] = concordOwned.length ? concordOwned : [pitYard, exchange];
   // The west road: the Exchange's passage out of its west gate, along the gate's facing.
-  const ex = exZones.get('exchange')!, exM = toMetres(ex), road = exM.passages['west-road']!, gate = zones[1]!.landmarks['west-gate']!;
+  const ex = exZones.get('exchange')!, exM = toMetres(ex), road = exM.passages['west-road']!, gate = exchange.landmarks['west-gate']!;
   const end = toWorld(road.to, mounts.value.exchange), start = toWorld(road.from, mounts.value.exchange);
   // Across the portal pair: the east road's exchange gate stands at the road's end, facing back down it.
   const portal = data.registry.regions.get(EXCHANGE)!.portals.find((q) => q.to === FRONTIER)!, back = data.registry.regions.get(FRONTIER)!.portals.find((q) => q.id === portal.toPortal)!;
-  if (portal.at !== 'west-gate') throw new Error(`the Frontier portal is at ${portal.at}, not the west gate`);
+  if (portal.at !== ex.passages['west-road']!.from) throw new Error(`the Frontier portal is at ${portal.at}, not the west road's gate ${ex.passages['west-road']!.from}`);   // the west road leaves from the gate the portal pair stands at (both are rows)
   const firstZone = [...frZones].find(([, p]) => Object.hasOwn(p.layout, back.at))![0];
   const placed = new Map<string, ZonePlan>();
   const first = zonePlan(FRONTIER, firstZone, frZones.get(firstZone)!, mountAt(frZones.get(firstZone)!, back.at, end, gate.facing + Math.PI), townOf(FRONTIER, firstZone));
@@ -92,7 +94,9 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
       placed.set(c.to, next); queue.push(next);
     }
   }
-  const owned = new Set(loadZone(zoneId).world), kept = [...placed.values()].filter((q) => owned.has(q.zone));
+  // A zone no road reaches (a free-standing place, like a dungeon bowl whose plan rows are keyed by its own id) stands centred on its plan's `origin` mark (the world's origin when the plan has none), so its landmarks are in the page's own frame.
+  for (const [id, q] of frZones) if (!placed.has(id) && owned.has(id)) { const { depth } = toMetres(q), at = planFor(zoneId, () => 0)?.marks?.origin; placed.set(id, zonePlan(FRONTIER, id, q, { x: at?.x ?? 0, z: (at?.z ?? 0) - depth / 2, heading: 0 }, townOf(FRONTIER, id))); }
+  const kept = [...placed.values()].filter((q) => owned.has(q.zone));
   // A link this page does not walk leaves nothing behind: its landmark (the post and collider it would draw) goes too, unless a kept link or a spawn stands on it.
   const spawnAt = new Set(data.registry.regions.get(FRONTIER)!.spawns.map((s) => s.at));
   const doors = exitSpots(zoneId, [...owned], openExits());   // a door to another zone page (zones/exits.ts) keeps its landmark: the page draws the way in and the player lands on it
@@ -127,7 +131,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
     at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, frontierRule('giverStand')), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
   if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
-  return { zone: zoneId, zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
+  return { zone: zoneId, zones, pit: zones.includes(pitYard), road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
 }
 // A spot `metres` from a building toward the town centre, facing the centre: where its keeper stands.
 function standBefore(building: At, centre: { x: number; z: number }, metres: number): At {

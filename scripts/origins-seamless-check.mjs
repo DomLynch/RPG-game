@@ -36,7 +36,8 @@ try {
   await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
   const want = process.env.SEAMLESS_TARGET || '';   // a creature id to engage (default: the first drawn one), e.g. bounty-shrine-1 or wolves-1
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
-  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.find((m) => (id ? m.id === id : m.drawn && m.body)), want);
+  // The default foe is the drawn creature farthest from any legend boss: a legend notices a hero inside its aggro radius and opens the verified duel (Dom 2026-10-22: bosses aggro like every NPC), which is the legend row's business (legend-fight.test.ts), not the engage hitch's. K6q20 #3596: the walk stood 2.5 m from scavengers-1, 10 m from the Zone 1 kobold, and the duel took the canvas before [zone ready]. Zones with no legend keep the first drawn creature.
+  const target = await page.evaluate((id) => { const all = window.originsPreview.mobs().mobs, legends = all.filter((m) => /legend/.test(m.id)); if (id) return all.find((m) => m.id === id); const clear = (m) => legends.reduce((d, l) => Math.min(d, Math.hypot(m.x - l.x, m.z - l.z)), Infinity); return all.filter((m) => m.drawn && m.body && !/legend/.test(m.id)).reduce((best, m) => (!best || clear(m) > clear(best) ? m : best), null); }, want);
   assert.ok(target, `no creature ${want}`); receipt.zone = zone; receipt.target = { id: target.id, body: target.body };
   const moved = async (ms) => {
     const read = () => page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => ({ id: m.id, x: m.x, z: m.z })));

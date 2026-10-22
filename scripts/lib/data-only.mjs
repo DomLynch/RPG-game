@@ -19,6 +19,9 @@ export const DATA_PATHS = [
   /^origins\/region1\/hazards(\.manifest)?\.json$/,   // the Bounty hazards as rows (a hazard is one row: id, order, the line the player reads)
   /^origins\/world\/clock(\.manifest)?\.json$/,   // time of day as rows: day parts, the lawful/chaotic clock bonus, night spawns, seeded weather picks (World 2026-10-13); origins/world/clock.test.ts checks it
   /^origins\/npcs\/cloth(\.manifest)?\.json$/,   // the townspeople's worn pieces and slots as rows (a piece is one row plus a glb node)
+  /^origins\/region1\/legend-foes(\.manifest)?\.json$/,   // the Pit legend character TEMPLATE row (Combat 2026-10-22): the id prefix, the kill row, the loot table and the character record every legend is made from; origins/region1/legend-foes.ts fills it from the legend tables
+  /^origins\/preview\/legend-copy(\.manifest)?\.json$/,   // what a player reads for a Pit legend in the world (Combat 2026-10-22): card, kill and zone hint copy as rows; origins/preview/legend-copy.test.ts checks them (no creature / loot / slain words)
+  /^origins\/dungeon\/bowl-roster(\.manifest)?\.json$/,   // Dungeon 1's ring roster as rows (Combat 2026-10-22): per ring the level band and the creature groups; origins/dungeon/bowl-roster.test.ts checks it
   /^origins\/boss\/legend-spawns(\.manifest)?\.json$/,   // where a legend boss stands: one row per placement (legend, zone, landmark); origins/boss/legend-boss.test.ts checks it
   /^origins\/world\/instances(\.manifest)?\.json$/,   // private instance kinds as rows (World 2026-10-13): slots, stride, grace/max seconds, headcount spawn; origins/world/instances.test.ts checks it
   /^origins\/world\/variants(\.manifest)?\.json$/,   // creature variants as rows (World 2026-10-13): weight, health/damage/scale multipliers, tint, glyph, drop prefix, eligible creatures; origins/world/variants.test.ts checks it

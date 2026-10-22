@@ -1,0 +1,22 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "375",
+      "file": "town-pit-door-375.png",
+      "pos": {
+        "x": 0,
+        "z": -37
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "town-pit-door-desktop.png",
+      "pos": {
+        "x": 0,
+        "z": -37
+      }
+    }
+  ],
+  "errors": []
+}

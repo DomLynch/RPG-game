@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "kitView",
+      "file": "kit-view.json",
+      "at": "kitView",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

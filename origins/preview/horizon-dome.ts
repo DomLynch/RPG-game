@@ -93,7 +93,7 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
       const geometry = k === 0 ? g : new THREE.SphereGeometry(dist, 48, 16, phiMid + (k * 2 * Math.PI) / around - arc / 2, arc, bottom - hRad, hRad);
       const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: k % 2 ? tm : t, side: b.flat ? THREE.FrontSide : THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); m.renderOrder = mesh.renderOrder + 1; m.frustumCulled = false; group.add(m);
     }
-    group.position.copy(mesh.position); scene.add(group); sector = group; sectorOf = b;
+    group.position.copy(mesh.position); group.visible = mesh.visible; scene.add(group); sector = group; sectorOf = b;
   };
   const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; if (b.arc !== undefined) { showSector(img, b); return; } dropSector(); const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch((e: unknown) => console.warn('zone dome: the backdrop did not paint; the painted sky stays', b.file, e)); };   // a missing picture leaves the painted sky
   // The sector's material is a TRANSPARENT MeshBasicMaterial with a map: a program the opaque dome does not share, and its picture arrives after the file loads. A zero-scale twin with the same settings is drawn from the first frame, so that program is built before [zone ready] and the picture's arrival (or the engage that turns the camera to it) compiles nothing (seamless-quiet, K2b/K2c 2026-10-19).
@@ -103,5 +103,5 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
     warm.name = 'horizon-sector-warm'; warm.scale.setScalar(0); warm.frustumCulled = false; scene.add(warm);
   }
   show(); shape?.addEventListener('change', show);
-  return { mesh, covers: 'sky' /* the Pit's sky mesh name (src/arena.ts): the zone dome replaces it */, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); sector?.position.copy(mesh.position); }, dispose() { alive = false; shape?.removeEventListener('change', show); dropSector(); if (warm) { scene.remove(warm); warm.geometry.dispose(); (warm.material as THREE.Material).dispose(); } scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
+  return { mesh, setVisible(v: boolean) { mesh.visible = v; if (sector) sector.visible = v; }, covers: 'sky' /* the Pit's sky mesh name (src/arena.ts): the zone dome replaces it */, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); sector?.position.copy(mesh.position); }, dispose() { alive = false; shape?.removeEventListener('change', show); dropSector(); if (warm) { scene.remove(warm); warm.geometry.dispose(); (warm.material as THREE.Material).dispose(); } scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
 }

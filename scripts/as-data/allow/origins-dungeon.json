@@ -1,0 +1,8 @@
+{
+  "tunables": [
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "PAIR", "kind": "exempt", "reason": "the length of a [lo, hi] pair: the loader's shape check, not tuning", "owner": "Combat & Specials"},
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the farthest a camp at a ring's mid-radius may scatter and stay inside the ring, a geometric constant, not tuning", "owner": "Combat & Specials"},
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "ROAM_PER_LEASH", "kind": "exempt", "reason": "the spawn row contract's own validation rule (src/core/world/row.ts): roam is at most a third of the leash; a format rule the loader mirrors, not tuning", "owner": "Combat & Specials"},
+    {"file": "origins/dungeon/bowl-roster.ts", "name": "TENTH", "kind": "exempt", "reason": "one decimal place: how finely metres are rounded, a format choice, not tuning", "owner": "Combat & Specials"}
+  ]
+}

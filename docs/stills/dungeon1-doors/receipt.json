@@ -1,0 +1,9 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "shots": [
+  "start-375.png",
+  "yard-door-375.png"
+ ],
+ "errors": [],
+ "zoneName": "Frankendom — Dungeon 1"
+}

@@ -26,7 +26,8 @@ test('every recipe of the kit is there, bounded by its rows: fires with embers, 
   assert.ok(K.fires.length >= 1 && K.fires.length <= ['fires', 'torches', 'gate-torch-1', 'gate-torch-2'].reduce((n, id) => n + recipesOf(KIT).find((r) => r.id === id)!.count, 0), `${K.fires.length} fires`);   // the camp fires, the wall's torch ring and the two gate torches
   const flames = recipesOf(KIT).filter((r) => r.props.some((w) => w.prop === 'torch-flame')).length;   // a standing torch is one fire with two flame cones on the coal layer
   assert.equal(p.filter((q) => q.layer === 'coal').length, K.fires.length + flames, 'one ember disc per fire pit, two flame cones per standing torch, on the coal layer');
-  assert.ok(has('cone', 20) && has('sphere', 1) && has('cylinder', 20) && has('box', 40), 'stakes, a skull, poles and bones');
+  assert.ok(has('cone', 5) && has('sphere', 1) && has('cylinder', 20) && has('box', 40), 'a skull, poles and bones, and the totems\' horns');   // cone 20 -> 5 (2026-10-22, the palisade border cut: the central stakes left the rows, so the part-built kit has 10 cones, all from totems and torches)
+  assert.ok(propKit(F, B, BASE, goblinZone(), KIT, undefined, true).models.some((m) => m.node.includes('palisade')), 'the palisades are still there: the outskirts rim draws them as models');
   assert.ok(p.length > 100 && p.length < 600, `${p.length} pieces`);
 });
 test('a prop is its parts turned and scaled: a ring part repeats round the axis, the yaw turns the offsets, and a scale of 2 doubles every size and offset', () => {
