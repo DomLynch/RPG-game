@@ -62,8 +62,7 @@ export function oraclePlan(a: Anchors, k: Knobs): Plan {
   put('stone', box(W - 1, 1.5, 2.2), bx, deck + 9 + 0.75, front, SANDSTONE);
   put('stone', box(W, 0.4, 2.6), bx, deck + 10.7, front, SANDSTONE);
   put('stone', ['pediment', W, 3.4, 2.2], bx, deck + 10.9, front, SANDSTONE);
-  put('stone', box(W - 2, 12.5, 6), bx, deck + 6.25, front - 5.2, DARKSTONE, 0, deck);
-  put('soot', box(4.6, 6.2, 0.3), bx, deck + 3.1, front - 2.1, SOOT);
+  // No dark-brick body behind the bank's pillars and no door slab on it (Dom 2026-10-22: the wall hid the skyline); the iron door leaves and rivets stay.
   for (const side of [-1, 1]) put('iron', box(2.1, 5.8, 0.18), bx + side * 1.1, deck + 2.9, front - 1.85, [1.6, 1.2, 0.75]);
   for (let i = 0; i < 24; i++) put('iron', ['sphere', 0.07, 6, 4], bx + (i % 2 ? 1 : -1) * (0.4 + (i % 4 < 2 ? 0 : 1.3)), deck + 0.8 + Math.floor(i / 4) * 0.9, front - 1.74, [2.2, 1.6, 0.9]);
 

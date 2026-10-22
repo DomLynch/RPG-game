@@ -32,7 +32,7 @@ test('the Exchange carries a plan; every source its anchors name is one its worl
 });
 test('at the shipped anchors the rows build exactly what the code built', () => {
   assert.deepEqual(greybox(exchangePlan()), oraclePlan(A, K));
-  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 203);   // 205 -> 203 (2026-10-22): the two edge kerbs (piece-029/030) are gone;   // 215 -> 205 (2026-10-22): the two stoa back walls and their eight soot streaks are gone
+  assert.equal(PLAN_ROWS.pieces.filter((p) => p.zone === 'exchange').length, 201);   // 205 -> 203 -> 201 (2026-10-22): the two edge kerbs (piece-029/030) and the bank's rear block and door slab (piece-138/139) are gone;   // 215 -> 205 (2026-10-22): the two stoa back walls and their eight soot streaks are gone
 });
 test('every source, moved a little, moves the same pieces by the same amounts as the code did', () => {
   for (const s of sources) for (const d of [0.05, -0.05]) compare({ ...base, [s]: base[s]! + d }, `${s} ${d}`);
