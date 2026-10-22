@@ -75,7 +75,7 @@ export type Mobs = {
   setAggro(id: string, aggro: number): number | null;   // a creature's notice radius for now (the war band's rally); returns the one it had so the caller can restore it
   locate(body: string, x: number, z: number): { x: number; z: number } | null;   // the nearest creature of a body to a point, drawn or not (a test link `?fight=wolf` walks the hero to a wolf that is still out of draw range)
   fellOthers(keep: string): void;        // every creature of the zone but one, drawn or not: a test link's one-on-one fight (?fight=)
-  warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
+  warmState(): { kinds: string[]; warmed: string[]; failed: string[]; linked: string[] };   // `linked`: the kinds whose warm-up really finished (warmed also counts a kind the reveal bound released); the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
 };
 const RESPAWN = previewRule('clientRespawn');   // s
 const WARM_BOUND_MS = previewRule('warmBound');   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
