@@ -337,7 +337,7 @@ done
 [[ -z "$look_missing" ]] || echo "look-test folders not serving:$look_missing" >&2   # shares no words with the production LIVE line raised at the end: the resume greps for that one to STOP
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
 # A drift stops the train ONLY when this release did not change the vhost: a release that does (K6q17 #3568, K6q19 #3582) is the announced case, provision.sh follows the Published line, and
-# stopping there made the train raise "previews missing" for a healthy release (two false STOPs on 2026-10-22, each a manual clear). Unexplained drift still stops.
+# stopping there made the train raise a false previews failure for a healthy release (two false STOPs on 2026-10-22, each a manual clear). Unexplained drift still stops.
 # nginx-drift begin
 nginx_drift_expected() {   # $1 the outgoing live sha, $2 this revision: 0 only when both are real commits and the vhost paths differ between them
   [[ "$1" =~ ^[0-9a-f]{40}$ ]] || return 1
