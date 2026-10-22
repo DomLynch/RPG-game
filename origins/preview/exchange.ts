@@ -5,7 +5,7 @@ import { previewRule } from './preview-rules.ts';
 import { skinModels } from '../world/building-skins-rules.ts';
 import { greyboxOfSkins, skinPlacements } from './exchange-skin.ts';
 import type { ModelPlacement } from './frontier-skin.ts';
-import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
+import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Figure, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
 // bank's front. Blocking only: massing, scale, light and the arena's own materials, so Dom judges proportion and mood before any asset.
@@ -82,7 +82,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   return fallbacks;
 }
 
-export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
+export type Exchange = { group: THREE.Group; fallbacks: Map<string, THREE.Group>; capsules: Map<string, THREE.Mesh>; people: Figure[]; skins: ModelPlacement[]; braziers: THREE.Vector3[]; hearth: THREE.Vector3 | null; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -93,9 +93,11 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
     awning.position.set(a.x, a.y, a.z); awning.rotation.set(-Math.PI / 2 + 0.18, 0, 0); awning.castShadow = awning.receiveShadow = true;
     group.add(awning); awnings.push(awning);
   }
+  const capsules = new Map<string, THREE.Mesh>();   // a person's greybox capsule by row id: the fallback, hidden when that person's body lands (town-people.ts)
   for (const f of plan.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
     body.position.set(f.x, 0.87, f.z); body.castShadow = true; group.add(body);
+    if (f.npc) capsules.set(f.npc.id, body);
   }
 
   // The paving and the masonry each get a clone of the arena's stone, so a look (look.ts) can grade them apart; untinted they are the arena's stone to the eye.
@@ -107,7 +109,7 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
   }
 
   return {
-    group, ground, stone, fallbacks, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
+    group, ground, stone, fallbacks, capsules, people: plan.people, skins: skinPlacements(plan.pieces), braziers: plan.braziers.map((b) => new THREE.Vector3(b.x, 0, b.z)), hearth: plan.hearth ? new THREE.Vector3(plan.hearth.x, plan.hearth.y, plan.hearth.z) : null,
     update(time: number) {
       for (const c of [ground, stone]) if (c.map !== m.stone.map) { c.map = m.stone.map; c.normalMap = m.stone.normalMap; c.needsUpdate = true; }   // the arena swaps its heavy stone textures in late; the clones follow
       awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; });
