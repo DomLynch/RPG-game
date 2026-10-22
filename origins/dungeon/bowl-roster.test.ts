@@ -20,7 +20,7 @@ const BASES = new Map<string, MobRow>([...(ZONE1.spawns.rows as unknown as MobRo
 const base = (c: string): RowBase | undefined => BASES.get(c);
 const LOOKS = (ZONE7 as unknown as { mobLooks: { looks: Record<string, { opponent: string }> } }).mobLooks.looks;   // zone 7's own dress for its creatures (a creature with none draws as a capsule)
 const ctx: RowContext = { look: (id) => LOOKS[id] ?? null, lootTables: new Set(frontierPlan().data.registry.lootTables.keys()) };
-type RawRing = { zone: string; landmark: string; levels: number[]; aggro: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
+type RawRing = { zone: string; landmark: string; levels: number[]; aggroShare: number; spreadShare: number; roamShare: number; leashShare: number; groups: { id: string; character: string; camps: number }[] };
 type Raw = { rings: { outer: RawRing; middle: RawRing; floor: RawRing } };
 const clone = () => JSON.parse(JSON.stringify(RAW)) as Raw;
 
@@ -93,15 +93,15 @@ test('zone 7\'s shipped place.spawns are exactly the roster placements (a drift 
   for (const r of rings) assert.ok(r.levels[0] >= band[0] && r.levels[1] <= band[1], `${r.id} levels ${r.levels} sit in the zone band ${band}`);
 });
 
-test('every camp stays inside its own ring: the spot\'s radius from the bowl\'s centre +- the row\'s spread lies between the ring\'s edges (no creature in the wall, none in the next ring)', () => {
+test('no camp\'s notice ring reaches another ring: the spot\'s radius from the bowl\'s centre +- (the row\'s spread + its aggro) lies between its own ring\'s edges, so standing in one ring never pulls another (roam is on top of this by up to 2.6 m)', () => {
   const rings = loadBowlRings(known), size = (ZONE7.place as unknown as { zones: Record<string, { zoneSize: { width: number; depth: number } }> }).zones['dungeon-bowl']!.zoneSize;
   const at = LAYOUT as Record<string, { u: number; v: number }>, rows = new Map(ZONE7.spawns.rows.map((r) => [r.id, r] as const));
   const spots = (ZONE7.place as unknown as { spawns: { id: string; at: string; characters: string[] }[] }).spawns;
   assert.ok(spots.length > 0);
   for (const p of spots) {
     const ring = rings.find((r) => r.groups.some((g) => g.character === p.characters[0]))!, e = ringEdges(ring.zone, ring.landmark)!, s = at[p.at]!;
-    const radius = Math.hypot((s.u - 0.5) * size.width, (s.v - 0.5) * size.depth), spread = rows.get(p.characters[0]!)!.behaviour.spread!;
-    assert.ok(radius - spread >= e.inner - 0.05 && radius + spread <= e.outer + 0.05, `${p.id}: spot ${p.at} at r ${radius.toFixed(1)} with spread ${spread} reaches ${(radius - spread).toFixed(1)}..${(radius + spread).toFixed(1)}, outside ${ring.id} ${e.inner}..${e.outer}`);
+    const radius = Math.hypot((s.u - 0.5) * size.width, (s.v - 0.5) * size.depth), b = rows.get(p.characters[0]!)!.behaviour, reach = b.spread! + b.aggro!;
+    assert.ok(radius - reach >= e.inner - 0.05 && radius + reach <= e.outer + 0.05, `${p.id}: spot ${p.at} at r ${radius.toFixed(1)} with spread ${b.spread} + aggro ${b.aggro} notices ${(radius - reach).toFixed(1)}..${(radius + reach).toFixed(1)}, outside ${ring.id} ${e.inner}..${e.outer}`);
   }
 });
 
@@ -122,10 +122,11 @@ test('the loader refuses what would put a creature wrong: overlapping bands, unk
   bad((d) => { d.rings.outer.zone = '9'; }, /not a zone/);
   bad((d) => { d.rings.outer.landmark = 'the-yard'; }, /no landmark/);
   bad((d) => { d.rings.floor.groups = []; }, /at least one group/);
-  bad((d) => { d.rings.outer.aggro = 0; }, /aggro must be positive/);
+  bad((d) => { d.rings.outer.aggroShare = 0; }, /aggroShare must be positive/);
+  bad((d) => { d.rings.middle.aggroShare = 0.4; }, /above half the ring/);   // 0.4 + the 0.2 spread: the notice ring of an edge member would reach the next ring
   bad((d) => { d.rings.outer.roamShare = 1.5; }, /roamShare/);
   bad((d) => { d.rings.outer.roamShare = 0.5; }, /a third of leashShare/);
-  bad((d) => { d.rings.middle.spreadShare = 0.8; }, /spreadShare 0.8 must be in/);
+  bad((d) => { d.rings.middle.spreadShare = 0.8; }, /spreadShare 0.8 is above half the ring/);
   bad((d) => { d.rings.floor.spreadShare = 0; }, /spreadShare/);
   bad((d) => { d.rings.outer.groups[1]!.id = d.rings.outer.groups[0]!.id; }, /twice/);
   bad((d) => { d.rings.middle.groups[0]!.character = d.rings.outer.groups[0]!.character; }, /two groups/);

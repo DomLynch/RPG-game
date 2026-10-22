@@ -2,15 +2,15 @@
   "about": "Dungeon 1 (the bowl, zone 7, /dungeon1/): the roster that fills each ring. One row per ring, keyed by its id. A ring row names the ring's landmark in the bowl's zone row, the fixed level band, and the creature groups that stand in it; every group becomes spawn rows with `roster: true` (one character per group, one spawn instance = one ladder fighter). The ring's edges are NOT here: leash, roam and spread are shares of the ring's width, read from the bowl layout's own paving pieces at load (bowl-roster.ts, ringEdges). Proposal for Dom to review: characters per ring, camps, level bands.",
   "rings": {
     "outer": {
-      "order": 1, "zone": "7", "landmark": "ring-outer", "levels": [1, 2], "respawnSeconds": 40, "aggro": 8, "spreadShare": 0.5, "roamShare": 0.2, "leashShare": 0.75,
+      "order": 1, "zone": "7", "landmark": "ring-outer", "levels": [1, 2], "respawnSeconds": 40, "aggroShare": 0.375, "spreadShare": 0.125, "roamShare": 0.2, "leashShare": 0.75,
       "groups": [
-        { "id": "scavengers", "character": "character:cinder-scavenger", "camps": 3, "campSize": [2, 3] },
-        { "id": "pit-goblins", "character": "character:pit-goblin", "camps": 2, "campSize": [2, 2] },
-        { "id": "ash-wolves", "character": "character:ash-wolf", "camps": 2, "campSize": [2, 3] }
+        { "id": "scavengers", "character": "character:cinder-scavenger", "camps": 3, "campSize": [1, 2] },
+        { "id": "pit-goblins", "character": "character:pit-goblin", "camps": 2, "campSize": [1, 1] },
+        { "id": "ash-wolves", "character": "character:ash-wolf", "camps": 2, "campSize": [1, 2] }
       ]
     },
     "middle": {
-      "order": 2, "zone": "7", "landmark": "ring-middle", "levels": [3, 4], "respawnSeconds": 50, "aggro": 9, "spreadShare": 0.5, "roamShare": 0.2, "leashShare": 0.75,
+      "order": 2, "zone": "7", "landmark": "ring-middle", "levels": [3, 4], "respawnSeconds": 50, "aggroShare": 0.3, "spreadShare": 0.2, "roamShare": 0.2, "leashShare": 0.75,
       "groups": [
         { "id": "ghouls", "character": "character:ruin-ghoul", "camps": 2, "campSize": [2, 3] },
         { "id": "bears", "character": "character:cinder-bear", "camps": 2, "campSize": [1, 1] },
@@ -19,7 +19,7 @@
       ]
     },
     "floor": {
-      "order": 3, "zone": "7", "landmark": "floor", "levels": [5, 6], "respawnSeconds": 60, "aggro": 10, "spreadShare": 0.5, "roamShare": 0.2, "leashShare": 0.75,
+      "order": 3, "zone": "7", "landmark": "floor", "levels": [5, 6], "respawnSeconds": 60, "aggroShare": 0.31, "spreadShare": 0.19, "roamShare": 0.2, "leashShare": 0.75,
       "groups": [
         { "id": "skeletons", "character": "character:ash-skeleton", "camps": 2, "campSize": [2, 2] },
         { "id": "duelists", "character": "character:pale-duelist", "camps": 2, "campSize": [1, 1] },

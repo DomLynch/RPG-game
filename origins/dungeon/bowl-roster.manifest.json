@@ -2,7 +2,7 @@
   "tables": [
     {
       "table": "bowlRing", "file": "bowl-roster.json", "at": "rings", "keyed": true, "key": "id",
-      "required": { "order": "integer", "zone": "string", "landmark": "string", "levels": "array", "respawnSeconds": "integer", "aggro": "number", "spreadShare": "number", "roamShare": "number", "leashShare": "number", "groups": "array" }
+      "required": { "order": "integer", "zone": "string", "landmark": "string", "levels": "array", "respawnSeconds": "integer", "aggroShare": "number", "spreadShare": "number", "roamShare": "number", "leashShare": "number", "groups": "array" }
     }
   ]
 }
