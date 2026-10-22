@@ -16,7 +16,7 @@ const browser = await launchBrowser(chromium, { args: ['--use-angle=metal', '--i
 const report = [];
 try {
   for (const arm of ['greybox', 'kit']) {
-    const q = `?region=0${arm === 'greybox' ? '&skins=0' : ''}`;
+    const q = `?region=0${arm === 'greybox' ? opt('before', '&skins=0') : ''}`;
     for (const stop of STOPS) {
       const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
       page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)));
