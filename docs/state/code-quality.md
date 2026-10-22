@@ -1,5 +1,33 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~23:3x +04: HANDOFF before /clear. READ FIRST.
+**Live:** K6q32 #3647 (PASS @1a0058934, posted 8 s after the last check) is publishing or live; check release.json. **Train (Lead):** K6q33 = #3635 alone (mine, PASS @52623753a) → K6q34 = #3645 + #3642 + #3632 (all PASS) → the rotation stack #3627 → #3637 → #3644 as ONE candidate.
+
+**NOW, in order:**
+1. **#3648** (Combat, fight bar "Rank N · title", @ad12039b5). It may join K6q34 if it PASSes before the cut.
+   - Done: read OK (legendRankLine shared with the card; a legend's world level IS its rank). VPS trunk 1a0058934 + head: D1 quiet+strike PASS, Z1 PASS. I added auditor:ready.
+   - Owed: unit-ci shards 5 and 8 were still running. The HUD release rows 35/37/38/41 (endgame-hud, desktop-layout ×2, viewport) were running on the VPS at the PR head: `/srv/dev-jobs/auditor-3648-rows/rows.log` + `rows-receipt.json`. If the ssh died, re-run `bash /srv/dev-jobs/auditor-tools-20261022/run-rows-only.sh /srv/dev-jobs/auditor-3648-rows ad12039b5d5039a352f3aed3b68f597056e56ad2 35,37,38,41`.
+   - PASS when the shards and those rows are green.
+2. **The rotation stack as one combined tree** at trunk + #3644's head, once Combat finishes rebasing #3637/#3644 onto #3627 @386a08459. #3627 itself is PASSED @386a08459 (issuecomment-6349514276).
+   - Gate: SEAMLESS_TARGET z7:{outer,middle,floor}-camp-{0,1,2}-1 (9 camps, covering pitborn ×6 and knight ×3; Siegfried and Achilles are `knight` keys), plus default, plus shards, plus creature-clips/world-bodies on the merged tree, plus a Zone 1 ready A/B (z1-ab.sh).
+   - Then PASS each PR at its head and the candidate when cut.
+   - Open findings on #3627, sent: (a) the floor camps hash to the same offset, so the ring shows one legend in lockstep; (b) the floor knights' per-legend weapons were never engaged.
+3. Release PRs: arm a CI watcher at cut and post the PASS within minutes of the last green check (Lead: K6q30 lost about 1 h on me).
+
+**PASSed this session (all on the VPS at trunk + head):** K6q30-K6q32, #3629, #3622, #3591 (+ a correction: its shards were patch-id trusted; World then dispatched real shards, all green), #3639, #3645, #3642, #3632, #3627 (re-gate).
+
+**Tools:**
+- `/srv/dev-jobs/auditor-tools-20261022/run-pr-on-trunk.sh <job> <pr> <FULL head sha> "NAME|cmd"...`: use absolute paths in the cmds (`$T` is not exported); it stops if the head differs.
+- `z1-ab.sh` / `z2-ab.sh`: zone-ready A/B. `town-probe.mjs`: town zone ready. `run-rows-only.sh`: release rows by index.
+- Never run a Mac full-tree copy (Lead/Strategy ruling; the Mac disk). The Mac scratchpad is about 1 GB, with no worktrees left.
+
+**Gotchas:**
+- GitHub job and run statuses lag: read the steps and completed_at before calling something stuck.
+- unit-ci can skip the shards by patch-id on a merge-up: read the receipt text.
+- apt stalls in playwright --with-deps keep hitting quality/release-checks until #3635 (K6q33) lands.
+- Zone 2 KitLod#94 is an intermittent late link from the town kit: a World item, not a blocker.
+- The Mac at load >12 times out page.goto: use the VPS.
+
 ## 2026-10-22 ~22:4x +04: queue clear except lane-blocked PRs. READ FIRST.
 **PASSed since 21:0x:**
 - Releases: K6q30 #3641 @f45d70bd1, K6q31 #3646 @889474ca3.
