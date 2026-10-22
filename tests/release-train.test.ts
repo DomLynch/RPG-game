@@ -225,12 +225,22 @@ test('a Lead TRUST line at the head stands in for its named release rows only (L
   assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 12 — the wrong row')])]), null, 'only the named rows are trusted');
   assert.equal(trustAt([lead('Lead: TRUST @fffffffff rows 57')], head), null, 'a reason is required');
   assert.equal(trustAt([lead('Auditor: TRUST @fffffffff rows 57 — not Lead')], head), null, 'only Lead writes a trust');
+  const failed57 = [...rollup.filter((r) => r.name !== 'checks 57 (ground-prompt-check)'), job('checks 57 (ground-prompt-check)', 'COMPLETED', 'FAILURE')];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: failed57 }]), null, 'a row that FAILED (an assertion) stays blocking even when the TRUST line names it (Lead\'s review, HIGH)');
+  const failedThenCancelled = [...failed57, { ...job('checks 57 (ground-prompt-check)', 'COMPLETED', 'CANCELLED'), startedAt: '2026-10-22T12:00:00Z', completedAt: '2026-10-22T12:30:00Z' }];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: failedThenCancelled }]), null, 'a failure on ANY attempt blocks, even when a later attempt was cancelled');
+  for (const lost of ['CANCELLED', 'TIMED_OUT']) assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: [...rollup.filter((r) => r.name !== 'checks 57 (ground-prompt-check)'), job('checks 57 (ground-prompt-check)', 'COMPLETED', lost)] }])?.number, 3621, `a row the runner lost (${lost}) is trusted`);
+  const t = trustAt([{ ...trust, url: 'https://github.com/DomLynch/RPG-game/pull/3621#issuecomment-1' }], head)!;
+  assert.equal(t.line, 'Lead: TRUST @fffffffff rows 57 — green on the Mac and the VPS at this tree; CI lost to the apt mirror', 'the line is kept verbatim for the audit');
+  assert.match(t.url, /issuecomment-1$/, 'with its comment URL');
   const twoRed = [...rollup.filter((r) => r.name !== 'checks 3,9 (finisher-preview, polearm-browser-check)'), job('checks 3,9 (finisher-preview, polearm-browser-check)', 'COMPLETED', 'FAILURE')];
   assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: twoRed }]), null, 'another red row still blocks: the summary is not made green');
   assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: [...rollup.filter((r) => r.workflowName !== 'unit-ci')] }]), null, 'a trust never covers another workflow');
   const sh = readFileSync('scripts/release-train-publish.sh', 'utf8');
   assert.match(sh, /release-train\.mjs trust "\$sha"/, 'the publisher reads the trust for the audited sha');
   assert.match(sh, /export DEPLOY_TRUST_ROWS="\$trust_rows" DEPLOY_TRUST_REASON=/, 'and hands deploy.sh the same rows with the reason (scripts/lib/deploy-trust.sh)');
+  assert.match(readFileSync('scripts/release-train.mjs', 'utf8'), /\$\{trust\.line[^}]*\}" \(\$\{trust\.url/, 'the reason is the TRUST line verbatim with its comment URL');
+  assert.match(readFileSync('scripts/deploy.sh', 'utf8'), /echo "Published with rows \$DEPLOY_TRUST_ROWS trusted by ruling, not run here: /, 'the Published block quotes it');
 });
 
 const runEnv = (p: { env: Record<string, string> }) => p.env;

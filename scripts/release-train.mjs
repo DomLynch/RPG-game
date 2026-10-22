@@ -143,22 +143,31 @@ export const optionalRedRows = (rollup, names) => (Array.isArray(rollup) ? rollu
 
 /** A written per-run trust (Lead 2026-10-22, after K6q26 needed a manual publish: the runner's apt mirror stalled row 57 on three CI attempts while the row was green on the Mac
  * and the VPS at the same tree). A line "Lead: TRUST @<sha9> rows 57[,58] — <reason>" from a repo author names release-checks rows that are proven elsewhere for THIS head.
- * The newest such line wins; a reason is required; only Lead writes it. Returns { rows, reason } or null. */
+ * The newest such line wins and a reason is required. "Only Lead" is PROCESS, not code (Lead's review): every lane posts as the same repo owner, so the "Lead:" prefix is all the
+ * code can check. What the code does guarantee is the audit: { rows, reason, line, url } carries the line verbatim and its comment URL, and the train's log and deploy.sh's
+ * Published block quote both, so every use is on the record. Returns that or null. */
 export function trustAt(comments, head) {
   const re = new RegExp(`^\\*{0,2}Lead: \\*{0,2}TRUST @${String(head).slice(0, 9)} rows ([0-9]+(?:,[0-9]+)*)\\s*(?:—|–|-|:)\\s*(\\S.*)$`, 'm');
   for (const c of [...comments].reverse()) {
     const m = TRUSTED.includes(c?.authorAssociation) && re.exec(String(c.body || ''));
-    if (m) return { rows: m[1].split(',').map(Number), reason: m[2].trim() };
+    if (m) return { rows: m[1].split(',').map(Number), reason: m[2].trim(), line: m[0].trim(), url: String(c.url || '') };
   }
   return null;
 }
 const rowsOfJob = name => { const m = /^checks ([0-9]+(?:,[0-9]+)*) \(/.exec(String(name)); return m ? m[1].split(',').map(Number) : null; };   // a row group's job: "checks 11,14,24 (names)"
-/** The rollup the gate reads under a trust: every release-checks row job whose rows are ALL trusted drops out, and release-checks/summary (red or waiting because of them) reads
- * green, but only when every other row job is finished green. Any other red or pending row, and every other workflow, still blocks exactly as before. */
+// A trust covers a row the RUNNER lost (cancelled, timed out, or never finished: the K6q26 apt stall), never an assertion: a FAILURE on any attempt of the row's job keeps blocking
+// even when the TRUST line names the row (Lead's review, HIGH). Anything other than these, success included, is judged by the gate as before.
+const LOST = ['CANCELLED', 'TIMED_OUT', 'STALE', 'SKIPPED'];
+const lostToRunner = c => !finished(c) || LOST.includes(String(c.conclusion || '').toUpperCase());
+/** The rollup the gate reads under a trust: a release-checks row job whose rows are ALL trusted and whose EVERY attempt was lost to the runner (none failed) drops out, and
+ * release-checks/summary (red or waiting because of them) reads green, but only when every other row job is finished green. A red row, any other pending row, and every other
+ * workflow still block exactly as before. */
 export function withoutTrustedRows(rollup, trust) {
   if (!trust || !Array.isArray(rollup)) return rollup;
   const rc = c => c.__typename !== 'StatusContext' && c.workflowName === 'release-checks';
-  const kept = rollup.filter(c => !(rc(c) && rowsOfJob(c.name)?.every(r => trust.rows.includes(r))));
+  const named = c => rc(c) && !!rowsOfJob(c.name)?.every(r => trust.rows.includes(r));
+  const failedNames = new Set(rollup.filter(c => named(c) && !lostToRunner(c) && !checkGreen(c)).map(c => c.name));   // an assertion red on any attempt
+  const kept = rollup.filter(c => !(named(c) && !failedNames.has(c.name)));
   if (kept.some(c => rc(c) && rowsOfJob(c.name) && !checkGreen(c))) return kept;
   const at = new Date().toISOString();
   return [...kept.filter(c => !(rc(c) && c.name === 'summary')), { __typename: 'CheckRun', workflowName: 'release-checks', name: 'summary', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: at, completedAt: at, trusted: trust.rows }];
@@ -268,7 +277,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === 'trust') {   // stdin: `gh pr view <n> --json headRefOid,comments` + argv sha: prints "<rows csv>\t<reason>" for a Lead TRUST line at that sha (release-train-publish.sh hands it to deploy.sh as DEPLOY_TRUST_ROWS / DEPLOY_TRUST_REASON), or nothing
     const p = JSON.parse(readFileSync(0, 'utf8') || 'null'), want = rest[0];
     const trust = p && p.headRefOid === want ? trustAt(p.comments || [], want) : null;
-    if (trust) console.log(`${trust.rows.join(',')}\t${trust.reason.replace(/[\t\n]/g, ' ')}`);
+    if (trust) console.log(`${trust.rows.join(',')}\t"${trust.line.replace(/[\t\n]/g, ' ')}" (${trust.url || 'no comment url'})`);   // the reason deploy.sh records IS the verbatim line + its URL (the audit)
     process.exit(0);
   }
   if (cmd !== 'cut') { console.error('usage: node scripts/release-train.mjs cut [--dry-run] | pick < prs.json | verify <sha> < pr.json | trust <sha> < pr.json'); process.exit(2); }

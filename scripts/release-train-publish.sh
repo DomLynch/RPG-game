@@ -139,11 +139,12 @@ read -r pr sha draft <<< "$pick"
 if ! why=$(net_gh 120 pr view "$pr" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments | node scripts/release-train.mjs verify "$sha"); then
   log "#$pr @${sha:0:9} not publishable on its full check list: ${why:-gh pr view failed}; next tick"; exit 0
 fi
-# A Lead "TRUST @<sha9> rows N — reason" line at this head (scripts/release-train.mjs trustAt) let the gate stand in for those release rows; deploy.sh gets the same rows and reason
-# (scripts/lib/deploy-trust.sh), so the receipt says why they did not run here. No line: nothing is exported and deploy.sh runs as before.
+# A Lead "TRUST @<sha9> rows N — reason" line at this head (scripts/release-train.mjs trustAt) let the gate stand in for those release rows (only rows the runner lost: a failed row
+# still blocks). deploy.sh gets the same rows, and as the reason the TRUST line verbatim with its comment URL (scripts/lib/deploy-trust.sh; deploy.sh repeats it in the Published block),
+# so every use is audited. "Only Lead" is process: every lane posts as the repo owner. No line: nothing is exported and deploy.sh runs as before.
 trust=$(net_gh 120 pr view "$pr" --json headRefOid,comments | node scripts/release-train.mjs trust "$sha") || trust=""
 trust_rows=${trust%%$'\t'*}; trust_reason=${trust#*$'\t'}
-[ -n "$trust" ] && log "#$pr @${sha:0:9}: rows $trust_rows trusted by Lead's TRUST line: $trust_reason"
+[ -n "$trust" ] && log "#$pr @${sha:0:9}: rows $trust_rows trusted by TRUST line $trust_reason"
 [ -n "$dry" ] && { log "DRY RUN: would publish #$pr @${sha:0:9} (repo $repo at $(git rev-parse --short HEAD); slots $RELEASE_SLOTS); nothing written"; exit 0; }
 log "publishing #$pr @${sha:0:9}"
 
@@ -181,7 +182,7 @@ dir=$(${RELEASE_TRAIN_WORKTREE:-bash scripts/release-worktree.sh} "$rev") || sto
 logf="$state/release-train-${rev:0:8}.log"
 envf="${RELEASE_TRAIN_ENV:-$state/release-train.env}"
 log "deploy.sh $rev in $dir (log $logf)"
-( cd "$dir" && { [ -r "$envf" ] && set -a && . "$envf" && set +a; true; } && { [ -z "$trust" ] || export DEPLOY_TRUST_ROWS="$trust_rows" DEPLOY_TRUST_REASON="Lead TRUST @${sha:0:9} on #$pr: $trust_reason"; } && FRANKENDOM_RELEASE=1 ${RELEASE_TRAIN_DEPLOY:-bash scripts/deploy.sh} ) > "$logf" 2>&1
+( cd "$dir" && { [ -r "$envf" ] && set -a && . "$envf" && set +a; true; } && { [ -z "$trust" ] || export DEPLOY_TRUST_ROWS="$trust_rows" DEPLOY_TRUST_REASON="TRUST line on #$pr @${sha:0:9}: $trust_reason"; } && FRANKENDOM_RELEASE=1 ${RELEASE_TRAIN_DEPLOY:-bash scripts/deploy.sh} ) > "$logf" 2>&1
 rc=$?
 [ "$rc" -eq 0 ] || stop "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"
 grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Published $rev line; log $logf"
