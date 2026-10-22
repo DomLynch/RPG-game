@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { RULES, World } from '../origins/presence/interest.ts';
 import { createPresence, PROTOCOL, PROTOCOL_V2 } from '../origins/presence/server.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, SPAWN, ZONE_ROWS, fromLegacy, toLegacy, walkable, worldMetres, zoneAt } from '../origins/presence/zones.ts';
-import { zoneIds } from '../origins/zones/loader.ts';
+import { loadZone, zoneIds } from '../origins/zones/loader.ts';
 import { CONCORD_REGION } from '../origins/world/concord.ts';
 import { frontierPlan } from '../origins/preview/frontier-plan.ts';
 
