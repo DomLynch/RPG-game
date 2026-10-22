@@ -37,7 +37,8 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
-import { killCopy, legendIdOf, zoneHint } from './legend-copy.ts';
+import { killCopy, legendIdOf } from './legend-copy.ts';
+import { hintDismissSec, hintLine } from './hint-copy.ts';
 import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createAreaSky } from './area-sky.ts';
@@ -342,7 +343,9 @@ const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag a
 const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = zoneHint(pageZoneId(), 'watch') ?? 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';   // a zone with a hint row (the Pit's Dungeon 1: opponents) says its own words (legend-copy.json)
+let hintTimer = 0;
+const armHint = (text: string) => { hint.textContent = text; clearTimeout(hintTimer); hintTimer = window.setTimeout(() => { if (!hintMoved && hint.textContent === text) hint.hidden = true; }, hintDismissSec() * 1000); };   // the box also goes at the first move; left alone it goes after hint-copy.json timing.hint.dismissSec, unless another line has taken it (a rim or say() line is not ours to hide)
+if (frontier) armHint(hintLine(pageZoneId(), loadZone(), 'watch'));   // the words come from the zone's traits (its spawn rows, hint-copy.json); a zone's own row (legend-copy.json zoneHints: Dungeon 1's opponents) wins
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -498,13 +501,13 @@ function step(dt: number) {
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
   if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
-  const label = zone ? zone.name : PIT_LAYOUT && zoneRow ? zoneRow.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
+  const label = zone ? zone.name : OWN_PLAN && zoneRow ? zoneRow.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
   groundNear = groundPickup.nearest(state.x, state.z);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
     : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
-    : Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
+    : !OWN_PLAN && Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'   // the Pit's door is the Pit scenery's: a page whose own plan IS the zone (the town, the bowl) has no Pit at the origin, so no Pit prompt there
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
     : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
@@ -798,7 +801,7 @@ if (frontier) {
   void import('./pit-duel.ts').then(async (m) => {
     await m.sceneReady;
     duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit'); syncSpell2Button();   // the Pit's buttons exist now: show SPELL 2 if slot b is already filled
-    hint.textContent = zoneHint(pageZoneId(), 'walk') ?? 'Left stick walks. Push to the edge to run. Walk up to a creature and tap STRIKE (slide to stab or slash, hold for heavy) to fight it. Drag empty screen to look round when the camera lock is off.';
+    armHint(hintLine(pageZoneId(), loadZone(), 'walk'));
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
     if (menu && chips) {
@@ -893,10 +896,10 @@ function showCareer() {
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
-  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a);
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.className = 'hud-link'; saveNote.append(' · ', a);
     if (guestHolds()) { const loss = document.createElement('span'); loss.id = 'guest-loss'; loss.textContent = GUEST_SIGN_IN_LOSS; loss.style.cssText = 'display:block;pointer-events:none'; saveNote.append(loss); }   // before the tap: what signing in costs a guest who holds loot (an empty bag gets no noise)
   }
-  if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); career.append(' · ', b); }   // on the career line (Level 16 · 0 / 8625 CP · 16 points to place): one line on a phone
+  if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.className = 'hud-link'; b.addEventListener('click', buildOpen); career.append(b); }   // under the career line, on its own line: a separator is only ever between parts that share a line (it stranded as a trailing "·" at 375), and the 44 px tap target is the link's CSS hit area, not its line height
   if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
 showCareer();

@@ -26,6 +26,11 @@
     #hud::before { content: ''; position: absolute; z-index: -1; left: 0; right: calc(var(--gap-m) * -2); top: calc(env(safe-area-inset-top) * -1); height: var(--hud-scrim-h); background: linear-gradient(to bottom, var(--c-scrim), transparent); pointer-events: none; }   /* a soft top scrim: the zone name and the sign-in line stay readable over a bright painted sky */
     #hud small { display: block; width: fit-content; max-width: 100%; font-weight: 400; opacity: 0.8; }
     #hud > span { width: fit-content; max-width: 100%; }
+    /* HUD links (Sign in, "N points to place"): the 44 px tap target is a hit area around the text, so the header's lines stay tight (they were 44 px tall each, wide gaps at 375). The place-your-point link sits on its own line. */
+    #hud .hud-link { position: relative; pointer-events: auto; color: inherit; background: none; border: 0; padding: 0; font: inherit; text-decoration: underline; cursor: pointer; }
+    #hud .hud-link::before { content: ''; position: absolute; inset: -12px -10px; }
+    #hud a.hud-link { margin-left: 8px; }
+    #hud button.hud-link { display: block; }
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
