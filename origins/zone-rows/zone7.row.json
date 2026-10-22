@@ -5,14 +5,14 @@
   "alias": "dungeon1",
   "level": 1,
   "entry": {
-    "x": 0,
+    "x": 150,
     "z": 54,
-    "facing": 3.14159
+    "facing": 3.142
   },
   "warps": [
     {
       "id": "zone7-start",
-      "x": 0,
+      "x": 150,
       "z": 54,
       "unit": "m"
     }
@@ -24,11 +24,11 @@
       "name": "The yard",
       "shape": "rect",
       "min": [
-        -14,
+        136,
         33
       ],
       "max": [
-        14,
+        164,
         61
       ],
       "pvp": "off",
@@ -39,11 +39,11 @@
       "name": "The Duel pit",
       "shape": "rect",
       "min": [
-        17,
+        167,
         38
       ],
       "max": [
-        35,
+        185,
         56
       ],
       "pvp": "on",
@@ -261,82 +261,82 @@
       "dungeon-bowl": {
         "zoneSize": {
           "width": 80,
-          "depth": 80
+          "depth": 130
         },
         "layout": {
           "ring-outer-0-spot": {
             "u": 0.5,
-            "v": 0.838,
+            "v": 0.707692,
             "facing": 0
           },
           "ring-outer-1-spot": {
-            "u": 0.208,
-            "v": 0.669,
+            "u": 0.207716,
+            "v": 0.603846,
             "facing": 0
           },
           "ring-outer-2-spot": {
-            "u": 0.208,
-            "v": 0.331,
+            "u": 0.207716,
+            "v": 0.396154,
             "facing": 0
           },
           "ring-outer-3-spot": {
             "u": 0.5,
-            "v": 0.163,
+            "v": 0.292308,
             "facing": 0
           },
           "ring-outer-4-spot": {
-            "u": 0.792,
-            "v": 0.331,
+            "u": 0.792284,
+            "v": 0.396154,
             "facing": 0
           },
           "ring-outer-5-spot": {
-            "u": 0.792,
-            "v": 0.669,
+            "u": 0.792284,
+            "v": 0.603846,
             "facing": 0
           },
           "ring-middle-0-spot": {
             "u": 0.5,
-            "v": 0.725,
+            "v": 0.638462,
             "facing": 0
           },
           "ring-middle-1-spot": {
-            "u": 0.305,
-            "v": 0.613,
+            "u": 0.305144,
+            "v": 0.569231,
             "facing": 0
           },
           "ring-middle-2-spot": {
-            "u": 0.305,
-            "v": 0.388,
+            "u": 0.305144,
+            "v": 0.430769,
             "facing": 0
           },
           "ring-middle-3-spot": {
             "u": 0.5,
-            "v": 0.275,
+            "v": 0.361538,
             "facing": 0
           },
           "ring-middle-4-spot": {
-            "u": 0.695,
-            "v": 0.387,
+            "u": 0.694856,
+            "v": 0.430769,
             "facing": 0
           },
           "ring-middle-5-spot": {
-            "u": 0.695,
-            "v": 0.613,
+            "u": 0.694856,
+            "v": 0.569231,
             "facing": 0
           },
           "floor-0-spot": {
             "u": 0.5,
-            "v": 0.581,
+            "v": 0.55,
             "facing": 0
           },
           "floor-1-spot": {
-            "u": 0.43,
-            "v": 0.459,
+            "u": 0.429635,
+            "v": 0.475,
             "facing": 0
           },
           "floor-2-spot": {
-            "u": 0.57,
-            "v": 0.459,
+            "u": 0.570365,
+            "v": 0.475,
             "facing": 0
           }
         },
