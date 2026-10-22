@@ -21,6 +21,7 @@
       "order": 3, "zone": "7", "landmark": "floor", "levels": [7, 10], "respawnSeconds": 60, "rotation": "cycle", "camps": 3, "aggroShare": 0.31, "spreadShare": 0.19, "roamShare": 0.2, "leashShare": 0.75,
       "groups": [
         { "id": "siegfried", "character": "character:pit.siegfried", "campSize": [1, 1] },
+        { "id": "hector", "character": "character:pit.hector", "campSize": [1, 1] },
         { "id": "achilles", "character": "character:pit.achilles", "campSize": [1, 1] },
         { "id": "typhon", "character": "character:pit.typhon", "campSize": [1, 1] }
       ]

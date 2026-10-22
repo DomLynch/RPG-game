@@ -23,7 +23,8 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned 2026-10-22 (Dungeon 1, Combat): the Pit's 100 legends as characters in the BUNDLE (derived from the legend tables by origins/region1/legend-foes.ts from a template row, one open-world form each at its rank), their 100 kill rows in KILL_ROWS and loottable:pit-legend; FOES (the Frontier's own foes) is unchanged; the sha before it 6b886c7d606207e81dd9d256094bed8b3bb414ba1162e2717075ad8c14d27ca2.
 // Re-pinned again 2026-10-22 (Dungeon 1, Combat): the BUNDLE's region carries zone 7's camps, and the roster pool moved to the four families the world draws a body for (pitborn, knight: pit-thrall, cacus, gawain / roland, grendel, lancelot / siegfried, achilles, typhon); the sha before it c62cb4f0946b7caba89f0a2b2ac7a26c208dcba1f94cfbc0e18b8e27de642e58.
 // Re-pinned 2026-10-22 (Backend, Dungeon 1 legend rotation, Lead's ruling): the BUNDLE's zone 7 camps are now nine ROTATING camps (outer-camp-N, middle-camp-N, floor-camp-N, each with its ring's three legends as a pool) in place of nine one-legend camps; no row, character or kill row changed; the sha before it a7d09f3d1756a69dc3c4f6a6d7691b745dead8d5186a42a5506a1828dbe6e0d1.
-const TRUNK_SHA = '453d93d408bdac653a84c0d60c3d2d51efe7bfc64083adfab12e482b7688a687';
+// Re-pinned 2026-10-22 (Combat, legend pool PR): zone 7's floor ring pool gains Hector (knight, level 8) so every level 1-10 has a legend in its ring (a spawn row, a look, and the floor camps' pool lists); no other row changed; the sha before it 453d93d408bdac653a84c0d60c3d2d51efe7bfc64083adfab12e482b7688a687.
+const TRUNK_SHA = 'b14449fd9a26d40efb99d8eefce99d80f52614b1aac85f8374e502d461f7587f';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };
