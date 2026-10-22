@@ -19,11 +19,11 @@ try {
   await page.waitForTimeout(4000);
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'); const e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
   await page.screenshot({ path: path.join(out, 'drop-in-375.png') }); receipt.shots.push('drop-in-375.png');
-  if (process.env.POS) {
-    const [x, z, h] = process.env.POS.split(',').map(Number);
+  for (const spec of (process.env.POS ?? '').split(';').filter(Boolean)) {   // POS="east=-52,40,1.5708;north=-140,78,0": name=x,z,heading, one shot each
+    const [name, at] = spec.includes('=') ? spec.split('=') : ['pos', spec], [x, z, h] = at.split(',').map(Number);
     await page.evaluate(([px, pz, ph]) => window.originsPreview.place(px, pz, ph), [x, z, h]);
     await page.waitForTimeout(3000);
-    await page.screenshot({ path: path.join(out, 'pos-375.png') }); receipt.shots.push('pos-375.png');
+    await page.screenshot({ path: path.join(out, `${name}-375.png`) }); receipt.shots.push(`${name}-375.png`);
   }
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 1));
   console.log('palisade-border-stills ok', JSON.stringify(receipt));
