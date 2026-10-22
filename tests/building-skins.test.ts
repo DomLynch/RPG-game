@@ -6,7 +6,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import DEFS from '../origins/world/building-skins.json' with { type: 'json' };
-import { fitScale, loadSkins, modelOfNode, skinFit, skinIds, skinParts } from '../origins/world/building-skins-rules.ts';
+import { fitScale, loadSkins, modelOfNode, skinFit, skinIds, skinLod, skinParts } from '../origins/world/building-skins-rules.ts';
 
 test('the goblin skin loads; a kind with no parts of its own takes the default; an unknown skin is none', () => {
   assert.deepEqual(skinIds(), ['goblin', 'dungeon']);
@@ -27,6 +27,21 @@ test('every model file exists, holds the nodes its row names, and stays under th
     const names = new Set(json.nodes.map((n) => n.name)); for (const node of m.nodes) assert.ok(names.has(node), `${m.id}: node ${node} is in ${m.url}`);
     assert.ok(gzipSync(buf).length < WORLD_FILE, `${m.url}: ${gzipSync(buf).length} bytes gzip is under the cap`);
   }
+});
+test('a model\'s far body (lod) is a row: its own file with the SAME node names, under the world cap, and the loader refuses a bad one', () => {
+  const WORLD_FILE = 1_300_000;
+  const withLod = DEFS.models.filter((m) => 'lod' in m) as (typeof DEFS.models[number] & { lod: { url: string; dist: number } })[];
+  for (const m of withLod) {
+    const buf = readFileSync(`public/${m.lod.url}`), len = buf.readUInt32LE(12), json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8')) as { nodes: { name?: string }[] };
+    const names = new Set(json.nodes.map((n) => n.name)); for (const node of m.nodes) assert.ok(names.has(node), `${m.id}: lod holds node ${node}`);
+    assert.ok(gzipSync(buf).length < WORLD_FILE, `${m.lod.url} is under the world cap`);
+    assert.equal(skinLod(m.nodes[0]!)!.url, m.lod.url); assert.ok(m.lod.dist > 0);
+  }
+  assert.equal(skinLod('no_such_node'), null);
+  const [first, ...rest] = DEFS.models;
+  const bad = (lod: unknown) => loadSkins({ skins: DEFS.skins, parts: DEFS.parts, fits: DEFS.fits, models: [{ ...first!, lod }, ...rest] });
+  assert.throws(() => bad({ url: first!.url, dist: 30 }), /lod is/); assert.throws(() => bad({ url: 'world/kit/x.glb', dist: 0 }), /lod is/); assert.throws(() => bad({ url: 'kit/x.glb', dist: 30 }), /lod is/);
+  assert.doesNotThrow(() => bad({ url: 'world/kit/x_lod.glb', dist: 30 }));
 });
 test('every fit names a node of its model; a fit scales its natural footprint into a block, capped and floored by its own row', () => {
   for (const f of DEFS.fits) assert.ok(DEFS.models.find((m) => m.id === f.model)!.nodes.includes(f.node), `${f.id} -> ${f.node}`);
