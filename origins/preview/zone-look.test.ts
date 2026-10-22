@@ -16,11 +16,16 @@ test('Zone 1 = Test Zone look (Dom-approved 2026-10-18): it sets the kit, densit
   assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(), ['look.props.camp', 'look.props.density', 'look.props.kit', 'look.props.rim']);   // look.props.camp (#3313): where the camp kit stands in the Cinder Fields, the sandbox's spawn camp
   for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `1/${preset}`);
 });
-test('Zone 2 sets no look, time or day/night field: every preset look comes back untouched', () => {
+// Zone 2 sets the reach-plate look since #3570 (2026-10-21, Dom's moonlit castle plate): fog, sun key, ambient, exposure and ground tint are its own rows in zone2.row.json; time of day and day/night stay untouched.
+test('Zone 2 sets the reach-plate look only (fog, sun, ambient, exposure, ground tint); time and day/night are untouched', () => {
   for (const id of ['2']) {
     const z = loadZone(id);
-    assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)), [], `zone ${id}`);
-    for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `${id}/${preset}`);
+    assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(),
+      ['look.ambient.ground', 'look.ambient.intensity', 'look.ambient.sky', 'look.exposure', 'look.fog.colour', 'look.fog.density', 'look.ground.tint', 'look.sun.colour', 'look.sun.intensity', 'look.sun.pos'], `zone ${id}`);
+    for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) {
+      const l = withZoneLook(lookOf(preset), z);   // the zone's rows win over whichever preset it is laid over
+      assert.equal(l.fog, '#5b5478', `${id}/${preset}`); assert.equal(l.sunColor, '#b4c0ff', `${id}/${preset}`); assert.equal(l.exposure, 1.25, `${id}/${preset}`); assert.deepEqual(l.ground, [0.78, 0.78, 0.92], `${id}/${preset}`);
+    }
     assert.equal(zoneHour(z), null); assert.equal(zoneDayNight(z), true);
   }
 });

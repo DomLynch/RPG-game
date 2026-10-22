@@ -1,7 +1,15 @@
 {
   "name": "The Ash Reach",
   "defaultKind": "goblin",
-  "look": { "arena": "2" },
+  "look": {
+    "arena": "2",
+    "sky": "reach-plate",
+    "fog": { "colour": "#5b5478", "density": 0.013 },
+    "sun": { "colour": "#b4c0ff", "intensity": 4.2, "pos": [-24, 13, -15] },
+    "ambient": { "sky": "#7a84d0", "ground": "#2e2638", "intensity": 1.1 },
+    "exposure": 1.25,
+    "ground": { "tint": [0.78, 0.78, 0.92] }
+  },
   "names": {
     "ash-reach": "The Ash Reach"
   },

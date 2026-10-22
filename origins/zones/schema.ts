@@ -50,7 +50,8 @@ export const FIELDS: readonly Field[] = [
   population('townsfolk', 'list', []), population('vendors', 'list', [], { owner: 'Backend' }), population('questGivers', 'list', [], { owner: 'Backend' }),
   // WHAT YOU CAN DO
   interaction('gather', 'list', [], { donor: 'EQEmu ground_spawns' }), interaction('containers', 'list', []), interaction('interactables', 'list', [], { donor: 'EQEmu doors' }),
-  interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp' }), interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp' }),
+  interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp', wired: true, owner: 'Backend' }),   // entries {id, name, shape: "rect", min: [x, z], max: [x, z], pvp: "off"|"on", spawnsAllowed}: read by pvp.ts (Dungeon slice A); its call site is slice B's
+  interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp', wired: true }),
   // HOW IT PLAYS (the warm-up list is DERIVED from camps + the player, warm-plan.ts: not a field)
   play('loot.overrides', 'map', {}), play('difficulty.mult', 'number', 1, { min: 0.1, max: 10 }), play('reward.mult', 'number', 1, { min: 0, max: 10, donor: 'EQEmu zone.zone_exp_multiplier' }),
   play('presence', 'map', {}, { donor: 'EQEmu zone.maxclients (per world zone: speed, quiet, caps {floor, soft, hard}; fields only, nothing enforces caps)' }),
