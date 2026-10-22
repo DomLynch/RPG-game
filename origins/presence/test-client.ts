@@ -1,7 +1,7 @@
 // A headless presence client for tests and release rows (Web builds the two-client release row on this): it opens a real WebSocket to a presence server, speaks the v2 whole-world frame (or v1
 // when asked), keeps the newest down packet, and poses in METRES of the Concord frame so a test never touches the u16 centimetres. No DOM, no storage; node's global WebSocket.
 import { decodeDown, encodeUp, type Entity } from './wire.ts';
-import { LEGACY_CENTRE_CM, LEGACY_SPAN_CM, PROTOCOL, PROTOCOL_V2 } from './frame.ts';
+import { CM_PER_M, LEGACY_CENTRE_CM, LEGACY_SPAN_CM, PROTOCOL, PROTOCOL_V2 } from './frame.ts';
 
 export type Frame = { centreCm: number; sizeCm: number };
 export type Hello = { t: 'hello'; id: number; layer: number; x: number; z: number; frame?: Frame; guest?: boolean };
@@ -38,7 +38,7 @@ export function joinBot(port: number, token: string | null, opts: { v1?: boolean
     const announced = new Set<number>(), unannounced = new Set<number>();
     const log: { at: number; ids: number[] }[] = [];   // every down packet: when it arrived and which ids it carried (presence sends NO packet when nothing is due, so seen() keeps the last one)
     let closed: number | null = null, helloCount = 0, latest: Entity[] = [], hello: Hello | null = null, frame: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };
-    const toM = (cm: number): number => (cm - frame.centreCm) / 100;
+    const toM = (cm: number): number => (cm - frame.centreCm) / CM_PER_M;
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data) as { t?: string; id?: number; name?: string | null; guest?: boolean; worn?: Record<string, string> };
@@ -58,7 +58,7 @@ export function joinBot(port: number, token: string | null, opts: { v1?: boolean
       get hello() { return hello!; }, get frame() { return frame; },
       packets: () => log.map((p) => ({ at: p.at, ids: [...p.ids] })),
       seen: () => latest.map((e) => ({ id: e.id, x: toM(e.x), z: toM(e.z), heading: e.heading, anim: e.anim, flags: e.flags })),
-      pose: (x, z, heading = 0) => ws.send(encodeUp({ x: Math.round(frame.centreCm + x * 100), z: Math.round(frame.centreCm + z * 100), heading, anim: 0, flags: 0 })),
+      pose: (x, z, heading = 0) => ws.send(encodeUp({ x: Math.round(frame.centreCm + x * CM_PER_M), z: Math.round(frame.centreCm + z * CM_PER_M), heading, anim: 0, flags: 0 })),
       at: () => ({ x: toM(hello!.x), z: toM(hello!.z) }),
       warp: (landmark) => ws.send(JSON.stringify({ t: 'warp', to: landmark })),
       raw: (text) => ws.send(text),

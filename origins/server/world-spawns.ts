@@ -30,7 +30,7 @@ import { paceOf } from './pace.ts';
 import { ticksFor,MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
-import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './units.ts';
+import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND, bandMultiplier } from './units.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
 // Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
@@ -42,7 +42,7 @@ const KILL = SERVER_RULES.worldKill[0]!, SHARE = SERVER_RULES.worldShare[0]!;   
 export const SLACK = KILL.slack;
 const MAX_HITS = KILL.maxHits, ENGAGE_TOKEN_BYTES = KILL.engageTokenBytes;   // rows of the worldKill table: the most hits a report may claim; the random bytes of a spawn-engage token
 const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
-const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
+const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * bandMultiplier(ROLL_BAND) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
 const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained ? [m.chained.windup] : [])]));
 const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.recovery, ...(m.chained ? [m.chained.windup + m.chained.active + m.chained.recovery] : [])]));
