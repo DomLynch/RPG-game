@@ -23,7 +23,7 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-start', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate']);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-pit-gate', 'zone0-start', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate', 'zone7-gate', 'zone7-start']);   // Dungeon 1 listed (2026-10-22): zone7-start (its row's own start) and the town/dungeon door pair's two landings, zone7-gate (into the yard) and zone0-pit-gate (back at the Pit's outer gate);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);
@@ -47,7 +47,7 @@ test('a landing inside a trade area is refused unless its exit row says tradeLan
   const cm = (id: string): { x: number; z: number } => warpPlace(id)!;
   assert.ok(inTradeArea(cm('zone0-gate').x, cm('zone0-gate').z), 'its landing is inside the Exchange trade area');
   assert.throws(() => exitWarps([{ ...gate, tradeLanding: false }]), /inside a trade area/, 'without the row flag the same landing is refused');
-  assert.deepEqual(EXITS.filter((e) => e.tradeLanding).map((e) => e.warp), ['zone0-gate'], 'no other door lands in a trade area');
+  assert.deepEqual(EXITS.filter((e) => e.tradeLanding).map((e) => e.warp), ['zone0-gate', 'zone0-pit-gate'], 'no other door lands in a trade area: the two doors into the town (from Zone 1 and from Dungeon 1) are its own gates');
   for (const e of EXITS) if (!e.tradeLanding) assert.ok(!inTradeArea(cm(e.warp).x, cm(e.warp).z), `${e.warp} stays clear of the trade areas`);
 });
 
@@ -103,5 +103,5 @@ test('a package\'s warps are merged after the table\'s: open packages only, a re
   assert.throws(() => loadWarps({ landmarks: [...DEFS.landmarks, { ...DEFS.landmarks[0]! }] }), /duplicate|twice|unique/i, 'a package cannot reuse a table id');
   assert.throws(() => loadWarps({ landmarks: [...packageWarps(pkg, true)] }), /not inside any zone row/);
   assert.equal(placeProblem(0, 3), null); assert.equal(placeProblem(9e5, 9e5), 'not inside any zone row');
-  assert.deepEqual(packageWarps(), [{ id: 'zone0-start', x: 0, z: -36, unit: 'm', tradeLanding: true }, { id: 'zone2-start', x: -39.31, z: -127.67, unit: 'm' }], 'the shipped zone-row warps are the town\'s own start (zone 0 listed, 2026-10-22: inside its trade area on purpose, so tradeLanding) and Zone 2\'s own start (a Zone 2 page no longer asks presence for Zone 1\'s start and ends in the Pit)');
+  assert.deepEqual(packageWarps(), [{ id: 'zone0-start', x: 0, z: -36, unit: 'm', tradeLanding: true }, { id: 'zone2-start', x: -39.31, z: -127.67, unit: 'm' }, { id: 'zone7-start', x: 150, z: 54, unit: 'm' }], 'the shipped zone-row warps are the town\'s own start (zone 0 listed, 2026-10-22: inside its trade area on purpose, so tradeLanding) and Zone 2\'s own start (a Zone 2 page no longer asks presence for Zone 1\'s start and ends in the Pit)');
 });

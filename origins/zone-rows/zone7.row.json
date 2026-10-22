@@ -1,9 +1,10 @@
 {
   "name": "Dungeon 1",
   "defaultKind": "goblin",
-  "unlisted": true,
   "alias": "dungeon1",
-  "level": 1,
+  "exits": [
+    { "id": "yard-gate", "zone": "dungeon-bowl", "landmark": "yard-gate", "to": "0", "arrive": "outer-gate", "warp": "zone0-pit-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Concord Exchange", "tradeLanding": true }
+  ],
   "band": [1, 6],
   "entry": {
     "x": 150,
@@ -373,6 +374,11 @@
             "u": 0.570365,
             "v": 0.475,
             "facing": 0
+          },
+          "yard-gate": {
+            "u": 0.5,
+            "v": 0.946154,
+            "facing": 0
           }
         },
         "connections": {},
@@ -400,7 +406,8 @@
       "ring-middle-5-spot",
       "floor-0-spot",
       "floor-1-spot",
-      "floor-2-spot"
+      "floor-2-spot",
+      "yard-gate"
     ],
     "spawns": [
       {"id": "outer-scavengers-0", "at": "ring-outer-0-spot", "characters": ["character:cinder-scavenger"]},
