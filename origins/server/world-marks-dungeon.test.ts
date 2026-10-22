@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createMarksSettler, SETTLE_WAIT_S, MARKS_CAP } from './world-marks.ts';
-import { rosterSpawnIds, zoneOfKey } from './world-spawns.ts';
-import { loadEncounterContent } from '../encounters/encounters.ts';
-import { listedZoneIds } from '../zones/listed.ts';
+import { rosterSpawnIds, zoneOfKey, zoneSpawns } from './world-spawns.ts';
+import { fightSetup, loadEncounterContent } from '../encounters/encounters.ts';
+import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import type { Db } from './db.ts';
 
@@ -23,6 +23,24 @@ test('the roster ids are zone 7 database keys, and only roster rows are in the l
   assert.ok(ids.length > 0, 'no roster spawn row reaches the writer: Combat\'s join of bowl-roster.json into zone 7\'s spawns is missing');
   assert.equal(new Set(ids).size, ids.length, 'a spawn id twice');
   for (const id of ids) assert.equal(zoneOfKey(id), DUNGEON, `${id} is not a z${DUNGEON}: key`);
+});
+
+// Every roster fighter is priced by the writer: zoneSpawns drops (fails closed on) any creature fightSetup or healthOf cannot price, and a dropped legend would simply never settle. So name each missing piece.
+test('every zone 7 roster row survives zoneSpawns, and every roster spawn is fightable, priced, paid and looted from rows', () => {
+  const loaded = loadEncounterContent();
+  assert.ok(loaded.ok);
+  const spawns = [...zoneSpawns(loaded.value, DUNGEON).values()], rows = listedZone(DUNGEON).spawns.rows.filter((r) => r.roster === true);
+  assert.ok(rows.length > 0, 'zone 7 has no roster:true spawn row');
+  for (const row of rows) assert.ok(spawns.some((s) => s.spec.character === row.id), `${row.id}: a roster row zoneSpawns dropped (fightSetup or healthOf refused it: its creatureLoot row, form, body or level)`);
+  for (const s of spawns.filter((x) => x.roster === true)) {
+    const at = `${s.spec.id} (${s.spec.character})`, setup = fightSetup(s.fight, loaded.value);
+    assert.ok(setup.ok, `${at}: fightSetup refused ${s.fight}`);
+    assert.ok(s.hp >= 1, `${at}: no health`);
+    assert.ok(Object.hasOwn(loaded.value.local.killRows, s.spec.character), `${at}: no kill row`);
+    assert.ok(Object.hasOwn(loaded.value.local.creatureLoot, s.fight) || s.loot, `${at}: no loot table (creatureLoot or the row's own)`);
+    const row = rows.find((r) => r.id === s.spec.character)!;
+    assert.equal(s.respawnS, row.respawnSeconds, `${at}: respawn is not the row's respawnSeconds`);
+  }
 });
 
 test('the settle sends those ids with the worldMarks / worldShare rows and the beta cap', async () => {
