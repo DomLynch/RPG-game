@@ -7,7 +7,7 @@ import { previewRule } from '../origins/preview/preview-rules.ts';
 import { measureLayout } from './lib/pit-measure.ts';
 
 const SLOPE = previewRule('layoutSlope'), DUEL = { x: 26 };
-for (const [zone, zc] of [['dungeon1-bowl', 47], ['dungeon1-spiral', 36]] as const) {
+for (const [zone, zc] of [['7', 47]] as const) {   // Dungeon 1 is zone "7" (its plan rows are keyed by the zone id; /dungeon1/ is only the zone row's alias); the spiral layout was dropped with the bowl pick
   test(`${zone}: yard -> champion floor and the Duel pit are walkable on slopes within the layoutSlope rule (no wall climbed, no slope over 20 degrees)`, () => {
     const m = measureLayout(zone, SLOPE, { x: DUEL.x, z: zc });
     assert.ok(m.floorReached, `${zone}: the Champion floor is reachable from the yard`);
