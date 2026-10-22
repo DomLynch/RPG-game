@@ -1,0 +1,45 @@
+{
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "ring": "middle",
+ "shots": [
+  "ready-idle-375.png",
+  "mid-fight-375.png"
+ ],
+ "errors": [],
+ "mobCount": 38,
+ "sample": [
+  {
+   "id": "z7:outer-scavengers-0-1",
+   "x": 147.26,
+   "z": 29.51,
+   "body": "goblin"
+  },
+  {
+   "id": "z7:outer-scavengers-0-2",
+   "x": 148.63,
+   "z": 26.01,
+   "body": "goblin"
+  },
+  {
+   "id": "z7:outer-scavengers-0-3",
+   "x": 151.28,
+   "z": 24,
+   "body": "goblin"
+  }
+ ],
+ "target": {
+  "id": "z7:middle-ghouls-0-1",
+  "x": 149.62,
+  "z": 23.08,
+  "body": "goblin"
+ },
+ "outside": [
+  {
+   "id": "z7:middle-ghouls-0-1",
+   "r": 23.1
+  }
+ ],
+ "outsideCount": 1,
+ "infight": true,
+ "fighters": "[{\"id\":\"me\",\"phase\":\"dead\",\"hp\":0,\"x\":148.8,\"z\":19.1,\"hunting\":false,\"returning\":false,\"duel\":false},{\"id\":\"z7:floor-skeletons-0-1\",\"phase\":\"ready\",\"hp\":141,\"x\":150.9,\"z\":16.2,\"hunting\":false,\"returning\":true,\"duel\":false},{\"id\":\"z7:middle-ghouls-0-2\",\"phase\":\"ready\",\"hp\":98,\"x\":150.9,\"z\":16.5,\"hunt"
+}
