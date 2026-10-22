@@ -1,8 +1,19 @@
 // The zone pages a release row must open (scripts/zone-pages-check.mjs), read from the zone registry's rows and nothing else: origins/zone-rows/zone<N>.row.json (the same files scripts/gen-zones.mjs turns into the
 // registry). A zone is a row, so a new zone is on the list the moment its row exists; no zone id, name or alias is written here. Pure but for reading the rows' folder.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROWS_DIR, zoneRows } from '../gen-zones.mjs';
+import { fileURLToPath } from 'node:url';
+
+// Not scripts/gen-zones.mjs: its source holds import-shaped template strings, which the release placement (vps-receipts.mjs sourceWithImports) follows to files that do not exist and then files this row Mac-only. The naming rule is the same one.
+export const ROWS_DIR = fileURLToPath(new URL('../../origins/zone-rows/', import.meta.url));
+/** The zone rows under `dir` by number: zone<N>.row.json, N a number without a leading zero ("0" is the town). Any other .row.json name is an error, never skipped. */
+export function zoneRows(dir = ROWS_DIR) {
+  return readdirSync(dir).filter((f) => f.endsWith('.row.json')).map((file) => {
+    const m = /^zone(0|[1-9][0-9]*)\.row\.json$/.exec(file);
+    if (!m) throw new Error(`${file} is not a zone row name (zone<N>.row.json, N a number without a leading zero; 0 itself is the town)`);
+    return { file, id: m[1], n: Number(m[1]) };
+  }).sort((a, b) => a.n - b.n);
+}
 
 /** One entry per zone row: its id, display name, whether it is unlisted, and the short addresses that open its page: `/zone<N>/` (the same for every row) and `/<alias>/` when the row names an alias. Zone-number order. */
 export function zonePages(dir = ROWS_DIR) {

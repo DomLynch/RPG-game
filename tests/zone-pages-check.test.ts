@@ -1,10 +1,18 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pagesToOpen, shortPaths, titleOf, zonePages } from '../scripts/lib/zone-pages.mjs';
+import { sourceWithImports, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+
+// The release placement reads a row's script AND every relative import it names; one that points at a file that does not exist makes the whole row "Mac-only" (it did, through gen-zones.mjs's template strings, in the first cut of this row).
+test('the row is placed by its real source: every import it follows exists, and it is not a Mac-only row', () => {
+  const read = (p: string) => (existsSync(p) ? readFileSync(p, 'utf8') : null), script = 'scripts/zone-pages-check.mjs';
+  assert.notEqual(sourceWithImports(script, read), null, 'a relative import in the script or its imports names a missing file');
+  assert.equal(vpsSafeRow(`node ${script}`, ['node', script], read, true), true, 'zone-pages-check is a CI/VPS row, not Mac-only');
+});
 
 // The zone-pages release row (scripts/zone-pages-check.mjs) is driven by the zone registry's rows: a zone appears on its list the moment its row exists.
 const dirWith = (rows: Record<string, unknown>) => { const d = mkdtempSync(join(tmpdir(), 'zone-pages-')); for (const [f, row] of Object.entries(rows)) writeFileSync(join(d, f), JSON.stringify(row)); return d; };
