@@ -10,8 +10,7 @@ import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { SPEEDS } from '../../src/fight/index.ts';
-import { worldRule } from '../../src/fight/world-rules.ts';
+import { SPEEDS, world } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -919,7 +918,7 @@ const LEGEND_REACH = previewRule('legendReach');
 // A legend aggroes like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC, so she can definitely come up and attack"): the mob loop wanders it, notices the hero inside
 // its aggro radius (the legend row, else the legendAggro rule) and walks it up (mobs-view legendChase); here, once it hunts the hero inside LEGEND_REACH, the same verified fight a tap starts begins. Not for a hero
 // more than the world's maxLevelGap levels from it (the creature is trivial or out of reach, not a pull), and not again for legendCooldown seconds after a fight (a loss must not re-pull on the respawn tick).
-const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = worldRule('maxLevelGap');
+const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = world.MAX_LEVEL_GAP;   // the engine's own row-backed constant (world-rules maxLevelGap) through the fight barrel, not a second read of the rules module
 let legendCool = 0;
 function legendAggro(dt: number) {
   legendCool = Math.max(0, legendCool - dt);
