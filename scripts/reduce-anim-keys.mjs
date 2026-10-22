@@ -39,6 +39,7 @@ export function keptKeys(times, values, width, rotation, eps) {
   return keep;
 }
 
+/** @param {Buffer} raw @param {number} [eps] @param {Set<string> | null} [keep] @param {boolean} [dropRest] */
 export function reduceAnimKeys(raw, eps = 1e-4, keep = null, dropRest = false) {
   assert.equal(raw.readUInt32LE(0), 0x46546c67, 'Expected GLB');
   const jl = raw.readUInt32LE(12), j = JSON.parse(raw.subarray(20, 20 + jl)), bin = raw.subarray(28 + jl);

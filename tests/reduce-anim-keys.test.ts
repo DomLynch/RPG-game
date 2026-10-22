@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-// @ts-expect-error plain .mjs script, no types
 import { reduceAnimKeys, keptKeys } from '../scripts/reduce-anim-keys.mjs';
 
 // scripts/reduce-anim-keys.mjs drops the animation keys a track does not need and the clips a world body never plays (the world bodies were mostly clip data).
