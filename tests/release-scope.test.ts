@@ -3,8 +3,10 @@
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { deployRowsFor, rows } from '../scripts/release-rows-for.mjs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ciFullAge, deployRowsFor, rows } from '../scripts/release-rows-for.mjs';
 
 const scope = JSON.parse(readFileSync('scripts/release-scope.json', 'utf8')) as { core: string[]; areas: { paths: string[]; rows: string[] }[]; full: string[]; lib_no_rows: string[]; public_scoped: string[] };
 
@@ -21,4 +23,21 @@ test('a zone-only diff runs core + the writer boot row, a docs diff runs nothing
   assert.deepEqual(deployRowsFor(['docs/state/lead.md'], []), []);
   assert.equal(deployRowsFor(['package-lock.json'], []).length, rows.length);
   assert.equal(deployRowsFor(['public/world/kit/x.glb'], []).length, rows.length, 'public/ outside public_scoped is a full run');
+});
+
+// A fake gh: the runs list, then each run's row-job conclusions (what the real call's --jq returns), keyed by run id.
+const fakeGh = (runs: { id: number; started: string }[], jobs: Record<number, string[]>, fail = false): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'fake-gh-')), bin = join(dir, 'gh');
+  writeFileSync(bin, `#!/usr/bin/env node\nconst p = process.argv[3]; if (${fail}) process.exit(1);\nconst m = /runs\\/(\\d+)\\/jobs/.exec(p);\nprocess.stdout.write(JSON.stringify(m ? (${JSON.stringify(jobs)})[m[1]] ?? [] : ${JSON.stringify(runs)}));\n`);
+  chmodSync(bin, 0o755);
+  return bin;
+};
+
+test('the nightly CI full run counts as the daily full run only when every row job in it is green (Lead 2026-10-22)', () => {
+  const now = Date.parse('2026-10-23T08:00:00Z'), started = '2026-10-22T23:17:05Z', age = Math.floor((now - Date.parse(started)) / 1000);
+  assert.equal(ciFullAge({ gh: fakeGh([{ id: 1, started }], { 1: ['success', 'success'] }), now }), age);
+  assert.equal(ciFullAge({ gh: fakeGh([{ id: 1, started }], { 1: ['success', 'failure'] }), now }), -1, 'a red row: not a full run');
+  assert.equal(ciFullAge({ gh: fakeGh([{ id: 1, started }, { id: 2, started: '2026-10-21T23:17:00Z' }], { 1: ['cancelled'], 2: ['success'] }), now }), Math.floor((now - Date.parse('2026-10-21T23:17:00Z')) / 1000), 'the newest GREEN scheduled run counts');
+  assert.equal(ciFullAge({ gh: fakeGh([{ id: 1, started }], { 1: [] }), now }), -1, 'a run with no row jobs is not a full run');
+  assert.equal(ciFullAge({ gh: fakeGh([], {}, true), now }), -1, 'a gh error: the local receipt alone decides');
 });

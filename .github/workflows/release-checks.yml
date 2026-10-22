@@ -25,6 +25,10 @@ on:
     # Not `ready_for_review`: the train flips a candidate out of draft 13 s before it merges it (release-train-publish.sh), which started a second ~50-job matrix on a
     # candidate whose checks had just passed (EK 2026-10-13: 38440789792). A candidate is a draft until then; every row already ran on opened/synchronize.
     types: [opened, labeled, synchronize, reopened]
+  # The nightly full run on trunk (Lead 2026-10-22, CI runners first): every row a runner can take, on the default branch's head. deploy.sh's
+  # --full-age --ci counts it as the daily full run (scripts/release-rows-for.mjs ciFullAge), so candidates run delta rows only and the Mac keeps WebKit/iPhone.
+  schedule:
+    - cron: '17 23 * * *'   # 03:17 +04, the train's quietest hour
   workflow_dispatch:
     inputs:
       ref:

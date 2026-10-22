@@ -88,8 +88,25 @@ export function fullAge(root) {
   return -1;
 }
 
+// The nightly full run on GitHub (Lead 2026-10-22, CI runners first): release-checks' scheduled run on trunk counts as a full run when every row job
+// (`checks <rows> ...`) in it succeeded, so the Mac keeps only its WebKit/iPhone rows. Its matrix leaves out GPU_ONLY and MAC_ROWS (the plan's
+// CI_SKIP_ROWS): those run at deploy when a diff scopes them. Seconds since that run started, or -1 (no such run, a red row, or any gh error).
+export function ciFullAge({ gh = process.env.FULL_AGE_GH || 'gh', now = Date.now() } = {}) {
+  const api = (path, jq) => JSON.parse(execFileSync(gh, ['api', path, '--jq', jq], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20_000 }));
+  try {
+    for (const run of api('repos/DomLynch/RPG-game/actions/workflows/release-checks.yml/runs?event=schedule&status=completed&per_page=3', '[.workflow_runs[]|{id, started: .run_started_at}]')) {
+      const rows = api(`repos/DomLynch/RPG-game/actions/runs/${run.id}/jobs?per_page=100`, '[.jobs[]|select(.name|startswith("checks "))|.conclusion]');
+      const at = Date.parse(run.started);
+      if (rows.length && rows.every(c => c === 'success') && Number.isFinite(at)) return Math.floor((now - at) / 1000);
+    }
+  } catch { /* no CI answer: the local receipt alone decides */ }
+  return -1;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--full-age')) {
-  console.log(fullAge(process.argv.slice(2).find(a => !a.startsWith('--')) || '.'));
+  // --ci (deploy.sh): the younger of the local full run and the nightly CI full run; -1 when neither is known.
+  const ages = [fullAge(process.argv.slice(2).find(a => !a.startsWith('--')) || '.'), ...(process.argv.includes('--ci') ? [ciFullAge()] : [])].filter(a => a >= 0);
+  console.log(ages.length ? Math.min(...ages) : -1);
 } else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--deploy-skip')) {
   // Changed files on stdin, one per line; prints the comma list of row indices OUT of scope, and the picked rows on stderr.
   // --base <rev>: the live revision, whose .quality-gate.json row list the changed gate is compared with (unreadable = every row).

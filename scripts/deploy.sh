@@ -40,7 +40,7 @@ export VITE_SENTRY_RELEASE="$revision"
 deploy_scope_apply() {
   [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
   local age live skip
-  age=$(node scripts/release-rows-for.mjs --full-age . || true)
+  age=$(node scripts/release-rows-for.mjs --full-age --ci . || true)   # --ci: the nightly full release-checks run on GitHub counts too (Lead 2026-10-22)
   [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
   if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
   live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
@@ -152,7 +152,7 @@ elif [[ "$vps_unit" == ok ]]; then
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
   npm run quality:deploy
-elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
+elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age --ci . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
   # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
   # tests run with the daily full release, the same 24 h rule as the browser rows.
   echo "No green CI quality run for $revision; scoped release (last full run ${age}s ago): fast unit suite, test:all with the daily full run"
