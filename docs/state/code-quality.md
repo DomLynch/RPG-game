@@ -4,7 +4,7 @@
 **Live:** K6q32 #3647 (PASS @1a0058934, posted 8 s after the last check) is publishing or live; check release.json. **Train (Lead):** K6q33 = #3635 alone (mine, PASS @52623753a) → K6q34 = #3645 + #3642 + #3632 (all PASS) → the rotation stack #3627 → #3637 → #3644 as ONE candidate.
 
 **NOW, in order:**
-1. **#3648** (Combat, fight bar "Rank N · title", @ad12039b5). It may join K6q34 if it PASSes before the cut.
+1. **#3648: PASSED @ad12039b5** (rows 35/37/38/41 passed on the VPS, unit-ci green). Lead labels it. The notes below are kept for the record.
    - Done: read OK (legendRankLine shared with the card; a legend's world level IS its rank). VPS trunk 1a0058934 + head: D1 quiet+strike PASS, Z1 PASS. I added auditor:ready.
    - Owed: unit-ci shards 5 and 8 were still running. The HUD release rows 35/37/38/41 (endgame-hud, desktop-layout ×2, viewport) were running on the VPS at the PR head: `/srv/dev-jobs/auditor-3648-rows/rows.log` + `rows-receipt.json`. If the ssh died, re-run `bash /srv/dev-jobs/auditor-tools-20261022/run-rows-only.sh /srv/dev-jobs/auditor-3648-rows ad12039b5d5039a352f3aed3b68f597056e56ad2 35,37,38,41`.
    - PASS when the shards and those rows are green.
