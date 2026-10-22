@@ -24,7 +24,9 @@ export async function loadFarBodies(nodes: readonly string[]): Promise<Map<strin
     const lod = skinLod(node); if (!lod) continue;
     if (!farFiles.has(lod.url)) farFiles.set(lod.url, new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`/${lod.url}`).then((g) => g.scene, () => null));
     const scene = await farFiles.get(lod.url); if (!scene) continue;
-    scene.traverse((o) => { const mesh = o as THREE.Mesh; if (mesh.isMesh && mesh.name === node && !out.has(node)) out.set(node, { geometry: mesh.geometry, material: mesh.material, dist: lod.dist }); });
+    scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.position.set(0, 0, 0); });   // as the full file: a node stands at its own origin (its scale and rotation stay: a quantized file keeps its dequantizing scale there)
+    scene.updateMatrixWorld(true);
+    scene.traverse((o) => { const mesh = o as THREE.Mesh; if (mesh.isMesh && mesh.name === node && !out.has(node)) out.set(node, { geometry: mesh.geometry, material: mesh.material, dist: lod.dist, matrix: mesh.matrixWorld.clone() }); });
   }
   return out;
 }

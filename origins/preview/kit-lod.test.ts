@@ -30,6 +30,17 @@ test('the far body casts the shadow: the proxy holds the far geometry, the near 
   assert.equal(proxy.count, 4, 'x = 0, 10, 20 and 40 are within the 40 m shadow row');
 });
 
+// The bug the T4 stills caught: a re-baked or quantized far file carries its own scale in its node, and the far instances must use THAT node transform, not the full mesh's (else the far body is drawn at the wrong size and the hut vanishes).
+test('the far instances carry the far body\'s own node transform', () => {
+  const own = new Map<string, KitLod>([['goblin_hut', { geometry: farGeometry, material: farMaterial, dist: 15, matrix: new THREE.Matrix4().makeScale(2, 2, 2) }]]);
+  const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { lods: own, override: {} });
+  const near = kids(g, 'goblin_hut')!, far = kids(g, 'goblin_hut__far')!;
+  updateKitViews({ x: 0, z: 0 }, 1);
+  const len = (mesh: THREE.InstancedMesh, i: number) => { const e = mesh.instanceMatrix.array; return Math.hypot(e[i * 16], e[i * 16 + 1], e[i * 16 + 2]); };
+  assert.ok(Math.abs(len(near, 0) - 1) < 1e-5, 'the near (full) instances keep the full mesh node scale (identity here)');
+  assert.ok(far.count > 0 && Math.abs(len(far, 0) - 2) < 1e-5, 'the far instances are scaled by the far node\'s own transform');
+});
+
 test('a kind with no far body is what the radius rows made it: no far mesh, the full mesh, the proxy on the full geometry', () => {
   const g = kitGroup(rootOf('goblin_hut'), { placements: at('goblin_hut', 0, 10, 20, 40, 80), landmarks: [] } as never, () => 0, { override: {} });
   assert.equal(kids(g, 'goblin_hut__far'), undefined); assert.notEqual(kids(g, 'goblin_hut__shadow')!.geometry, farGeometry);
