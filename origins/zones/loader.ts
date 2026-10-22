@@ -14,6 +14,7 @@ import { heightProblems } from './height-ladder.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 import type { ExitRow } from './exits.ts';
+import { safeAreaProblems, type SafeArea } from './pvp.ts';
 
 /** A kit node's look over the model's own atlas (Dom 2026-10-20: the boulders read flat olive): `color` multiplies the atlas (1,1,1 = as shipped; values above 1 lift a channel), `roughness` replaces the material's when set. Placement and solids are untouched. */
 export type KitTint = { color: readonly [number, number, number]; roughness?: number };
@@ -39,6 +40,8 @@ export type Zone = {
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
   warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
+  pvp?: 'off' | 'on' | 'opt-in';   // the zone's PvP default (zone row `pvp`, schema default off); pvp.ts pvpAt reads it with safeAreas
+  safeAreas?: readonly SafeArea[];   // rect volumes with their own PvP verdict and spawn rule (zone row `safeAreas`, shape in pvp.ts SafeArea); the most restrictive containing area wins
   presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
@@ -119,6 +122,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (l.body !== undefined && !/^world\/kit\/[\w-]+\.glb$/.test(l.body)) bad.push(`mob look ${id}: body is a world/kit/<name>.glb file`);
   }
   for (const [i, x] of (z.exits ?? []).entries()) if (!z.world.includes(x.zone)) bad.push(`exits[${i}] ${x.id}: "${x.zone}" is not a world zone of this package`);
+  bad.push(...safeAreaProblems(z.safeAreas));   // the shape of the PvP volumes (pvp.ts); the zone's own `pvp` value is the schema's enum check above
   const warpIds = new Set<string>();
   for (const [i, w] of (z.warps ?? []).entries()) {   // the shape only; that a place is inside a presence zone row and clear of the trade areas is the server check's (origins/server/zone-package-check.ts)
     if (typeof w.id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(w.id)) bad.push(`warps[${i}]: id ${JSON.stringify(w.id)} is not a lowercase id`);
