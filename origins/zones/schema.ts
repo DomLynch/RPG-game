@@ -17,7 +17,7 @@ export const FIELDS: readonly Field[] = [
   legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 0 }),
   legacy('band', 'list', [], { donor: 'AzerothCore instance_template / EQEmu zone.min_level..max_level (the level band a dungeon row names; [] = none, the zone-number rule applies)' }),
   legacy('spawns', 'map', { openers: {}, rows: [] }), legacy('kit', 'map', { url: '', nodes: [], landmarks: [], kinds: [] }), legacy('looks', 'map', {}), legacy('mobLooks', 'map', null as never, { nullable: true }), legacy('place', 'map', null as never, { nullable: true }),
-  legacy('biome', 'string', 'ash-wastes'), legacy('unlisted', 'boolean', false, { donor: 'EQEmu zone.min_status (a zone only some can enter)' }), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
+  legacy('biome', 'string', 'ash-wastes'), legacy('unlisted', 'boolean', false, { donor: 'EQEmu zone.min_status (a zone only some can enter)' }), legacy('defaultKind', 'string', 'goblin'), legacy('alias', 'string', '', { wired: true }), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.

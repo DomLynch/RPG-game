@@ -1,0 +1,17 @@
+{
+  "about": "What a player reads for one of the Pit's legends in the world (Strategy's two copy conditions, 2026-10-22: a legend is labelled as name, rank and title like the ladder, never as a mob / creature / monster; it is 'defeated', never 'slain', and its reward is never called loot or a drop). A legend is recognised by its zone row's `source.legendId` (origins/preview/legend-copy.ts); every other creature keeps its own copy. `copy` rows fill {rank} {title} {kind} {name} {paid}; `zoneHints` replace the zone's walk / watch / loading lines (a zone with no row keeps the defaults).",
+  "copy": {
+    "cardRank": { "text": "Rank {rank} · {title}" },
+    "cardKind": { "text": "the {kind}" },
+    "defeated": { "text": "{name} is defeated." },
+    "reward": { "text": "Reward: {paid}." },
+    "noReward": { "text": "No reward." }
+  },
+  "zoneHints": {
+    "7": {
+      "walk": "Left stick walks. Push to the edge to run. Walk up to an opponent and tap STRIKE (slide to stab or slash, hold for heavy) to duel them. Drag empty screen to look round when the camera lock is off.",
+      "watch": "Left stick walks. Push to the edge to run. Opponents stop and watch when you come near.",
+      "arriving": "The opponents are still arriving: try again in a moment."
+    }
+  }
+}

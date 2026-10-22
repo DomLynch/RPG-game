@@ -27,7 +27,7 @@ const greybox = <T extends { pieces: readonly object[] }>(plan: T): T => ({ ...p
 const compare = (m: Record<string, number>, what: string) => { const { a, k } = fromSources(m); close(greybox(planFor('exchange', (s) => m[s]!)!), oraclePlan(a, k), what); };
 
 test('the Exchange carries a plan; every source its anchors name is one its world data answers, and none is left unread', () => {
-  assert.deepEqual(planZones(), ['exchange']);
+  assert.deepEqual(planZones(), ['exchange', '7']);   // the Exchange, then Dungeon 1's bowl (zone 7; free-standing: no anchors)
   assert.deepEqual([...sources].sort(), Object.keys(base).sort());
 });
 test('at the shipped anchors the rows build exactly what the code built', () => {

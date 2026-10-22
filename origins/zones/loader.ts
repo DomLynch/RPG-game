@@ -37,6 +37,7 @@ export type Zone = {
   set?: readonly string[];
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
+  alias?: string;   // the zone's short URL name (/<alias>/, e.g. /dungeon1/ = zone 7); the numeric id stays canonical, the alias is only how an address finds it (zoneFromAddress)
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   exits?: readonly ExitRow[];   // this package's doors to other zones (zone row `exits`, the same rows as exit-rows.json); exits.ts merges them into EXITS, `zone` of each is a world zone of this package
   warps?: readonly ZoneWarp[];   // this package's own warp landmarks (zone row `warps`, the same rows as warp-landmarks.json); presence/warps.ts merges the OPEN zones' into its table, an id may not repeat across the table, the exits' warps and the packages
@@ -70,10 +71,13 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: string): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
   const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
+  if (z.mobLooks && !(z.mobLooks.looks && typeof z.mobLooks.looks === 'object' && z.mobLooks.spread && typeof z.mobLooks.spread === 'object')) return [...bad, 'mobLooks needs both a `looks` object and a `spread` object (spread may be empty): the page reads both (a JSON zone row is not type-checked, so the shape is checked here, before the checks that read them)'];
   const own: Record<string, unknown> = { ...z };
   delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
+  const [bandLo, bandHi, ...bandRest] = z.band ?? [];
+  if (z.band && !(bandRest.length === 0 && Number.isInteger(bandLo) && Number.isInteger(bandHi) && bandLo! >= 1 && bandLo! <= bandHi!)) bad.push(`band ${JSON.stringify(z.band)} is not [lo, hi], whole numbers, 1 or more, lo <= hi`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
     const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
@@ -157,8 +161,9 @@ export const zoneNames = (): Record<string, string> => Object.assign({}, ...zone
 
 // Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short links /zone<digits>/ (/zone2/, the same for every row) and /dungeon<digits>/ (/dungeon1/ is the id `dungeon1`; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  const short = /^\/(?:zone([0-9]+)|(dungeon[0-9]+))\/?$/.exec(pathname);   // /zone0/, /zone2/ name the digits ("0" is text, so ?? and not || keeps it); /dungeon1/ names the id `dungeon1` itself
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? short?.[1] ?? short?.[2] ?? DEFAULT_ZONE;
+  const short = /^\/(?:zone([0-9]+)|([a-z][a-z0-9-]*))\/?$/.exec(pathname);   // /zone0/, /zone2/ name the digits ("0" is text, so ?? and not || keeps it); any other one-segment path is a zone row's `alias` (/dungeon1/ = zone 7), and a path that is no alias is no zone (the default)
+  const alias = short?.[2] === undefined ? undefined : Object.entries(PACKAGES).find(([, z]) => (z as { alias?: string }).alias === short[2])?.[0];
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? short?.[1] ?? alias ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);

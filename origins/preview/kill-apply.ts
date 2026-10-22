@@ -6,6 +6,7 @@ import type { Offline } from './save.ts';
 import type { CareerState } from '../../src/core/index.ts';
 import type { GuestLoot } from './guest-loot.ts';
 import TEXT from './kill-text.json' with { type: 'json' };
+import { defeatedLine, rewardLine, type KillCopy } from './legend-copy.ts';
 
 export type Source = { saved: CareerState } | { offline: string };
 /** The session and source after the server's paid CP, or null when there is nothing to show (offline, not a saved career, a kill that paid 0, or no server answer). */
@@ -29,14 +30,16 @@ export const SIGN_IN_TO_KEEP = TEXT.toast.guestNoLoot, NOT_SAVED = TEXT.toast.no
 export const GUEST_SIGN_IN_LOSS = TEXT.guest.signInLoss;
 const lines = (loot: readonly { item: string; quantity: number }[], name: (id: string) => string): string[] => loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
 /** The kill toast: ONE path. What the server paid ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); a guest (no session) is shown what the same table rolled for this session with a nudge to sign in to keep it ("Wolf pelt ×2 (sign in to keep it).", guest-loot.ts; no CP, nothing saved), and with nothing rolled gets the plain nudge; a signed-in page the server did not answer is told nothing was saved. "Bounty done." is the journal step's own answer (the server pays no bounty bronze yet). The copy is a row (kill-text.json). */
-export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, guest: GuestLoot | null = null, sandbox = false): string {
+export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, guest: GuestLoot | null = null, sandbox = false, copy: KillCopy | null = null): string {
   const done = bountyTaken ? ' Bounty done.' : '';
+  const head = copy ? defeatedLine(copy, creature) : `${creature} is down.`;   // a Pit legend (legend-copy.ts) is "defeated" and its reward is "Reward: ...", on its own line; every other creature keeps its words
   if (sandbox) return `${TEXT.toast.sandboxKill.replace('{creature}', creature)}${done}`;   // an UNLISTED zone (the Test Zone): the server never sees it, so nothing is paid or saved there, and the row says so
-  if ('offline' in killed && killed.offline === 'http-409' && killed.kind) return `${creature} is down. ${receiptToast({ kind: killed.kind, instance: '', ...(killed.receipt ? { receipt: killed.receipt } : {}) })}${done}`;   // the first send's own 409 reads the same way
+  if ('offline' in killed && killed.offline === 'http-409' && killed.kind) return `${head} ${receiptToast({ kind: killed.kind, instance: '', ...(killed.receipt ? { receipt: killed.receipt } : {}) })}${done}`;   // the first send's own 409 reads the same way
   if ('offline' in killed) {
     const held = killed.offline === 'no-session' && guest ? [...(guest.bronze ? [`+${guest.bronze} bronze`] : []), ...lines(guest.loot, name)] : [];
-    return `${creature} is down. ${held.length ? TEXT.toast.guestLoot.replace('{paid}', held.join(' · ')) : killed.offline === 'no-session' ? SIGN_IN_TO_KEEP : NOT_SAVED}${done}`;
+    return `${head} ${held.length ? TEXT.toast.guestLoot.replace('{paid}', held.join(' · ')) : killed.offline === 'no-session' ? SIGN_IN_TO_KEEP : NOT_SAVED}${done}`;
   }
   const paid = [...(killed.cp ? [`+${killed.cp} CP`] : []), ...(killed.bronze ? [`+${killed.bronze} bronze`] : []), ...lines(killed.loot, name)];
-  return `${creature} is down. ${paid.length ? `${paid.join(' · ')}.` : 'Nothing paid.'}${done}`;
+  if (copy) return `${head}\n${rewardLine(copy, paid)}${done}`;
+  return `${head} ${paid.length ? `${paid.join(' · ')}.` : 'Nothing paid.'}${done}`;
 }
