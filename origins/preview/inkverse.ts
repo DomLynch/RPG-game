@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/index.ts';
 import MANIFEST from './inkverse.manifest.json' with { type: 'json' };
 import ROWS from './inkverse.json' with { type: 'json' };
+import { hudPieces, withoutHud } from './hud-tag.ts';
 
 type Rgb = readonly [number, number, number];
 export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly materials: readonly string[]; readonly objects: readonly string[]; readonly userData: readonly string[] };
@@ -134,8 +135,9 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   let tagList: Tagged[] = [];
   const nameIn = (list: readonly string[], n: string | undefined): boolean => !!n && list.includes(n);
   const userIn = (list: readonly string[], x: THREE.Material): boolean => list.some((k) => x.userData[k] !== undefined);
+  const HUD_LAYER = 4; let hudList: THREE.Object3D[] = [];
   const retag = (): void => {
-    tagList = [];
+    tagList = []; hudList = hudPieces(scene); for (const o of hudList) o.layers.enable(HUD_LAYER);
     scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
@@ -148,18 +150,19 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   const render = (): void => {
     if (frames++ % 30 === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
-    camera.layers.set(0); renderer.setRenderTarget(color); renderer.render(scene, camera);
+    camera.layers.set(0); renderer.setRenderTarget(color); withoutHud(scene, () => renderer.render(scene, camera));   // the scene-space HUD pieces (name tags, "!", rings: userData.hud, hud-tag.ts) are left out of the pass and drawn plain over it below
     renderer.setRenderTarget(tagged); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, false, false);
     if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
       for (const t of tagList) { const tm = tagMaterialFor(t.own, t.layer) as THREE.ShaderMaterial; if (tm.uniforms?.opacity) tm.uniforms.opacity.value = t.own.opacity; t.mesh.material = tm; }
-      for (const layer of [1, 2]) { camera.layers.set(layer); renderer.render(scene, camera); }
+      withoutHud(scene, () => { for (const layer of [1, 2]) { camera.layers.set(layer); renderer.render(scene, camera); } });
       for (const t of tagList) t.mesh.material = t.own;
       scene.background = bg; scene.fog = fog; camera.layers.set(0);
     }
     (mat.uniforms.projScale!.value as THREE.Vector2).set(1 / camera.projectionMatrix.elements[0]!, 1 / camera.projectionMatrix.elements[5]!);
     mat.uniforms.cameraNear!.value = camera.near; mat.uniforms.cameraFar!.value = camera.far;
     renderer.setRenderTarget(before); renderer.autoClear = true; renderer.render(post, postCam);
+    if (hudList.length) { const bg = scene.background, fog = scene.fog; renderer.autoClear = false; scene.background = null; camera.layers.set(HUD_LAYER); renderer.render(scene, camera); scene.background = bg; scene.fog = fog; camera.layers.set(0); }   // the HUD pieces, plain, on top (no scene depth: a tag behind a wall still shows)
     renderer.autoClear = autoClear; renderer.setClearColor(clear, clearA);
   };
   for (const name of ['compile', 'compileAsync'] as const) {   // a program is keyed on its render target: the warm-ups compile for the pass's own target (the gfx lift's rule)
