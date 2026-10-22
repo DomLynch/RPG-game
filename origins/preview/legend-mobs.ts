@@ -5,14 +5,32 @@
 import { LEGEND_SPAWNS, legendView, type LegendSpawn } from '../boss/legend-view.ts';
 import { zoneKeyPrefix } from '../zones/loader.ts';
 import type { Frontier } from './frontier-plan.ts';
-import type { MobSpec } from './mobs.ts';
+import { NAMED, type Mob, type MobSpec } from './mobs.ts';
+import { previewRule } from './preview-rules.ts';
+
+export type LegendNear = { spec: MobSpec; x: number; z: number; hunting: boolean };
+export type LegendPullRules = { reach: number; levelGap: number };
+/** The legend that pulls the hero this frame, or null: it hunts the hero, stands inside `reach`, and the hero is within `levelGap` levels of it (a trivial or out-of-reach legend is not a pull). `busy` (a fight is up, or the duel failed to load) and a running cooldown pull nothing. The first legend in list order wins. Pure: main.ts starts the verified fight for the one it returns. */
+export const legendPull = (legends: readonly LegendNear[], hero: { x: number; z: number }, level: number, busy: boolean, cool: number, rules: LegendPullRules): MobSpec | null => {
+  if (busy || cool > 0) return null;
+  return legends.find((l) => l.hunting && Math.hypot(l.x - hero.x, l.z - hero.z) <= rules.reach && Math.abs(l.spec.level - level) <= rules.levelGap)?.spec ?? null;
+};
+/** What a finished legend duel does to the world: a win lays the legend down for the respawn, a loss or a draw leaves it standing (the cooldown stops a re-pull). */
+export const legendFelled = (outcome: 'win' | 'loss' | 'draw' | null): boolean => outcome === 'win';
+
+/** A legend that noticed the hero walks up to its reach: the mob sim's aggro only turns a creature to face the hero (the open world's creatures are pulled in by the combat loop, and a legend has none), so this closes the gap at the creature chase speed and stops at legendStopShare of the legend reach. */
+export const legendChase = (m: Mob, hero: { x: number; z: number }, dt: number, stand: (x: number, z: number) => boolean, speed: number): Mob => {   // speed: the engine's creature chase speed (SPEEDS.creature.chase, passed in by mobs-view: a zone reaches the engine only through the fight barrel)
+  if (m.mode !== 'aggro' || Math.hypot(hero.x - m.x, hero.z - m.z) <= previewRule('legendReach') * previewRule('legendStopShare')) return m;
+  const nx = m.x + Math.sin(m.facing) * speed * dt, nz = m.z + Math.cos(m.facing) * speed * dt;
+  return stand(nx, nz) ? { ...m, x: nx, z: nz } : m;
+};
 
 export const legendSpecs = (f: Frontier, spawns: readonly LegendSpawn[] = LEGEND_SPAWNS): MobSpec[] => {
   const prefix = zoneKeyPrefix(f.zone), out: MobSpec[] = [];
   for (const s of spawns) {
     const boss = legendView(s.legend), zone = f.zones.find((z) => z.zone === s.zone && Object.hasOwn(z.landmarks, s.at));
     if (!boss || !zone) continue;   // another zone's legend, or a landmark this build lacks
-    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]!, x: zone.landmarks[s.at]!.x + (s.dx ?? 0), z: zone.landmarks[s.at]!.z + (s.dz ?? 0) }, roam: 0, aggro: 1, named: true, legend: boss.legend });
+    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]!, x: zone.landmarks[s.at]!.x + (s.dx ?? 0), z: zone.landmarks[s.at]!.z + (s.dz ?? 0) }, roam: s.roam ?? NAMED.roam, aggro: s.aggro ?? previewRule('legendAggro'), named: true, legend: boss.legend });
   }
   return out;
 };

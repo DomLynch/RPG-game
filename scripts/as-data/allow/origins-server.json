@@ -2,7 +2,6 @@
   "tunables": [
     {"file": "origins/server/encounter-pose.ts", "name": "EPS", "kind": "exempt", "reason": "float-comparison epsilon: numeric tolerance, not game tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/encounter-pose.ts", "name": "FLOAT32_BYTES", "kind": "exempt", "reason": "the width of one float32 in the packed pose (the record's own wire layout, see POSE_BYTES): a unit, not tuning", "owner": "Duels & Backend"},
-    {"file": "origins/server/units.ts", "name": "MS_PER_SECOND", "kind": "exempt", "reason": "milliseconds in a second: a unit, not tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/units.ts", "name": "TICKS_PER_SECOND", "kind": "exempt", "reason": "the sim's fixed step rate, a mirror of src/fight/sim.ts STEP = 1 / 60 (tests/units.test.ts pins the two together): an engine constant, not tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/units.ts", "name": "CM_PER_M", "kind": "exempt", "reason": "centimetres in a metre: a unit, not tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/units.ts", "name": "LOG_TAG_CHARS", "kind": "exempt", "reason": "how many trailing characters of an id a log line shows as its short tag: log formatting, not a game rule", "owner": "Duels & Backend"},

@@ -4,7 +4,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { classify } from '../scripts/npm-audit-soft.mjs';
+import { classify, classifySpawn } from '../scripts/npm-audit-soft.mjs';
 import { steps } from './lib/npm-script.ts';
 
 // The npm registry's audit service went down on 2026-10-22 (bulk 503, /audits/quick 400) and turned K6q17's quality (static) red after
@@ -52,6 +52,31 @@ test('npm-audit-soft: a registry outage exits 0 with a warning; a vulnerability 
   assert.equal(bad.status, 1, bad.stderr);
   assert.match(bad.stdout, /human report/, 'a failing audit prints npm\'s own report');
   assert.equal(runWithFakeNpm(report(0), 0).status, 0);
+});
+
+// 2026-10-22, K6q23 #3609 and #3595: npm hung on the registry until spawnSync's timeout killed it ("could not run npm: spawnSync npm
+// ETIMEDOUT"), the same outage in another shape. Only the timeout is softened; a runner with no usable npm still fails.
+test('classifySpawn: a spawn timeout is the outage; any other spawn error fails', () => {
+  assert.deepEqual(classifySpawn(Object.assign(new Error('spawnSync npm ETIMEDOUT'), { code: 'ETIMEDOUT' })), { exit: 0, kind: 'outage', detail: 'npm audit timed out (the registry did not answer)' });
+  assert.deepEqual(classifySpawn(Object.assign(new Error('spawnSync npm ENOENT'), { code: 'ENOENT' })), { exit: 1, kind: 'spawn', detail: 'ENOENT' });
+  assert.equal(classifySpawn(Object.assign(new Error('spawnSync npm EACCES'), { code: 'EACCES' })).exit, 1);
+  assert.equal(classifySpawn(new Error('no code')).exit, 1);
+});
+
+test('npm-audit-soft: an npm that hangs past the timeout exits 0 with a warning; a missing npm exits 1', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'frankendom-audit-'));
+  try {
+    const hang = join(dir, 'npm');
+    writeFileSync(hang, '#!/usr/bin/env node\nsetTimeout(() => {}, 60000);\n');
+    chmodSync(hang, 0o755);
+    const run = (npm: string) => spawnSync(process.execPath, ['scripts/npm-audit-soft.mjs', '--omit=dev'], { encoding: 'utf8', env: { ...process.env, NPM_AUDIT_SOFT_NPM: npm, NPM_AUDIT_SOFT_TIMEOUT_MS: '500' } });
+    const hung = run(hang);
+    assert.equal(hung.status, 0, hung.stderr);
+    assert.match(hung.stderr, /npm audit SKIPPED: npm audit timed out/);
+    const missing = run(join(dir, 'no-such-npm'));
+    assert.equal(missing.status, 1, missing.stderr);
+    assert.match(missing.stderr, /could not run .*ENOENT/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('the quality and deploy gates run the soft audit, never a bare npm audit', () => {
