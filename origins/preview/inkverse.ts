@@ -8,7 +8,7 @@ import MANIFEST from './inkverse.manifest.json' with { type: 'json' };
 import ROWS from './inkverse.json' with { type: 'json' };
 
 type Rgb = readonly [number, number, number];
-export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly materials: readonly string[]; readonly objects: readonly string[] };
+export type InkTag = { readonly color: Rgb; readonly keepLuma: number; readonly materials: readonly string[]; readonly objects: readonly string[]; readonly userData: readonly string[] };
 export type InkLook = {
   readonly id: string; readonly paper: Rgb; readonly ink: Rgb;
   readonly tone: { readonly gamma: number; readonly exposure: number; readonly pivot: number; readonly contrast: number; readonly low: number; readonly high: number; readonly cellPx: number; readonly angleDeg: number };
@@ -19,7 +19,7 @@ export type InkLook = {
 const num = (id: string, what: string, v: unknown): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`ink look "${id}": ${what} is a number`); return v; };
 const rgb = (id: string, what: string, v: unknown): Rgb => { if (!Array.isArray(v) || v.length !== 3) throw new Error(`ink look "${id}": ${what} is [r, g, b]`); return [num(id, what, v[0]), num(id, what, v[1]), num(id, what, v[2])]; };
 const names = (id: string, what: string, v: unknown): readonly string[] => { if (!Array.isArray(v) || !v.every((s) => typeof s === 'string' && s)) throw new Error(`ink look "${id}": ${what} is a list of names`); return v as string[]; };
-const tag = (id: string, what: string, v: unknown): InkTag => { const t = v as Record<string, unknown> | undefined; if (!t || typeof t !== 'object') throw new Error(`ink look "${id}": ${what} is an object`); return { color: rgb(id, `${what}.color`, t.color), keepLuma: num(id, `${what}.keepLuma`, t.keepLuma), materials: names(id, `${what}.materials`, t.materials), objects: names(id, `${what}.objects`, t.objects) }; };
+const tag = (id: string, what: string, v: unknown): InkTag => { const t = v as Record<string, unknown> | undefined; if (!t || typeof t !== 'object') throw new Error(`ink look "${id}": ${what} is an object`); return { color: rgb(id, `${what}.color`, t.color), keepLuma: num(id, `${what}.keepLuma`, t.keepLuma), materials: names(id, `${what}.materials`, t.materials), objects: names(id, `${what}.objects`, t.objects), userData: names(id, `${what}.userData`, t.userData) }; };
 const group = (id: string, what: string, v: unknown, keys: readonly string[]): Record<string, number> => {
   const g = v as Record<string, unknown> | undefined; if (!g || typeof g !== 'object') throw new Error(`ink look "${id}": ${what} is an object`);
   return Object.fromEntries(keys.map((k) => [k, num(id, `${what}.${k}`, g[k])]));
@@ -103,17 +103,45 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false;
   const post = new THREE.Scene(); post.add(quad); const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const flat = (color: number) => new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });   // pulled toward the camera: the tag pass redraws surfaces the scene already wrote to the shared depth
-  const tagMats = new Map<number, THREE.MeshBasicMaterial>([[1, flat(0xff0000)], [2, flat(0x0000ff)]]);
-  // The tag pass: each tagged object is on a camera layer (1 red, 2 blue) as well as 0; the scene draws once more through those layers with a flat colour over the scene's own depth.
-  let tagCount = 0;
+  // The tag pass: each tagged mesh is on a camera layer (1 red, 2 blue) as well as 0; the scene draws once more through those layers over the scene's own depth, each tagged mesh wearing a tag material that keeps its own cut-out (a decal's map alpha,
+  // a banner's alphaMap) and its own fade, or the decals would draw as red squares. The sand's blood-stain mask is redrawn from the inputs the sand's shader reads (exchange.ts `stained` leaves them on the material's userData.inkStain).
+  const TAG = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1)];
+  const OFFSET = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };   // pulled toward the camera: the tag pass redraws surfaces the scene already wrote to the shared depth
+  const VERT = 'varying vec2 vUv; varying vec3 vW; void main() { vUv = uv; vec4 p = vec4(position, 1.0);\n#ifdef USE_INSTANCING\n p = instanceMatrix * p;\n#endif\n vec4 w = modelMatrix * p; vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+  type Cut = THREE.MeshBasicMaterial;
+  const cutMat = (src: THREE.Material, layer: number): THREE.ShaderMaterial => new THREE.ShaderMaterial({
+    uniforms: { map: u((src as Cut).map), alphaMap: u((src as Cut).alphaMap), opacity: u(1), tag: u(TAG[layer]) }, vertexShader: VERT, side: (src as Cut).side, depthWrite: false, ...OFFSET,
+    defines: { HAS_MAP: (src as Cut).map ? 1 : 0, HAS_ALPHA: (src as Cut).alphaMap ? 1 : 0 },
+    fragmentShader: 'uniform sampler2D map, alphaMap; uniform float opacity; uniform vec3 tag; varying vec2 vUv; void main() { float a = opacity;\n#if HAS_MAP\n a *= texture2D(map, vUv).a;\n#endif\n#if HAS_ALPHA\n a *= texture2D(alphaMap, vUv).g;\n#endif\n if (a < 0.3) discard; gl_FragColor = vec4(tag, 1.0); }',
+  });
+  const stainMat = (stain: { span: number; top: number; bottom: number; gain: number; patch: { value: THREE.Texture } }): THREE.ShaderMaterial => new THREE.ShaderMaterial({
+    uniforms: { patchMap: stain.patch, tag: u(TAG[1]) }, vertexShader: VERT, ...OFFSET,
+    defines: { SPAN: stain.span.toFixed(2), TOP: stain.top.toFixed(2), DEPTH: (stain.bottom - stain.top).toFixed(2), GAIN: stain.gain.toFixed(2) },
+    fragmentShader: 'uniform sampler2D patchMap; uniform vec3 tag; varying vec2 vUv; varying vec3 vW; void main() { vec4 s = texture2D(patchMap, fract(vW.xz / SPAN + 0.5)); float a = clamp(s.a * GAIN, 0.0, 1.0) * clamp((vW.y - TOP) / DEPTH, 0.0, 1.0); gl_FragColor = vec4(tag * a, 1.0); }',   // the sand shader's own stain amount
+  });
+  const flatMats = [null, new THREE.MeshBasicMaterial({ color: 0xff0000, fog: false, toneMapped: false, ...OFFSET }), new THREE.MeshBasicMaterial({ color: 0x0000ff, fog: false, toneMapped: false, ...OFFSET })];
+  const made = [new WeakMap<THREE.Material, THREE.Material>(), new WeakMap<THREE.Material, THREE.Material>(), new WeakMap<THREE.Material, THREE.Material>()];
+  const tagMaterialFor = (src: THREE.Material, layer: number): THREE.Material => {
+    let hit = made[layer]!.get(src);
+    if (!hit) {
+      const stain = src.userData.inkStain;
+      hit = stain && layer === 1 ? stainMat(stain) : (src as Cut).map || (src as Cut).alphaMap ? cutMat(src, layer) : flatMats[layer]!;
+      made[layer]!.set(src, hit);
+    }
+    return hit;
+  };
+  type Tagged = { mesh: THREE.Mesh; layer: number; own: THREE.Material };
+  let tagList: Tagged[] = [];
   const nameIn = (list: readonly string[], n: string | undefined): boolean => !!n && list.includes(n);
+  const userIn = (list: readonly string[], x: THREE.Material): boolean => list.some((k) => x.userData[k] !== undefined);
   const retag = (): void => {
-    tagCount = 0;
+    tagList = [];
     scene.traverse((o) => {
-      const m = o as THREE.Mesh, drawn = m.isMesh || (o as THREE.Points).isPoints || (o as THREE.Sprite).isSprite, mats = drawn ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
-      const layer = nameIn(look.tags.red.objects, o.name) || mats.some((x) => nameIn(look.tags.red.materials, x?.name)) ? 1 : nameIn(look.tags.blue.objects, o.name) || mats.some((x) => nameIn(look.tags.blue.materials, x?.name)) ? 2 : 0;
-      if (layer) { o.layers.enable(layer); tagCount++; }
+      const m = o as THREE.Mesh; if (!m.isMesh) return;
+      const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
+      const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
+      const layer = hit(look.tags.red) ? 1 : hit(look.tags.blue) ? 2 : 0;
+      if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }
     });
   };
   let frames = 0;
@@ -122,10 +150,12 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
     camera.layers.set(0); renderer.setRenderTarget(color); renderer.render(scene, camera);
     renderer.setRenderTarget(tagged); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, false, false);
-    if (tagCount) {
+    if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
-      for (const layer of [1, 2]) { camera.layers.set(layer); scene.overrideMaterial = tagMats.get(layer)!; renderer.render(scene, camera); }
-      scene.overrideMaterial = null; scene.background = bg; scene.fog = fog; camera.layers.set(0);
+      for (const t of tagList) { const tm = tagMaterialFor(t.own, t.layer) as THREE.ShaderMaterial; if (tm.uniforms?.opacity) tm.uniforms.opacity.value = t.own.opacity; t.mesh.material = tm; }
+      for (const layer of [1, 2]) { camera.layers.set(layer); renderer.render(scene, camera); }
+      for (const t of tagList) t.mesh.material = t.own;
+      scene.background = bg; scene.fog = fog; camera.layers.set(0);
     }
     (mat.uniforms.projScale!.value as THREE.Vector2).set(1 / camera.projectionMatrix.elements[0]!, 1 / camera.projectionMatrix.elements[5]!);
     mat.uniforms.cameraNear!.value = camera.near; mat.uniforms.cameraFar!.value = camera.far;

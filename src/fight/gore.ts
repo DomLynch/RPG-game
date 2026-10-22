@@ -27,6 +27,7 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
     const splat = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
       new THREE.MeshBasicMaterial({
+        name: 'blood decal',   // the Inkverse look's red tag reads this name (origins/preview/inkverse.json)
         color: '#591415',
         map: splatTexture,
         transparent: true,
@@ -288,7 +289,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
   // pauldron never hides the wound; no depth write. What stops it bleeding through the body is the facing test in update():
   // a mark whose surface normal points away from the eye is hidden, not depth-buffered.
   const material = (map: THREE.Texture | null, normalMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
-    color: FRESH, map, normalMap, normalScale: new THREE.Vector2(0.45, 0.45), roughness: DRY.roughness[0], metalness: 0,
+    name: 'blood decal', color: FRESH, map, normalMap, normalScale: new THREE.Vector2(0.45, 0.45), roughness: DRY.roughness[0], metalness: 0,
     transparent: true, opacity: 0, depthWrite: false, depthTest: false,
   });
   const fighters = [0, 1].map(() => Array.from({ length: WOUNDS_PER_FIGHTER }, (): Mark => {
@@ -306,12 +307,12 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
   // The drops in the air and the spots they leave: small fixed pools, nothing allocated per drop.
   const dropGeometry = new THREE.SphereGeometry(1, 6, 4), spotGeometry = new THREE.CircleGeometry(0.5, 14).rotateX(-Math.PI / 2);
   const drops = Array.from({ length: DROPS.inFlight }, () => {
-    const mesh = new THREE.Mesh(dropGeometry, new THREE.MeshStandardMaterial({ color: '#5c0d12', roughness: 0.3, metalness: 0 }));
+    const mesh = new THREE.Mesh(dropGeometry, new THREE.MeshStandardMaterial({ name: 'blood decal', color: '#5c0d12', roughness: 0.3, metalness: 0 }));
     mesh.visible = false; scene.add(mesh);
     return { mesh, vy: 0, live: false, seed: 0 };
   });
   const spots = Array.from({ length: DROPS.spots }, () => {
-    const mesh = new THREE.Mesh(spotGeometry, new THREE.MeshBasicMaterial({ color: '#681a19', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+    const mesh = new THREE.Mesh(spotGeometry, new THREE.MeshBasicMaterial({ name: 'blood decal', color: '#681a19', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
     mesh.visible = false; mesh.userData.warmHidden = true; scene.add(mesh);   // the floor spots are an unmapped basic program of their own (T4 2026-10-10: Zone 1 still linked one 'basic' at engage with only the splat pool tagged)
     return { mesh, life: 0 };
   });

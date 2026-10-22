@@ -101,9 +101,9 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
 // No allocation per emission.
 export function createFinisherBlood(map: Texture) {
   const group = new Group(); group.name = 'FinisherBlood'; group.visible = false;
-  const dropMaterial = new MeshStandardMaterial({color:'#740f19',roughness:.46,metalness:0});
+  const dropMaterial = new MeshStandardMaterial({name:'blood decal',color:'#740f19',roughness:.46,metalness:0});
   const plane = new PlaneGeometry(2,2), SHAPES = FLOOR_POOLS.length + FLOOR_SPLASHES.length;
-  const poolMaterials = Array.from({length:SHAPES},()=>new MeshBasicMaterial({map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false}));
+  const poolMaterials = Array.from({length:SHAPES},()=>new MeshBasicMaterial({name:'blood decal',map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false}));
   const drops = new InstancedMesh(new SphereGeometry(1,8,4),dropMaterial,160);
   const pools = poolMaterials.map((m,i)=>Object.assign(new InstancedMesh(plane,m,80),{name:`FinisherPools${i}`}));
   drops.name = 'FinisherDroplets';

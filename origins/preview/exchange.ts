@@ -119,7 +119,8 @@ export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan =
     if (!stain || !source.onBeforeCompile) return;
     const base = source.onBeforeCompile, { span, top, bottom, gain } = stain, key = `stain-${span}-${top}-${bottom}-${gain}`;
     clone.onBeforeCompile = (shader, renderer) => {
-      base.call(clone, shader, renderer);      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vStainY;').replace('vPatchUv =', 'vStainY = (modelMatrix * vec4(transformed, 1.0)).y; vPatchUv =').replace(/\/ [0-9.]+ \+ 0\.5;/, `/ ${span.toFixed(1)} + 0.5;`);
+      base.call(clone, shader, renderer); clone.userData.inkStain = { span, top, bottom, gain, patch: shader.uniforms.patchMap };   // the stain mask's inputs, for the Inkverse look's red tag (inkverse.ts redraws the same mask into its tag buffer)
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vStainY;').replace('vPatchUv =', 'vStainY = (modelMatrix * vec4(transformed, 1.0)).y; vPatchUv =').replace(/\/ [0-9.]+ \+ 0\.5;/, `/ ${span.toFixed(1)} + 0.5;`);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vStainY;').replace('texture2D(patchMap, vPatchUv)', 'texture2D(patchMap, fract(vPatchUv))').replace(/(patchSample\.rgb \* [0-9.]+, )patchSample\.a\)/, `$1clamp(patchSample.a * ${gain.toFixed(1)}, 0.0, 1.0) * clamp((vStainY - (${top.toFixed(1)})) / (${(bottom - top).toFixed(1)}), 0.0, 1.0))`);
     };
     clone.customProgramCacheKey = () => `${source.customProgramCacheKey()}-${key}`;
