@@ -26,7 +26,8 @@ export async function loadFarBodies(nodes: readonly string[]): Promise<Map<strin
     const scene = await farFiles.get(lod.url); if (!scene) continue;
     scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.position.set(0, 0, 0); });   // as the full file: a node stands at its own origin (its scale and rotation stay: a quantized file keeps its dequantizing scale there)
     scene.updateMatrixWorld(true);
-    scene.traverse((o) => { const mesh = o as THREE.Mesh; if (mesh.isMesh && mesh.name === node && !out.has(node)) out.set(node, { geometry: mesh.geometry, material: mesh.material, dist: lod.dist, matrix: mesh.matrixWorld.clone() }); });
+    const forced = typeof location === 'undefined' ? NaN : Number(new URLSearchParams(location.search).get('kitlodist') ?? NaN);   // ?kitlodist=<m>: the swap distance for every node (a preview test link: ~0 draws every instance as its far body, to look at it up close); absent = the row
+    scene.traverse((o) => { const mesh = o as THREE.Mesh; if (mesh.isMesh && mesh.name === node && !out.has(node)) out.set(node, { geometry: mesh.geometry, material: mesh.material, dist: forced >= 0 ? forced : lod.dist, matrix: mesh.matrixWorld.clone() }); });
   }
   return out;
 }

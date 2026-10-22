@@ -52,7 +52,7 @@ await probe.ctx.close();
 fs.writeFileSync(path.join(out, 'spots.json'), JSON.stringify(spots));
 // 2. the shots: same positions in both arms.
 const receipt = { near: NEAR, far: FAR, spots: Object.fromEntries(Object.entries(spots).map(([k, v]) => [k, v[0]])), shots: [] };
-for (const [arm, query] of [['lod-on', ''], ['lod-off', '&kitlod=0']]) {
+for (const [arm, query] of [['lod-on', ''], ['lod-off', '&kitlod=0'], ['lod-forced', '&kitlodist=0']]) {   // lod-forced: every instance is its far body, so the near shot shows the LOD up close
   const { ctx, page } = await open(query);
   for (const node of NODES) {
     const target = spots[node]?.[0]; if (!target) { receipt.shots.push({ arm, node, error: 'no instance' }); continue; }
