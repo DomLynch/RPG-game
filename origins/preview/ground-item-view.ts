@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { finishedAs, tinted } from '../../src/fight/index.ts';
 import type { Tier } from '../../src/core/index.ts';
 import { groundLook, type GroundBeam, type GroundLook, type GroundRing } from './ground-looks.ts';
+import { markHud } from './hud-tag.ts';
 
 export type GroundItemViewOptions = {
   scene: THREE.Scene;
@@ -68,7 +69,7 @@ function ring(r: GroundRing): THREE.Group {
   const g = new THREE.Group(), color = new THREE.Color(r.color);
   for (const [inner, outer, k] of r.bands) {
     const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, r.segments).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-    m.position.y = r.liftM; m.renderOrder = 2; m.name = 'ground-ring'; m.userData.owned = true; g.add(m);
+    m.position.y = r.liftM; m.renderOrder = 2; m.name = 'ground-ring'; m.userData.owned = true; markHud(m, 'ground-ring'); g.add(m);
   }
   return g;
 }

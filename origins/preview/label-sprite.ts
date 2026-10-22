@@ -1,5 +1,6 @@
 // The name tag over a creature or another player: a canvas sprite that keeps one size on screen at any distance (moved out of mobs-view.ts so remote-heroes.ts draws the same tag).
 import * as THREE from 'three';
+import { markHud } from './hud-tag.ts';
 
 export function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -10,5 +11,5 @@ export function labelSprite(text: string, named: boolean): THREE.Sprite {
   g.fillStyle = named ? '#f2c66d' : '#ece0c8'; g.fillText(text, c.width / 2, c.height / 2);
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
-  s.scale.set(0.2, 0.0375, 1); return s;   // sizeAttenuation off: the same size on screen at any distance (a creature next to the camera no longer fills it)
+  s.scale.set(0.2, 0.0375, 1); return markHud(s, 'tag');   // sizeAttenuation off: the same size on screen at any distance (a creature next to the camera no longer fills it)
 }

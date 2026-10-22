@@ -21,6 +21,7 @@ const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
 import { gateWithBound, settleWithin, SPEEDS } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
+import { markHud } from './hud-tag.ts';
 import { fetchKinds, pickDrawn } from './draw-pick.ts';
 import { farHide } from './far-detail.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
@@ -51,7 +52,7 @@ function bangSprite(): THREE.Sprite {
   g.lineWidth = 8; g.strokeStyle = 'rgba(10,8,6,0.9)'; g.strokeText('!', 32, 34); g.fillStyle = '#ff5a3c'; g.fillText('!', 32, 34);
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
-  s.scale.set(0.045, 0.045, 1); return s;
+  s.scale.set(0.045, 0.045, 1); return markHud(s, 'bang');
 }
 
 export type MobDrive = { x: number; z: number; facing: number; moving: boolean; duel?: Duel; fall?: number; finisher?: FinisherId };   // World's combat loop (world-combat.ts) drives a creature while it fights: its position, the duel it is in (the engine's actor poses it: bite, hurt) and, once down, the death clip's progress (0..1)
@@ -216,7 +217,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height; label.userData.y0 = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - RING.width, s.aggro, RING.segments), new THREE.MeshBasicMaterial({ color: RING.colorCalm, transparent: true, opacity: RING.opacityCalm, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; markHud(ring, 'ring');
     const blob = new THREE.Mesh(blobGeometry, blobMaterial); blob.position.y = 0.03; blob.scale.setScalar(look?.scale ?? 1);
     group.add(stand, label, bang, blob);
     v = { group, stand, model: null, ring, bang, label, speed: 0, px: NaN, pz: NaN, pending: 0, skip: i }; views.set(i, v);
