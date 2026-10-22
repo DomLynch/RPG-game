@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-22 ~09:0x +04: K6q19 PASSed. READ FIRST.
+**K6q19** #3590 @4c719d75e PASS (issuecomment-6333109316): live 30dd89c3e + #3558 #3573 #3574 #3575 #3576 #3579 #3580 #3582 #3589; 9/9 parents = PASS heads, the replayed trees are identical, no .github/, 46 success / 0 red. Waits on Lead's candidate:pass. Post-live: provision.sh for #3582 (/dungeon1/ 200, /dungeon1 301, /zone2/ 200), presence and writer restarts (#3574).
+**New PASSes:** #3583 @1533c8397 (it conflicts with #3575 on main.ts:742; the merge must keep `goblinSmoke?.update(dt, state)`), #3586 @5fea02211 (receipt skew ruling), #3587 @0cf300ff1 + APPLY-READY (verifier grant fixed; Dom applies, then ORIGINS_WORLD_MARKS=1 and a writer restart).
+**Open:** #3584 NOT PASS (37 red tests after the trunk merge, list on the PR), #3571 (conflicts again, 0 runs), #3569 (folded into #3558: docs-only rebase or close).
+**Lead ruling (receipt skew):** for member PASSes, a unit-ci `receipt` red reading EXACTLY "unit receipt refused: 0 of 8 shards reported" at a head lacking bcd84e521, with shards 1-8 SUCCESS, is harness skew (the PR head's old ci-unit-receipt.mjs against #3566's per-attempt artifact dirs). Say so in the PASS line. Any other receipt red stays red.
+**Gotchas:** (1) Gate a PASS on EVERY latest row being completed and green (origins-db, receipt and the rest), not just shards + quality (static). I nearly missed #3587's origins-db red, and posted #3583 while its receipt was still running. (2) Every writer-called DB function grants to frankendom_origins AND frankendom_verifier; CI origins-db's writer-check catches a miss.
+
 ## 2026-10-22 ~08:5x +04: K6q18 PASSed; Zone 2 batch read. READ FIRST.
 **K6q18** #3588 @30dd89c3e PASS (issuecomment-6332609836): #3566 + #3578 on 892a1bdea, and the only .github/ change is unit-ci.yml blob 6ba201328047 = #3585's allow entry. Lead set candidate:pass at 08:20.
 **Zone 2 batch PASS:** #3558 @f16f4cd3f, #3573 @249082ae3 (stacked, cut after #3558), #3574, #3575, #3576, #3579 @3ea09fac4, #3580 @55df77800, #3582 @8c5600a9d (needs provision.sh after publish; then /dungeon1/ 200, /dungeon1 301), #3589 @7521c0afd + APPLY-READY verified (Dom applies).
