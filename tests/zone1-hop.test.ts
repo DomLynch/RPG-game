@@ -34,8 +34,8 @@ test('Zone 1 shows the Frontier at /zone1/ with no query (the preview\'s REGION 
   const { readFileSync } = await import('node:fs');
   assert.match(readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8'), /const REGION = new URLSearchParams\(location\.search\)\.get\('region'\) !== '0';/, 'trunk\'s default-on region (#1862): /zone1/ needs no query');
   const conf = readFileSync(new URL('../deploy/frankendom.com.conf', import.meta.url), 'utf8');
-  assert.match(conf, /location ~ \^\/zone\[0-9\]\+\/\$ \{[^}]*try_files \/preview\/origins\/index\.html =404;/);   // /zone1/, /zone2/, … one pattern for every row
-  assert.match(conf, /location ~ \^\/\(zone\[0-9\]\+\)\$ \{ return 301 \/\$1\/; \}/);
+  assert.match(conf, /location ~ \^\/\(zone\|dungeon\)\[0-9\]\+\/\$ \{[^}]*try_files \/preview\/origins\/index\.html =404;/);   // /zone1/, /zone2/, /dungeon1/, … one pattern for every row
+  assert.match(conf, /location ~ \^\/\(\(zone\|dungeon\)\[0-9\]\+\)\$ \{ return 301 \/\$1\/; \}/);
 });
 import { rememberZone1, takeZone1 } from '../src/zone1-hop.ts';
 const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }; };

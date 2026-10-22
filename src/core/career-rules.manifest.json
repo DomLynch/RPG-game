@@ -15,7 +15,8 @@
         "partyGapFloor": "integer",
         "topTier": "integer",
         "boardMax": "integer",
-        "partyStep": "integer"
+        "partyStep": "integer",
+        "partyKeyMax": "integer"
       }
     },
     {

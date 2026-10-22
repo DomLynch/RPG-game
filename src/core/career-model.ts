@@ -86,6 +86,7 @@ export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
 // Party share for 'split' rows (EverQuest's group shape): pool = X·(1 + g/2), g = 1 + 0.2·(n−1); each member gets pool/n.
 export const MAX_PARTY = RULE.maxParty;
+export const PARTY_KEY_MAX = RULE.partyKeyMax;   // the longest party key a boss kill may carry (careerRule row; the 1..N characters rule in origins/boss/boss.ts)
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;

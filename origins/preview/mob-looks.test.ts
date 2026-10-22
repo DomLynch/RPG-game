@@ -15,7 +15,7 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
   const foes = FOES as unknown as { id: string; encounterForms: { opponent: string }[] }[];
   const zoned = Object.assign({}, ...zoneIds().map((z) => loadZone(z).mobLooks?.looks ?? {})) as Record<string, (typeof MOB_LOOKS)[string]>;   // a zone package's own looks (origins/zones/<id>/mob-looks.ts) count as the foe's look
   assert.deepEqual(MOB_LOOKS, {}, 'no central look: every look is in a zone row');
-  assert.deepEqual(Object.keys(Z1.looks).sort(), foes.map(f => f.id).filter((id) => id !== 'character:ember-wolf').sort(), 'Zone 1 has one look per Frontier foe (the Ember wolf is Zone 2 and 3\'s)');
+  assert.deepEqual(Object.keys(Z1.looks).sort(), foes.map(f => f.id).filter((id) => !['character:ember-wolf', 'character:ash-skeleton', 'character:pale-duelist'].includes(id)).sort(), 'Zone 1 has one look per Frontier foe (the Ember wolf, the Ash skeleton and the Pale duelist are Zone 2\'s)');
   for (const f of foes) {
     const look = Z1.looks[f.id] ?? zoned[f.id]!;
     assert.ok(f.encounterForms.every(e => e.opponent === look.opponent), `${f.id}: look body ${look.opponent} != ${f.encounterForms.map(e => e.opponent)}`);

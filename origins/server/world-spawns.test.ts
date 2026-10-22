@@ -294,10 +294,11 @@ test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 40
   assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
 });
 
-test('zone keys: a zone is `z<N>:` with N one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
-  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
-  for (const key of ['z0:wolves-1', 'z01:wolves-1', 'z2wolves-1', 'z2', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
-  assert.equal(zoneOfKey('z0:wolves-1'), null); assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+test('zone keys: a zone is `z<N>:` with N = 0 (the town) or one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
+  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z0:town-1', '0'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
+  for (const key of ['z01:wolves-1', 'z2wolves-1', 'z2', 'z0', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
+  assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z0'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+  assert.equal(zoneOfKey('z0:town-1') === null, false, 'the town\'s id is the STRING "0": a truth test on it is a bug, a null test is the right one');
 });
 
 test('engage refuses a key that starts like a zone but does not parse (400), instead of reading it as Zone 1', async () => {

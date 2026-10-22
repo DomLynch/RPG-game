@@ -20,7 +20,7 @@ import { safeAreaProblems, type SafeArea } from './pvp.ts';
 export type KitTint = { color: readonly [number, number, number]; roughness?: number };
 export type KitKind ={ nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 /** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
-export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
+export type ZonePresence = { speed?: number; quiet?: boolean; trade?: boolean; rejoin?: string; caps?: { floor?: number; soft?: number; hard?: number } };
 /** A warp landmark a package brings (the shape of origins/presence/warp-landmarks.json): a place in Concord metres the server moves a player to when the client names its id. */
 export type ZoneWarp = { readonly id: string; readonly x: number; readonly z: number; readonly unit: string };
 export type Zone = {
@@ -135,6 +135,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const [w, p] of Object.entries(z.presence ?? {})) {
     if (!z.world.includes(w)) bad.push(`presence ${w}: not a world zone of this package`);
     if (p.speed !== undefined && !(p.speed > 0 && p.speed <= 10)) bad.push(`presence ${w}: speed ${p.speed} is out of range (0-10]`);
+    if (p.trade === true && (typeof p.rejoin !== 'string' || p.rejoin === '')) bad.push(`presence ${w}: a trade zone names its rejoin landmark`);
+    if (p.rejoin !== undefined && p.trade !== true) bad.push(`presence ${w}: rejoin only goes with trade`);
     const c = p.caps, ns = [c?.floor, c?.soft, c?.hard].filter((n): n is number => n !== undefined);
     if (c && !(ns.every((n) => Number.isInteger(n) && n >= 0) && (c.floor ?? 0) <= (c.soft ?? Infinity) && (c.soft ?? 0) <= (c.hard ?? Infinity))) bad.push(`presence ${w}: caps must be whole numbers with floor <= soft <= hard`);
   }
@@ -153,9 +155,10 @@ if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no
 export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
-// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short link /zone<id>/ (/zone2/, the same for every row; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
+// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), then the short links /zone<digits>/ (/zone2/, the same for every row) and /dungeon<digits>/ (/dungeon1/ is the id `dungeon1`; ?zone= on a short link still wins, so /zone1/?zone=2 keeps working), else Zone 1 (every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? /^\/zone([0-9]+)\/?$/.exec(pathname)?.[1] ?? DEFAULT_ZONE;
+  const short = /^\/(?:zone([0-9]+)|(dungeon[0-9]+))\/?$/.exec(pathname);   // /zone0/, /zone2/ name the digits ("0" is text, so ?? and not || keeps it); /dungeon1/ names the id `dungeon1` itself
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? short?.[1] ?? short?.[2] ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);

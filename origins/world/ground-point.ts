@@ -16,8 +16,12 @@ export function groundPlanOf(zone: string): Frontier {
 
 /** The centre of the row's place (a zone of the zone package) plus the row's offset. null = the row names a zone or place this build does not have. */
 export function groundPointOf(row: Pick<GroundItem, 'zone' | 'place' | 'offsetX' | 'offsetZ'>): { x: number; z: number } | null {
-  const zone = /^zone([1-9][0-9]*)$/.exec(row.zone)?.[1];
-  const plan = zone ? groundPlanOf(zone).zones.find((z) => z.zone === row.place) : undefined;
+  const zone = /^zone(0|[1-9][0-9]*)$/.exec(row.zone)?.[1];   // zone0 is the town; the id is a STRING, so "0" is a zone (never test it for truth)
+  let plan: Frontier['zones'][number] | undefined;
+  if (zone !== undefined) {
+    try { plan = groundPlanOf(zone).zones.find((z) => z.zone === row.place); }
+    catch (e) { if (!(e instanceof Error && /^no zone /.test(e.message))) throw e; }   // a zone number this build has no row for (loadZone: "no zone N") is a row this build does not have: null, as before
+  }
   if (!plan) return null;
   const c = toWorld({ x: 0, d: plan.depth / 2 }, plan.mount);
   return { x: c.x + (row.offsetX ?? 0), z: c.z + (row.offsetZ ?? 0) };

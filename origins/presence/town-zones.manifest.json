@@ -1,5 +1,5 @@
 {
   "tables": [
-    { "table": "town-zone", "file": "town-zones.json", "at": "zones", "key": "id", "required": { "mount": "string" }, "optional": { "speed": "number", "quiet": "boolean", "trade": "boolean" } }
+    { "table": "town-zone", "file": "town-zones.json", "at": "zones", "key": "id", "required": { "mount": "string" }, "optional": { "speed": "number", "quiet": "boolean", "trade": "boolean", "rejoin": "string" } }
   ]
 }
