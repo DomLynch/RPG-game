@@ -1,0 +1,30 @@
+{
+ "label": "lod-on",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "spots": [
+  {
+   "name": "north",
+   "frames": 479,
+   "p50": 16.7,
+   "p95": 16.7,
+   "max": 16.8,
+   "over33": 0
+  },
+  {
+   "name": "west",
+   "frames": 479,
+   "p50": 16.7,
+   "p95": 16.8,
+   "max": 16.8,
+   "over33": 0
+  },
+  {
+   "name": "east",
+   "frames": 479,
+   "p50": 16.7,
+   "p95": 16.8,
+   "max": 16.8,
+   "over33": 0
+  }
+ ]
+}
