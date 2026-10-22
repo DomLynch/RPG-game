@@ -9,14 +9,19 @@ const FILE = new URL('../origins/zones/plan-rows.json', import.meta.url);
 const STEP = 2.2, BASE = -7.5;                        // one band's drop; the rows' solids go down to BASE so a wall face reads as sand
 const SAND_TILE = 3;                                  // metres per repeat of the Pit's sand on the bowl's surfaces
 const STAIN_GAIN = 4;                               // how far the stain mask's edges grow: blotches, not specks
-const STAIN_SPAN = 14;                              // metres per repeat of the Pit's blood-stain mask (the sand's world-space patch), strongest on the lowest ground
+const STAIN_SPAN = 14;                              // metres per repeat of the Pit's blood-stain mask (the sand's world-space patch)
+const STAIN_TOP = 3, STAIN_BOTTOM = 2;              // the stain fades in over this height band (m, rim = 0): both sit above the highest surface, so the stain is full at every level, the yard and rim included (Dom 2026-10-22: blood-stained sand all over the bowl, as in the Duel pit)
+const SEED = 1022;                                  // the irregularity's seed (Dom 2026-10-22: the bowl is too round and perfect): same seed, same bowl, on every run
+const rng = (() => { let s = SEED >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })();   // mulberry32
+const wobble = (amp) => (rng() * 2 - 1) * amp;
+const PARAPET = { angle: 0.35, thick: 1.1, height: 0.3, turn: 0.04 };   // the rim's irregularity: a segment's boundary moves by up to this fraction of its width, its thickness grows by up to this many m, its height moves by up to this many m, and it turns by up to this many rad
 const BANDS = [{ tint: [1.1, 1.04, 0.9] }, { tint: [1, 0.9, 0.8] }, { tint: [0.92, 0.8, 0.7] }];   // the 1-2 / 3-4 / 5+ bands (outer to centre): plain sand, then sand taking on blood toward the floor
 const WALL = [0.78, 0.6, 0.52], YARD = [1.02, 0.96, 0.84], DUEL = [0.92, 0.8, 0.7];                                                  // the rim wall and yard walls (blood-stained sand), the yard, the Duel pit's floor
 const ZONE = '7', EDGES = { outer: 'ring-outer', middle: 'ring-middle', floor: 'floor' };
 const rows = { pieces: [], people: [], marks: [], layers: [] };
 let n = 0;
 const r = (v) => Math.round(v * 1000) / 1000;
-const add = (layer, shape, x, y, z, tint, o = {}) => rows.pieces.push({ id: `${ZONE}/piece-${String(n++).padStart(3, '0')}`, zone: ZONE, layer, shape, x: r(x), y: r(y), z: r(z), tint, rotY: r(o.rotY ?? 0), foot: r(o.foot ?? y - 10), ...(o.walk ? { walk: true } : {}), ...(o.edge ? { edge: o.edge } : {}) });
+const add = (layer, shape, x, y, z, tint, o = {}) => rows.pieces.push({ id: `${ZONE}/piece-${String(n++).padStart(3, '0')}`, zone: ZONE, layer, shape: shape.map((v) => (typeof v === 'number' ? r(v) : v)), x: r(x), y: r(y), z: r(z), tint, rotY: r(o.rotY ?? 0), foot: r(o.foot ?? y - 10), ...(o.walk ? { walk: true } : {}), ...(o.edge ? { edge: o.edge } : {}) });
 const solidTo = (top, base = BASE) => ({ h: top - base, y: (top + base) / 2 });   // a solid from `base` up to `top`: its height and centre
 const ring = (rIn, rOut, top, tint, walk, edge, layer = 'paving', segs = 48) => { const { h, y } = solidTo(top); add(layer, ['ring', rIn, rOut, h, segs], 0, y, 0, tint, { foot: BASE, walk, edge }); };
 const disc = (rad, top, tint, walk, cx = 0, cz = 0, edge, layer = 'paving') => { const { h, y } = solidTo(top); add(layer, ['cylinder', rad, rad, h, 48], cx, y, cz, tint, { foot: BASE, walk, edge }); };
@@ -24,7 +29,16 @@ const slab = (cx, cz, w, d, top, tint, walk, rotY = 0, layer = 'paving') => { co
 const dir = (a) => [Math.sin(a), Math.cos(a)];   // the unit vector at the angle a from +z toward +x
 /** A ramp: `length` x `width`, its low end `low` high and rising `rise` along `dir` (the angle from +z toward +x), centred at (cx, cz). */
 const ramp = (cx, cz, length, width, low, rise, a, tint, layer = 'paving') => add(layer, ['wedge', length, rise, width], cx, low + rise / 2, cz, tint, { rotY: a - Math.PI / 2, foot: low - 6, walk: true });
-const parapet = (rad, thick, top, segs, skip) => { const da = (2 * Math.PI) / segs; for (let i = 0; i < segs; i++) { const a = (i + 0.5) * da; if (skip(a)) continue; const { h, y } = solidTo(top); add('stone', ['box', 2 * rad * Math.tan(da / 2) + 0.1, h, thick], Math.sin(a) * rad, y, Math.cos(a) * rad, WALL, { rotY: a, foot: BASE }); } };
+/** The rim wall: `segs` boxes round a circle whose inner face is at `rIn`, none of them alike (seeded): each segment's boundaries move (its angular width), its thickness grows outward only (so the face the terrace sees never moves in and the wall never leaves a gap), and its height and turn wobble a little. */
+const parapet = (rIn, thick, top, segs, skip) => {
+  const da = (2 * Math.PI) / segs, edges = Array.from({ length: segs }, (_, i) => i * da + wobble(PARAPET.angle * da));
+  for (let i = 0; i < segs; i++) {
+    const b0 = edges[i], b1 = i + 1 < segs ? edges[i + 1] : edges[0] + 2 * Math.PI, a = (b0 + b1) / 2, t = thick + Math.abs(wobble(PARAPET.thick)), rad = rIn + t / 2;
+    if (skip(a)) continue;
+    const { h, y } = solidTo(top + wobble(PARAPET.height));
+    add('stone', ['box', 2 * rad * Math.tan((b1 - b0) / 2) + 0.3, h, t], Math.sin(a) * rad, y, Math.cos(a) * rad, WALL, { rotY: a + wobble(PARAPET.turn), foot: BASE });
+  }
+};
 const mark = (name, x, y, z, facing) => rows.marks.push({ id: `${ZONE}/${name}`, zone: ZONE, x: r(x), y: r(y), z: r(z), ...(facing !== undefined ? { facing: r(facing) } : {}) });
 const atMouth = (a) => Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.3;   // the yard's mouth in the parapet, at the south (a = 0)
 /** The yard (the safe new-player start), the Duel pit (a separate sunk room off it, with its ramp) and the mark where he opens. */
@@ -42,7 +56,19 @@ const R = { floor: 13, mid: 23, rim: 31 }, ARM = 8.4;                         //
 ring(R.mid, R.rim, 0, BANDS[0].tint, true, EDGES.outer);                      // outer terrace (levels 1-2) at the rim's height
 ring(R.floor, R.mid, -STEP, BANDS[1].tint, true, EDGES.middle);               // middle ring (3-4), one step down
 disc(R.floor, -2 * STEP, BANDS[2].tint, true, 0, 0, EDGES.floor);             // the Champion floor (5+)
-parapet(R.rim + 0.7, 1.4, 1.3, 36, atMouth);                                  // the rim wall: a low parapet, the yard's mouth at the south
+parapet(R.rim, 1.4, 1.3, 36, atMouth);                                        // the rim wall: a low parapet, the yard's mouth at the south
+/** Sand banks along a step's foot (seeded): low, turned, uneven lumps half on the lower surface and half in the wall, so the step's edge stops being one clean circle. The rings themselves stay exact (the roster's bands tile on them); a bank is decoration (not walkable), kept clear of the ramps. */
+const banks = (rho, lowTop, tint, count, clear) => {
+  for (let i = 0; i < count; i++) {
+    const a = ((i + rng() * 0.8) * 2 * Math.PI) / count;
+    if (clear.some((c) => Math.abs(Math.atan2(Math.sin(a - c), Math.cos(a - c))) < BANK.clear)) continue;
+    const rad = rho + wobble(BANK.spread), w = BANK.w[0] + rng() * (BANK.w[1] - BANK.w[0]), d = BANK.d[0] + rng() * (BANK.d[1] - BANK.d[0]), { h, y } = solidTo(lowTop + BANK.h[0] + rng() * (BANK.h[1] - BANK.h[0]));
+    add('paving', ['box', w, h, d], Math.sin(a) * rad, y, Math.cos(a) * rad, tint, { rotY: a + wobble(0.9), foot: BASE });
+  }
+};
+const BANK = { count: [16, 22], spread: 1.1, w: [1.4, 3.6], d: [0.9, 2], h: [0.15, 0.5], clear: 0.4 };   // per step: how many, how far either side of the step's edge, a bank's width and depth range (m), its height above the lower surface (m), and the angular gap kept round a ramp (rad)
+banks(R.floor, -2 * STEP, BANDS[2].tint, BANK.count[0], [Math.PI / 2, (3 * Math.PI) / 2]);
+banks(R.mid, -STEP, BANDS[1].tint, BANK.count[1], [0.9, Math.PI + 0.9]);
 for (const a of [Math.PI / 2, (3 * Math.PI) / 2]) { const [dx, dz] = dir(a), rc = R.floor - ARM / 2; ramp(dx * rc, dz * rc, ARM, 4.5, -2 * STEP, STEP, a, BANDS[1].tint); }   // champion ramps (east, west): floor up to the middle ring
 for (const a of [0.9, Math.PI + 0.9]) { const [dx, dz] = dir(a), rc = R.mid - ARM / 2; ramp(dx * rc, dz * rc, ARM, 4.5, -STEP, STEP, a, BANDS[0].tint); }   // outer ramps: middle ring up to the terrace
 yardAndDuel(R.rim + 2, R.rim + 30);
@@ -53,7 +79,7 @@ for (const side of [-1, 1]) add('paving', ['box', 1.4, 4.5, 1.4], side * SPAN, 2
 add('paving', ['box', 2 * SPAN + 1.4, 1.2, 1.6], 0, 5.1, GATE_Z, ARCH, { foot: 0, walk: false });
 add('paving', ['cylinder', 2.5, 2.5, 0.12, 32], 0, 0.06, GATE_Z, [1.35, 1.2, 0.8], { foot: 0, walk: false });
 mark(EDGES.outer, (R.mid + R.rim) / 2, 0, 0); mark(EDGES.middle, (R.floor + R.mid) / 2, -STEP, 0); mark(EDGES.floor, 0, -2 * STEP, 0);   // a landmark on each ring, for the roster's spawn rows
-for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: 0, bottom: -STEP, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
+for (const layer of ['paving', 'stone']) rows.layers.push({ id: `${ZONE}/${layer}`, zone: ZONE, layer, material: 'sand', tile: SAND_TILE, stain: { span: STAIN_SPAN, top: STAIN_TOP, bottom: STAIN_BOTTOM, gain: STAIN_GAIN } });   // no brick: the bowl's surfaces are the Pit's own sand
 
 // ---- the bowl's place in the world frame: presence keeps ONE table of zones (no overlap), and the Pit and the Exchange stand at the origin, so the bowl's centre is a free spot east of them; its `origin` mark names it ----
 const FRAME = [200, 0];   // east of the town square's edge (x 150: the presence clamp test pins "nothing walkable beyond it"), inside the frame's east limit (255 m)
