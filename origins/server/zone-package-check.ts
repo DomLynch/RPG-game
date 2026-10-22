@@ -69,14 +69,14 @@ export function packageProblems(zone: Zone, ctx: PackageCtx): string[] {
     if (to.unlisted === true) continue;
     const landing = arrival(frontierPlan(true, e.to), e.to, e.id, ctx.exits);
     if (!landing) { bad.push(`exit ${e.id}: zone ${e.to} has no landing (arrive landmark "${e.arrive}")`); continue; }
-    if (owner(e)?.unlisted !== true) { const p = placeProblem(landing.x, landing.z); if (p) bad.push(`exit ${e.id}: its landing warp "${e.warp}" is ${p}`); }
+    if (owner(e)?.unlisted !== true) { const p = placeProblem(landing.x, landing.z, e.tradeLanding === true); if (p) bad.push(`exit ${e.id}: its landing warp "${e.warp}" is ${p}`); }
   }
   // 4. The package's own warps: new ids (not in the table, not an exit's), and for a listed package a place inside a presence zone row and clear of the trade areas.
   for (const w of zone.warps ?? []) {
     if (ctx.tableWarps.has(w.id)) bad.push(`warp ${w.id}: already a warp-landmarks.json row`);
     if (ctx.exits.some((e) => e.warp === w.id)) bad.push(`warp ${w.id}: already an exit's warp`);
     for (const other of Object.values(ctx.zones)) if (other.id !== id && (other.warps ?? []).some((x) => x.id === w.id)) bad.push(`warp ${w.id}: also in package ${other.id}`);
-    if (listed) { const p = placeProblem(w.x, w.z); if (p) bad.push(`warp ${w.id}: ${p}`); }
+    if (listed) { const p = placeProblem(w.x, w.z, w.tradeLanding === true); if (p) bad.push(`warp ${w.id}: ${p}`); }
   }
   return bad;
 }
