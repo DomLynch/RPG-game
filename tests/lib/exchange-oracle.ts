@@ -35,7 +35,7 @@ export function oraclePlan(a: Anchors, k: Knobs): Plan {
     put('paving', box(1.8 + (i % 3) * 0.5, 0.02, 1.2 + (i % 2) * 0.6), x, 0.01, z, DARKSTONE);
   }
   put('stone', box(half * 2 + 9, 26, depth + 1), cx, -13.4, cz, DARKSTONE, 0, -26);
-  for (const side of [-1, 1]) put('stone', box(0.6, 1.1, depth - 4), cx + side * (half + 3.6), 0.55, cz, SANDSTONE, 0, 0);
+  // No edge kerb either (Dom 2026-10-22: the brick at the zone's edge hid the skyline); the walk limits and the leash are what stop the walker.
 
   for (const side of [-1, 1]) {
     const x = cx + side * (half - 1.5), back = cx + side * (half + 3), from = near - 6, to = far + 6;
