@@ -15,7 +15,7 @@ import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
-import { loadKit } from './frontier-kit-view.ts';
+import { loadKit, updateKitViews } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
 import { groundLook, dropLook } from './ground-looks.ts';
 import { RANGED_MODELS, rangedGroundPartOf, rangedModelOf, rangedModelUrl } from '../../src/fight/index.ts';
@@ -739,7 +739,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) 
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
-  ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
+  ambience?.update(dt); goblinSmoke?.update(dt); updateKitViews(state, previewRule('kitViewStepM'));   // the zone's wind and fire bed, and the camp fires' smoke and flicker
   zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (!draw) return;   // a capture tick between shots steps the world and draws nothing
   if (gfx) gfx.render(); else renderer.render(scene, camera);
