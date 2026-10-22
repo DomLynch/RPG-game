@@ -11,6 +11,12 @@
 - Presence-live: Deploy's zone-hello-trace on live /dungeon1/ after publish (Lead agreed).
 **Lead rulings today:** load-time-zone1 may be trusted (DEPLOY_TRUST_ROWS) for a cut whose diff touches no Zone 1 asset/scene file; put "no Zone 1 asset/scene path in the diff: <check>" in the PASS. After K6q26, beta blockers only: #3616 (paving, stacked on #3608: retarget, catch-up merge, re-add auditor:ready), #3618, #3619, #3591, legend rotation, crash/data-layer reds. Strategy ALLOWED legends as dungeon foes with the copy conditions above. Lead: legends keep the pit-legend reward table, items listed under "Reward:".
 **Mine after the cuts:** the load-time-zone1 harness (~30-min runtime vs the job cap; per-arm MB mixes need a warm-cache priming fetch).
+**NEW BETA BLOCKER (Lead 14:5x, from Dom: "we cut the check to the 4-5 relevant things weeks ago; are we still running everything?"):** ONE CI-only PR after K6q26 cuts, titled "unblocks every beta release (cut-to-live ≤ 25 min)":
+1. Delta rows only, via a path→row map AS A DATA ROW (Zone 1 assets/scene → load-time-zone1; sim-listed → combat gates; web/ui → browser rows; rows/docs → data gates + shards). Every other row is trusted from the last green trunk run, with the reason recorded (DEPLOY_TRUST_ROWS). Reuse the existing quality.yml `plan` / "release rows (none for this diff)" machinery; don't build new.
+2. No per-candidate row over 10 min: load-time-zone1 becomes a post-publish trunk control row (fix-forward on red). This absorbs the harness ticket above.
+3. One rerun max, then fix or demote.
+4. Deploy prints cut-to-live minutes in each Published line.
+Send Lead the PR number when it's open. CI-only PR = its own cut, no feature files (memory: no workflow file in a feature PR). Read the ci-runners-first skill first.
 **Mac gate tooling (scratchpad, not in repo):** mac-rows.sh / mac-rows-d1.sh (the 4 Zone 1 rows; -d1 adds SEAMLESS_ZONE=7 first), d1-probe.mjs <worktree> (serves artifacts/origins-preview, opens zone 7, checks the HUD "Dungeon 1", drawn creatures, 0 page errors), await-3615*.sh (waits for a new head, then worktree + rows + probe). Worktrees: `git worktree add --detach <scratch>/wtNNNN <sha>` + an `ln -s` of the main node_modules when the lockfile matches. PLAYWRIGHT_BROWSERS_PATH=~/Developer/.ms-playwright.
 
 ## 2026-10-22 ~13:3x +04: K6q24 PASSed; Dungeon 1 = #3615 alone. READ FIRST.
