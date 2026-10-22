@@ -80,25 +80,33 @@ const frame = await page.evaluate(() => new Promise((resolve) => {
       const inst = o.isInstancedMesh ? o.count : 1; return Math.max(0, count / 3) * inst;
     };
     const chain = (o) => { const names = []; for (let p = o.parent; p && p !== scene; p = p.parent) if (p.name) names.unshift(p.name); return names; };
+    const casters = new Map(), lights = []; scene.traverse((o) => { if (o.isLight) lights.push({ type: o.type, name: o.name || '-', visible: o.visible, castShadow: !!o.castShadow, map: o.shadow ? [o.shadow.mapSize.x, o.shadow.mapSize.y] : null }); });
     const groups = new Map(), rows = []; let totalTris = 0, totalDraws = 0, shadowTris = 0, shadowDraws = 0, skinned = 0, instanced = 0;
     scene.traverseVisible((o) => {
       if (!(o.isMesh || o.isLine || o.isPoints || o.isSprite) || !o.geometry && !o.isSprite) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material]; if (mats.every((m) => m && m.visible === false)) return;
       const inView = inFrustum(o), t = o.isSprite ? 2 : trisOf(o), draws = Array.isArray(o.material) ? Math.max(1, (o.geometry.groups?.length) || 1) : 1;
-      if (o.castShadow && o.geometry) { shadowTris += t; shadowDraws += draws; }   // the directional light's shadow pass draws it again (view-independent here: the caster set, not the shadow frustum)
+      if (o.castShadow && o.geometry) {   // a shadow pass draws it again, once per shadow-casting light (view-independent here: the caster set, not the shadow frustum)
+        shadowTris += t; shadowDraws += draws;
+        const sk = (chain(o).slice(0, 2).join(' > ') || o.type) + (o.isSkinnedMesh ? ' [skinned]' : o.isInstancedMesh ? ` [instanced x${o.count}]` : ''), sg = casters.get(sk) ?? { owner: sk, meshes: 0, tris: 0, inView: 0, samples: [] };
+        sg.meshes++; sg.tris += t; if (inView) sg.inView++; if (sg.samples.length < 3) sg.samples.push(`${o.name || o.type}:${Math.round(t)}`); casters.set(sk, sg);
+      }
       if (!inView) return;
       totalTris += t; totalDraws += draws; if (o.isSkinnedMesh) skinned++; if (o.isInstancedMesh) instanced++;
       const top = chain(o), key = (top.slice(0, 2).join(' > ') || o.type) + (o.isSkinnedMesh ? ' [skinned]' : o.isInstancedMesh ? ` [instanced x${o.count}]` : '');
       const g = groups.get(key) ?? { owner: key, meshes: 0, draws: 0, tris: 0, castShadow: 0, samples: [] }; g.meshes++; g.draws += draws; g.tris += t; if (o.castShadow) g.castShadow++; if (g.samples.length < 3) g.samples.push(`${o.name || o.type}:${Math.round(t)}`); groups.set(key, g);
       rows.push({ name: o.name || o.type, owner: key, tris: Math.round(t), draws, shadow: !!o.castShadow, skinned: !!o.isSkinnedMesh, instanced: o.isInstancedMesh ? o.count : 0 });
     });
-    resolve({ renders: renders.map((r) => ({ calls: r.calls, tris: r.tris })), mainPass: { calls: main.calls, tris: main.tris }, countedMainPass: { tris: Math.round(totalTris), draws: totalDraws, skinned, instanced }, shadowCasters: { tris: Math.round(shadowTris), draws: shadowDraws },
+    resolve({ renders: renders.map((r) => ({ calls: r.calls, tris: r.tris })), mainPass: { calls: main.calls, tris: main.tris }, countedMainPass: { tris: Math.round(totalTris), draws: totalDraws, skinned, instanced }, shadowCasters: { tris: Math.round(shadowTris), draws: shadowDraws }, shadowGroups: [...casters.values()].sort((a, b) => b.tris - a.tris).slice(0, 12).map((g) => ({ ...g, tris: Math.round(g.tris) })), lights, shadowMapEnabled: !!window.__seen.renderer.shadowMap.enabled,
       groups: [...groups.values()].sort((a, b) => b.tris - a.tris).map((g) => ({ ...g, tris: Math.round(g.tris) })), topMeshes: rows.sort((a, b) => b.tris - a.tris).slice(0, 25), sceneChildren: scene.children.map((c) => `${c.type}:${c.name || '-'}:${c.children?.length ?? 0}`).slice(0, 60) });
   })); });
 }));
 const result = { engaged, query: QUERY, ...frame }; fs.writeFileSync(path.join(out, 'frame-breakdown.json'), JSON.stringify(result, null, 1));
 if (frame.error) { console.log('FRAME-BREAKDOWN error', frame.error); } else {
   console.log(`FRAME-BREAKDOWN engaged=${JSON.stringify(engaged)} renders=${JSON.stringify(frame.renders)} GLmain=${JSON.stringify(frame.mainPass)} counted=${JSON.stringify(frame.countedMainPass)} shadowCasters=${JSON.stringify(frame.shadowCasters)}`);
+  console.log(`LIGHTS shadowMap=${frame.shadowMapEnabled} ${JSON.stringify(frame.lights)}`);
+  console.log('SHADOW CASTERS (owner | meshes | tris | in view | samples)');
+  for (const g of frame.shadowGroups) console.log(`  ${g.owner} | ${g.meshes} | ${g.tris} | ${g.inView} | ${g.samples.join(', ')}`);
   console.log('TOP BY TRIANGLES (owner | meshes | draws | tris | % of counted | shadow casters | samples)');
   for (const g of frame.groups.slice(0, TOPN)) console.log(`  ${g.owner} | ${g.meshes} | ${g.draws} | ${g.tris} | ${(100 * g.tris / Math.max(1, frame.countedMainPass.tris)).toFixed(1)}% | ${g.castShadow} | ${g.samples.join(', ')}`);
 }
