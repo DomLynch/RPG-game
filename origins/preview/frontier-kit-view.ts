@@ -17,26 +17,31 @@ export function kitRadiusOverride(search: string = typeof location === 'undefine
 }
 
 // Per-instance radius state: a kind with a shadowRadius or a drawRadius keeps its full instance matrices here, and updateKitViews re-packs the near ones as the walker moves. Nothing is registered for a kind with both at 0 (today's kit).
-type KitView = { inst: THREE.InstancedMesh; proxy: THREE.InstancedMesh | null; src: Float32Array; xs: number[]; zs: number[]; drawR: number; shadowR: number };
+// A kind with a far body (building-skins.json `lod: { url, dist }`, skinLod) also keeps a far InstancedMesh: instances within `dist` metres of the camera draw the full mesh, the rest draw the far one; the shadow proxy then casts the far geometry.
+export type KitLod = { readonly geometry: THREE.BufferGeometry; readonly material: THREE.Material | THREE.Material[]; readonly dist: number };
+type KitView = { inst: THREE.InstancedMesh; far: THREE.InstancedMesh | null; lodDist: number; proxy: THREE.InstancedMesh | null; src: Float32Array; xs: number[]; zs: number[]; drawR: number; shadowR: number };
 const VIEWS: KitView[] = []; let lastAt: { x: number; z: number } | null = null, stale = false;
 const SHADOW_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });   // the proxy draws nothing in the picture: only the shadow pass (the depth material) reads its geometry
-const pack = (target: THREE.InstancedMesh, src: Float32Array, xs: number[], zs: number[], hero: { x: number; z: number }, radius: number): number => {
-  const arr = target.instanceMatrix.array as Float32Array, size = target.instanceMatrix.itemSize; let n = 0;   // itemSize: the floats of one instance's matrix
-  for (let i = 0; i < xs.length; i++) if (Math.hypot(xs[i] - hero.x, zs[i] - hero.z) <= radius) { arr.set(src.subarray(i * size, (i + 1) * size), n * size); n++; }
-  target.instanceMatrix.needsUpdate = true; return n;
+/** Writes the instances `keep(i)` accepts to the front of the target's matrix buffer and returns how many. */
+const pack = (target: THREE.InstancedMesh, src: Float32Array, n: number, keep: (i: number) => boolean): number => {
+  const arr = target.instanceMatrix.array as Float32Array, size = target.instanceMatrix.itemSize; let out = 0;   // itemSize: the floats of one instance's matrix
+  for (let i = 0; i < n; i++) if (keep(i)) { arr.set(src.subarray(i * size, (i + 1) * size), out * size); out++; }
+  target.instanceMatrix.needsUpdate = true; return out;
 };
-/** Once per frame from the page's loop: the instances within drawRadius are the ones drawn, the ones within shadowRadius the ones cast. Re-packs only after the walker moved `stepM` (a row: previewRule kitViewStepM) or a kind was added. */
-export function updateKitViews(hero: { x: number; z: number }, stepM: number): void {
+/** Once per frame from the page's loop: the instances within drawRadius (of the walker) are the ones drawn, the ones within shadowRadius the ones cast, and a kind with a far body draws the full mesh within its lod distance of `eye` (the camera; the walker when absent) and the far one beyond. Re-packs only after the walker moved `stepM` (a row: previewRule kitViewStepM) or a kind was added. */
+export function updateKitViews(hero: { x: number; z: number }, stepM: number, eye: { x: number; z: number } = hero): void {
   if (!VIEWS.length) return;
   if (!stale && lastAt && Math.hypot(hero.x - lastAt.x, hero.z - lastAt.z) < stepM) return;
   lastAt = { x: hero.x, z: hero.z }; stale = false;
   for (const v of VIEWS) {
-    if (v.drawR > 0) v.inst.count = pack(v.inst, v.src, v.xs, v.zs, hero, v.drawR);
-    if (v.proxy) v.proxy.userData.near = pack(v.proxy, v.src, v.xs, v.zs, hero, v.shadowR);
+    const n = v.xs.length, dHero = (i: number) => Math.hypot(v.xs[i] - hero.x, v.zs[i] - hero.z), dEye = (i: number) => Math.hypot(v.xs[i] - eye.x, v.zs[i] - eye.z), drawn = (i: number) => v.drawR <= 0 || dHero(i) <= v.drawR;
+    if (v.far) { v.inst.count = pack(v.inst, v.src, n, (i) => drawn(i) && dEye(i) <= v.lodDist); v.far.count = pack(v.far, v.src, n, (i) => drawn(i) && dEye(i) > v.lodDist); }
+    else if (v.drawR > 0) v.inst.count = pack(v.inst, v.src, n, drawn);
+    if (v.proxy) v.proxy.userData.near = pack(v.proxy, v.src, n, (i) => dHero(i) <= v.shadowR);
   }
 }
 
-export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'landmarks'>, groundAt: (x: number, z: number) => number = () => 0, opts: { rules?: readonly KitViewRule[]; override?: Radii } = {}): THREE.Group {
+export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'landmarks'>, groundAt: (x: number, z: number) => number = () => 0, opts: { rules?: readonly KitViewRule[]; override?: Radii; lods?: ReadonlyMap<string, KitLod> } = {}): THREE.Group {
   const group = new THREE.Group(); group.name = 'zone1-kit';
   const all: KitPlacement[] = [...kit.placements, ...kit.landmarks], byNode = new Map<string, KitPlacement[]>();
   for (const p of all) byNode.set(p.node, [...(byNode.get(p.node) ?? []), p]);
@@ -58,14 +63,19 @@ export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'la
       inst.setMatrixAt(i, m.multiplyMatrices(place, mesh.matrixWorld));
     });
     inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); group.add(inst);
-    if (drawR > 0 || proxied) {
-      let proxy: THREE.InstancedMesh | null = null;
-      if (proxied) {   // only the instances near the walker cast: a second InstancedMesh on the same geometry that is empty in the picture (count 0) and fills only for the shadow pass
-        proxy = new THREE.InstancedMesh(mesh.geometry, SHADOW_ONLY, list.length); proxy.name = `${o.name}__shadow`; proxy.castShadow = true; proxy.receiveShadow = false; proxy.frustumCulled = false; proxy.count = 0; proxy.userData.near = 0;
+    const lod = opts.lods?.get(o.name) ?? null;
+    if (drawR > 0 || proxied || lod) {
+      let far: THREE.InstancedMesh | null = null, proxy: THREE.InstancedMesh | null = null;
+      if (lod) {   // the far body: same instance matrices (the lod file holds the same node at the same origin and axes), drawn beyond lod.dist; it is not drawn until the first update has bucketed the instances
+        far = new THREE.InstancedMesh(lod.geometry, lod.material, list.length); far.name = `${o.name}__far`; far.castShadow = rule.castShadow && !proxied; far.receiveShadow = true; far.count = 0;
+        far.instanceMatrix.copyArray(inst.instanceMatrix.array as Float32Array); far.computeBoundingSphere(); group.add(far);
+      }
+      if (proxied) {   // only the instances near the walker cast: a second InstancedMesh (the far geometry when there is one) that is empty in the picture (count 0) and fills only for the shadow pass
+        proxy = new THREE.InstancedMesh(lod?.geometry ?? mesh.geometry, SHADOW_ONLY, list.length); proxy.name = `${o.name}__shadow`; proxy.castShadow = true; proxy.receiveShadow = false; proxy.frustumCulled = false; proxy.count = 0; proxy.userData.near = 0;
         const own = proxy; own.onBeforeShadow = () => { own.count = own.userData.near as number; }; own.onAfterShadow = () => { own.count = 0; };
         group.add(proxy);
       }
-      VIEWS.push({ inst, proxy, src: new Float32Array(inst.instanceMatrix.array), xs: list.map((p) => p.x), zs: list.map((p) => p.z), drawR, shadowR }); stale = true;
+      VIEWS.push({ inst, far, lodDist: lod?.dist ?? 0, proxy, src: new Float32Array(inst.instanceMatrix.array), xs: list.map((p) => p.x), zs: list.map((p) => p.z), drawR, shadowR }); stale = true;
     }
   });
   return group;
