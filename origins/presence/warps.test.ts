@@ -1,5 +1,6 @@
 // Server-owned warps: the landmark table is data that must agree with the page's own teleports (so a data move or a zone edit that shifts a start fails here, not in a player's session), and the
 // server moves a player only to a table landmark: a forged id closes the socket, a plain far pose is still a teleport, the rate is a row.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
@@ -13,17 +14,17 @@ import { presenceRule } from './presence-rules.ts';
 import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } from './warps.ts';
 import { openExits } from '../zones/exits.ts';
 import { loadZone } from '../zones/loader.ts';
-const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
+const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted), and so is the Bone Hollow pair (zone 5 is unlisted: beta = Zone 0/1/2/Dungeon 1, Dom 10-22; tests/beta-gate.test.ts pins that)import { CENTRE_CM, clearOfTradeAreas, inTradeArea, zoneAt } from './zones.ts';
 import { CENTRE_CM, clearOfTradeAreas, inTradeArea, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
-const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
+const m = (id: string): { x: number; z: number } => { const p = (warpPlace(id) ?? exitWarps(EXITS).get(id))!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
 const near = (a: number, b: number, tol = 0.01): void => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-pit-gate', 'zone0-start', 'zone1-cave-mouth', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone5-gate', 'zone7-gate', 'zone7-start']);   // Dungeon 1 listed (2026-10-22): zone7-start (its row's own start) and the town/dungeon door pair's two landings, zone7-gate (into the yard) and zone0-pit-gate (back at the Pit's outer gate);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone0-gate', 'zone0-pit-gate', 'zone0-start', 'zone1-exchange-gate', 'zone1-road-end', 'zone1-start', 'zone2-start', 'zone7-gate', 'zone7-start']);   // 2026-10-22 (beta gate, Dom 10-22): zone1-cave-mouth and zone5-gate are gone: they were derived from the Bone Hollow door, which is closed on a normal build (zone 5 is unlisted; tests/beta-gate.test.ts pins it);   // Dungeon 1 listed (2026-10-22): zone7-start (its row's own start) and the town/dungeon door pair's two landings, zone7-gate (into the yard) and zone0-pit-gate (back at the Pit's outer gate);   // zone2-start: Zone 2's own start, a zone-row warp (2026-10-22); zone0-gate and zone1-exchange-gate (2026-10-22, zone 0 listed: the town pair's two landings, derived from the exit rows)
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);
@@ -32,8 +33,7 @@ test('the table: every landmark stands in a zone row and clear of the trade area
 });
 
 test('the exit warps are DERIVED from the exit rows and the zone plan, not copied: they equal the places they had as table rows, and a taken or unreachable warp id refuses to load', () => {
-  near(m('zone5-gate').x, 1, 0.006); near(m('zone5-gate').z, -320, 0.006);
-  near(m('zone1-cave-mouth').x, -141, 0.006); near(m('zone1-cave-mouth').z, 30, 0.006);
+  // 2026-10-22 (beta gate, Dom 10-22): the Bone Hollow pair's two warps (zone5-gate at 1, -320 and zone1-cave-mouth at -141, 30) are gone from a normal build, so there is nothing to derive: the doors are closed and the plan drops their landmarks (tests/beta-gate.test.ts pins that); the rows stay in the repo for the opt-in build.
   assert.ok(!DEFS.landmarks.some((r) => EXITS.some((e) => e.warp === r.id)), 'no exit warp is also a table row');
   assert.deepEqual([...exitWarps(EXITS).keys()].sort(), EXITS.map((e) => e.warp).sort());
   assert.throws(() => exitWarps(EXITS, new Set([EXITS[0]!.warp])), /already a warp landmark/);

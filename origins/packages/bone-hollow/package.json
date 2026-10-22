@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "bone-hollow",
   "zone": 5,
-  "unlisted": false,
+  "unlisted": true,
   "world": [
     "bone-hollow"
   ],
@@ -37,8 +37,8 @@
   },
   "files": {
     "zone.row.json": {
-      "bytes": 5565,
-      "sha256": "e8e30f29b7fbdd678077552f7c3a02070e84eb136d2e9119eb283fa457b8eb89"
+      "bytes": 5585,
+      "sha256": "9c82aec02984965dd02717b8852d567b1fa48d82bf0e6d61228fb1aa29fca9ad"
     },
     "dungeon.row.json": {
       "bytes": 4740,

@@ -1,4 +1,5 @@
 // The dungeon framework (origins/zones/dungeon.ts): the Bone Hollow is row #1 and the zone it compiles to is the zone the loader serves; a second, three-room row walks end to end; a broken graph is refused at load. Pure.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';
@@ -64,13 +65,14 @@ test('the dungeon row\'s level band WINS over the zone-number rule, which is onl
 });
 
 test('the sample crypt is UNLISTED: closed on a normal build (no zone, no door, no warp), open only with the explicit opt-in', () => {
-  assert.ok(!zoneIds(false).includes('6') && zoneIds(false).includes('5') && !zoneOpen('6', false) && zoneOpen('6', true) && zoneOpen('5', false));
+  assert.ok(!zoneIds(false).includes('6') && !zoneIds(false).includes('5') && !zoneOpen('6', false) && zoneOpen('6', true) && !zoneOpen('5', false) && zoneOpen('5', true));   // zone 5 (the Bone Hollow) joined the closed set for the beta (Dom 10-22: beta = Zone 0/1/2/Dungeon 1); it was listed before
   assert.throws(() => loadZone('6', false), /no zone 6/);
   const crypt = (rows: readonly { id: string }[]) => rows.map((r) => r.id).filter((id) => id.startsWith('crypt-'));
-  assert.deepEqual(crypt(openExits()), [], 'a beta page draws no crypt door');
+  assert.deepEqual(crypt(openExits(undefined, false)), [], 'a beta page draws no crypt door');   // explicit false: this file sets the opt-in (it reads zone 5), so the default would open them
   assert.deepEqual(crypt(openExits(EXITS, false)), [], 'and presence derives no zone6 warp (the server passes false)');
   assert.deepEqual(crypt(openExits(EXITS, true)), ['crypt-mouth', 'crypt-door'], 'a preview built with the opt-in has both doors');
-  assert.ok(openExits().some((r) => r.id === 'cave-mouth') && openExits().some((r) => r.id === 'hollow-gate'), 'the Bone Hollow doors are unaffected');
+  assert.ok(openExits(undefined, true).some((r) => r.id === 'cave-mouth') && openExits(undefined, true).some((r) => r.id === 'hollow-gate'), 'the Bone Hollow doors open with the opt-in');
+  assert.deepEqual(openExits(undefined, false).filter((r) => r.id === 'cave-mouth' || r.id === 'hollow-gate'), [], 'and are closed on a normal build (beta 10-22: zone 5 is unlisted)');
 });
 
 test('the crypt-mouth landmark comes from the zone-6 package: a normal build adds nothing to Zone 1, an opted-in build adds the landmark and its waypoint', () => {

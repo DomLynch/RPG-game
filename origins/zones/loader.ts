@@ -56,7 +56,8 @@ const PACKAGES: Record<string, Zone> = REGISTRY;
 export const unlistedOpens = (env: { VITE_UNLISTED_ZONES?: string } | undefined): boolean => env?.VITE_UNLISTED_ZONES === '1';
 const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.meta as unknown as { env?: { VITE_UNLISTED_ZONES?: string } }).env ?? (typeof process === 'undefined' ? undefined : process.env);
 const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
-export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
+// A page of an unlisted zone (opt-in builds only) sees every unlisted zone, not only itself: an unlisted zone joins to the one it hangs off (the Bone Hollow off the Drowned Marsh, both unlisted in beta, Dom 10-22), and its page cannot build without that parent.
+export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && here !== null && packages[here]?.unlisted === true));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
 /** The places of the zones this page sees. An UNLISTED zone is seen only on its own page, EXCEPT its bare joins (a join without `link`: a landmark the package brings into another zone, e.g. a dungeon's door): on a build with the opt-in they apply on every page, so the Zone 1 page can draw the door, and on a normal build they apply nowhere, so Zone 1 stays byte-identical. */
 export const zonePlaces = (): Place[] => {

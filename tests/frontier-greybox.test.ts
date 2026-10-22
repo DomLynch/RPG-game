@@ -1,6 +1,7 @@
 // Guard (Lead's ruling 2026-10-18, the second presentation-list addition): origins/preview/frontier-greybox.ts is DRAWING only. It owns no collision (never handed `solids`, no walkable / stand / view decision), reads no
 // rows (every footprint and solid number reaches it as an argument from frontier-plan.ts), and keeps no copy of a footprint. A file on inline-number-scope.json's presentation list is not gated, so this is what keeps
 // a number a player can bump into from drifting into it.
+import '../origins/server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -43,5 +44,5 @@ test('one source for a footprint: the greybox draws the kinds the plan has rows 
 });
 
 test('the plan\'s build is unchanged by the split: Zone 1, flat and with relief', () => {
-  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [177, 60, 8, 22]); }   // 175 -> 177 pieces and 21 -> 22 boards (2026-10-22, zone 0 listed: the door to the town is open, so Zone 1 keeps its exchange-gate landmark and signposts it, frontier-plan.ts doors/signs: the sign is the new board; solids and people unchanged); 174/59 -> 175/60 (2026-10-20, the shrine salamander camp moves off Hrungnir's spot: the new `shrine-field` landmark leaves one stone post and its collider, as troll-cave did)
+  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [180, 61, 8, 23]); }   // 177/60/8/22 -> 180/61/8/23 (2026-10-22, the beta gate, Dom 10-22: the cave-mouth door to the unlisted Bone Hollow closes; Zone 1 keeps its landmark as a plain post and a sign);175 -> 177 pieces and 21 -> 22 boards (2026-10-22, zone 0 listed: the door to the town is open, so Zone 1 keeps its exchange-gate landmark and signposts it, frontier-plan.ts doors/signs: the sign is the new board; solids and people unchanged); 174/59 -> 175/60 (2026-10-20, the shrine salamander camp moves off Hrungnir's spot: the new `shrine-field` landmark leaves one stone post and its collider, as troll-cave did)
 });

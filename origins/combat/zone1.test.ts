@@ -1,5 +1,6 @@
 // Zone 1's combat (src/fight/world.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
 // WORLD layer and the adapter: who fights whom, the chase to the hold ring, the leash and heal-home, a pack taking turns, gear / levels / stances / specials / skill reaching the duel, and the player-vs-player rules.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/fight/moves.ts';

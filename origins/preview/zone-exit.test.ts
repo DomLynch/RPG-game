@@ -1,18 +1,20 @@
 // Zone exits (zones/exits.ts rows, zone-exit.ts): a door from one zone page to another. The cave mouth in Zone 1 leads to the Bone Hollow's gate and back; the landing points equal the presence warp rows;
 // a door fires once, only after the walker has been outside it, and the target address carries ?zone= and ?via=.
+import '../../tests/lib/page-zone5.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads the Bone Hollow as its own page does (the explicit opt-in and the /zone5/ address)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frontierPlan } from './frontier-plan.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { openExits, exitSpots, loadExits } from '../zones/exits.ts';
-const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
-import { loadZone, zoneIds } from '../zones/loader.ts';
-import { warpPlace } from '../presence/warps.ts';
+const EXITS = openExits(undefined, true).filter((r) => r.id === 'cave-mouth' || r.id === 'hollow-gate');   // the Bone Hollow pair, read with the opt-in: on a normal build they are CLOSED (beta = Zone 0/1/2/Dungeon 1, Dom 10-22; tests/beta-gate.test.ts pins that)
+import { allZoneIds, loadZone, zoneIds } from '../zones/loader.ts';
+import { exitWarps } from '../presence/warps.ts';
 import { CENTRE_CM, ZONE_ROWS, walkable, zoneAt } from '../presence/zones.ts';
 import { presenceRule } from '../presence/presence-rules.ts';
 
 const cave = EXITS.find((r) => r.id === 'cave-mouth')!, gate = EXITS.find((r) => r.id === 'hollow-gate')!;
-const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
+const WARPS = exitWarps(EXITS);   // the pair's warps, derived with the opt-in: a normal build has none (the doors are closed), so the server's table (warpPlace) has neither
+const m = (id: string): { x: number; z: number } => { const p = WARPS.get(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
 
 test('the rows: every exit joins two real zone pages and two real landmarks, and the pair is a round trip', () => {
   for (const r of EXITS) {
@@ -20,7 +22,7 @@ test('the rows: every exit joins two real zone pages and two real landmarks, and
     assert.ok(here, `${r.id}: zone ${r.zone} belongs to a package`);
     assert.ok(doorsOf(frontierPlan(true, here), EXITS).some((d) => d.row === r), `${r.id}: its landmark stands on the ${here} page`);
     assert.ok(frontierPlan(true, r.to).zones.some((q) => q.landmarks[r.arrive]), `${r.id}: ${r.arrive} stands on the ${there.name} page`);
-    assert.ok(warpPlace(r.warp), `${r.id}: ${r.warp} is a presence warp row`);
+    assert.ok(WARPS.has(r.warp), `${r.id}: ${r.warp} is a presence warp (derived with the opt-in; none on a normal build)`);
   }
   assert.equal(cave.to, '5'); assert.equal(gate.to, '1'); assert.equal(cave.arrive, gate.landmark); assert.equal(gate.arrive, cave.landmark);
   assert.throws(() => loadExits({ exits: [{ ...cave, radiusM: 0 }] }), /radiusM/);
@@ -45,9 +47,10 @@ test('presence: Zone 5 is listed, its ground is walkable, and it stands clear of
   const door = doorsOf(frontierPlan(true, '5'), EXITS)[0]!, g = cm(door), land = cm(arrival(frontierPlan(true, '5'), '5', 'cave-mouth', EXITS)!);
   assert.ok(walkable(g.x, g.z), 'the gate is walkable (it sits on the edge shared with the marsh, which owns a shared edge)'); assert.equal(zoneAt(land.x, land.z), 'bone-hollow', 'the landing point stands in the bone-hollow row');
   const box = (c: readonly { x: number; z: number }[]) => ({ x0: Math.min(...c.map((q) => q.x)), x1: Math.max(...c.map((q) => q.x)), z0: Math.min(...c.map((q) => q.z)), z1: Math.max(...c.map((q) => q.z)) });
+  const unlistedWorld = new Set(allZoneIds().filter((id) => loadZone(id).unlisted).flatMap((id) => [...loadZone(id).world]));
   const hollow = box(ZONE_ROWS.find((z) => z.id === 'bone-hollow')!.corners), sight = presenceRule('radiusCm') / 100;
   for (const z of ZONE_ROWS) {
-    if (z.id === 'bone-hollow') continue;
+    if (z.id === 'bone-hollow' || unlistedWorld.has(z.id)) continue;   // beta (Dom 10-22): the other unlisted zones are stacked by this /zone5/ page (a sandbox view), never together on a normal build
     const o = box(z.corners), gap = Math.hypot(Math.max(0, hollow.x0 - o.x1, o.x0 - hollow.x1), Math.max(0, hollow.z0 - o.z1, o.z0 - hollow.z1));
     // it is mounted on the marsh's east edge (its parent), touching it and the corner of the salt flats: Zones 3 and 4 are placeholders nobody walks in the beta
     if (z.id !== 'drowned-marsh' && z.id !== 'salt-flats') assert.ok(gap >= sight, `${z.id} is ${gap.toFixed(0)} m from the Bone Hollow, inside presence's ${sight} m sight`);
@@ -69,5 +72,5 @@ test('the address: the other zone, the exit taken, every other flag kept', () =>
 
 test('the landing landmarks a page keeps are named by the rows', () => {
   assert.deepEqual([...exitSpots('5', ['bone-hollow'], EXITS)], ['hollow-gate']);
-  assert.deepEqual([...exitSpots('1', ['cinder-fields'], EXITS)], ['cave-mouth', 'exchange-gate']);   // zone 0 listed (2026-10-22): the open town door keeps Zone 1's exchange-gate landmark (and signpost) on the page
+  assert.deepEqual([...exitSpots('1', ['cinder-fields'], openExits(undefined, true))], ['cave-mouth', 'crypt-mouth', 'exchange-gate']);   // every door of the opt-in build: the Bone Hollow pair is closed on a normal build (beta 10-22), the town door is not   // zone 0 listed (2026-10-22): the open town door keeps Zone 1's exchange-gate landmark (and signpost) on the page
 });

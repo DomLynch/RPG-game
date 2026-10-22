@@ -1,4 +1,5 @@
 // The daily board screen's view model: every sentence is a row, every name comes from the namer, the reset arithmetic is the rule's, and the code names no task.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
