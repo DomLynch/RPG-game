@@ -1,5 +1,13 @@
 # Character — project state
 
+## 2026-10-22 (~21:55 +04) — HANDOFF #24 (supersedes #23's Now and Cleanup). READ FIRST.
+
+**#3639** (town people far bodies) is PASSed by the Auditor @351fbe429 (issuecomment-6348042096) and rides K6q32 (#3647). Two lint fixes since #23's head eb6cc33eb: `scripts/lib/glb-stats.d.mts` (TS7016 in town-people.test.ts), then the `?far=0` copy in origins/preview/main.ts now deletes far/full instead of destructuring `_far/_full` (no-unused-vars 6 vs pinned 4). Do NOT push to it.
+**#3632** (nine-body budget pass) @18c1acf2d still open, `auditor:ready` + `ci:release-checks`, last in the Auditor's line. Do NOT push.
+**Next, after #3632 merges (it carries `scripts/reduce-anim-keys.mjs`; a stacked PR gets no CI):** the other seven plain bodies on `scripts/phone-budget/allow.json` (creature group of 7): bear, boar, wolf, giant-salamander (7 clips), cave-troll (49 clips), goblin, skeleton (38 clips). Over: skinnedVerts 12k-19k, bytes 0.9-2 MB. Recipe in HANDOFF #23 (world_body.py 5400 tris/512 -> reduce-anim-keys --keep/--drop-rest -> pack-world-body -> row world.tris == glbStats -> body-heights --check, re-pin height-ladder by hand -> check-phone-budget --gate), and run the FULL unit shards before saying green. Later: shieldmaiden skin flecks (wider BAKE_CAGE, own PR); freeze the town-people mixer past ~15 m.
+**Cleanup done today:** deleted origin branches char/town-people-wip and char/town-paving-wip (both in trunk); swept /srv/dev-jobs/char-town-1022 and /srv/dev-jobs/char-legend (archived+deleted; /srv 52 GB free). The VPS test clone is gone: re-clone for test runs.
+**Gotchas (new):** a lint fix can unmask a second NEW lint error (the first failure stops quality:lint): run `node scripts/origins-lint.mjs` and `node scripts/origins-tsc.mjs` plus `npx tsc -p tsconfig.tests.json` before pushing. `gh pr checks` shows "skipping" rows from duplicate runs; read the real run with `gh run list --commit <sha>`. Hooks block Bash file edits (use Edit/Write) and builds/suites while a deploy is in flight.
+
 ## 2026-10-22 (~19:40 +04) — HANDOFF #23 (supersedes #22's Now). READ FIRST. Dom clears this session.
 
 **Live:** K6q28 at trunk 80934b31f (#3616 paving, #3624 town people, #3628). #3618 (legend bodies) is live too.
