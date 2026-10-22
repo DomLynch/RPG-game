@@ -112,7 +112,7 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // 2026-10-08: 60..90 s; Characters' field, #1787), else RESPAWN_MS. It is read from the DATABASE (origins_last_paid_kill, 202610080006: the time since this account's
 // last PAID kill of the fight, from the `enc:<token>` events the settle commits with its rewards), so a writer restart forgets nothing, only committed kills count, and a
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
-export const RESPAWN_MS = worldRule('respawnDefault') * 1000;   // the respawnDefault row (src/fight/world-rules-defs.json, 300 s)
+export const RESPAWN_MS = worldRule('respawnDefault') * MS_PER_SECOND;   // the respawnDefault row (src/fight/world-rules-defs.json, 300 s)
 type RespawnRow = { id: string; respawnSeconds?: number };
 // Keyed (zone, id), not id alone: one creature id lives in several zones (Zone 1's starters, Zone 2's boar and wolf, ...), and a row that sets its respawn in one zone must not drag the same id in another
 // (Lead, per-layer spawns, with World's Zone 1 starter respawns of 40-60 s). Wildlife rows apply in every zone, under the zone key WILD. The layer is not in the key yet: a layer copies its zone's rows;

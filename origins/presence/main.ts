@@ -8,6 +8,7 @@ import { supabaseVerify } from '../server/auth.ts';
 import { createPresence, LIMITS } from './server.ts';
 import { RULES } from './interest.ts';
 import { presenceRule } from './presence-rules.ts';
+import { UUID_TAIL_CHARS } from './units.ts';
 import { writerSavedLocation, writerSaveLocation, writerWorn, type Worn } from '../server/location.ts';
 
 if (process.env.ORIGINS_PRESENCE !== '1') { console.log('presence: OFF (set ORIGINS_PRESENCE=1 to start); nothing is listening'); process.exit(0); }
@@ -16,7 +17,7 @@ const host = process.env.PRESENCE_HOST ?? '127.0.0.1', port = Number(process.env
 let verify: (token: string) => Promise<string | null>;
 if (testAuth === '1') {
   if (url || host !== '127.0.0.1') throw new Error('ORIGINS_PRESENCE_TEST_AUTH is for the loopback load test only (unset SUPABASE_URL, bind 127.0.0.1)');
-  verify = async (token: string) => { const m = /^bot-([a-z0-9]{1,8})$/.exec(token); return m ? `00000000-0000-4000-8000-${m[1].padStart(12, '0')}` : null; };
+  verify = async (token: string) => { const m = /^bot-([a-z0-9]{1,8})$/.exec(token); return m ? `00000000-0000-4000-8000-${m[1].padStart(UUID_TAIL_CHARS, '0')}` : null; };
 } else {
   if (!url || !anon) throw new Error('set SUPABASE_URL and SUPABASE_ANON_KEY');
   verify = supabaseVerify(url, anon);

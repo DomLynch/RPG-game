@@ -8,7 +8,7 @@
 // A mob layer (src/fight/mobkit.ts via src/core/world/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice, underRecord, RECORD_VERSION, specialsFromLevelAt, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, type Sheet, sheetRefusal, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
-import { RANK_STEPS, TITLES } from '../../src/core/server.ts';
+import { RANK_STEPS, TITLES, levelOfMarks } from '../../src/core/server.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import { mobLayer } from '../../src/core/server.ts';
 import { kitOfBuild, kitTag } from '../../src/core/server.ts';
@@ -27,7 +27,7 @@ export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => 
 export const MAX_FIGHT_TICKS = Math.round(SERVER_RULES.fightLimit[0]!.maxFightSec / STEP);   // a fight longer than the fightLimit row (900 s, 15 minutes) is not a fight
 
 // Special Moves: a record below RV80 has them from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on), RV80 and later from level 1 (below): the server dictates it, the record's flag must agree.
-const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');
+const SPECIALS_FROM = levelOfMarks(RANK_STEPS * TITLES.indexOf('Veteran'));   // the level the Veteran rung starts at (RANK_STEPS wins per title: level = 1 + wins)
 // RV80 (rows80-defs.json specialsFromLevel, Dom 2026-10-19): a record at 80 or later fights specials from level 1; an older record keeps the Veteran rung. `version` is the record's own.
 export const liveSpecials = (level: number, version: number = RECORD_VERSION): boolean => Number.isInteger(level) && level >= specialsFromLevelAt(version, SPECIALS_FROM) && level <= LEVELS;
 

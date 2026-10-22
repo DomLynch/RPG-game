@@ -5,6 +5,7 @@
 // is dropped past `max`, so a slow or dead writer can never grow presence's memory or stall its tick. A failed post is logged and not retried: the next
 // checkpoint or leave carries a newer place anyway.
 import { presenceRule } from './presence-rules.ts';
+import { ACCOUNT_TAG_CHARS } from './units.ts';
 export type SaveAt = { x: number; z: number; atMs: number };
 export type SaveFn = (account: string, at: SaveAt) => Promise<unknown>;
 export const SAVE_EVERY_MS = presenceRule('saveEveryMs');   // Dom's cadence, a presence-rules row (300000 ms = 5 min, tunable to 10 min); the writer keeps only the newest row per character
@@ -20,7 +21,7 @@ export function saveQueue(save: SaveFn, log: (line: string) => void = console.lo
       for (let next = pending.entries().next(); !next.done; next = pending.entries().next()) {
         const [account, at] = next.value;
         pending.delete(account);
-        try { await save(account, at); sent++; } catch (e) { failed++; log(`presence: position save for ${account.slice(0, 8)} failed (${(e as Error).message}); the next checkpoint carries a newer place`); }
+        try { await save(account, at); sent++; } catch (e) { failed++; log(`presence: position save for ${account.slice(0, ACCOUNT_TAG_CHARS)} failed (${(e as Error).message}); the next checkpoint carries a newer place`); }
       }
     } finally { busy = false; }
   };

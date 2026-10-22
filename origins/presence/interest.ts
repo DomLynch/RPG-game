@@ -1,7 +1,9 @@
 // Layers and spatial interest management (docs/specs/origins/one-shard.md §2, §4, §5). Pure: no sockets, no clock of its own, so the rules are
 // testable and the load test can drive them. All numbers are the note's *est.* planning figures until the load test replaces them.
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
-import { interestRules } from './presence-rules.ts';
+import { interestRules, presenceRule } from './presence-rules.ts';
+import { CELL_STRIDE } from './units.ts';
+import { HALF, MS_PER_SECOND } from '../server/units.ts';
 import type { Worn } from '../server/location.ts';
 import { LEGACY_SHIFT_CM, SPAWN, TOWN_CM, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
 
@@ -25,8 +27,8 @@ export class Layer {
 }
 
 export type MoveResult = 'ok' | 'snapped' | 'drop';
-const TOWN_HALF_CM = TOWN_CM / 2;
-const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cellCm) * 4096 + Math.floor(z / r.cellCm);
+const TOWN_HALF_CM = TOWN_CM * HALF;
+const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cellCm) * CELL_STRIDE + Math.floor(z / r.cellCm);
 
 export class World {
   readonly layers = new Map<number, Layer>();
@@ -35,7 +37,7 @@ export class World {
   private nextLayer = 1;
   readonly rules: Rules;
   readonly maxLayers: number;
-  constructor(rules: Rules = RULES, maxLayers = 8) { this.rules = rules; this.maxLayers = maxLayers; }
+  constructor(rules: Rules = RULES, maxLayers = presenceRule('maxLayers')) { this.rules = rules; this.maxLayers = maxLayers; }
 
   // Join: the friend's layer if they are online and it has room, else the fullest layer under the soft cap (fill first), else a new layer.
   // Where it starts (X2 stage 1): `at` when given, else the position this account was last seen at here (kept `memoryMs` after it left, moved clear of any trade area),
@@ -87,7 +89,7 @@ export class World {
     const { strikesToDrop, strikeWindowMs, jitterMs, tickMs } = this.rules;
     if (now - p.strikeAt > strikeWindowMs) { p.strikes = 0; p.strikeAt = now; }
     const rate = this.creditRate(p.zone);
-    p.credit = Math.min(rate * (1000 + jitterMs), p.credit + rate * Math.max(0, now - p.movedAt));
+    p.credit = Math.min(rate * (MS_PER_SECOND + jitterMs), p.credit + rate * Math.max(0, now - p.movedAt));
     const lo = SPAWN.x - TOWN_HALF_CM, hi = SPAWN.x + TOWN_HALF_CM;
     const x = p.legacy ? Math.min(hi, Math.max(lo, pose.x)) : pose.x, z = p.legacy ? Math.min(hi, Math.max(lo, pose.z)) : pose.z;
     p.movedAt = now; p.seenAt = now;
@@ -102,7 +104,7 @@ export class World {
     return this.place(p, x, z, pose);
   }
   // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there; one tick of it is allowed for their first pose only).
-  private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / 1000; }
+  private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / MS_PER_SECOND; }
   // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
   warp(p: Player, x: number, z: number, now: number): void {
     p.movedAt = now; p.seenAt = now; p.strikes = 0;
@@ -133,7 +135,7 @@ export class World {
     const cx = Math.floor(p.x / cellCm), cz = Math.floor(p.z / cellCm), span = Math.ceil(radiusCm / cellCm);
     for (let i = cx - span; i <= cx + span; i++) for (let j = cz - span; j <= cz + span; j++) {
       if (i < 0 || j < 0) continue;
-      const set = p.layer.cells.get(i * 4096 + j);
+      const set = p.layer.cells.get(i * CELL_STRIDE + j);
       if (set) for (const e of set) if (e !== p && this.canSee(p, e)) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d <= radiusCm) near.push({ e, d }); }
     }
     near.sort((a, b) => a.d - b.d);
