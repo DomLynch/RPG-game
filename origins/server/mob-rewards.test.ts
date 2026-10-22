@@ -1,5 +1,6 @@
 // What a verified world creature kill pays (mob-rewards.ts): the kill's CP through award(), the loot rolled on the server's seed into the pack as mints,
 // and nothing for a token without a fight id, a run the fight does not describe, a loss-shaped twist, a full pack or a capped Bounty.
+import './zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';

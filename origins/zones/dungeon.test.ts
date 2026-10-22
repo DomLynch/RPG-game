@@ -1,4 +1,5 @@
 // The dungeon framework (origins/zones/dungeon.ts): the Bone Hollow is row #1 and the zone it compiles to is the zone the loader serves; a second, three-room row walks end to end; a broken graph is refused at load. Pure.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';

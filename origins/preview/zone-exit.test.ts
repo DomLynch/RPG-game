@@ -1,5 +1,6 @@
 // Zone exits (zones/exits.ts rows, zone-exit.ts): a door from one zone page to another. The cave mouth in Zone 1 leads to the Bone Hollow's gate and back; the landing points equal the presence warp rows;
 // a door fires once, only after the walker has been outside it, and the target address carries ?zone= and ?via=.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frontierPlan } from './frontier-plan.ts';

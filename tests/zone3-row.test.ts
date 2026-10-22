@@ -1,5 +1,6 @@
 // PROOF (Dom 2026-10-11, "zones as data"): Zone 3 is ONE data row, origins/zone-rows/zone3.row.json, and no TypeScript. It reuses the Ash Reach's biome (the default), kit and looks, has one spawn (an Ember Wolf at its
 // cairn) and hangs off the Reach's far edge. These tests show it is a zone like any other: it loads, its wolf stands on the map, the server prices and engages it, and a fight against it runs through src/fight.
+import '../origins/server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

@@ -1,5 +1,6 @@
 // Weighted spawn entries (docs/specs/origins/weighted-spawns.md; donor EQEmu spawnentry.chance / spawn_limit, shape only): the roll, its rules, the loader checks, and the
 // golden that every plain group (a single bare id, every row today) stands exactly where it did.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';

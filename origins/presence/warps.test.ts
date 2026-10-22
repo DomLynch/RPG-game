@@ -1,5 +1,6 @@
 // Server-owned warps: the landmark table is data that must agree with the page's own teleports (so a data move or a zone edit that shifts a start fails here, not in a player's session), and the
 // server moves a player only to a table landmark: a forged id closes the socket, a plain far pose is still a teleport, the rate is a row.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
