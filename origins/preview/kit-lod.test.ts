@@ -37,7 +37,7 @@ test('the swap re-buckets when only the eye has moved', () => {
   updateKitViews({ x: 10, z: 0 }, 1, { x: 500, z: 0 });   // the walker jumps to the huts; the camera has not followed yet (it is still far away)
   assert.equal(near.count, 0, 'seen from the stale eye every hut is far');
   updateKitViews({ x: 10, z: 0 }, 1, { x: 5, z: 0 });   // the walker has not moved again, the camera has arrived
-  assert.equal(near.count, 2, 'x = 0 and 10 are within 15 m of the eye at x = 5');
+  assert.equal(near.count, 3, 'x = 0, 10 and 20 (exactly 15 m) are within 15 m of the eye at x = 5');
 });
 
 // The bug the T4 stills caught: a re-baked or quantized far file carries its own scale in its node, and the far instances must use THAT node transform, not the full mesh's (else the far body is drawn at the wrong size and the hut vanishes).
