@@ -36,7 +36,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
-import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
@@ -841,12 +841,14 @@ onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpel
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
+// The warp that places a page's hero at its zone's own start (the page's start, a zone row's `warps` landmark `zone<N>-start`; Zone 1's is the table's `zone1-start`): never another zone's. A zone with none asks for no warp (a Zone 2 page asking for Zone 1's start was refused by presence and the hero ended in the Pit, 2026-10-22).
+const START_WARP = (() => { const z = loadZone(); return z.warps?.find((w) => w.id === `zone${z.id}-start`)?.id ?? (z.id === DEFAULT_ZONE ? 'zone1-start' : null); })();
 let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
   token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
-    if (frontier && !startWarped) { startWarped = true; presence?.warp(landed?.row.warp ?? 'zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (frontier && !startWarped && (landed || START_WARP)) { startWarped = true; presence?.warp(landed?.row.warp ?? START_WARP!); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
     if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
   },
   onOthers: (list) => { others = list; },
