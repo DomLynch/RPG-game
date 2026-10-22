@@ -1,5 +1,6 @@
 {
   "name": "The Concord Exchange",
+  "defaultKind": "goblin",
   "exits": [
     { "id": "west-gate", "zone": "exchange", "landmark": "west-gate", "to": "1", "arrive": "exchange-gate", "warp": "zone1-exchange-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Ash Frontier" }
   ],
