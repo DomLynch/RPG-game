@@ -1,7 +1,7 @@
 // The Concord Exchange greybox as a plan: every placed piece of the walk out (the passage behind the Pit's gate, the plaza, the stoas,
 // the Covenant Stone, the bank's front, the smithy, braziers, stalls and standing figures) as plain data, with no three.js in it.
-// exchange.ts turns a plan into meshes; the plan itself is ROWS (exchange-rows.json, read by exchange-rows.ts; World, Lead's ruling 2026-10-22), pinned to the greybox as it stood before it read the world data (exchange.test.ts)
-// and to the frozen code that built it (tests/exchange-rows.test.ts).
+// exchange.ts turns a plan into meshes; the plan itself is ROWS (origins/zones/plan-rows.json, built by origins/zones/plan.ts; World, Lead's ruling 2026-10-22), pinned to the greybox as it stood before it read the world data (exchange.test.ts)
+// and to the frozen code that built it (tests/zone-plan.test.ts).
 //
 // Where things stand comes from the world data (origins/world/concord.ts through concordMounts and place): the gladiator gate's
 // passage, the Exchange's outer gate, the Covenant Stone, the contract board, the forge and the bank. Everything else is metres of

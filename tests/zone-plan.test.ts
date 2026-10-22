@@ -40,6 +40,17 @@ test('every source moved together still matches the code', () => {
   compare(m, 'all moved');
 });
 test('a zone with no plan rows has no plan', () => { assert.equal(planFor('zone-701', () => 0), null); });
+test('a minimal zone: one anchor, one piece, no frieze, no hearth, no figures; it loads and builds, and the marks are simply absent', () => {
+  const rows = loadPlanRows({
+    anchors: [{ id: 'mini/gate.x', zone: 'mini', source: 'landmark:gate.x', base: 10 }],
+    pieces: [{ id: 'mini/wall-0', zone: 'mini', layer: 'stone', shape: ['box', 2, 3, 4], x: 10, y: 1.5, z: 0, tint: [1, 1, 1], rotY: 0, foot: 0, follow: { x: { 'gate.x': 1 } } }],
+    awnings: [], people: [], braziers: [], marks: [],
+  });
+  const plan = planFor('mini', (s) => (s === 'landmark:gate.x' ? 12.5 : NaN), rows)!;
+  assert.equal(plan.pieces.length, 1); assert.equal(plan.pieces[0]!.x, 12.5, 'the wall followed its gate');
+  assert.equal(plan.frieze, undefined); assert.equal(plan.hearth, undefined);
+  assert.deepEqual([plan.awnings, plan.people, plan.braziers], [[], [], []]);
+});
 test('the loader refuses a duplicate id, a mistyped field, an id outside its zone, and a follow that names no anchor of the zone', () => {
   const rows = DEFS as unknown as Record<string, unknown[]>;
   assert.throws(() => loadPlanRows({ ...rows, braziers: [...rows.braziers!, rows.braziers![0]!] }), /duplicate|brazier-000/i);
