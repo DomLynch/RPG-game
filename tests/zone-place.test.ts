@@ -47,7 +47,7 @@ test('a throwaway zone3 row appears on the map, in the waypoints and spawns, and
     assert.deepEqual(Object.keys((zones['east-road']!.layout as object)), ['milestone', 'flats-turn', 'crossroads'], 'its landmark joins the parent before the crossroads');
     assert.equal((zones['east-road']!.connections as Record<string, { to: string }>).flats!.to, 'salt-flats');
     assert.deepEqual(placedWaypoints(places), ['flats-turn', 'flats-gate', 'flats-cairn', 'flats-ruin']);
-    assert.deepEqual(placedSpawns(places).map((s) => s.id), ['flats-wolves', 'flats-pack-a', 'flats-pack-b', 'flats-scavengers']);
+    assert.deepEqual(placedSpawns(places).map((s) => s.id), ['flats-wolves', 'flats-pack-a', 'flats-pack-b', 'flats-scavengers', 'flats-skeletons', 'flats-duelist']);   // the throwaway zone3 is built from Zone 2's row: #3558 added its skeleton and duelist groups (2026-10-22)
     assert.throws(() => applyZones({}, places), /no zone east-road/, 'a join to a zone that is not there is an error');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });

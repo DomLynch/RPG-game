@@ -150,7 +150,9 @@
     "currency": null,
     "fallback": null,
     "rolledBy": [
-      "character:ruin-ghoul"
+      "character:ruin-ghoul",
+      "character:ash-skeleton",
+      "character:pale-duelist"
     ]
   },
   {
