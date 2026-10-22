@@ -39,8 +39,8 @@ export function classifySpawn(error) {
 
 function main(args) {
   const npm = process.env.NPM_AUDIT_SOFT_NPM || 'npm';
-  const timeout = Number(process.env.NPM_AUDIT_SOFT_TIMEOUT_MS) || TIMEOUT_MS;   // the env override is for the test's hanging stand-in npm
-  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout });
+  const timeoutMs = Number(process.env.NPM_AUDIT_SOFT_TIMEOUT_MS) || TIMEOUT_MS;   // the env override is for the test's hanging stand-in npm
+  const run = spawnSync(npm, ['audit', ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: timeoutMs });
   if (run.error) {
     const spawned = classifySpawn(run.error);
     if (spawned.kind === 'outage') console.warn(`::warning::npm audit SKIPPED: ${spawned.detail}. Not a pass: re-run once npm recovers.`);
