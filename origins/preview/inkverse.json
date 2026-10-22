@@ -5,7 +5,7 @@
       "fields": {
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
-        "tone": { "gamma": 2.2, "exposure": 1.5, "pivot": 0.3, "contrast": 1.45, "low": 0.14, "high": 0.84 },
+        "tone": { "gamma": 2.2, "exposure": 1.35, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
         "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
         "edges": { "thicknessPx": 1, "depthRel": 0.014, "normalDot": 0.9, "strength": 0.9, "darkBelow": 0.3, "fadeNear": 18, "fadeFar": 70 },
         "grain": { "strength": 0.035, "scalePx": 1 },
