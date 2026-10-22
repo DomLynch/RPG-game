@@ -7,6 +7,7 @@
 // The issued pose rides in the token (encounter.ts tokenFor): the database holds the token, so settle reads the server's own pose back and a client cannot change it.
 import { roundPose, type DuelPose, FIRST_POSE_VERSION, BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/server.ts';
 import { BadRequest } from './errors.ts';
+import { DIAMETER_PER_RADIUS, HALF } from './units.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const POSE = SERVER_RULES.encounterPose[0]!;
@@ -36,11 +37,11 @@ export function issuePose(enemy: string, proposal: unknown): DuelPose | undefine
   const { radius, maxGap } = poseBounds(enemy), r = radius - EDGE;
   const dx = foe.x - hero.x, dz = foe.z - hero.z, len = Math.hypot(dx, dz);
   const [ux, uz] = len > EPS ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
-  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, 2 * r);
-  let mx = (hero.x + foe.x) / 2, mz = (hero.z + foe.z) / 2;
-  const room = r - gap / 2, m = Math.hypot(mx, mz);
+  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, DIAMETER_PER_RADIUS * r);
+  let mx = (hero.x + foe.x) * HALF, mz = (hero.z + foe.z) * HALF;
+  const room = r - gap * HALF, m = Math.hypot(mx, mz);
   if (m > room) { mx *= room / m; mz *= room / m; }   // pull the pair in toward the centre until both ends are inside
-  const h = { x: mx - ux * gap / 2, z: mz - uz * gap / 2 }, f = { x: mx + ux * gap / 2, z: mz + uz * gap / 2 };
+  const h = { x: mx - ux * gap * HALF, z: mz - uz * gap * HALF }, f = { x: mx + ux * gap * HALF, z: mz + uz * gap * HALF };
   return roundPose({ hero: h, foe: f, heroFacing: Math.atan2(f.x - h.x, f.z - h.z) });
 }
 

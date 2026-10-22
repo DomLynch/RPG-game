@@ -1,0 +1,22 @@
+{
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "shots": [
+    {
+      "name": "375",
+      "file": "zone0y-375.png",
+      "pos": {
+        "x": 0,
+        "z": -36
+      }
+    },
+    {
+      "name": "desktop",
+      "file": "zone0y-desktop.png",
+      "pos": {
+        "x": 0,
+        "z": -36
+      }
+    }
+  ],
+  "errors": []
+}
