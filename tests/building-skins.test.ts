@@ -43,6 +43,16 @@ test('a model\'s far body (lod) is a row: its own file with the SAME node names,
   assert.throws(() => bad({ url: first!.url, dist: 30 }), /lod is/); assert.throws(() => bad({ url: 'world/kit/x.glb', dist: 0 }), /lod is/); assert.throws(() => bad({ url: 'kit/x.glb', dist: 30 }), /lod is/);
   assert.doesNotThrow(() => bad({ url: 'world/kit/x_lod.glb', dist: 30 }));
 });
+test('a model with a budget row stays inside it: near and far triangle counts (the glTF index accessors) and the piece height', () => {
+  const tris = (url: string) => { const buf = readFileSync(`public/${url}`), len = buf.readUInt32LE(12), json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8')) as { meshes: { primitives: { indices?: number }[] }[]; accessors: { count: number; max?: number[]; min?: number[] }[] }; return json.meshes.flatMap((m) => m.primitives).reduce((n, p) => n + (p.indices === undefined ? 0 : json.accessors[p.indices]!.count / 3), 0); };
+  const withBudget = DEFS.models.filter((m) => 'budget' in m) as (typeof DEFS.models[number] & { lod: { url: string }; budget: { height: number; tris: number; lodTris: number } })[];
+  assert.ok(withBudget.length > 0);
+  for (const m of withBudget) {
+    assert.ok(m.budget.height > 0 && m.budget.tris > 0 && m.budget.lodTris > 0 && m.budget.lodTris < m.budget.tris, `${m.id}: budget is positive, the far body smaller than the near`);
+    assert.ok(tris(m.url) <= m.budget.tris, `${m.id}: ${tris(m.url)} near tris over ${m.budget.tris}`);
+    assert.ok(tris(m.lod.url) <= m.budget.lodTris, `${m.id}: ${tris(m.lod.url)} lod tris over ${m.budget.lodTris}`);
+  }
+});
 test('every fit names a node of its model; a fit scales its natural footprint into a block, capped and floored by its own row', () => {
   for (const f of DEFS.fits) assert.ok(DEFS.models.find((m) => m.id === f.model)!.nodes.includes(f.node), `${f.id} -> ${f.node}`);
   assert.equal(skinFit('goblin', 'watchtower')!.node, 'goblin_tower'); assert.equal(skinFit('goblin', 'hall'), null, 'a kind with no fit of its own has none (the block asks for the default)'); assert.equal(modelOfNode('goblin_hut')!.id, 'goblin-hut'); assert.equal(modelOfNode('nope'), null);
