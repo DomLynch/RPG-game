@@ -1,0 +1,96 @@
+{
+ "near": 12,
+ "far": 55,
+ "spots": {
+  "goblin_hut": [
+   -162,
+   -35
+  ],
+  "goblin_totem": [
+   -106.4794921875,
+   4.75891637802124
+  ]
+ },
+ "shots": [
+  {
+   "arm": "lod-on",
+   "node": "goblin_hut",
+   "label": "near",
+   "at": [
+    -150,
+    -40
+   ],
+   "file": "goblin_hut-near-lod-on.png"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_hut",
+   "label": "far",
+   "at": [
+    -107,
+    -57
+   ],
+   "file": "goblin_hut-far-lod-on.png"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_totem",
+   "label": "near",
+   "at": [
+    -94,
+    0
+   ],
+   "file": "goblin_totem-near-lod-on.png"
+  },
+  {
+   "arm": "lod-on",
+   "node": "goblin_totem",
+   "label": "far",
+   "at": [
+    -51,
+    -17
+   ],
+   "file": "goblin_totem-far-lod-on.png"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_hut",
+   "label": "near",
+   "at": [
+    -150,
+    -40
+   ],
+   "file": "goblin_hut-near-lod-off.png"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_hut",
+   "label": "far",
+   "at": [
+    -107,
+    -57
+   ],
+   "file": "goblin_hut-far-lod-off.png"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_totem",
+   "label": "near",
+   "at": [
+    -94,
+    0
+   ],
+   "file": "goblin_totem-near-lod-off.png"
+  },
+  {
+   "arm": "lod-off",
+   "node": "goblin_totem",
+   "label": "far",
+   "at": [
+    -51,
+    -17
+   ],
+   "file": "goblin_totem-far-lod-off.png"
+  }
+ ]
+}

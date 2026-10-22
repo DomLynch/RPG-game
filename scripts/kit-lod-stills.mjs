@@ -58,7 +58,7 @@ for (const [arm, query] of [['lod-on', ''], ['lod-off', '&kitlod=0']]) {
       const x = target[0] + dist, z = target[1] - dist * 0.4, yaw = Math.atan2(target[0] - x, target[1] - z);   // from the east-south of it, looking at it
       await page.evaluate(([px, pz, yw]) => window.originsPreview.place(px, pz, yw), [x, z, yaw]);
       await page.waitForTimeout(3500);
-      const file = `${node}-${label}-${arm}.png`; await page.screenshot({ path: path.join(out, file) });
+      const file = `${node}-${label}-${arm}.jpg`; await page.screenshot({ path: path.join(out, file), type: 'jpeg', quality: 82 });   // jpeg: the runner brings back a bounded artifacts folder (the PNG set of 8 lost all but the last)
       receipt.shots.push({ arm, node, label, at: [Math.round(x), Math.round(z)], file });
     }
   }
