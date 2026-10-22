@@ -25,7 +25,7 @@ try {
   for (const p of pages) {
     const t0 = Date.now(), errors = [], ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }), page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(`pageerror: ${String(e).slice(0, 240)}`));
-    page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`console.error: ${m.text().slice(0, 240)}`); });   // a missing optional asset is a network line, not a crash
+    page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|WebSocket connection to/.test(m.text())) errors.push(`console.error: ${m.text().slice(0, 240)}`); });   // a missing optional asset and the presence socket (this server has no game box behind it) are network lines, not a crash
     const rec = { id: p.id, path: p.path, expected: titleOf(p.name), title: null, booted: false, errors, ms: 0 };
     try {
       await page.goto(`${server.origin}${p.path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
