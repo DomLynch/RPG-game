@@ -75,7 +75,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
-  if (z.band && !(z.band.length === 2 && Number.isInteger(z.band[0]) && Number.isInteger(z.band[1]) && z.band[0] >= 1 && z.band[0] <= z.band[1])) bad.push(`band ${JSON.stringify(z.band)} is not [lo, hi], whole numbers, 1 or more, lo <= hi`);
+  const [bandLo, bandHi, ...bandRest] = z.band ?? [];
+  if (z.band && !(bandRest.length === 0 && Number.isInteger(bandLo) && Number.isInteger(bandHi) && bandLo! >= 1 && bandLo! <= bandHi!)) bad.push(`band ${JSON.stringify(z.band)} is not [lo, hi], whole numbers, 1 or more, lo <= hi`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
     const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
