@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 
 const argv = process.argv.slice(2), out = argv[0], mode = argv[1], opt = (n, d) => { const i = argv.indexOf(`--${n}`); return i > 0 ? argv[i + 1] : d; };
@@ -29,7 +30,7 @@ if (mode === 'local') {
   base = `http://127.0.0.1:${server.address().port}`; close = () => new Promise((r) => server.close(r));
 }
 const URL_ = (mode === 'live' ? `${base}/zone1/?presence=0` : `${base}/preview/origins/?region=1&worldfight&presence=0`) + opt('query', '');   // presence=0: a probe must not appear to players on the live site
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args: process.env.REAL_GPU === '1' ? ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launchBrowser(chromium, { executablePath: process.env.CHROME_PATH || undefined, args: process.env.REAL_GPU === '1' ? ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--autoplay-policy=no-user-gesture-required'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const q = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * s.length))].toFixed(1); };
 const frameStats = (rows) => { const d = rows.map((r) => r[1]), c = rows.map((r) => r[2]), tr = rows.map((r) => r[3]); return { n: d.length, callsMedian: q(c, 0.5), callsP95: q(c, 0.95), trisMedian: q(tr, 0.5), trisP95: q(tr, 0.95), medianMs: q(d, 0.5), p95Ms: q(d, 0.95), p99Ms: q(d, 0.99), maxMs: d.length ? +Math.max(...d).toFixed(1) : null, fpsMedian: d.length ? +(1000 / q(d, 0.5)).toFixed(1) : null, over33: d.filter((x) => x > 33.4).length, over50: d.filter((x) => x > 50).length }; };
 // A CPU profile → self ms and inclusive ms per "function file:line", from the sampled stacks.
