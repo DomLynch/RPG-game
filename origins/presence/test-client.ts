@@ -24,6 +24,8 @@ export type Bot = {
   /** The `enter` records received so far (who an id is: name, guest), and whether any arrived after a packet already carried that id. */
   entered(): { id: number; name: string | null; guest: boolean; worn: Record<string, string> }[];
   enteredLate(): boolean;
+  /** The `announce` frames received so far (the server's boss shout: a row id and its text). */
+  announcements(): { id: string; text: string }[];
   closeCode(): number | null;
   close(): void;
 };
@@ -36,12 +38,14 @@ export function joinBot(port: number, token: string | null, opts: { v1?: boolean
     ws.binaryType = 'arraybuffer';
     const entered: { id: number; name: string | null; guest: boolean; worn: Record<string, string>; afterEntities: boolean }[] = [];
     const announced = new Set<number>(), unannounced = new Set<number>();
+    const announcements: { id: string; text: string }[] = [];   // every `announce` frame received (the boss shout)
     const log: { at: number; ids: number[] }[] = [];   // every down packet: when it arrived and which ids it carried (presence sends NO packet when nothing is due, so seen() keeps the last one)
     let closed: number | null = null, helloCount = 0, latest: Entity[] = [], hello: Hello | null = null, frame: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };
     const toM = (cm: number): number => (cm - frame.centreCm) / 100;
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data) as { t?: string; id?: number; name?: string | null; guest?: boolean; worn?: Record<string, string> };
+        if (m.t === 'announce') { const a = m as unknown as { id: string; text: string }; announcements.push({ id: a.id, text: a.text }); return; }
         if (m.t === 'enter') { entered.push({ id: m.id!, name: m.name ?? null, guest: m.guest === true, worn: m.worn ?? {}, afterEntities: unannounced.has(m.id!) }); announced.add(m.id!); unannounced.delete(m.id!); return; }
         if (m.t !== 'hello') return;
         hello = m as Hello; frame = hello.frame ?? frame; helloCount++;
@@ -65,6 +69,7 @@ export function joinBot(port: number, token: string | null, opts: { v1?: boolean
       hellos: () => helloCount,
       entered: () => entered.map(({ id, name, guest, worn }) => ({ id, name, guest, worn })),
       enteredLate: () => entered.some((n) => n.afterEntities),   // true if an entity of an id arrived before its `enter` (the order contract is broken)
+      announcements: () => announcements.map((a) => ({ ...a })),
       closeCode: () => closed,
       close: () => ws.close(),
     };

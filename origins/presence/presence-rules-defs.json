@@ -51,6 +51,7 @@
     { "id": "testIpSockets", "value": 1000, "unit": "sockets" },
     { "id": "testIpJoinsPerMinute", "value": 100000, "unit": "joins" },
     { "id": "roadBehindM", "value": 2.5, "unit": "m" },
-    { "id": "roadPastM", "value": 0.5, "unit": "m" }
+    { "id": "roadPastM", "value": 0.5, "unit": "m" },
+    { "id": "announceMaxChars", "value": 120, "unit": "chars" }
   ]
 }

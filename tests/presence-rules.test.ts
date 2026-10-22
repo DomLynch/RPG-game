@@ -18,7 +18,8 @@ test('every presence rule equals the literal it replaced', () => {
   assert.ok(REJOIN_EDGE.x > 0 && CENTRE_CM === 40_000);
   assert.equal(presenceRule('tickFloorMs'), 5, 'the tick-check interval floor');
   assert.equal(MAX_ENTITIES, 255, 'the packet count is one byte');
-  assert.equal(PRESENCE_RULES.length, 52);
+  assert.equal(PRESENCE_RULES.length, 53);
+  assert.equal(presenceRule('announceMaxChars'), 120, 'the longest boss-shout line (announce-rows.json) a banner holds');
   assert.deepEqual([presenceRule('roadBehindM'), presenceRule('roadPastM')], [2.5, 0.5], 'the west road\'s margins zones.ts used to hold');
   assert.deepEqual([presenceRule('whereTimeoutMs'), presenceRule('wornPokeTimeoutMs'), presenceRule('presencePort'), presenceRule('logEveryMs'), presenceRule('testIpSockets'), presenceRule('testIpJoinsPerMinute')], [1500, 1000, 8793, 60_000, 1000, 100_000], 'the literals where.ts and main.ts used to hold');
   assert.deepEqual([presenceRule('maxLayers'), presenceRule('internalBodyMax'), presenceRule('tokenMaxChars'), presenceRule('tickChecksPerTick')], [20, 1024, 4096, 4], 'the literals server.ts used to hold (maxLayers 8 -> 20, 2026-10-19: 8 layers at the 80 soft cap stopped one process at 640 players; 20 holds the measured ~1,500 per process, docs/specs/origins/per-layer-spawns.md section 5)');
@@ -30,5 +31,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadPresenceRules({ rules: rows.filter((r) => r.id !== 'cellCm') }), /"cellCm" rule by name/);
   assert.throws(() => loadPresenceRules({ rules: rows.map((r) => (r.id === 'tickMs' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPresenceRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 53);
+  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 54);
 });

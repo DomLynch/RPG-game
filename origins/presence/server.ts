@@ -13,6 +13,7 @@ import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, t
 import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
 import { presenceRule } from './presence-rules.ts';
 import { warpPlace } from './warps.ts';
+import { announceText } from './announce.ts';
 import { sameWorn, wornQueue } from './worn.ts';
 import type { Worn } from '../server/location.ts';
 
@@ -51,7 +52,7 @@ export type PresenceOptions = {
   save?: SaveFn; saveEveryMs?: number;   // the position save (origins/presence/saves.ts): presence's observation goes to the writer on leave, zone change and every saveEveryMs; unset, nothing is saved
   internalKey?: string;   // the shared secret of GET /internal/where (the writer asks where an account stands); unset: that route does not exist
 };
-export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; close: () => Promise<void> };
+export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; announce: (zone: string, layer: number | null, id: string) => number | null; close: () => Promise<void> };
 
 export function createPresence(opts: PresenceOptions): Presence {
   const { verify, rules = RULES, limits = LIMITS, now = Date.now, log = console.log, logEveryMs = 60_000, sweepEveryMs = 60_000 } = opts;
@@ -129,6 +130,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (req.method === 'GET' && req.url?.split('?')[0] === '/internal/layers') return void layersRoute(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/worn') return void wornRoute(req, res);
+    if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/announce') return void announceRoute(req, res);
     res.writeHead(HTTP_NOT_FOUND); res.end();
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
@@ -208,6 +210,40 @@ export function createPresence(opts: PresenceOptions): Presence {
       let account = ''; try { account = String((JSON.parse(size <= bodyMax ? Buffer.concat(parts).toString('utf8') : '{}') as { account?: unknown }).account ?? '').toLowerCase(); } catch { /* 400 below */ }
       if (!UUID.test(account)) return reply(HTTP_BAD_REQUEST, { error: 'account: a uuid' });
       reply(HTTP_OK,{ poke: pokeWorn(account) });
+    });
+  };
+
+  // The boss shout: `{t:'announce', id, text}` to every v2 player standing in `zone` (and in `layer` when one is given). SERVER-SENT ONLY: the text is the announce row's, the caller names a row id,
+  // and a client text frame other than a warp closes its socket. A v1 client cannot hold the frame and is skipped. Returns how many sockets got it, or null for an id with no row.
+  const announce = (zone: string, layer: number | null, id: string): number | null => {
+    const text = announceText(id);
+    if (text === null) return null;
+    const out = frame(1, Buffer.from(JSON.stringify({ t: 'announce', id, text })));
+    let sent = 0;
+    for (const [p, sock] of sockets) {
+      if (sock.destroyed || p.legacy || zoneAt(p.x, p.z) !== zone || (layer !== null && p.layer.id !== layer)) continue;
+      sock.write(out); sent++;
+    }
+    return sent;
+  };
+  // POST /internal/announce {id, zone, layer?} (Bearer <internalKey>, loopback): the writer's spawn system says a gate boss is coming. Same guards as /internal/rejoin. `id` is an announce row, `zone` a
+  // zone row of the table, `layer` a whole number >= 1 or absent (every layer of the zone).
+  const announceRoute = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { req.resume(); res.writeHead(HTTP_NOT_FOUND); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(HTTP_UNAUTHORISED, { error: 'unauthorised' }); }
+    let size = 0; const parts: Buffer[] = [];
+    req.on('data', (c: Buffer) => { size += c.length; if (size <= bodyMax) parts.push(c); });
+    req.on('end', () => {
+      let body: { id?: unknown; zone?: unknown; layer?: unknown } = {}; try { body = JSON.parse(size <= bodyMax ? Buffer.concat(parts).toString('utf8') : '{}') as typeof body; } catch { /* 400 below */ }
+      if (typeof body.id !== 'string') return reply(HTTP_BAD_REQUEST, { error: 'id: an announce row id' });
+      if (typeof body.zone !== 'string' || !ZONE_ROWS.some((z) => z.id === body.zone)) return reply(HTTP_BAD_REQUEST, { error: 'zone: a zone row id' });
+      if (body.layer !== undefined && !(Number.isInteger(body.layer) && (body.layer as number) >= 1)) return reply(HTTP_BAD_REQUEST, { error: 'layer: a whole number >= 1, or absent' });
+      const n = announce(body.zone, (body.layer as number | undefined) ?? null, body.id);
+      if (n === null) return reply(HTTP_NOT_FOUND, { error: 'id: no such announce row' });
+      reply(HTTP_OK, { sent: n });
     });
   };
 
@@ -325,7 +361,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   });
 
   return {
-    server, world, stats, port: () => (server.address() as { port: number }).port,
+    server, world, stats, announce, port: () => (server.address() as { port: number }).port,
     close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) clearInterval(t); for (const t of pokeTimers.values()) clearTimeout(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
   };
 }
