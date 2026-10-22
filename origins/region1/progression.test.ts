@@ -24,7 +24,8 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned again 2026-10-22 (Dungeon 1, Combat): the BUNDLE's region carries zone 7's camps, and the roster pool moved to the four families the world draws a body for (pitborn, knight: pit-thrall, cacus, gawain / roland, grendel, lancelot / siegfried, achilles, typhon); the sha before it c62cb4f0946b7caba89f0a2b2ac7a26c208dcba1f94cfbc0e18b8e27de642e58.
 // Re-pinned 2026-10-22 (Backend, Dungeon 1 legend rotation, Lead's ruling): the BUNDLE's zone 7 camps are now nine ROTATING camps (outer-camp-N, middle-camp-N, floor-camp-N, each with its ring's three legends as a pool) in place of nine one-legend camps; no row, character or kill row changed; the sha before it a7d09f3d1756a69dc3c4f6a6d7691b745dead8d5186a42a5506a1828dbe6e0d1.
 // Re-pinned 2026-10-22 (Combat, legend pool PR): zone 7's floor ring pool gains Hector (knight, level 8) so every level 1-10 has a legend in its ring (a spawn row, a look, and the floor camps' pool lists); no other row changed; the sha before it 453d93d408bdac653a84c0d60c3d2d51efe7bfc64083adfab12e482b7688a687.
-const TRUNK_SHA = 'b14449fd9a26d40efb99d8eefce99d80f52614b1aac85f8374e502d461f7587f';
+// Re-pinned 2026-10-22 (Combat, legend pool widening PR): zone 7's pools hold the 100 Pit legends (30 outer, 30 middle, 40 floor): a spawn row and a look per legend and the nine camps' pool lists; no other row changed; the sha before it b14449fd9a26d40efb99d8eefce99d80f52614b1aac85f8374e502d461f7587f.
+const TRUNK_SHA = '9bfa2d764ff53bad7f140cefc90add885f3f34935ea8d1f653fe465c4f31851b';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };
