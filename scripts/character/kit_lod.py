@@ -67,7 +67,8 @@ if REMESH > 0:
     bpy.ops.object.modifier_apply(modifier="Remesh")
     print(f"remeshed to {sum(len(p.vertices) - 2 for p in low.data.polygons)} tris at voxel {rm.voxel_size if False else height * REMESH:.3f} m", flush=True)
 mod = low.modifiers.new("Reduce", "DECIMATE")
-mod.ratio = min(1.0, TRIS / hi_tris)
+cur_tris = sum(len(p.vertices) - 2 for p in low.data.polygons)   # after the remesh the mesh has its own triangle count: the ratio is against THAT
+mod.ratio = min(1.0, TRIS / cur_tris)
 mod.use_collapse_triangulate = True
 bpy.ops.object.modifier_apply(modifier="Reduce")
 try:
