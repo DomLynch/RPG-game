@@ -180,7 +180,7 @@ test('zone-keyed respawn rows lose nothing: a creature that sets respawnSeconds 
   for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds === undefined && set.has(r.id)) missing.push(`zone ${z} ${r.id} (set in zone ${set.get(r.id)!.map(([zz, s]) => `${zz}: ${s} s`).join(', ')})`);
   assert.deepEqual(missing, []);
   const rows = respawnRows();   // the 12 cinder-scavengers of Zones 2 and 5 keep the 40 s they inherited from Zone 1's starter row
-  for (const z of ['1', '2', '5']) assert.equal(rows.get(`${z}:character:cinder-scavenger`), 40_000, `zone ${z}`);
+  for (const z of ['1', '2']) assert.equal(rows.get(`${z}:character:cinder-scavenger`), 40_000, `zone ${z}`);   // was ['1', '2', '5']: zone 5 (the Bone Hollow) is unlisted for the beta (Dom 10-22), so it has no respawn rows
 });
 
 test('respawnMsOf by zone: a creature with a row in Zone 1 only reads that row in Zone 1 and the default in Zone 2; with no zone (the Pit path) it reads the row as before', () => {

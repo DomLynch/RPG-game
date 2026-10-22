@@ -65,7 +65,7 @@ test('the dungeon row\'s level band WINS over the zone-number rule, which is onl
 });
 
 test('the sample crypt is UNLISTED: closed on a normal build (no zone, no door, no warp), open only with the explicit opt-in', () => {
-  assert.ok(!zoneIds(false).includes('6') && zoneIds(false).includes('5') && !zoneOpen('6', false) && zoneOpen('6', true) && zoneOpen('5', false));
+  assert.ok(!zoneIds(false).includes('6') && !zoneIds(false).includes('5') && !zoneOpen('6', false) && zoneOpen('6', true) && !zoneOpen('5', false) && zoneOpen('5', true));   // zone 5 (the Bone Hollow) joined the closed set for the beta (Dom 10-22: beta = Zone 0/1/2/Dungeon 1); it was listed before
   assert.throws(() => loadZone('6', false), /no zone 6/);
   const crypt = (rows: readonly { id: string }[]) => rows.map((r) => r.id).filter((id) => id.startsWith('crypt-'));
   assert.deepEqual(crypt(openExits()), [], 'a beta page draws no crypt door');

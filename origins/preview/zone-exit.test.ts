@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { frontierPlan } from './frontier-plan.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { openExits, exitSpots, loadExits } from '../zones/exits.ts';
-const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
+const EXITS = openExits(undefined, true).filter((r) => r.id === 'cave-mouth' || r.id === 'hollow-gate');   // the Bone Hollow pair, read with the opt-in: on a normal build they are CLOSED (beta = Zone 0/1/2/Dungeon 1, Dom 10-22; tests/beta-gate.test.ts pins that)
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import { warpPlace } from '../presence/warps.ts';
 import { CENTRE_CM, ZONE_ROWS, walkable, zoneAt } from '../presence/zones.ts';

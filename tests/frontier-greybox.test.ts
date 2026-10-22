@@ -44,5 +44,5 @@ test('one source for a footprint: the greybox draws the kinds the plan has rows 
 });
 
 test('the plan\'s build is unchanged by the split: Zone 1, flat and with relief', () => {
-  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [175, 60, 8, 21]); }   // 174/59 -> 175/60 (2026-10-20, the shrine salamander camp moves off Hrungnir's spot: the new `shrine-field` landmark leaves one stone post and its collider, as troll-cave did)
+  for (const flat of [true, false]) { const b = frontierBuild(frontierPlan(flat)); assert.deepEqual([b.pieces.length, b.solids.length, b.people.length, b.boards.length], [178, 61, 8, 22]); }   // 175/60/8/21 -> 178/61/8/22 (2026-10-22, beta gate: Zone 1's build with zones 3-5 unlisted, Bone Hollow's cave-mouth door closed: Dom 10-22, beta = Zone 0/1/2/Dungeon 1)   // 174/59 -> 175/60 (2026-10-20, the shrine salamander camp moves off Hrungnir's spot: the new `shrine-field` landmark leaves one stone post and its collider, as troll-cave did)
 });

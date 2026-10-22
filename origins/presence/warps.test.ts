@@ -14,17 +14,17 @@ import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
 import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } from './warps.ts';
 import { openExits } from '../zones/exits.ts';
-const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
+const EXITS = openExits(undefined, true).filter((r) => r.id === 'cave-mouth' || r.id === 'hollow-gate');   // the Bone Hollow pair, read with the opt-in: on a normal build it is CLOSED (beta = Zone 0/1/2/Dungeon 1, Dom 10-22; tests/beta-gate.test.ts pins that), so presence derives no zone5 warp there
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
-const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
+const m = (id: string): { x: number; z: number } => { const p = (warpPlace(id) ?? exitWarps(EXITS).get(id))!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
 const near = (a: number, b: number, tol = 0.01): void => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone1-cave-mouth', 'zone1-road-end', 'zone1-start', 'zone5-gate']);
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone1-road-end', 'zone1-start']);   // 2026-10-22 (beta gate, Dom 10-22): zone1-cave-mouth and zone5-gate were derived from the Bone Hollow door, which is closed on a normal build
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);
