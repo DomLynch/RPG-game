@@ -16,7 +16,9 @@ export type Shape =
 export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal' | 'plain';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
 // One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()). `skin` = a building-skins model id this piece stands as (its glb draws it; the shape stays as the fallback and the footprint); `cover` = a model id whose glb stands in for this piece too (the model draws once, from the piece that carries `skin`; a covered piece is only greybox, hidden with the rest of that model's greybox once the file lands: the plinth and capital of a column the model already has); `scale` = that model's size on the ground (default 1); `skinOff` = [dx, dy, dz, rotY]: where the model stands relative to the carrier piece (its x, its base, its z) and its own turn, for a group whose carrier is not at the group's centre or whose front is not +z.
 export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number; skin?: string; cover?: string; scale?: number; skinOff?: readonly [number, number, number, number] };
-export type Figure = { x: number; z: number; color: string };
+/** A person who stands as a character's body (rows only): `body` is a catalogue row id, `role` the stall they will run later (no shop data yet), `pose` the clip they stand in, `face` the turn about y, `near` the metres inside which the body is drawn. */
+export type Npc = { id: string; body: string; role?: string; pose: string; face: number; near: number };
+export type Figure = { x: number; z: number; color: string; npc?: Npc };
 export type Plan = {
   pieces: Piece[];
   awnings: (Figure & { y: number })[];
@@ -31,7 +33,7 @@ type Row = { readonly id: string; readonly zone: string; readonly follow?: Follo
 export type AnchorRow = { readonly id: string; readonly zone: string; readonly source: string; readonly base: number };
 export type PieceRow = Row & { readonly layer: Layer; readonly shape: Shape; readonly x: number; readonly y: number; readonly z: number; readonly tint: Tint; readonly rotY: number; readonly foot: number; readonly skin?: string; readonly cover?: string; readonly scale?: number; readonly skinOff?: readonly [number, number, number, number] };
 export type AwningRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly color: string };
-export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string };
+export type PersonRow = Row & { readonly x: number; readonly z: number; readonly color: string; readonly role?: string; readonly body?: string; readonly pose?: string; readonly face?: number; readonly near?: number };
 export type BrazierRow = Row & { readonly x: number; readonly z: number };
 export type MarkRow = Row & { readonly x: number; readonly y: number; readonly z: number; readonly text?: string };
 export type PlanRows = { readonly anchors: readonly AnchorRow[]; readonly pieces: readonly PieceRow[]; readonly awnings: readonly AwningRow[]; readonly people: readonly PersonRow[]; readonly braziers: readonly BrazierRow[]; readonly marks: readonly MarkRow[] };
@@ -43,6 +45,7 @@ export function loadPlanRows(raw: Partial<Record<(typeof TABLES)[number], readon
   loadRegistry(TABLES.map((t, i) => tableFromFile(MANIFEST.tables[i] as unknown as Manifest, { [t]: raw[t] }, 'plan-rows.json')));
   const rows = raw as unknown as PlanRows;
   for (const t of TABLES) for (const r of rows[t] as readonly Row[]) if (!r.id.startsWith(`${r.zone}/`)) throw Error(`plan-rows ${t} "${r.id}": the id starts with its zone "${r.zone}/"`);
+  for (const r of rows.people) if (r.body && (r.pose === undefined || r.face === undefined || !(r.near !== undefined && r.near > 0))) throw Error(`plan-rows people "${r.id}": a row with a body names its pose, its facing and a near range > 0`);
   for (const t of TABLES.slice(1)) for (const r of rows[t] as readonly Row[]) for (const f of Object.values(r.follow ?? {})) for (const n of Object.keys(f)) if (!rows.anchors.some((q) => q.zone === r.zone && local(q) === n)) throw Error(`plan-rows ${t} "${r.id}": follows "${n}", which is no anchor row of zone "${r.zone}"`);
   return rows;
 }
@@ -65,7 +68,7 @@ export function planFor(zone: string, resolve: (source: string) => number, rows:
     pieces,
     awnings: of(rows.awnings).map((r) => ({ x: at(r.x, r, 'x'), y: at(r.y, r, 'y'), z: at(r.z, r, 'z'), color: r.color })),
     braziers: of(rows.braziers).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z') })),
-    people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color })),
+    people: of(rows.people).map((r) => ({ x: at(r.x, r, 'x'), z: at(r.z, r, 'z'), color: r.color, ...(r.body ? { npc: { id: r.id, body: r.body, ...(r.role ? { role: r.role } : {}), pose: r.pose!, face: r.face!, near: r.near! } } : {}) })),
     ...(frieze ? { frieze: { x: at(frieze.x, frieze, 'x'), y: at(frieze.y, frieze, 'y'), z: at(frieze.z, frieze, 'z'), text: frieze.text ?? '' } } : {}),
     ...(hearth ? { hearth: { x: at(hearth.x, hearth, 'x'), y: at(hearth.y, hearth, 'y'), z: at(hearth.z, hearth, 'z') } } : {}),
   };
