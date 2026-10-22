@@ -14,7 +14,7 @@ import { exitWarps, loadWarps, packageWarps, placeProblem, warpIds, warpPlace } 
 import { openExits } from '../zones/exits.ts';
 import { loadZone } from '../zones/loader.ts';
 const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
-import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
+import { CENTRE_CM, clearOfTradeAreas, inTradeArea, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
 const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
@@ -39,6 +39,16 @@ test('the exit warps are DERIVED from the exit rows and the zone plan, not copie
   assert.throws(() => exitWarps(EXITS, new Set([EXITS[0]!.warp])), /already a warp landmark/);
   assert.throws(() => exitWarps([EXITS[0]!, { ...EXITS[1]!, warp: EXITS[0]!.warp }]), /already a warp landmark/);
   assert.throws(() => exitWarps([{ ...EXITS[0]!, arrive: 'no-such-landmark' }]), /no landing/);
+});
+
+test('a landing inside a trade area is refused unless its exit row says tradeLanding: the town\'s own gate (zone 0 listed, 2026-10-22) is the one such landing', () => {
+  const gate = EXITS.find((e) => e.warp === 'zone0-gate')!;
+  assert.equal(gate.tradeLanding, true, 'the Zone 1 -> zone 0 door is the town gate');
+  const cm = (id: string): { x: number; z: number } => warpPlace(id)!;
+  assert.ok(inTradeArea(cm('zone0-gate').x, cm('zone0-gate').z), 'its landing is inside the Exchange trade area');
+  assert.throws(() => exitWarps([{ ...gate, tradeLanding: false }]), /inside a trade area/, 'without the row flag the same landing is refused');
+  assert.deepEqual(EXITS.filter((e) => e.tradeLanding).map((e) => e.warp), ['zone0-gate'], 'no other door lands in a trade area');
+  for (const e of EXITS) if (!e.tradeLanding) assert.ok(!inTradeArea(cm(e.warp).x, cm(e.warp).z), `${e.warp} stays clear of the trade areas`);
 });
 
 test('the rows equal the places the page teleports to (a zone or mob edit that moves one fails here)', () => {

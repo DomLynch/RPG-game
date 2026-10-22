@@ -25,15 +25,16 @@ export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<
 }
 // A place in Concord metres as presence centimetres, held to the one rule every warp keeps: inside a zone row and clear of the trade areas.
 const cmOf = (mx: number, mz: number): { x: number; z: number } => ({ x: Math.round(CENTRE_CM + mx * CM_PER_M), z: Math.round(CENTRE_CM + mz * CM_PER_M) });
-function placeOf(who: string, mx: number, mz: number): { x: number; z: number } {
-  const bad = placeProblem(mx, mz);
+function placeOf(who: string, mx: number, mz: number, inTrade = false): { x: number; z: number } {
+  const bad = placeProblem(mx, mz, inTrade);
   if (bad) throw Error(`${who}: ${bad}`);
   return cmOf(mx, mz);
 }
 /** Why a place in Concord metres may not be a warp (null = it may): the one rule every warp keeps, also read by the zone package check (origins/server/zone-package-check.ts). */
-export function placeProblem(mx: number, mz: number): string | null {
+export function placeProblem(mx: number, mz: number, inTrade = false): string | null {
   const { x, z } = cmOf(mx, mz);
   if (!zoneAt(x, z)) return 'not inside any zone row';
+  if (inTrade) return null;   // a town's own gate (exit row `tradeLanding`): the landing is in its trade area on purpose
   const c = clearOfTradeAreas(x, z);
   return c.x !== x || c.z !== z ? 'inside a trade area' : null;
 }
@@ -45,7 +46,7 @@ export function exitWarps(rows: readonly ExitRow[], taken: ReadonlySet<string> =
     if (taken.has(r.warp) || out.has(r.warp)) throw Error(`exit-rows "${r.id}": the warp id "${r.warp}" is already a warp landmark`);
     const a = arrival(frontierPlan(true, r.to), r.to, r.id, rows);
     if (!a) throw Error(`exit-rows "${r.id}": zone ${r.to} has no landing (arrive landmark "${r.arrive}")`);
-    out.set(r.warp, placeOf(`exit-rows "${r.id}"`, a.x, a.z));
+    out.set(r.warp, placeOf(`exit-rows "${r.id}"`, a.x, a.z, r.tradeLanding === true));
   }
   return out;
 }

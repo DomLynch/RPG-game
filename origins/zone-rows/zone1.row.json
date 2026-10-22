@@ -3,7 +3,7 @@
   "defaultKind": "goblin",
   "biome": "goblin-fortress",
   "exits": [
-    { "id": "exchange-gate", "zone": "east-road", "landmark": "exchange-gate", "to": "0", "arrive": "west-gate", "warp": "zone0-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Concord Exchange" }
+    { "id": "exchange-gate", "zone": "east-road", "landmark": "exchange-gate", "to": "0", "arrive": "west-gate", "warp": "zone0-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Concord Exchange", "tradeLanding": true }
   ],
   "look": {
     "props": {

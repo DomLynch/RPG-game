@@ -7,7 +7,7 @@ import { zoneOpen } from './loader.ts';
 import DEFS from './exit-rows.json' with { type: 'json' };
 import MANIFEST from './exit-rows.manifest.json' with { type: 'json' };
 
-export type ExitRow = { readonly id: string; readonly zone: string; readonly landmark: string; readonly to: string; readonly arrive: string; readonly warp: string; readonly radiusM: number; readonly arriveM: number; readonly label: string };
+export type ExitRow = { readonly id: string; readonly zone: string; readonly landmark: string; readonly to: string; readonly arrive: string; readonly warp: string; readonly radiusM: number; readonly arriveM: number; readonly label: string; readonly tradeLanding?: boolean };   // tradeLanding: the far side is a town's own gate, so its landing is inside a trade area on purpose (the warp rule that keeps every other warp clear of trade areas lets this one in)
 
 /** The exits: exit-rows.json plus each zone row's own `exits` list (a package brings its doors with it). An exit id and a warp id are unique across every zone and file; the registry refuses a duplicate id, and a duplicate warp is refused here. */
 export function loadExits(raw: { exits?: readonly unknown[] }, zones: Readonly<Record<string, { exits?: readonly ExitRow[] }>> = REGISTRY): readonly ExitRow[] {
