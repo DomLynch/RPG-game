@@ -156,7 +156,7 @@ jobs:
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
-        run: bash -c "$APT_OR_MIRROR" apt-or-mirror"sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs"
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs"
       # quality:static = quality:lint + quality:checks. The lint half already ran in `static` on a pull request (this job needs it green), so it
       # runs here only when `static` did not (a trunk push, which deploy.sh reads): eslint and tsc once per PR, not twice (Dom's audit 2026-10-21).
       - if: matrix.part == 'static' && needs.static.result != 'success'
@@ -254,9 +254,9 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium"
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: bash -c "$APT_OR_MIRROR" apt-or-mirror"sudo apt-get install -y libjpeg-turbo-progs"
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - name: Head build
         run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
       - name: Base build
@@ -303,9 +303,9 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium"
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: bash -c "$APT_OR_MIRROR" apt-or-mirror"sudo apt-get install -y libjpeg-turbo-progs"
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - name: Head zone build
         run: npx vite build --config origins/preview/vite.config.mjs
       - name: Base zone build
@@ -376,9 +376,9 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium"
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: bash -c "$APT_OR_MIRROR" apt-or-mirror"sudo apt-get install -y libjpeg-turbo-progs"
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - run: npm run build
       - name: ${{ matrix.gate.name }} gate
         run: node ${{ matrix.gate.script }}
@@ -415,7 +415,7 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium webkit"
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium webkit"
       - name: Node vs Chromium vs WebKit
         run: node scripts/net-engines-check.mjs
         env:
@@ -462,7 +462,7 @@ jobs:
         name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - if: steps.scope.outputs.run == '1'
-        run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium"
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - if: steps.scope.outputs.run == '1'
         name: Polish rows (release row 29 and any later *-polish-check)
         run: for f in scripts/*-polish-check.mjs; do echo "== $f"; node "$f"; done
@@ -483,7 +483,7 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror"npx playwright install --with-deps chromium"
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Challenger vs guest, two pages
         run: node scripts/duel-two-page-check.mjs
       - if: always()
