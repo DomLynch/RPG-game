@@ -32,6 +32,8 @@ export type InkLook = {
   readonly grain: { readonly strength: number; readonly scalePx: number };
   readonly vignette: { readonly strength: number; readonly start: number; readonly breakup: number; readonly freq: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
+  /** ONE ink shading for every lit world material (`on` 1): outgoing diffuse = albedo x a ramp of the light that fell on it, specular dropped. `steps` 0 = smooth, 3 = toon; `rampLow`/`rampHigh` the light range the ramp spans; hatching only below `hatchBelow` of the ramp; `grain` the paper noise; `screenCurve` 0 = the screen pass skips its own tone curve (the materials already made the ramp); `exclude` names keep their own shading. */
+  readonly material: { readonly on: number; readonly steps: number; readonly rampLow: number; readonly rampHigh: number; readonly gain: number; readonly hatchStrength: number; readonly hatchBelow: number; readonly hatchSpacingPx: number; readonly hatchAngleDeg: number; readonly hatchDuty: number; readonly grain: number; readonly screenCurve: number; readonly exclude: readonly string[] };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
   readonly skyPlate: { readonly passthrough: number; readonly objects: readonly string[] };
   /** Alternate backdrop plates drawn under this look: `from` is the plate file the zone names, `to` the ink-painted one (a missing `to` falls back to `from`). */
@@ -57,15 +59,43 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const ao = group(id, 'ao', fields.ao, ['strength', 'radiusPx', 'range', 'bias']), hatch = group(id, 'hatch', fields.hatch, ['strength', 'below', 'spacingPx', 'duty']);
     const character = group(id, 'character', fields.character, ['silhouetteOnly', 'darken', 'contrast', 'rimStrength', 'rimPow']), aa = group(id, 'aa', fields.aa, ['fxaa']);
     const edges = group(id, 'edges', fields.edges, ['soft', 'thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
+    const mat = fields.material as Record<string, unknown> | undefined;
+    if (!mat || typeof mat !== 'object') throw new Error(`ink look "${id}": material is missing`);
+    const material = { ...group(id, 'material', mat, ['on', 'steps', 'rampLow', 'rampHigh', 'gain', 'hatchStrength', 'hatchBelow', 'hatchSpacingPx', 'hatchAngleDeg', 'hatchDuty', 'grain', 'screenCurve']), exclude: names(id, 'material.exclude', mat.exclude) };
     const sky = fields.skyPlate as Record<string, unknown> | undefined;
     if (!sky || typeof sky !== 'object') throw new Error(`ink look "${id}": skyPlate is missing`);
     const skyPlate = { passthrough: num(id, 'skyPlate.passthrough', sky.passthrough), objects: names(id, 'skyPlate.objects', sky.objects) };
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
+}
+
+const f = (n: number): string => n.toFixed(4);   // a GLSL float literal from a row value: the shader text carries no tuning of its own
+let patched = false;
+/** The ink material: appends the ramp to three's `aomap_fragment` chunk (included by every lit material: standard, physical, phong, lambert), so one patch shades every world material. Call once, BEFORE the first material compiles (the gfx lift's fog patch has the same rule); a flag-off page never imports this file. */
+export function patchInkMaterial(look: InkLook): void {
+  const M = look.material; if (!M.on || patched) return; patched = true;
+  const a = M.hatchAngleDeg * Math.PI / 180, C = THREE.ShaderChunk as Record<string, string>;
+  const stepped = M.steps > 0 ? `r = floor(r * ${f(M.steps)} + 0.5) / ${f(M.steps)};` : '';
+  C.aomap_fragment += `
+#ifndef INK_OFF
+{
+  float inkAlbedo = max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.04);
+  vec3 inkLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular;
+  float r = smoothstep(${f(M.rampLow)}, ${f(M.rampHigh)}, dot(inkLight, vec3(0.2126, 0.7152, 0.0722)) / inkAlbedo);
+  ${stepped}
+  float inkDark = 1.0 - smoothstep(0.0, ${f(M.hatchBelow)}, r);
+  float inkLine = step(${f(1 - M.hatchDuty)}, fract(dot(gl_FragCoord.xy, vec2(${f(Math.cos(a))}, ${f(Math.sin(a))})) / ${f(M.hatchSpacingPx)}));
+  r *= 1.0 - ${f(M.hatchStrength)} * inkDark * inkLine;
+  r += (fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * ${f(M.grain)};
+  reflectedLight.directDiffuse = diffuseColor.rgb * clamp(r, 0.0, 1.0) * ${f(M.gain)};
+  reflectedLight.indirectDiffuse = vec3(0.0); reflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);
+}
+#endif
+`;
 }
 
 const LOOKS = loadInkLooks(ROWS);
@@ -80,6 +110,7 @@ uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle, 
 uniform float thick, depthRel, normalDot, edgeStrength, darkBelow, fadeNear, fadeFar;
 uniform vec3 paper, inkCol, redCol, blueCol; uniform float redKeep, blueKeep, redGain, blueGain, redGlowPx, redGlowK;
 uniform float grainK, grainPx, vigK, vigStart, vigBreak, vigFreq;
+uniform float screenCurve;
 uniform float edgeSoft, charSilOnly, charDarken, charContrast, rimK, rimPow;
 uniform float silMul, aoK, aoPx, aoRange, aoBias, hatchK, hatchBelow, hatchPx, hatchDuty, lightAngle;
 varying vec2 vUv;
@@ -100,9 +131,9 @@ void main() {
   vec3 tg = texture2D(tTag, vUv).rgb;   // the tag buffer: .r red, .b blue, .g a skinned character
   float isChar = step(0.5, tg.g);
   l *= mix(1.0, charDarken, isChar);   // a character reads a little darker than its floor
-  l = clamp((l - pivot) * contrast * mix(1.0, charContrast, isChar) + 0.5, 0.0, 1.0);   // the S-curve about the scene's own mid tone
+  if (screenCurve > 0.5) l = clamp((l - pivot) * contrast * mix(1.0, charContrast, isChar) + 0.5, 0.0, 1.0);   // with the ink material on, the materials made the ramp and this curve is skipped   // the S-curve about the scene's own mid tone
   // Continuous greyscale: the lit frame at full resolution through the S-curve (blacks crushed below lowCut, paper above highCut, every grey between kept). A faint dot texture only in the deepest shadows (htStrength 0 = none).
-  float shade = smoothstep(lowCut, highCut, l);
+  float shade = screenCurve > 0.5 ? smoothstep(lowCut, highCut, l) : clamp(l, 0.0, 1.0);
   vec2 p = gl_FragCoord.xy / (cellPx * ratio); float ca = cos(angle), sa = sin(angle);
   vec2 q = vec2(ca * p.x + sa * p.y, -sa * p.x + ca * p.y); vec2 f = fract(q) - 0.5;
   shade *= 1.0 - htStrength * (1.0 - smoothstep(0.0, htBelow, l)) * step(length(f), 0.35);
@@ -160,7 +191,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   const mat = new THREE.ShaderMaterial({
     vertexShader: FULLSCREEN_VERT, fragmentShader: INK_FRAG, depthTest: false, depthWrite: false,
     uniforms: {
-      tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), tSky: u(skyTarget.texture), skyOn: u(look.skyPlate.passthrough), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
+      tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), tSky: u(skyTarget.texture), skyOn: u(look.skyPlate.passthrough), screenCurve: u(look.material.screenCurve), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(H.cellPx), angle: u(H.angleDeg * rad), htStrength: u(H.strength), htBelow: u(H.below),
       edgeSoft: u(E.soft), charSilOnly: u(look.character.silhouetteOnly), charDarken: u(look.character.darken), charContrast: u(look.character.contrast), rimK: u(look.character.rimStrength), rimPow: u(look.character.rimPow),
       silMul: u(E.silhouetteMul), aoK: u(look.ao.strength), aoPx: u(look.ao.radiusPx), aoRange: u(look.ao.range), aoBias: u(look.ao.bias), hatchK: u(look.hatch.strength), hatchBelow: u(look.hatch.below), hatchPx: u(look.hatch.spacingPx), hatchDuty: u(look.hatch.duty), lightAngle: u(0),
@@ -215,6 +246,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
+      if (look.material.on && look.material.exclude.length) for (const x of Array.isArray(m.material) ? m.material : [m.material]) if (nameIn(look.material.exclude, x.name) && !x.defines?.INK_OFF) { x.defines = { ...x.defines, INK_OFF: 1 }; x.needsUpdate = true; }   // these keep their own shading
       const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
       const layer = hit(look.tags.red) ? 1 : hit(look.tags.blue) ? 2 : 0;
       if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }

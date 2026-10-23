@@ -5,8 +5,32 @@
       "fields": {
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
-        "tone": { "gamma": 2.2, "exposure": 1.35, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
-        "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
+        "tone": { "gamma": 2.2, "exposure": 1, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
+        "material": { "on": 1, "steps": 0, "rampLow": 0.06, "rampHigh": 1.1, "gain": 1.5, "hatchStrength": 0.55, "hatchBelow": 0.28, "hatchSpacingPx": 3, "hatchAngleDeg": 45, "hatchDuty": 0.4, "grain": 0.03, "screenCurve": 0, "exclude": [] },
+        "halftone": { "strength": 0, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
+        "edges": { "soft": 0.45, "thicknessPx": 1, "silhouetteMul": 1, "depthRel": 0.014, "normalDot": 0.9, "strength": 0.9, "darkBelow": 0.3, "fadeNear": 18, "fadeFar": 70 },
+        "character": { "silhouetteOnly": 1, "darken": 0.82, "contrast": 1.25, "rimStrength": 0.3, "rimPow": 2.5 },
+        "aa": { "fxaa": 1 },
+        "plates": [{ "from": "zones/exchange-backdrop.webp", "to": "zones/exchange-backdrop-ink.webp" }],
+        "skyPlate": { "passthrough": 1, "objects": ["horizon-dome", "horizon-sector"] },
+        "ao": { "strength": 0, "radiusPx": 8, "range": 1.2, "bias": 0.06 },
+        "hatch": { "strength": 0, "below": 0.4, "spacingPx": 3, "duty": 0.4 },
+        "grain": { "strength": 0.035, "scalePx": 1 },
+        "vignette": { "strength": 0.85, "start": 0.78, "breakup": 0.32, "freq": 9 },
+        "tags": {
+          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal", "flame", "coal", "Heraldry"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
+          "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.7, "gain": 1.0, "glowPx": 0, "glowStrength": 0, "materials": [], "objects": [], "userData": [] }
+        }
+      }
+    },
+    {
+      "id": "toon",
+      "fields": {
+        "paper": [0.95, 0.93, 0.88],
+        "ink": [0.02, 0.02, 0.03],
+        "tone": { "gamma": 2.2, "exposure": 1, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
+        "material": { "on": 1, "steps": 3, "rampLow": 0.06, "rampHigh": 1.1, "gain": 1.5, "hatchStrength": 0.55, "hatchBelow": 0.28, "hatchSpacingPx": 3, "hatchAngleDeg": 45, "hatchDuty": 0.4, "grain": 0.03, "screenCurve": 0, "exclude": [] },
+        "halftone": { "strength": 0, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
         "edges": { "soft": 0.45, "thicknessPx": 1, "silhouetteMul": 1, "depthRel": 0.014, "normalDot": 0.9, "strength": 0.9, "darkBelow": 0.3, "fadeNear": 18, "fadeFar": 70 },
         "character": { "silhouetteOnly": 1, "darken": 0.82, "contrast": 1.25, "rimStrength": 0.3, "rimPow": 2.5 },
         "aa": { "fxaa": 1 },
@@ -28,6 +52,7 @@
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
         "tone": { "gamma": 2.2, "exposure": 1.3, "pivot": 0.3, "contrast": 2.5, "low": 0.22, "high": 0.76 },
+        "material": { "on": 0, "steps": 0, "rampLow": 0.06, "rampHigh": 1.1, "gain": 1, "hatchStrength": 0, "hatchBelow": 0.28, "hatchSpacingPx": 3, "hatchAngleDeg": 45, "hatchDuty": 0.4, "grain": 0, "screenCurve": 1, "exclude": [] },
         "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
         "edges": { "soft": 0, "thicknessPx": 1, "silhouetteMul": 3, "depthRel": 0.014, "normalDot": 0.9, "strength": 1, "darkBelow": 0.3, "fadeNear": 22, "fadeFar": 80 },
         "character": { "silhouetteOnly": 0, "darken": 1, "contrast": 1, "rimStrength": 0, "rimPow": 2.5 },
