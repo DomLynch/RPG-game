@@ -12,7 +12,9 @@ test('the world mode hides the run button and draws no replacement', () => {
   assert.ok(!html.includes("content: 'RUN'"));
 });
 test('the world hints say push to the edge to run and no longer mention a RUN button', () => {
-  assert.equal((main.match(/Push to the edge to run\./g) ?? []).length, 2, 'both in-world hints');
+  const hints = JSON.parse(readFileSync(new URL('../origins/preview/hint-copy.json', import.meta.url), 'utf8')) as { traits: Record<string, { walk: string; watch: string }> };   // the in-world hints are rows now (hint-copy.json), chosen by zone trait
+  const lines = Object.values(hints.traits).flatMap((t) => [t.walk, t.watch]);
+  assert.ok(lines.length >= 4 && lines.every((t) => t.includes('Push to the edge to run.')), 'every in-world hint, for every trait');
   assert.match(html, /Push to the edge to run\./, 'the page\'s first-load hint');
-  assert.ok(!/hold RUN/.test(main + html));
+  assert.ok(!/hold RUN/.test(main + html + lines.join(' ')));
 });
