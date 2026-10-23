@@ -1,5 +1,13 @@
 # Code quality lane (Auditor)
 
+## 2026-10-23 ~11:0x +04: HOLD (OpenTrident pivot). READ FIRST; supersedes the NOW list below.
+**Lead:** Frankendom is on temporary hold; live stays d3a8eaefa. #3651 (K6q34) stays PAUSED and no new gates run, with ONE exception, below. At 10:58 no auditor gate was running on the VPS.
+**Exception: #3652 (Exo Gray hero) is unparked (Lead + Strategy).** Characters and Combat finish it. Once auditor:ready is on, run the usual VPS gates (run-pr-on-trunk.sh) with every row at the head, then post the PASS line. It does NOT enter a train: it parks until Dom says "ship the Exo hero". At 11:0x it was a draft @53dae282f with no labels.
+**#3652 acceptance line (Strategy, via Lead):**
+- The hit windows are presentation only: any sim, digest or RV move is a red.
+- Light and heavy both show visible contact within 2 ticks of the sim hit tick at the game camera (a frame trace or a mid-fight still pair).
+- The speed-scaled clips must not look rushed in the 375-wide stills.
+
 ## 2026-10-23 ~10:4x +04: HANDOFF (Dom out of tokens, new account). READ FIRST.
 **Live:** d3a8eaefa (K6q32 + #3649 mute rows). **Lead's order:** K6q34 → Exo Gray → #3635 (K6q33 re-cut).
 
