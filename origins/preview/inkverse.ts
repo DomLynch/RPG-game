@@ -36,8 +36,8 @@ export type InkLook = {
   readonly material: { readonly on: number; readonly steps: number; readonly rampLow: number; readonly rampHigh: number; readonly gain: number; readonly hatchStrength: number; readonly hatchBelow: number; readonly hatchSpacingPx: number; readonly hatchAngleDeg: number; readonly hatchDuty: number; readonly grain: number; readonly screenCurve: number; readonly exclude: readonly string[] };
   /** Painted blood splashes on the ground of one zone (`zone`; none when `count` is 0): `files` are the decal pictures, scattered `count` times within `radiusM` of (`cx`, `cz`), each `sizeMinM` to `sizeMaxM` across, `lift` above the ground, laid flat by `rotationDeg`, seeded. */
   readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
-  /** Alternate colour atlases (Characters' ink-painted bodies): every mesh named in `objects` draws `file` (under the page base) as its colour map in place of the atlas it loaded with, same UVs; a file that cannot be fetched leaves the original. */
-  readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string }[];
+  /** Alternate colour maps (Characters' ink-painted bodies), files under the page base, same UVs, only the colour map (normal, roughness, occlusion untouched); a file that cannot be fetched leaves the original. A mesh named in `objects` draws `file` for its map; a material named in `materials` (the hero rig: Steel, Skin, Heraldry...) draws that material's own file. */
+  readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string; readonly materials: Readonly<Record<string, string>> }[];
   /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagMs` how often (milliseconds) the scene is searched again for tagged objects (the hero, pooled decals and effects appear lazily). */
   readonly tagPass: { readonly pull: number; readonly retagMs: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
@@ -70,7 +70,10 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const material = { ...group(id, 'material', mat, ['on', 'steps', 'rampLow', 'rampHigh', 'gain', 'hatchStrength', 'hatchBelow', 'hatchSpacingPx', 'hatchAngleDeg', 'hatchDuty', 'grain', 'screenCurve']), exclude: names(id, 'material.exclude', mat.exclude) };
     const atl = fields.atlases;
     if (!Array.isArray(atl)) throw new Error(`ink look "${id}": atlases is a list of { objects, file }`);
-    const atlases = atl.map((a, i) => { if (!a || typeof a.file !== 'string' || !a.file) throw new Error(`ink look "${id}": atlases[${i}].file is a file name`); return { objects: names(id, `atlases[${i}].objects`, a.objects), file: a.file }; });
+    const atlases = atl.map((a, i) => {
+      if (!a || typeof a.file !== 'string' || typeof a.materials !== 'object' || !a.materials || !Object.values(a.materials).every((x) => typeof x === 'string' && x)) throw new Error(`ink look "${id}": atlases[${i}] is { objects, file, materials: { name: file } }`);
+      return { objects: names(id, `atlases[${i}].objects`, a.objects), file: a.file, materials: a.materials as Record<string, string> };
+    });
     const sp = fields.splashes as Record<string, unknown> | undefined;
     if (!sp || typeof sp !== 'object' || typeof sp.zone !== 'string') throw new Error(`ink look "${id}": splashes is { zone, files, ... }`);
     const splashes = { zone: sp.zone, files: names(id, 'splashes.files', sp.files), ...group(id, 'splashes', sp, ['count', 'cx', 'cz', 'radiusM', 'sizeMinM', 'sizeMaxM', 'seed', 'lift', 'rotationDeg', 'opacity']) };
@@ -261,9 +264,10 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     return p;
   };
   const swapAtlas = (m: THREE.Mesh): void => {
-    for (const a of look.atlases) if (nameIn(a.objects, m.name)) for (const x of Array.isArray(m.material) ? m.material : [m.material]) {
-      const std = x as THREE.MeshStandardMaterial; if (swapped.has(x) || !std.map) continue; swapped.add(x);
-      void atlasFor(a.file).then((t) => { if (t) { t.channel = std.map!.channel; std.map = t; std.needsUpdate = true; } });
+    for (const a of look.atlases) for (const x of Array.isArray(m.material) ? m.material : [m.material]) {
+      const file = nameIn(a.objects, m.name) ? a.file : a.materials[x.name], std = x as THREE.MeshStandardMaterial;
+      if (!file || swapped.has(x) || !std.map) continue; swapped.add(x);
+      void atlasFor(file).then((t) => { if (t) { t.channel = std.map!.channel; std.map = t; std.needsUpdate = true; } });
     }
   };
   const retag = (): void => {

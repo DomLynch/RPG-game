@@ -6,7 +6,10 @@
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
         "tone": { "gamma": 2.2, "exposure": 1.35, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
-        "atlases": [{ "objects": ["warrior"], "file": "world/ink/warrior-ink.webp" }],
+        "atlases": [
+          { "objects": ["warrior"], "file": "world/ink/warrior-ink.webp", "materials": {} },
+          { "objects": [], "file": "", "materials": { "Steel": "world/ink/hero/Steel.webp", "WeaponLongsword": "world/ink/hero/WeaponLongsword.webp", "WeaponLongswordShaft": "world/ink/hero/WeaponLongswordShaft.webp", "Leather": "world/ink/hero/Leather.webp", "Heraldry": "world/ink/hero/Heraldry.webp", "Gambeson": "world/ink/hero/Gambeson.webp", "Wrap": "world/ink/hero/Wrap.webp", "Skin": "world/ink/hero/Skin.webp", "Face": "world/ink/hero/Face.webp", "Photo": "world/ink/hero/Photo.webp", "PhotoEyes": "world/ink/hero/PhotoEyes.webp", "PhotoTeeth": "world/ink/hero/PhotoTeeth.webp" } }
+        ],
         "splashes": { "zone": "0", "files": ["floor-splash.png", "floor-splash-b.png", "floor-splash-c.png", "floor-splash-d.png", "floor-pool.png"], "count": 22, "cx": 0, "cz": -26, "radiusM": 14, "sizeMinM": 1.4, "sizeMaxM": 4.2, "seed": 7, "lift": 0.03, "rotationDeg": -90, "opacity": 1 },
         "material": { "on": 0, "steps": 0, "rampLow": 0.06, "rampHigh": 1.1, "gain": 1.9, "hatchStrength": 0.4, "hatchBelow": 0.2, "hatchSpacingPx": 3, "hatchAngleDeg": 45, "hatchDuty": 0.4, "grain": 0.03, "screenCurve": 1, "exclude": [] },
         "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
