@@ -11,7 +11,7 @@
 // The live site over the network reads 1.4-2.4 s (not this row). 1200 still fails a hang or Dom's 2 s.
 //   node scripts/next-fight-black-check.mjs        receipt: artifacts/next-fight/receipt.json
 import { launchBrowser } from './lib/harness-browser-launch.mjs';
-import { webkit } from 'playwright';
+import { webkit, chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -38,7 +38,8 @@ server?.httpServer.prependListener('request', (req, res) => { if (req.url.starts
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check).
 const profile = { version: 1, id: 'next-fight-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'WebKit (Playwright), 375x812 touch', exit: {}, errors: [] };
-const browser = await launchBrowser(webkit, { headless: true });
+const ENGINE = process.env.NEXT_FIGHT_ENGINE === 'chromium' ? chromium : webkit;   // chromium: the VPS receipt for the duel loop (the black-frame numbers are WebKit's, Mac only)
+const browser = await launchBrowser(ENGINE, { headless: true });
 
 async function fightTo(opponent, win) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
@@ -85,6 +86,7 @@ async function fightTo(opponent, win) {
         await step(40);
       }
       killed = await page.locator('#target-health').evaluate((e) => +e.value === 0);
+      console.log(`duel ${attempt}: ${killed ? 'killed' : 'not killed'} (page ms ${elapsed}, hp ${await page.locator('#player-health').evaluate((e) => e.value)}, enemy ${await page.locator('#target-health').evaluate((e) => e.value)}, record ${await page.evaluate(() => document.querySelector('#debug').dataset.record ?? '-')})`);
       if (killed || attempt === 3) break;
       await until(() => !document.querySelector('#reset-button').hidden && !document.documentElement.classList.contains('endgame-fade'), 20000);
       await page.locator('#reset-button').tap();
