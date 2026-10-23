@@ -37,7 +37,7 @@ async function writeHamstrungJson(index,file,out) {
  for(const t of data.tracks){t.times=round(t.times);t.values=round(t.values);}
  const text=JSON.stringify(data)+'\n';await fs.writeFile(out,text);return {file:out.pathname,bytes:text.length,tracks:data.tracks.length};
 }
-const WARRIOR=new URL('../src/assets/warrior.glb',import.meta.url);
+const WARRIOR=new URL('../src/assets/hero-classic.glb',import.meta.url);
 export const writeHamstrungVictim=(file=WARRIOR,out=VICTIM_JSON)=>writeHamstrungJson(0,file,out);
 export const writeHamstrungKiller=(file=WARRIOR,out=KILLER_JSON)=>writeHamstrungJson(1,file,out);
 // Victim clip on each creature that falls to it; `names` picks the clip an appended rig carries.

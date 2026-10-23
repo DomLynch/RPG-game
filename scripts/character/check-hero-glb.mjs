@@ -1,15 +1,14 @@
 // Does a candidate hero GLB meet what the game asks of src/assets/warrior.glb? A file drop that passes this loads as the hero (no capsule stand-in, no black fight).
-//   node scripts/character/check-hero-glb.mjs <candidate.glb> [reference.glb = src/assets/warrior.glb on trunk, via git show]
+//   node scripts/character/check-hero-glb.mjs <candidate.glb> [reference.glb = src/assets/hero-classic.glb]
 // Checks: the reference's 65 joint names and the same clip names are present; a node named `Steel` is a skinned mesh whose material has a base map and a normal map
 // (characters.ts missingMap); SwordDrawn and SwordSheathed exist; every accessor fits its view; every clip channel targets a node.
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
 
 const [candidate, reference] = process.argv.slice(2);
 if (!candidate) throw new Error('usage: check-hero-glb.mjs <candidate.glb> [reference.glb]');
 const parse = (buf) => { const n = buf.readUInt32LE(12); return { j: JSON.parse(buf.subarray(20, 20 + n)), bin: buf.subarray(28 + n) }; };
 const C = parse(fs.readFileSync(candidate));
-const R = parse(reference ? fs.readFileSync(reference) : execFileSync('git', ['show', 'origin/codex/01a09a76/task-1:src/assets/warrior.glb'], { maxBuffer: 1 << 28 }));
+const R = parse(fs.readFileSync(reference ?? new URL('../../src/assets/hero-classic.glb', import.meta.url)));
 const problems = [];
 const jointNames = (d) => (d.j.skins?.[0]?.joints ?? []).map((i) => d.j.nodes[i].name);
 const cj = new Set(jointNames(C)), rj = jointNames(R);

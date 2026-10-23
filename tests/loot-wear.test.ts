@@ -19,7 +19,7 @@ const pieces = async () => lootPiecesOf((await parse('loot.glb')).scene);   // t
 const draws = (root: { traverse(cb: (o: unknown) => void): void }, slot: string) => { const out: Mesh[] = []; root.traverse(o => { if (o instanceof Mesh && o.userData.slot === slot) out.push(o); }); return out; };
 
 test('loot: every piece of loot.glb has an id in src/core/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body', async () => {
-  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const all = await pieces(), { player } = buildWarriors(await parse('hero-classic.glb'));
   // `lootIds`, not `lootId`: a shared draw (brief 14's gloves, `~kit.Gloves`) answers to every opponent id that resolves to it, so the
   // file's pieces are still exactly the armour ids — the sharing is invisible from here, which is the point of the seam.
   assert.deepEqual([...new Set(all.flatMap(lootIds))].sort(), [...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), 'the file\'s draws are the armour ids; a weapon piece is its equip file, not a draw');
@@ -53,7 +53,7 @@ test('loot: every piece of loot.glb has an id in src/core/loot.ts, and the playe
 });
 
 test('loot: a piece takes the player\'s textured material of the same name, dressing again replaces the set, and nothing stays hidden after undressing', async () => {
-  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const all = await pieces(), { player } = buildWarriors(await parse('hero-classic.glb'));
   const steel = draws(player.anchor, 'Body').map(m => m.material).find((m): m is MeshStandardMaterial => m instanceof MeshStandardMaterial && m.name === 'Steel')!;
   steel.map = new Texture();   // the browser's loader gives him maps; Node parsed none
   // Ruling C (#705): the swap happens only where the piece's source rig maps that name too (characters.ts SOURCE_MAPPED). The Dwarf's rig
@@ -83,7 +83,7 @@ test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his Crea
 });
 
 test('loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23)', async () => {
-  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const all = await pieces(), { player } = buildWarriors(await parse('hero-classic.glb'));
   const own = new Set<unknown>(); player.anchor.traverse(o => { if (o instanceof Mesh) own.add(o.material); });
   player.wear(all.filter(p => lootWorn(p, ['veteran.Shield', 'veteran.Helmet'])));
   const shield = player.worn().filter(p => p.userData.slot === 'Shield'), helmet = player.worn().filter(p => p.userData.slot === 'Helmet');
@@ -96,13 +96,13 @@ test('loot: a worn shield renders both sides — its face is a single-sided disc
   const lit = new MeshStandardMaterial(); lit.userData.patched = true;
   lit.onBeforeCompile = () => {}; lit.customProgramCacheKey = () => 'patched';
   const helmetPiece = all.find(p => lootWorn(p, ['veteran.Helmet']))!; helmetPiece.userData.slot = 'Shield';
-  const probe = buildWarriors(await parse('warrior.glb')).player; helmetPiece.material = lit; probe.wear([helmetPiece]);
+  const probe = buildWarriors(await parse('hero-classic.glb')).player; helmetPiece.material = lit; probe.wear([helmetPiece]);
   const copy = probe.worn()[0].material as MeshStandardMaterial;
   assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the shader patch carries to the two-sided copy'); assert.equal(copy.customProgramCacheKey(), 'patched', 'and its program cache key');
 });
 
 test('loot: one piece that cannot be worn is skipped and named; the rest of the set is still worn and its slot stays his own', async () => {
-  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const all = await pieces(), { player } = buildWarriors(await parse('hero-classic.glb'));
   const good = all.filter(p => ['veteran.Helmet', 'veteran.Greaves'].includes(lootId(p)));
   const broken = good[0]!.clone(); broken.geometry = null as never; broken.userData = { opponent: 'nightborn', slot: 'Body', layer: 'replace' };   // a copy of it throws
   const failures: string[] = [], warn = console.warn; console.warn = () => {};

@@ -19,7 +19,7 @@ function glb(path: string) {
   };
   return { json, positions };
 }
-const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+const hero = glb('../src/assets/hero-classic.glb'), loot = glb('../src/assets/loot.glb');
 const head = hero.positions('Photo');
 const apex = Math.max(...head.map(p => p[1]));
 const skull = head.filter(p => p[1] > apex - 0.07), axisZ = (Math.min(...skull.map(p => p[2])) + Math.max(...skull.map(p => p[2]))) / 2;   // the head turns about this vertical axis

@@ -4,13 +4,12 @@
 //   node scripts/character/graft-hero-sword.mjs <candidate.glb> <out.glb> [hero.glb = src/assets/warrior.glb on trunk, via git show]
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 
 const [candFile, outFile, heroFile] = process.argv.slice(2);
 assert.ok(candFile && outFile, 'usage: graft-hero-sword.mjs <candidate.glb> <out.glb> [hero.glb]');
 const parse = (buf) => { const n = buf.readUInt32LE(12); return { j: JSON.parse(buf.subarray(20, 20 + n)), bin: Buffer.from(buf.subarray(28 + n)) }; };
 const C = parse(fs.readFileSync(candFile));
-const H = parse(heroFile ? fs.readFileSync(heroFile) : execFileSync('git', ['show', 'origin/codex/01a09a76/task-1:src/assets/warrior.glb'], { maxBuffer: 1 << 28 }));
+const H = parse(fs.readFileSync(heroFile ?? new URL('../../src/assets/hero-classic.glb', import.meta.url)));
 const j = C.j; let bin = C.bin;
 const pad4 = (b) => Buffer.concat([b, Buffer.alloc((4 - (b.length % 4)) % 4)]);
 bin = pad4(bin);

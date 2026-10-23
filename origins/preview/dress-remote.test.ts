@@ -17,7 +17,7 @@ async function parse(file: string) {
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
 async function rig() {
-  const asset = await parse('warrior.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(asset, undefined, ['longsword', 'longsword']);
+  const asset = await parse('hero-classic.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(asset, undefined, ['longsword', 'longsword']);
   return { player, pieces };
 }
 // Three real pieces from three different slots, as the server's worn set names them.
@@ -42,7 +42,7 @@ test('a remote actor dressed with a worn set wears exactly what the player\'s ow
 test('which pieces a remote would compile on first sight: those whose material is not the warmed hero palette', async () => {
   const { player, pieces } = await rig();
   // The images are dropped in Node, so mark the hero's textured materials (warrior.glb's own JSON) the way the browser build has them: rigMaterials reads the mapped ones.
-  const bytes = readFileSync(new URL('../../src/assets/warrior.glb', import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString()) as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[] };
+  const bytes = readFileSync(new URL('../../src/assets/hero-classic.glb', import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString()) as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[] };
   const textured = new Set(json.materials.filter((m) => m.pbrMetallicRoughness?.baseColorTexture).map((m) => m.name));
   player.anchor.traverse((o) => { const m = (o as Mesh).material as MeshStandardMaterial | undefined; if (m?.name && textured.has(m.name)) m.map = new Texture(); });
   const cold = coldPieces(player, pieces);

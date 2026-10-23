@@ -27,12 +27,12 @@ test('Hamstrung append reproduces the shipped creature GLBs and the killer JSON 
 });
 
 test('the killer and victim clip JSON are what the build writes from the untouched warrior.glb, byte for byte',async()=>{
- const warrior=unpack(await readFile(new URL('../src/assets/warrior.glb',import.meta.url)));
+ const warrior=unpack(await readFile(new URL('../src/assets/hero-classic.glb',import.meta.url)));
  assert.equal(warrior.json.extras?.hamstrungBase,undefined);assert.ok(!warrior.json.animations.some((a:{name:string})=>/Hamstrung/.test(a.name)));
  const dir=await mkdtemp(join(tmpdir(),'hamstrung-'));
  try{for(const [write,file,name] of [[writeHamstrungKiller,'hamstrung-killer','Fin_Hamstrung'],[writeHamstrungVictim,'hamstrung-victim-hero','Death_Hamstrung']] as const){
   const out=join(dir,file+'.json'),again=join(dir,file+'-2.json');
-  await write(new URL('../src/assets/warrior.glb',import.meta.url),new URL('file://'+out));await write(new URL('../src/assets/warrior.glb',import.meta.url),new URL('file://'+again));
+  await write(new URL('../src/assets/hero-classic.glb',import.meta.url),new URL('file://'+out));await write(new URL('../src/assets/hero-classic.glb',import.meta.url),new URL('file://'+again));
   const made=await readFile(out),shipped=await readFile(new URL(`../src/assets/${file}.json`,import.meta.url));assert.ok(made.equals(shipped),`shipped ${file} is current`);assert.ok(made.equals(await readFile(again)),`${file} is stable across two builds (no random uuid)`);
   assert.ok(shipped.length<100000,'bounded payload');const clip=JSON.parse(shipped.toString());assert.equal(clip.name,name);assert.equal(clip.duration,3.8);assert.ok(clip.tracks.length>30);assert.equal(clip.uuid,undefined);
  }}finally{await rm(dir,{recursive:true,force:true});}

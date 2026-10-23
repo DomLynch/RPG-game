@@ -2949,25 +2949,6 @@
      }
     },
     {
-     "file": "src/assets/hero-classic.glb",
-     "class": "hero",
-     "over": {
-      "tris": 63572,
-      "draws": 19,
-      "bytes": 5602108,
-      "pngBytes": 165873
-     },
-     "figures": {
-      "tris": 63572,
-      "skinnedVerts": 33669,
-      "joints": 65,
-      "draws": 19,
-      "textureSide": 1024,
-      "bytes": 5602108,
-      "pngBytes": 165873
-     }
-    },
-    {
      "file": "src/assets/warrior.glb",
      "class": "hero",
      "over": {
