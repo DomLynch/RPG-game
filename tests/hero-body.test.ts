@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { heroBodyFile, heroBodyFiles } from '../src/fight/hero-body-rows.ts';
+import { heroBodyFile, heroBodyFiles, heroContact } from '../src/fight/hero-body-rows.ts';
 
 // The hero body is ONE row (src/fight/hero-body-rows.json): the Mixamo Exo Gray ('warrior.glb') or the classic hero ('hero-classic.glb'), flipped by editing `body`. Both must meet the same rig contract, so a flip is safe.
 const dir = new URL('../src/assets/', import.meta.url);
@@ -35,6 +35,17 @@ test('the Exo rig keeps the classic rest rotations, so every clip authored on th
     const q = a.get(name).rotation ?? [0, 0, 0, 1], r = b.get(name).rotation ?? [0, 0, 0, 1];
     const dot = Math.abs(q[0] * r[0] + q[1] * r[1] + q[2] * r[2] + q[3] * r[3]);
     assert.ok(dot > 0.99999, `${name}: rest rotation differs from the classic hero's`);
+  }
+});
+
+test('the Exo strike clips meet at the blade-furthest-forward frame after the wind-up on the sim\'s own contact tick (presentation only: the sim ticks are untouched)', async () => {
+  const { ATTACKS: specs } = await import('../src/fight/combat.ts'), { swingProgress } = await import('../src/fight/blade.ts');
+  const { json } = parse('warrior.glb'), seconds = (name: string): number => { const an = json.animations.find((a: { name: string }) => a.name === name); return json.accessors[an.samplers[0].input].max[0]; };
+  assert.equal(heroContact('Return'), undefined, 'Return keeps the path source (Mixamo\'s Return has no strike after the wind-up)');
+  for (const [role, key, frame] of [['Attack', 'light', 45], ['Heavy', 'heavy', 51]] as const) {
+    const spec = specs[key];
+    const contact = spec.contact / spec.recovery, at = swingProgress(contact, contact, heroContact(role)) * seconds(role);
+    assert.ok(Math.abs(at * 30 - frame) < 0.5, `${role}: the sim contact tick plays clip frame ${(at * 30).toFixed(2)}, the authored strike is frame ${frame}`);
   }
 });
 
