@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 201122,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": "docs/character-references/dungeon-cave-wall-seed-201122.png",
+  "preprocess_s": 11.1,
+  "image_to_3d_s": 79.4,
+  "extract_glb_s": 57.5,
+  "glb": "src/assets/source/creatures/dungeon-cave-wall-v1.glb",
+  "bytes": 6773032,
+  "sha256": "359f13b5ae88706e7694d5e96506c026c8d085b8a9068eab8708a51ef22da1d7",
+  "attempts": 1
+}

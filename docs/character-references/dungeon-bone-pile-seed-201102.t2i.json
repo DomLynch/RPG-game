@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of a single heap of bones, three-quarter front view, centred, isolated on a plain neutral grey background with soft even light. About one and a half metres wide and eighty centimetres tall: a rounded mound of weathered yellowed animal and human bones, long bones, ribs, a few skulls with empty sockets near the top, a ram skull, scattered small bones and dust at the base, dried brown stains, no flesh. Historical grim cave lair, realistic proportions and materials, matte, no glow, not cartoon, not stylised, no people, no text.",
+  "seed": 201102,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 51.3,
+  "sha256": "7c863ae60654fc55af15d00057c82a0ca5a10c56c1fd90c2fa4a4e9db5503ca2"
+}
