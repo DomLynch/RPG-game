@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- Bows, step 1 (SANDBOX, Lead 2026-10-15; spec docs/specs/combat/bows.md): a held draw with a charge fraction, then one arrow that flies for a time and lands on the sparring dummy.
+     Preview only: nothing in the Pit, no record, no RV/WSV. The rules are src/fight/bow-rules.ts (every number a row in bow-rules-defs.json); this page only draws them.
+     Hold the DRAW button (or Space) and release. ?still=ready|draw|flight|hit freezes a deterministic frame for the 375 stills. window.__bow reports the state for scripts. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Bow sandbox</title>
+<style>
+html,body{margin:0;height:100%;background:#8f9a98;font:14px system-ui,sans-serif;color:#f4efe2;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:6px;pointer-events:none;text-shadow:0 1px 3px #000a}
+#row{display:flex;justify-content:space-between;font-weight:600}
+.bar{height:10px;border-radius:5px;background:#0006;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:#e6c46a}
+#hp>i{background:#c8503c;width:100%}
+#msg{min-height:1.2em;opacity:.9}
+#draw{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);height:64px;border:0;border-radius:14px;background:#2d3a35e6;color:#f4efe2;font:700 17px system-ui;letter-spacing:.06em;touch-action:none}
+#draw.on{background:#6d4b1fe6}
+#note{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);text-align:center;font-size:12px;opacity:.75;text-shadow:0 1px 3px #000a;pointer-events:none}
+</style></head>
+<body><canvas id="world"></canvas>
+<div id="hud"><div id="row"><span id="range">9.0 m</span><span id="state">ready</span></div><div class="bar"><i id="charge"></i></div><div class="bar" id="hp"><i></i></div><div id="msg"></div></div>
+<div id="note">Hold to draw, release to loose. Short taps cancel.</div>
+<button id="draw" type="button">HOLD TO DRAW</button>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import WARRIOR_URL from '/src/assets/warrior.glb?url';
+import { BOW, arrowAt, chargeOf, flightTicks, inBand, multOf, newBow, stepBow } from '/src/fight/bow-rules.ts';
+
+const P = new URLSearchParams(location.search), STILL = P.get('still');
+const $ = (id) => document.getElementById(id);
+const canvas = $('world'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true;
+const pmrem = new THREE.PMREMGenerator(renderer), scene = new THREE.Scene();
+scene.background = new THREE.Color('#8f9a98'); scene.fog = new THREE.FogExp2('#8f9a98', 0.028); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.6;
+scene.add(new THREE.HemisphereLight('#d2e0e4', '#575c4c', 2.4));
+const sun = new THREE.DirectionalLight('#ffdfad', 3.4); sun.position.set(-8, 14, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -14, near: 1, far: 50 }); scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(16, 64), new THREE.MeshStandardMaterial({ color: '#8a8470', roughness: 0.98 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 80);
+const resize = () => { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }; addEventListener('resize', resize); resize();
+// The archer stands at the origin facing -z; the dummy is dummyDistance down the line. The camera sits behind and beside the archer, so the whole line reads on a portrait phone.
+camera.position.set(BOW.camX, BOW.camY, BOW.camZ); camera.lookAt(-BOW.lookLeft, BOW.lookY, -BOW.dummyDistance * BOW.lookDepth);   // framing rows: bow-rules-defs.json
+
+// Hero: warrior.glb as shipped (the Armed clip), nothing custom.
+const hero = new THREE.Group(); scene.add(hero);
+let mixer = null, handL = null, handR = null;
+try {
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(WARRIOR_URL);
+  const model = asset.scene; model.rotation.y = Math.PI; model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  for (const n of ['SwordDrawn', 'SwordSheathed']) { const o = model.getObjectByName(n); if (o) o.visible = false; }   // the bow hand holds the bow, not the sword
+  hero.add(model); handL = model.getObjectByName('hand_l'); handR = model.getObjectByName('hand_r'); mixer = new THREE.AnimationMixer(model);
+  const clip = asset.animations.find((c) => c.name === 'Armed') ?? asset.animations.find((c) => c.name === 'Idle'); if (clip) mixer.clipAction(clip).play();
+} catch (e) { console.error('hero load failed', e); window.__heroError = String(e); const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 1.1, 6, 12), new THREE.MeshStandardMaterial({ color: '#46536a' })); body.position.y = 0.9; body.castShadow = true; hero.add(body); }
+
+// Bow in the left hand, string pulled by the draw; the nocked arrow rides the string.
+const wood = new THREE.MeshStandardMaterial({ color: '#6b4a26', roughness: 0.7 }), cord = new THREE.LineBasicMaterial({ color: '#efe6cf' });
+const bow = new THREE.Group(); bow.position.set(-0.32, 1.32, -0.55); scene.add(bow);   // follows the left hand bone each frame
+const limb = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.022, 8, 40, Math.PI), wood); limb.rotation.z = Math.PI / 2; limb.position.x = 0; bow.add(limb);   // an arc opening toward the archer
+const stringGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -0.5, 0)]), string = new THREE.Line(stringGeo, cord); bow.add(string);
+const arrowMesh = () => { const g = new THREE.Group(), shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.85, 6), new THREE.MeshStandardMaterial({ color: '#cdb98a' })), tip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 8), new THREE.MeshStandardMaterial({ color: '#4a4f55', metalness: 0.6 }));
+  shaft.rotation.x = Math.PI / 2; tip.rotation.x = -Math.PI / 2; tip.position.z = -0.5; g.add(shaft, tip); return g; };
+const nocked = arrowMesh(); bow.add(nocked);
+const flying = arrowMesh(); flying.visible = false; scene.add(flying);
+
+// The sparring dummy: a post, a cross-arm and a sack head, at the line's end.
+const dummy = new THREE.Group(); dummy.position.set(0, 0, -BOW.dummyDistance); scene.add(dummy);
+const hay = new THREE.MeshStandardMaterial({ color: '#b39a62', roughness: 1 }), post = new THREE.MeshStandardMaterial({ color: '#5a4630', roughness: 0.9 });
+const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.7, 10), post); stake.position.y = 0.85; const arms = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8), post); arms.rotation.z = Math.PI / 2; arms.position.y = 1.25;
+const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.32, 0.75, 14), hay); torso.position.y = 1.05; const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), hay); head.position.y = 1.62;
+for (const m of [stake, arms, torso, head]) { m.castShadow = true; dummy.add(m); }
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.66, 40), new THREE.MeshBasicMaterial({ color: '#e6c46a', transparent: true, opacity: 0.55, side: THREE.DoubleSide })); marker.rotation.x = -Math.PI / 2; marker.position.set(0, 0.02, 0); dummy.add(marker);   // the hit radius on the ground
+
+// The sim: fixed ticks at the rule's rate. The dummy is still, so lateral is 0 (a miss needs a moving target: step 2).
+const TARGET = { distance: BOW.dummyDistance, lateral: 0 };
+let s = newBow(), holding = false, acc = 0, last = performance.now(), flash = 0, msgUntil = 0, stuck = null;
+const msg = (t) => { $('msg').textContent = t; msgUntil = performance.now() + 1800; };
+const apply = () => {
+  for (const e of s.events) {
+    if (e.type === 'cancel') msg('Too short: the string slips');
+    if (e.type === 'release') msg(`Loosed: ${Math.round(e.charge * 100)}% draw, ${e.damage} on a hit`);
+    if (e.type === 'hit') { flash = 1; stuck = { z: -BOW.dummyDistance, y: 1.1 + Math.random() * 0.2 }; msg(`Hit for ${e.damage}`); }
+  }
+};
+const tick = () => { s = stepBow(s, holding, TARGET); apply(); };
+const reset = () => { s = newBow(); stuck = null; $('hp').firstElementChild.style.width = '100%'; };
+if (STILL) {   // deterministic frames: ready, mid-draw (half charge), arrow in flight (half way), just landed
+  const run = (n, hold) => { for (let i = 0; i < n; i++) { s = stepBow(s, hold, TARGET); } };
+  if (STILL === 'draw') run(Math.round((BOW.minDraw + BOW.fullDraw) / 2), true);
+  if (STILL === 'flight') { run(BOW.fullDraw, true); run(1, false); run(Math.round(flightTicks(BOW.dummyDistance) / 2), false); }
+  if (STILL === 'hit') { run(BOW.fullDraw, true); run(1, false); run(flightTicks(BOW.dummyDistance), false); flash = 0.8; stuck = { z: -BOW.dummyDistance, y: 1.18 }; }
+  holding = STILL === 'draw'; $('draw').classList.toggle('on', holding);
+}
+const down = (e) => { e.preventDefault(); holding = true; $('draw').classList.add('on'); };
+const up = () => { holding = false; $('draw').classList.remove('on'); };
+$('draw').addEventListener('pointerdown', down); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+addEventListener('keydown', (e) => { if (e.code === 'Space' && !e.repeat) down(e); }); addEventListener('keyup', (e) => { if (e.code === 'Space') up(); });
+
+const hand = new THREE.Vector3(), handB = new THREE.Vector3();
+function draw() {
+  if (handL) { handL.getWorldPosition(hand); bow.position.set(hand.x, hand.y + 0.04, hand.z - 0.1); }   // the bow rides the left hand
+  bow.updateMatrixWorld(true);
+  const charge = s.phase === 'draw' ? chargeOf(s.drawn) : 0, pull = s.phase === 'draw' ? Math.min(1, s.drawn / BOW.fullDraw) * 0.55 : 0;
+  // The string and the nocked arrow ride back with the draw; empty after the loose.
+  const pos = stringGeo.attributes.position; if (handR) { handR.getWorldPosition(handB); bow.worldToLocal(handB); } const k = Math.min(1, pull / 0.55); pos.setXYZ(1, handR ? handB.x * k : 0, handR ? handB.y * k : 0, handR ? handB.z * k : pull); pos.needsUpdate = true;   // the string's nock goes to the right hand as the draw builds
+  nocked.visible = s.phase === 'draw' || (s.phase === 'ready' && !s.arrow); nocked.position.set(pos.getX(1), pos.getY(1), pos.getZ(1) - 0.05);
+  $('charge').style.width = `${Math.round(charge * 100)}%`; $('charge').style.background = s.phase === 'draw' && s.drawn >= BOW.minDraw ? '#e6c46a' : '#8a8f94';
+  $('state').textContent = s.arrow ? 'arrow in flight' : s.phase === 'draw' ? (s.drawn >= BOW.fullDraw ? 'full draw' : s.drawn >= BOW.minDraw ? `draw ${Math.round(charge * 100)}%` : 'drawing') : s.phase === 'recover' ? 'recovering' : 'ready';
+  $('range').textContent = `${TARGET.distance.toFixed(1)} m${inBand(TARGET.distance) ? '' : ' (out of band)'}`;
+  $('hp').firstElementChild.style.width = `${Math.round(s.health / BOW.dummyHealth * 100)}%`;
+  if (s.arrow) {
+    const along = arrowAt(s.arrow, s.tick), t = along / s.arrow.distance;
+    flying.visible = true; flying.position.set(bow.position.x * 0.2, 1.32 + 0.02 * Math.sin(t * Math.PI) * 3, -0.6 - along);   // a shallow arc, flat as it lands
+    flying.rotation.x = 0.06 * (1 - 2 * t);
+  } else flying.visible = false;
+  if (stuck) { flying.visible = true; flying.position.set(0.02, stuck.y, stuck.z + 0.1); flying.rotation.x = 0; }
+  dummy.rotation.z = Math.sin(performance.now() / 40) * 0.05 * flash; torso.material.emissive = new THREE.Color('#ff7a3c').multiplyScalar(flash * 0.5);
+  if (performance.now() > msgUntil && !STILL) $('msg').textContent = '';
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (!STILL) { acc += dt * BOW.tickRate; while (acc >= 1) { acc -= 1; tick(); } if (s.health <= 0 && !s.arrow) { msg('Dummy down: resetting'); setTimeout(reset, 900); s = { ...s, health: BOW.dummyHealth }; } flash = Math.max(0, flash - dt * 3); }
+  if (mixer) mixer.update(STILL ? 0 : dt);
+  draw(); renderer.render(scene, camera); window.__bow = { tick: s.tick, phase: s.phase, drawn: s.drawn, arrow: s.arrow, health: s.health, charge: chargeOf(s.drawn), mult: multOf(chargeOf(s.drawn)) };
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>
