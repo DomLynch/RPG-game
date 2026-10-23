@@ -2,6 +2,8 @@
 
 Branch `combat/world-hero` carries PR 2 (the hero through the Pit's builders). PR 3 (World, per-bout seed) and PR 4 (Backend, record carries the sheet) build against THIS file. WORLD_SIM_VERSION order: #2529 = 8, World's goblin-camp stopgap #2553 = 9, the threat margin = 10, the series = 11 onward (each sim PR takes the next number and carries its own fingerprint receipt on its own head).
 
+**Known gap (Combat, 2026-10-14):** in Zone 1 the SKILL button is a plain light cut: the world hero carries no spell or special and the world input, record and replay carry no cast press. The open-world cast wire-up (Strategy order: #2765, then this) closes it.
+
 ## PR 2: the builder (src/fight/world.ts, src/fight/open-fight.ts)
 - `Fighter` (world) gains `weapon?: WeaponId` and `sheet?: Sheet` (hero only; `Sheet` = sheet-rows.ts, dial/skill id -> effective value).
 - `player(id, x, z, facing, gear: Loadout, level, skill, build?: { weapon?: WeaponId; sheet?: Sheet }): Fighter`. With a sheet: `attack = res = 1` (the sheet carries Attack and armour; no double count) and `maxHealth = health` come from the Pit's own `withSheet`.
