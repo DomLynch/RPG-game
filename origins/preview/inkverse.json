@@ -5,7 +5,7 @@
       "fields": {
         "paper": [0.95, 0.93, 0.88],
         "ink": [0.02, 0.02, 0.03],
-        "tone": { "gamma": 2.2, "exposure": 1.2, "pivot": 0.34, "contrast": 2.4, "low": 0.34, "high": 0.86 },
+        "tone": { "gamma": 2.2, "exposure": 1.25, "pivot": 0.3, "contrast": 2.2, "low": 0.3, "high": 0.66 },
         "material": { "on": 0, "steps": 0, "rampLow": 0.06, "rampHigh": 1.1, "gain": 1.9, "hatchStrength": 0.4, "hatchBelow": 0.2, "hatchSpacingPx": 3, "hatchAngleDeg": 45, "hatchDuty": 0.4, "grain": 0.03, "screenCurve": 1, "exclude": [] },
         "halftone": { "strength": 0.12, "below": 0.22, "cellPx": 3, "angleDeg": 45 },
         "edges": { "soft": 0.45, "thicknessPx": 1, "silhouetteMul": 1, "depthRel": 0.014, "normalDot": 0.9, "strength": 0.9, "darkBelow": 0.3, "fadeNear": 18, "fadeFar": 70 },
