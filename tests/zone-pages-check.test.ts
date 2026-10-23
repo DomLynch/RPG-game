@@ -4,7 +4,8 @@ import test from 'node:test';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pagesToOpen, shortPaths, titleOf, zonePages } from '../scripts/lib/zone-pages.mjs';
+import { pagesToOpen, shortPaths, titleOf, zonePages, zoneRows } from '../scripts/lib/zone-pages.mjs';
+import { zoneRows as genZoneRows } from '../scripts/gen-zones.mjs';
 import { sourceWithImports, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 
 // The release placement reads a row's script AND every relative import it names; one that points at a file that does not exist makes the whole row "Mac-only" (it did, through gen-zones.mjs's template strings, in the first cut of this row).
@@ -33,6 +34,21 @@ test('a row without a name, a bad alias or a misnamed file is refused, never ski
   assert.throws(() => zonePages(dirWith({ 'zone1.row.json': {} })), /display name/);
   assert.throws(() => zonePages(dirWith({ 'zone1.row.json': { name: 'One', alias: 'Not A Link' } })), /not a short link name/);
   assert.throws(() => zonePages(dirWith({ 'zone01.row.json': { name: 'One' } })), /not a zone row name/);
+});
+
+// scripts/lib/zone-pages.mjs keeps its own zoneRows (it cannot import gen-zones.mjs: the placement follows that file's template strings to files that do not exist). Two copies must not drift: the pages row would then list
+// zones the registry does not hold, or miss one it does.
+test('zone-pages zoneRows matches gen-zones zoneRows: the real rows, a town row, and the refused names', () => {
+  assert.deepEqual(zoneRows(), genZoneRows(), 'the real rows folder');
+  assert.ok(zoneRows().some((r: { id: string }) => r.id === '0'), 'the town row is in both lists');
+  const d = dirWith({ 'zone0.row.json': {}, 'zone10.row.json': {}, 'zone2.row.json': {}, 'note.txt': {} });
+  assert.deepEqual(zoneRows(d), genZoneRows(d), 'numeric order, zone0 first, a non-row file ignored');
+  assert.deepEqual(zoneRows(d).map((r: { id: string }) => r.id), ['0', '2', '10']);
+  for (const bad of ['zone01.row.json', 'zone-x.row.json', 'zone.row.json']) {
+    const e = dirWith({ 'zone1.row.json': {}, [bad]: {} });
+    assert.throws(() => zoneRows(e), /is not a zone row name/, bad);
+    assert.throws(() => genZoneRows(e), /is not a zone row name/, bad);
+  }
 });
 
 test('the real registry: every row is on the list with its own /zone<N>/ and a name', () => {
