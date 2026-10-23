@@ -32,6 +32,8 @@ export type InkLook = {
   readonly grain: { readonly strength: number; readonly scalePx: number };
   readonly vignette: { readonly strength: number; readonly start: number; readonly breakup: number; readonly freq: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
+  /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
+  readonly skyPlate: { readonly passthrough: number; readonly objects: readonly string[] };
   /** Alternate backdrop plates drawn under this look: `from` is the plate file the zone names, `to` the ink-painted one (a missing `to` falls back to `from`). */
   readonly plates: readonly { readonly from: string; readonly to: string }[];
 };
@@ -55,10 +57,13 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const ao = group(id, 'ao', fields.ao, ['strength', 'radiusPx', 'range', 'bias']), hatch = group(id, 'hatch', fields.hatch, ['strength', 'below', 'spacingPx', 'duty']);
     const character = group(id, 'character', fields.character, ['silhouetteOnly', 'darken', 'contrast', 'rimStrength', 'rimPow']), aa = group(id, 'aa', fields.aa, ['fxaa']);
     const edges = group(id, 'edges', fields.edges, ['soft', 'thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
+    const sky = fields.skyPlate as Record<string, unknown> | undefined;
+    if (!sky || typeof sky !== 'object') throw new Error(`ink look "${id}": skyPlate is missing`);
+    const skyPlate = { passthrough: num(id, 'skyPlate.passthrough', sky.passthrough), objects: names(id, 'skyPlate.objects', sky.objects) };
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
@@ -69,7 +74,7 @@ export const inkLook = (id: string | null): InkLook | null => (id ? LOOKS.get(id
 
 const FULLSCREEN_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const INK_FRAG = `
-uniform sampler2D tColor, tDepth, tTag;
+uniform sampler2D tColor, tDepth, tTag, tSky; uniform float skyOn;
 uniform vec2 texel, projScale; uniform float ratio, cameraNear, cameraFar;
 uniform float gamma, exposure, pivot, contrast, lowCut, highCut, cellPx, angle, htStrength, htBelow;
 uniform float thick, depthRel, normalDot, edgeStrength, darkBelow, fadeNear, fadeFar;
@@ -125,6 +130,7 @@ void main() {
   float edge = edgeStrength * max(eD, eN) * (1.0 - smoothstep(fadeNear, fadeFar, -z0));   // thin, and fainter with distance
   shade = min(1.0, shade + isChar * rimK * pow(1.0 - abs(n.z), rimPow));   // a faint rim so a character lifts off a pale floor
   vec3 col = mix(inkCol, paper, shade);
+  if (skyOn > 0.5 && texture2D(tDepth, vUv).x > 0.99999) col = pow(max(texture2D(tSky, vUv).rgb, 0.0), vec3(1.0 / gamma));   // empty sky: the plate as it is, already inked
   col = mix(col, l < darkBelow ? paper : inkCol, edge);   // an outline in the dark is paper-coloured, or a figure in shadow would vanish into the ink
   // Selective colour: the tag buffer holds 1 in .r for red, 1 in .b for blue where a tagged material is the nearest surface.
   // Red glow: the tagged pixels' neighbourhood (a ring of taps at two radii) tints the surround, so lamps, fires, banners and blood bloom red and nothing else does.
@@ -148,12 +154,13 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   const depth = new THREE.DepthTexture(size.x, size.y); depth.type = THREE.UnsignedIntType;
   const color = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, depthTexture: depth });
   const tagged = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.UnsignedByteType, depthTexture: depth });   // shares the scene's depth: a tagged surface behind a wall is hidden
+  const skyTarget = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType });   // the sky objects drawn alone (look.skyPlate), composited where the scene's depth is empty
   const u = (v: unknown) => ({ value: v });
   const rad = Math.PI / 180, T = look.tone, H = look.halftone, E = look.edges;
   const mat = new THREE.ShaderMaterial({
     vertexShader: FULLSCREEN_VERT, fragmentShader: INK_FRAG, depthTest: false, depthWrite: false,
     uniforms: {
-      tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
+      tColor: u(color.texture), tDepth: u(depth), tTag: u(tagged.texture), tSky: u(skyTarget.texture), skyOn: u(look.skyPlate.passthrough), texel: u(new THREE.Vector2(1 / size.x, 1 / size.y)), projScale: u(new THREE.Vector2(1, 1)), ratio: u(renderer.getPixelRatio()), cameraNear: u(camera.near), cameraFar: u(camera.far),
       gamma: u(T.gamma), exposure: u(T.exposure), pivot: u(T.pivot), contrast: u(T.contrast), lowCut: u(T.low), highCut: u(T.high), cellPx: u(H.cellPx), angle: u(H.angleDeg * rad), htStrength: u(H.strength), htBelow: u(H.below),
       edgeSoft: u(E.soft), charSilOnly: u(look.character.silhouetteOnly), charDarken: u(look.character.darken), charContrast: u(look.character.contrast), rimK: u(look.character.rimStrength), rimPow: u(look.character.rimPow),
       silMul: u(E.silhouetteMul), aoK: u(look.ao.strength), aoPx: u(look.ao.radiusPx), aoRange: u(look.ao.range), aoBias: u(look.ao.bias), hatchK: u(look.hatch.strength), hatchBelow: u(look.hatch.below), hatchPx: u(look.hatch.spacingPx), hatchDuty: u(look.hatch.duty), lightAngle: u(0),
@@ -201,9 +208,10 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   let tagList: Tagged[] = [];
   const nameIn = (list: readonly string[], n: string | undefined): boolean => !!n && list.includes(n);
   const userIn = (list: readonly string[], x: THREE.Material): boolean => list.some((k) => x.userData[k] !== undefined);
-  const HUD_LAYER = 4; let hudList: THREE.Object3D[] = [];
+  const HUD_LAYER = 4, SKY_LAYER = 5; let hudList: THREE.Object3D[] = [];
   const retag = (): void => {
     tagList = []; hudList = hudPieces(scene); for (const o of hudList) o.layers.enable(HUD_LAYER);
+    if (look.skyPlate.passthrough > 0) scene.traverse((o) => { if (nameIn(look.skyPlate.objects, o.name)) o.traverse((c) => c.layers.enable(SKY_LAYER)); });
     scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
@@ -220,6 +228,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     if (frames++ % 30 === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
     camera.layers.set(0); renderer.setRenderTarget(color); withoutHud(scene, () => renderer.render(scene, camera));   // the scene-space HUD pieces (name tags, "!", rings: userData.hud, hud-tag.ts) are left out of the pass and drawn plain over it below
+    if (look.skyPlate.passthrough > 0) { const bg = scene.background; scene.background = null; renderer.setRenderTarget(skyTarget); renderer.setClearColor(0x000000, 1); renderer.autoClear = true; camera.layers.set(SKY_LAYER); withoutHud(scene, () => renderer.render(scene, camera)); scene.background = bg; camera.layers.set(0); }
     renderer.setRenderTarget(tagged); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, false, false);
     if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
@@ -253,7 +262,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     compile(): void { const before = renderer.getRenderTarget(); renderer.setRenderTarget(color); try { renderer.compile(scene, camera); } finally { renderer.setRenderTarget(before); } },
     setSize(w: number, h: number): void {
       const ratio = renderer.getPixelRatio(), pw = Math.round(w * ratio), ph = Math.round(h * ratio);
-      color.setSize(pw, ph); tagged.setSize(pw, ph); inkOut.setSize(pw, ph); depth.image.width = pw; depth.image.height = ph;
+      color.setSize(pw, ph); tagged.setSize(pw, ph); skyTarget.setSize(pw, ph); inkOut.setSize(pw, ph); depth.image.width = pw; depth.image.height = ph;
       if (aaMat) (aaMat.uniforms.resolution!.value as THREE.Vector2).set(1 / pw, 1 / ph);
       (mat.uniforms.texel!.value as THREE.Vector2).set(1 / pw, 1 / ph); mat.uniforms.ratio!.value = ratio;
     },
