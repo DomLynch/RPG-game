@@ -56,7 +56,7 @@ test('the Exo hero wears no loot (scene extras noLoot), the classic hero does', 
   assert.equal(parse('hero-classic.glb').json.scenes[0].extras?.noLoot, undefined);
 });
 
-test('the Exo hero\'s clips are in place: the pelvis keeps its height but not its forward travel, except in the Death_* falls', () => {
+test('the Exo hero\'s clips are in place: the pelvis keeps its height but not its forward travel, except in the Death_* falls and the classic Fin_RunThrough', () => {
   const { json, bin } = parse('warrior.glb');
   const parent = new Array<number>(json.nodes.length).fill(-1);
   json.nodes.forEach((n: any, i: number) => (n.children ?? []).forEach((c: number) => { parent[c] = i; }));
@@ -65,7 +65,7 @@ test('the Exo hero\'s clips are in place: the pelvis keeps its height but not it
   const rotate = (q: number[], v: number[]) => { const r = qmul(qmul(q, [v[0], v[1], v[2], 0]), [-q[0], -q[1], -q[2], q[3]]); return [r[0], r[1], r[2]]; };
   const pelvis = json.nodes.findIndex((n: any) => n.name === 'pelvis'), up = worldQ(parent[pelvis]);
   for (const an of json.animations as { name: string; samplers: any[]; channels: any[] }[]) {
-    if (/^Death/.test(an.name)) continue;
+    if (/^Death/.test(an.name) || an.name === 'Fin_RunThrough') continue;   // Fin_RunThrough is the classic hero's own clip (Dom 2026-10-23: STAND_INS; Mixamo's has no thrust): authored against Death_RunThrough, it keeps its lunge
     const ch = an.channels.find((c) => c.target.node === pelvis && c.target.path === 'translation'); assert.ok(ch, `${an.name} moves the pelvis`);
     const acc = json.accessors[an.samplers[ch.sampler].output], view = json.bufferViews[acc.bufferView];
     const f = new Float32Array(bin.buffer.slice(bin.byteOffset + (view.byteOffset ?? 0) + (acc.byteOffset ?? 0), bin.byteOffset + (view.byteOffset ?? 0) + (acc.byteOffset ?? 0) + acc.count * 12));
