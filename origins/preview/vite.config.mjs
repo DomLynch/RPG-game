@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { fileURLToPath, URL, URLSearchParams } from 'node:url';
 import { basename } from 'node:path';
 import { optimizeGlb } from '../../scripts/optimize-glb.mjs';
@@ -54,6 +54,11 @@ export default defineConfig({
     async generateBundle() {
       for (const dir of ['arena', 'zones']) for (const name of await readdir(`${repo}public/${dir}`)) this.emitFile({ type: 'asset', fileName: `${dir}/${name}`, source: await readFile(`${repo}public/${dir}/${name}`) });
       for (const name of (await readdir(`${repo}public/world/kit`)).filter((n) => n.startsWith('goblin-'))) this.emitFile({ type: 'asset', fileName: `world/kit/${name}`, source: await readFile(`${repo}public/world/kit/${name}`) });   // a skin's model files (building-skins.json models): served next to the page, not from the live game's folder  // zones/: the zone domes' painted backdrops (goblin-field-defs.json backdrops rows)
+      // The Inkverse look flag's maps and figures (hero ink maps, warrior-ink atlas, Kachujin GLBs): a recursive copy, served at world/ink/** where the page asks for them
+      for (const rel of await readdir(`${repo}public/world/ink`, { recursive: true, withFileTypes: false })) {
+        const file = `${repo}public/world/ink/${rel}`;
+        if ((await stat(file)).isFile()) this.emitFile({ type: 'asset', fileName: `world/ink/${rel}`, source: await readFile(file) });
+      }
     },
   }],
 });
