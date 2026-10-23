@@ -38,8 +38,8 @@ export type InkLook = {
   readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
   /** Alternate colour atlases (Characters' ink-painted bodies): every mesh named in `objects` draws `file` (under the page base) as its colour map in place of the atlas it loaded with, same UVs; a file that cannot be fetched leaves the original. */
   readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string }[];
-  /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagFrames` how often the scene is searched again for tagged objects (pooled decals and effects appear lazily). */
-  readonly tagPass: { readonly pull: number; readonly retagFrames: number };
+  /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagMs` how often (milliseconds) the scene is searched again for tagged objects (the hero, pooled decals and effects appear lazily). */
+  readonly tagPass: { readonly pull: number; readonly retagMs: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
   readonly skyPlate: { readonly passthrough: number; readonly objects: readonly string[] };
   /** Alternate backdrop plates drawn under this look: `from` is the plate file the zone names, `to` the ink-painted one (a missing `to` falls back to `from`). */
@@ -80,7 +80,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagMs']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
@@ -280,11 +280,11 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       if ((m as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(CHAR_LAYER); tagList.push({ mesh: m, layer: CHAR_LAYER, own }); }
     });
   };
-  let frames = 0; const toLight = new THREE.Vector3();
+  let lastRetag = -Infinity; const toLight = new THREE.Vector3();
   // For picking tags: every mesh's object name, material name and kind in the scene right now (`window.inkNames()`, a look-test aid).
   (window as unknown as { inkNames: () => unknown }).inkNames = () => { const seen = new Map<string, number>(); scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; for (const x of mats) { const k = `${o.name || '-'} | ${x?.name || '-'} | ${x?.type}${(m as THREE.SkinnedMesh).isSkinnedMesh ? ' skinned' : ''}${(x as THREE.MeshBasicMaterial)?.emissive && (x as THREE.MeshStandardMaterial).emissiveIntensity > 0 ? ' emissive' : ''}`; seen.set(k, (seen.get(k) ?? 0) + 1); } }); return [...seen].map(([k, n]) => `${n} x ${k}`); };
   const render = (): void => {
-    if (frames++ % look.tagPass.retagFrames === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
+    const now = performance.now(); if (now - lastRetag >= look.tagPass.retagMs) { lastRetag = now; retag(); }   // by the clock, not by frame count (a slow device draws few frames): the hero, pooled decals and effects arrive lazily, so look again every `retagMs`
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
     camera.layers.set(0); renderer.setRenderTarget(color); withoutHud(scene, () => renderer.render(scene, camera));   // the scene-space HUD pieces (name tags, "!", rings: userData.hud, hud-tag.ts) are left out of the pass and drawn plain over it below
     if (look.skyPlate.passthrough > 0) { const bg = scene.background; scene.background = null; renderer.setRenderTarget(skyTarget); renderer.setClearColor(TAG_CLEAR, 1); renderer.autoClear = true; camera.layers.set(SKY_LAYER); withoutHud(scene, () => renderer.render(scene, camera)); scene.background = bg; camera.layers.set(0); }
