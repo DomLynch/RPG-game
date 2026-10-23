@@ -1,7 +1,16 @@
 // Where a release row runs (Dom 2026-10-09, "the Mac is the exception"): placement is DATA here, not a switch. A row is on the Mac only
 // when it is listed below with its reason; a row joins the list only with a reason and, for "slower on HF", a MEASURED number.
 // Re-measure monthly. tests/row-placement.test.ts pins this list to what vps-receipts.mjs coverageGaps() computes, so it cannot drift.
+import { readFileSync } from 'node:fs';
 import { matchesGlob } from 'node:path';
+/** The Mac 1-minute load at or above which a GPU row may go to the T4 (Dom 2026-10-17, Mac first); a data row: scripts/lib/hf-routing.json. */
+export const HF_MAC_LOAD_MAX = Number(JSON.parse(readFileSync(new URL('./hf-routing.json', import.meta.url), 'utf8')).mac_load_max);
+/** Why a row is on the T4, one line for the deploy log; `load` is the Mac 1-minute load that sent it there. */
+export function t4Reason(row, load) {
+  const entry = ON_T4.find(item => item.row === row), gpu = GPU_ONLY.includes(row);
+  const why = gpu ? `GPU-only: SwiftShader ${entry?.cpu_s ?? 'never finished'}${entry?.cpu_s ? ' s' : ''} against the ${ROW_CEILING_S} s ceiling` : `faster on the T4 (${entry?.t4_s ?? '?'} s, VPS ${entry?.vps_s ?? '?'} s)`;
+  return `row ${row} on the T4: ${why}; Mac load ${load.toFixed(1)} >= ${HF_MAC_LOAD_MAX}, the Mac cannot run it now`;
+}
 export const MAC_MAX = 9;          // the most rows a release may run on the Mac: the 9 that are Mac-only by nature (row 54, the WebKit landscape Pit, Lead 2026-10-12) (Lead 2026-10-09: Mac = the Mac-only rows only)
 export const MAC_ENFORCE = false;  // false: an over-limit release prints the refusal text and runs (Lead 2026-10-09: do not block the next release)
 // Rows 2 and 44 were tried on the T4 again on 2026-10-10 (Strategy asked; job 6aca1214fee2c90070185fa6, release AD's tree a6d408cb4, t4-medium, width 1, 20 min cap):
