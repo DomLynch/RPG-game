@@ -38,6 +38,8 @@ export type InkLook = {
   readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
   /** Alternate colour maps (Characters' ink-painted bodies), files under the page base, same UVs, only the colour map (normal, roughness, occlusion untouched); a file that cannot be fetched leaves the original. A mesh named in `objects` draws `file` for its map; a material named in `materials` (the hero rig: Steel, Skin, Heraldry...) draws that material's own file. */
   readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string; readonly materials: Readonly<Record<string, string>> }[];
+  /** Trusted placements for stills (preview only): `?still=<key>` puts the hero on the named spot of its zone and keeps it there for `holdMs` after [zone ready] (the page's own arrival and saved-place logic cannot move it back meanwhile), the camera snapped behind. */
+  readonly stills: { readonly holdMs: number; readonly spots: Readonly<Record<string, { readonly zone: string; readonly x: number; readonly z: number; readonly headingDeg: number }>> };
   /** A figure idling beside the hero in one zone (`?fig=<variant>` picks a `variants` file; none = nothing added): at (`x`, `z`) facing `facingDeg`, `scale` times its file's size, looping the clip named `clip` (else its first). */
   readonly testFigure: { readonly zone: string; readonly variants: Readonly<Record<string, string>>; readonly clip: string; readonly x: number; readonly z: number; readonly facingDeg: number; readonly scale: number };
   /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagMs` how often (milliseconds) the scene is searched again for tagged objects (the hero, pooled decals and effects appear lazily). */
@@ -76,6 +78,9 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
       if (!a || typeof a.file !== 'string' || typeof a.materials !== 'object' || !a.materials || !Object.values(a.materials).every((x) => typeof x === 'string' && x)) throw new Error(`ink look "${id}": atlases[${i}] is { objects, file, materials: { name: file } }`);
       return { objects: names(id, `atlases[${i}].objects`, a.objects), file: a.file, materials: a.materials as Record<string, string> };
     });
+    const st = fields.stills as Record<string, unknown> | undefined;
+    if (!st || typeof st !== 'object' || !st.spots || typeof st.spots !== 'object') throw new Error(`ink look "${id}": stills is { holdMs, spots: { key: { zone, x, z, headingDeg } } }`);
+    const stills = { holdMs: num(id, 'stills.holdMs', st.holdMs), spots: Object.fromEntries(Object.entries(st.spots as Record<string, Record<string, unknown>>).map(([key, s]) => { if (typeof s.zone !== 'string') throw new Error(`ink look "${id}": stills.spots.${key}.zone is a zone id`); return [key, { zone: s.zone, ...group(id, `stills.spots.${key}`, s, ['x', 'z', 'headingDeg']) }]; })) };
     const tf = fields.testFigure as Record<string, unknown> | undefined;
     if (!tf || typeof tf !== 'object' || typeof tf.zone !== 'string' || typeof tf.clip !== 'string' || !tf.variants || typeof tf.variants !== 'object' || !Object.values(tf.variants).every((x) => typeof x === 'string' && x)) throw new Error(`ink look "${id}": testFigure is { zone, variants: { key: file }, clip, x, z, facingDeg, scale }`);
     const testFigure = { zone: tf.zone, clip: tf.clip, variants: tf.variants as Record<string, string>, ...group(id, 'testFigure', tf, ['x', 'z', 'facingDeg', 'scale']) };
@@ -88,7 +93,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], testFigure: testFigure as InkLook['testFigure'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagMs']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], stills: stills as InkLook['stills'], testFigure: testFigure as InkLook['testFigure'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagMs']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
@@ -284,14 +289,14 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
       if (look.material.on && look.material.exclude.length) for (const x of Array.isArray(m.material) ? m.material : [m.material]) if (nameIn(look.material.exclude, x.name) && !x.defines?.INK_OFF) { x.defines = { ...x.defines, INK_OFF: 1 }; x.needsUpdate = true; }   // these keep their own shading
       const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
-      const layer = hit(look.tags.red) ? 1 : hit(look.tags.blue) ? 2 : 0;
+      const layer = hit(look.tags.red) ? RED_LAYER : hit(look.tags.blue) ? BLUE_LAYER : 0;
       if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }
       if ((m as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(CHAR_LAYER); tagList.push({ mesh: m, layer: CHAR_LAYER, own }); }
     });
   };
   let lastRetag = -Infinity; const toLight = new THREE.Vector3();
   // For picking tags: every mesh's object name, material name and kind in the scene right now (`window.inkNames()`, a look-test aid).
-  (window as unknown as { inkNames: () => unknown }).inkNames = () => { const seen = new Map<string, number>(); scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; for (const x of mats) { const k = `${o.name || '-'} | ${x?.name || '-'} | ${x?.type}${(m as THREE.SkinnedMesh).isSkinnedMesh ? ' skinned' : ''}${(x as THREE.MeshBasicMaterial)?.emissive && (x as THREE.MeshStandardMaterial).emissiveIntensity > 0 ? ' emissive' : ''}`; seen.set(k, (seen.get(k) ?? 0) + 1); } }); return [...seen].map(([k, n]) => `${n} x ${k}`); };
+  (window as unknown as { inkNames: () => unknown }).inkNames = () => { const seen = new Map<string, number>(); scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; for (const x of mats) { const k = `${o.name || '-'} | ${x?.name || '-'} | ${x?.type}${(m as THREE.SkinnedMesh).isSkinnedMesh ? ' skinned' : ''}${(x as THREE.MeshStandardMaterial)?.emissive && (x as THREE.MeshStandardMaterial).emissiveIntensity > 0 ? ' emissive' : ''}`; seen.set(k, (seen.get(k) ?? 0) + 1); } }); return [...seen].map(([k, n]) => `${n} x ${k}`); };
   const render = (): void => {
     const now = performance.now(); if (now - lastRetag >= look.tagPass.retagMs) { lastRetag = now; retag(); }   // by the clock, not by frame count (a slow device draws few frames): the hero, pooled decals and effects arrive lazily, so look again every `retagMs`
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
@@ -301,7 +306,7 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
       withoutHud(scene, () => {
-        for (const layer of [1, 2, 3]) {   // red, blue, character: each mesh wears that layer's tag material for its own draw
+        for (const layer of [RED_LAYER, BLUE_LAYER, CHAR_LAYER]) {   // red, blue, character: each mesh wears that layer's tag material for its own draw
           const these = tagList.filter((t) => t.layer === layer); if (!these.length) continue;
           for (const t of these) { const tm = tagMaterialFor(t.own, layer) as THREE.ShaderMaterial; if (tm.uniforms?.opacity) tm.uniforms.opacity.value = t.own.opacity; t.mesh.material = tm; }
           camera.layers.set(layer); renderer.render(scene, camera);
