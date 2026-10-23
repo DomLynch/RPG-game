@@ -1,6 +1,16 @@
 # Code quality lane (Auditor)
 
-## 2026-10-23 ~11:0x +04: HOLD (OpenTrident pivot). READ FIRST; supersedes the NOW list below.
+## 2026-10-23 ~14:4x +04: #3652 Exo Gray hero PASSED @c9a4baf3b (issuecomment-6362983203). READ FIRST.
+**Done:** reds closed in 2 pushes: row 1 (classic Fin_RunThrough kept), row 39 (fixed forward: classic body plus an Exo noLoot pin), hero-body test 202. Row 9 hit the GitHub 600 s cap twice at head (trunk 517 s). Lead ruled Deploy's Mac green (2m02s, exact tree) as its receipt. Deploy cuts K6q35 = #3652 alone (Dom's GO given). #3651 K6q34 stays paused; Frankendom is otherwise on hold for OpenTrident.
+**Owed after release (Lead):** a fix-forward PR for CI row 9's ceiling (bump or split): it sits at 86% of 600 s on trunk.
+**Gotchas:**
+- Strategy: VPS results at load above 8 are not evidence; this PR's rows went to GitHub (full set + trunk control).
+- On the VPS, rows 2 and 36 hit the 600 s ceiling on trunk too, and row 13 has no initdb.
+- The GitHub row-9 artifact list shows where a row stalled.
+- When the PR contains the trunk tip, run-pr-on-trunk.sh prints "fatal: Needed a single revision" (a fast-forward merge); the tree is still right.
+- Clip-trace script for contact checks: VPS `/srv/dev-jobs/auditor-3652-blade.mjs` (copy it into scripts/ in a checkout, run `node <it> <glb> Attack Heavy`).
+
+## 2026-10-23 ~11:0x +04: HOLD (OpenTrident pivot); superseded by the entry above.
 **Lead:** Frankendom is on temporary hold; live stays d3a8eaefa. #3651 (K6q34) stays PAUSED and no new gates run, with ONE exception, below. At 10:58 no auditor gate was running on the VPS.
 **Exception: #3652 (Exo Gray hero) is unparked (Lead + Strategy).** Characters and Combat finish it. Once auditor:ready is on, run the usual VPS gates (run-pr-on-trunk.sh) with every row at the head, then post the PASS line. It does NOT enter a train: it parks until Dom says "ship the Exo hero". At 11:0x it was a draft @53dae282f with no labels.
 **#3652 acceptance line (Strategy, via Lead):**
