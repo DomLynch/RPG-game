@@ -1,0 +1,14 @@
+{
+  "inkComics": [
+    {
+      "id": "light",
+      "fields": {
+        "layerZ": 0,
+        "vignette": { "on": 1, "bandPct": 11, "depthPow": 2.4, "gradientAlpha": 0.5, "blobs": 110, "blobMinPct": 0.5, "blobMaxPct": 3.4, "spikes": 18, "jitter": 0.3, "seed": 7, "opacity": 0.92, "texturePx": 420, "ink": [0.02, 0.02, 0.03] },
+        "halftone": { "on": 1, "cellPx": 4, "dotPct": 26, "angleDeg": 45, "opacity": 0.1, "blend": "multiply", "ink": [0.02, 0.02, 0.03] },
+        "panel": { "on": 1, "thicknessPx": 11, "raggedPx": 7, "steps": 70, "seed": 3, "fadeInMs": 140, "fadeOutMs": 260, "opacity": 0.96, "fightClass": "infight", "ink": [0.02, 0.02, 0.03] },
+        "hitSplash": { "on": 0, "count": 5, "sizePct": 9, "holdMs": 220, "seed": 11, "ink": [0.02, 0.02, 0.03] }
+      }
+    }
+  ]
+}

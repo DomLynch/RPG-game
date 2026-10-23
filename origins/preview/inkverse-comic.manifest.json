@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "inkComic",
+      "file": "inkverse-comic.json",
+      "at": "inkComics",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}
