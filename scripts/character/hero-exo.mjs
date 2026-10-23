@@ -207,7 +207,8 @@ E.j.nodes.forEach((n, ni) => {
       remapped++;
     }
   }
-  out.nodes.push({ name: n.name, mesh: mi, skin: 0 }); newMeshNodes.push(out.nodes.length - 1);
+  // the game's loader (characters.ts missingMap) finds the warrior's skin maps on the node named `Steel` and refuses a rig without it (a capsule stands in): Exo's suit is the body draw with both maps
+  out.nodes.push({ name: n.name === 'Exo_Suit' ? 'Steel' : n.name, mesh: mi, skin: 0 }); newMeshNodes.push(out.nodes.length - 1);
 });
 out.scenes[0].nodes.push(...newMeshNodes);
 console.log(`Exo meshes ${newMeshNodes.length}, ${remapped} vertices re-weighted (${merged} had joints merged)`);
