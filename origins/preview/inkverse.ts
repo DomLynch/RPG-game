@@ -32,6 +32,8 @@ export type InkLook = {
   readonly grain: { readonly strength: number; readonly scalePx: number };
   readonly vignette: { readonly strength: number; readonly start: number; readonly breakup: number; readonly freq: number };
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
+  /** Alternate backdrop plates drawn under this look: `from` is the plate file the zone names, `to` the ink-painted one (a missing `to` falls back to `from`). */
+  readonly plates: readonly { readonly from: string; readonly to: string }[];
 };
 
 const num = (id: string, what: string, v: unknown): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`ink look "${id}": ${what} is a number`); return v; };
@@ -53,9 +55,10 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const ao = group(id, 'ao', fields.ao, ['strength', 'radiusPx', 'range', 'bias']), hatch = group(id, 'hatch', fields.hatch, ['strength', 'below', 'spacingPx', 'duty']);
     const character = group(id, 'character', fields.character, ['silhouetteOnly', 'darken', 'contrast', 'rimStrength', 'rimPow']), aa = group(id, 'aa', fields.aa, ['fxaa']);
     const edges = group(id, 'edges', fields.edges, ['soft', 'thicknessPx', 'silhouetteMul', 'depthRel', 'normalDot', 'strength', 'darkBelow', 'fadeNear', 'fadeFar']), grain = group(id, 'grain', fields.grain, ['strength', 'scalePx']), vignette = group(id, 'vignette', fields.vignette, ['strength', 'start', 'breakup', 'freq']);
-    const tags = fields.tags as Record<string, unknown> | undefined;
+    const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
+    if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) } });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, plates: plates as InkLook['plates'] });
   }
   return out;
 }

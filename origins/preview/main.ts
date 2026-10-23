@@ -40,6 +40,7 @@ import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
 import { killCopy, legendIdOf, zoneHint } from './legend-copy.ts';
 import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
+import { setPlateSwaps } from './plate-swap.ts';
 import { createAreaSky } from './area-sky.ts';
 import { areaSky, goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
 import { propKit, withPropKit } from './prop-kit.ts';
@@ -160,7 +161,7 @@ const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 let gfx: { render(): void; compile(): void; setSize(w: number, h: number): void } | null = null;
 const inkId = new URLSearchParams(location.search).get('ink') || null;   // ?ink=<row id> (inkverse.ts, a look test): the Inkverse pass takes the lift's slot; absent = none of it is fetched
 const gfxWanted = !!inkId || gfxOn(location.search, fxNum('gfx.default') > 0);
-const gfxLoad: Promise<unknown> = inkId ? import('./inkverse.ts').then((m) => { const look = m.inkLook(inkId); if (look) { gfx = m.createInkverse(renderer, scene, camera, look); gfx.setSize(innerWidth, innerHeight); } }).catch(() => {}) : gfxWanted ? import('../../src/fight/gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
+const gfxLoad: Promise<unknown> = inkId ? import('./inkverse.ts').then((m) => { const look = m.inkLook(inkId); if (look) { setPlateSwaps(look.plates); gfx = m.createInkverse(renderer, scene, camera, look); gfx.setSize(innerWidth, innerHeight); } }).catch(() => {}) : gfxWanted ? import('../../src/fight/gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;

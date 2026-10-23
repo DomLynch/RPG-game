@@ -4,6 +4,7 @@
 // Ported from the Test Zone's branch (zone/goblin-field-dome, Dom's reference look): the painted sky, the repeat ring of the palette's picture AND (since 2026-10-19) the sector and matte-card pictures: the portrait row of the fortress palette is a matte card, so without them a phone threw "non-finite" in the ring painter and kept the plain sky.
 import * as THREE from 'three';
 import { prng } from '../world/generate.ts';
+import { plateFile } from './plate-swap.ts';
 import { goblinBackdrop, goblinHarmonics, goblinRule as R, type GoblinBackdrop, type GoblinPalette } from '../world/goblin-field-rules.ts';
 
 // The seeded generator is the world's own (generate.ts prng: mulberry32). The smoke columns' seed salt is part of the seed format (change it and every skyline's columns move, pinned by tests/horizon-dome.test.ts), not tuning:
@@ -77,7 +78,8 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
   const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthTest: false, depthWrite: false }), geo = new THREE.SphereGeometry(R('domeRadius'), 64, 32, 0, Math.PI * 2, 0, Math.PI * R('domeHalf'));
   const mesh = new THREE.Mesh(geo, mat); mesh.name = 'horizon-dome'; mesh.renderOrder = -1000; mesh.frustumCulled = false; scene.add(mesh);
   const shape = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null, images = new Map<string, Promise<HTMLImageElement>>();
-  const load = (file: string) => { let p = images.get(file); if (!p) { p = new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = `${base}${file}`; }); images.set(file, p); } return p; };
+  const fetchImage = (file: string) => new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = `${base}${file}`; });
+  const load = (file: string) => { let p = images.get(file); if (!p) { const swap = plateFile(file); p = swap === file ? fetchImage(file) : fetchImage(swap).catch(() => fetchImage(file)); images.set(file, p); } return p; };   // a look's alternate plate (plate-swap.ts), or the plate itself when none is set or the alternate is missing
   let sector: THREE.Group | null = null, sectorOf: GoblinBackdrop | null = null;
   const dropSector = () => { if (!sector) return; scene.remove(sector); const maps = new Set<THREE.Texture>(); sector.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); const mt = m.material as THREE.MeshBasicMaterial; if (mt.map) maps.add(mt.map); mt.dispose(); }); maps.forEach((t) => t.dispose()); sector = null; sectorOf = null; };
   const showSector = (img: HTMLImageElement, b: GoblinBackdrop) => {   // (depthTest ON: a see-through layer is drawn after every opaque one, so with the test off it painted over the ground and the props)  one non-repeating arc at the picture's own resolution, facing b.azimuth; the dome's painted sky shows round it
