@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { heroBodyFile, heroBodyFiles, heroContact } from '../src/fight/hero-body-rows.ts';
+import { heroBodyFile, heroBodyFiles, heroContact, heroSwing } from '../src/fight/hero-body-rows.ts';
 
 // The hero body is ONE row (src/fight/hero-body-rows.json): the Mixamo Exo Gray ('warrior.glb') or the classic hero ('hero-classic.glb'), flipped by editing `body`. Both must meet the same rig contract, so a flip is safe.
 const dir = new URL('../src/assets/', import.meta.url);
@@ -38,14 +38,16 @@ test('the Exo rig keeps the classic rest rotations, so every clip authored on th
   }
 });
 
-test('the Exo strike clips meet at the blade-furthest-forward frame after the wind-up on the sim\'s own contact tick (presentation only: the sim ticks are untouched)', async () => {
+test('the Exo strike clips start at their build-up (no flat lead-in) and meet at the blade\'s full extension on the sim\'s own contact tick, at under 2x the authored speed (presentation only: the sim ticks are untouched)', async () => {
   const { ATTACKS: specs } = await import('../src/fight/combat.ts'), { swingProgress } = await import('../src/fight/blade.ts');
   const { json } = parse('warrior.glb'), seconds = (name: string): number => { const an = json.animations.find((a: { name: string }) => a.name === name); return json.accessors[an.samplers[0].input].max[0]; };
   assert.equal(heroContact('Return'), undefined, 'Return keeps the path source (Mixamo\'s Return has no strike after the wind-up)');
-  for (const [role, key, frame] of [['Attack', 'light', 45], ['Heavy', 'heavy', 51]] as const) {
-    const spec = specs[key];
-    const contact = spec.contact / spec.recovery, at = swingProgress(contact, contact, heroContact(role)) * seconds(role);
-    assert.ok(Math.abs(at * 30 - frame) < 0.5, `${role}: the sim contact tick plays clip frame ${(at * 30).toFixed(2)}, the authored strike is frame ${frame}`);
+  // Measured hand path of warrior.glb (scripts: hand_r against the pelvis, 30 fps): the lead-in is flat to frame 7 (Attack) / 4 (Heavy), full extension is frame 24 / 26.
+  for (const [role, key, first, frame] of [['Attack', 'light', 7, 24], ['Heavy', 'heavy', 4, 26]] as const) {
+    const spec = specs[key], contact = spec.contact / spec.recovery, clipFrame = (tick: number) => heroSwing(role, swingProgress(tick / spec.recovery, contact, heroContact(role)), true) * seconds(role) * 30;
+    assert.ok(Math.abs(clipFrame(0) - first) < 0.5, `${role}: the first swing tick plays clip frame ${clipFrame(0).toFixed(2)}, the build-up starts at frame ${first}`);
+    assert.ok(Math.abs(clipFrame(spec.contact) - frame) < 0.5, `${role}: the sim contact tick plays clip frame ${clipFrame(spec.contact).toFixed(2)}, the full extension is frame ${frame}`);
+    assert.ok((frame - first) / 30 / (spec.contact / 60) < 2, `${role}: the wind-up plays at under 2x the authored speed`);
   }
 });
 
