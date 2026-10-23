@@ -9,9 +9,9 @@
     { "id": "wolf", "heightM": 0.647, "lengthM": 1, "glb": "/world/wolf.glb", "sha256": "5390a72819ada693cad7ca3c4c5788b3d9d9357d48b17ad823d018e86b30becc" },
     { "id": "boar", "heightM": 0.64, "lengthM": 1.002, "glb": "/world/boar.glb", "sha256": "6f63434746793972b3d5c8c2528889d004bdbd040883c92116be6b13d97308fe" },
     { "id": "bear", "heightM": 0.655, "lengthM": 1.01, "glb": "/world/bear.glb", "sha256": "df116ed82ad8e8d77b6390008b72d48c2c99ce9d97679605e29379407cc7191e" },
-    { "id": "witch", "heightM": 1.751, "lengthM": 1.232, "glb": "/world/witch.glb", "sha256": "c45778e77863ebe4ad4304df1ce686e400492daab5473f76b6ba6e9dc46d7a6e" },
-    { "id": "knight", "heightM": 2.122, "lengthM": 0.83, "glb": "/world/knight.glb", "sha256": "2d0e70f87c321da7da7bf6906ff6c0f2ac168d44fd7df6563bf2905b41e07297" },
-    { "id": "pitborn", "heightM": 2.002, "lengthM": 1.839, "glb": "/world/pitborn.glb", "sha256": "9ea040aa1b3b30c84ffaa4f7965e03665ee23428195ca6e30b7577fc8a77a2e0" },
+    { "id": "witch", "heightM": 1.754, "lengthM": 1.232, "glb": "/world/witch.glb", "sha256": "6d5e88d14a6f8686ca3139ff70bf25fb0e6351c73e9cd51c9a7f1c3633f334c6" },
+    { "id": "knight", "heightM": 2.123, "lengthM": 0.829, "glb": "/world/knight.glb", "sha256": "d3aa3cc4a605840f9cf46f98758d945da689bd340b4d71a15266b5a61b563a50" },
+    { "id": "pitborn", "heightM": 2.004, "lengthM": 1.839, "glb": "/world/pitborn.glb", "sha256": "23a85d0d6f1cfe0fea8768c57b96b9f6fa5a13c84f6f3d1d233215a90a1af914" },
     { "id": "warrior", "heightM": 1.781, "lengthM": 1.628, "glb": "/world/warrior.glb", "sha256": "2b99b714d46682ada1a04571beb336c0ec1e0f6d12f1702b46ba75a2244c0b3c" }
   ],
   "exceptions": []

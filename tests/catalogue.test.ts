@@ -113,7 +113,7 @@ test('the rows say what the files say: tri counts, clips, cut bones, the armour 
     if (row.world) {
       const world = glb(row.world.asset);
       assert.equal(world.tris, row.world.tris, `${row.id}: world tris`); assert.ok(world.tris <= row.world.maxTris);
-      assert.deepEqual([...world.clips].sort(), [...engine.clips].sort(), `${row.id}: the world asset carries every clip`);
+      assert.deepEqual([...world.clips].filter((c) => ![...engine.clips].includes(c)), [], `${row.id}: a world clip the engine asset does not have`);   // the world asset keeps the clips a zone plays (a subset: scripts/world-body-clips.ts); tests/creature-clips.test.ts fails a zone weapon whose clip is missing
       if (row.finisher.cut) for (const bone of Object.values(row.finisher.cut).flatMap((b) => (Array.isArray(b) ? b : Object.values(b).flat()))) assert.ok(world.joints.has(bone as string), `${row.id}: ${bone} is a joint of the world asset`);
     }
     assert.ok(row.armour.every((id) => (LOOT[row.id as OpponentId] ?? []).includes(id)), `${row.id}: armour comes from its own loot pieces`);
