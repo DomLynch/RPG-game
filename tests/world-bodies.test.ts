@@ -16,10 +16,11 @@ test('every skinned world body is at most 8,200 triangles with one texture', () 
   for (const f of BODIES) { const w = glb(`public/world/${f}`); assert.ok(w.tris <= 8200, `${f}: ${w.tris} tris`); assert.equal(w.images, 1, `${f}: one texture`); }
 });
 
-test('each world body carries its engine rig: the same joints and clip names, and the catalogue row points at it', () => {
+test('each world body carries its engine rig: the same joints and clip names it plays (a subset of the engine body\'s: the world drops the clips no zone plays), and the catalogue row points at it', () => {
   for (const row of CATALOGUE.filter((r) => r.world)) {
     const w = glb(row.world!.asset), e = glb(row.engine.asset);
-    assert.equal(w.joints, e.joints, `${row.id}: joints`); assert.deepEqual(w.clips, [...e.clips].sort(), `${row.id}: clips`);
+    assert.equal(w.joints, e.joints, `${row.id}: joints`);
+    assert.deepEqual(w.clips.filter((c) => !e.clips.includes(c)), [], `${row.id}: a world clip the engine body does not have`);   // tests/creature-clips.test.ts is the other half: every clip a zone's weapons ask for is in the world file
     assert.equal(w.tris, row.world!.tris, `${row.id}: the row's tri count`);
   }
   for (const f of BODIES) assert.ok(CATALOGUE.some((r) => r.world?.asset === `public/world/${f}`) || /^warrior/.test(f), `public/world/${f} has a catalogue row`);

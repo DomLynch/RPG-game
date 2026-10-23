@@ -4,6 +4,7 @@
 # Steps: join the skinned body meshes (rigid carried parts such as weapons are dropped), decimate on geometry (vertex-group weights follow the collapse), unwrap fresh,
 # bake every source material's base colour into ONE atlas through Emission (copied, not relit), export the armature and actions untouched.
 #   blender -b -P scripts/character/world_body.py -- <duel.glb> <out.glb> [tris 8000] [size 1024]
+# BAKE_Q=<WebP quality, default 90>,
 # BAKE_DROP=<comma list of material-name prefixes to drop> (default Weapon), BAKE_FMT=WEBP|PNG, BAKE_LIFT=<gamma> as in herolook_bake.py,
 # BAKE_CAGE / BAKE_RAY=<fraction of body height> for the bake cage extrusion and max ray distance (default 0.01 / 0.03).
 import os
@@ -128,6 +129,6 @@ bpy.data.objects.remove(hi, do_unlink=True)
 low.name = os.path.splitext(os.path.basename(DST))[0]
 low.parent = arm
 os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format=os.environ.get("BAKE_FMT", "WEBP"), export_image_quality=90,
+bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format=os.environ.get("BAKE_FMT", "WEBP"), export_image_quality=int(os.environ.get("BAKE_Q", "90")),
                           export_animation_mode="ACTIONS", export_force_sampling=False, use_selection=False)
 print(f"WORLD-BODY {SRC} {hi_tris} tris -> {DST} {low_tris} tris, atlas {SIZE}, {time.time() - t0:.0f}s", flush=True)
