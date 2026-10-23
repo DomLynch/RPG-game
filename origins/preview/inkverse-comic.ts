@@ -10,7 +10,7 @@ type Rgb = readonly [number, number, number];
 export type InkComic = {
   readonly id: string;
   readonly layerZ: number;
-  readonly vignette: { readonly on: number; readonly bandPct: number; readonly gradientAlpha: number; readonly blobs: number; readonly blobMinPct: number; readonly blobMaxPct: number; readonly spikes: number; readonly jitter: number; readonly seed: number; readonly opacity: number; readonly texturePx: number; readonly ink: Rgb };
+  readonly vignette: { readonly on: number; readonly bandPct: number; readonly depthPow: number; readonly gradientAlpha: number; readonly blobs: number; readonly blobMinPct: number; readonly blobMaxPct: number; readonly spikes: number; readonly jitter: number; readonly seed: number; readonly opacity: number; readonly texturePx: number; readonly ink: Rgb };
   readonly halftone: { readonly on: number; readonly cellPx: number; readonly dotPct: number; readonly angleDeg: number; readonly opacity: number; readonly blend: string; readonly ink: Rgb };
   readonly panel: { readonly on: number; readonly thicknessPx: number; readonly raggedPx: number; readonly steps: number; readonly seed: number; readonly fadeInMs: number; readonly fadeOutMs: number; readonly opacity: number; readonly fightClass: string; readonly ink: Rgb };
   readonly hitSplash: { readonly on: number; readonly count: number; readonly sizePct: number; readonly holdMs: number; readonly seed: number; readonly ink: Rgb };
@@ -31,7 +31,7 @@ export function loadInkComics(raw: unknown): ReadonlyMap<string, InkComic> {
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
     const vig = fields.vignette as Record<string, unknown> | undefined, ht = fields.halftone as Record<string, unknown> | undefined, pn = fields.panel as Record<string, unknown> | undefined, hs = fields.hitSplash as Record<string, unknown> | undefined;
     const numbers = <K extends string>(what: string, v: unknown, keys: readonly K[]) => group(id, what, v, keys) as Record<K, number>;
-    const vignette = { ...numbers('vignette', vig, ['on', 'bandPct', 'gradientAlpha', 'blobs', 'blobMinPct', 'blobMaxPct', 'spikes', 'jitter', 'seed', 'opacity', 'texturePx']), ink: rgb(id, 'vignette.ink', vig?.ink) };
+    const vignette = { ...numbers('vignette', vig, ['on', 'bandPct', 'depthPow', 'gradientAlpha', 'blobs', 'blobMinPct', 'blobMaxPct', 'spikes', 'jitter', 'seed', 'opacity', 'texturePx']), ink: rgb(id, 'vignette.ink', vig?.ink) };
     const halftone = { ...numbers('halftone', ht, ['on', 'cellPx', 'dotPct', 'angleDeg', 'opacity']), blend: ht?.blend, ink: rgb(id, 'halftone.ink', ht?.ink) };
     const panel = { ...numbers('panel', pn, ['on', 'thicknessPx', 'raggedPx', 'steps', 'seed', 'fadeInMs', 'fadeOutMs', 'opacity']), fightClass: pn?.fightClass, ink: rgb(id, 'panel.ink', pn?.ink) };
     const hitSplash = { ...numbers('hitSplash', hs, ['on', 'count', 'sizePct', 'holdMs', 'seed']), ink: rgb(id, 'hitSplash.ink', hs?.ink) };
@@ -57,7 +57,7 @@ export function stream(seed: number): () => number {
 export function vignetteBlobs(v: InkComic['vignette'], w: number, h: number): { cx: number; cy: number; pts: Pt[] }[] {
   const rnd = stream(v.seed), short = Math.min(w, h), band = (v.bandPct / 100) * short, out: { cx: number; cy: number; pts: Pt[] }[] = [];
   for (let i = 0; i < v.blobs; i++) {
-    const edge = Math.floor(rnd() * 4), along = rnd(), depth = rnd() * band;
+    const edge = Math.floor(rnd() * 4), along = rnd(), depth = Math.pow(rnd(), v.depthPow) * band;   // depthPow above 1 crowds the blots toward the very edge
     const cx = edge === 0 ? along * w : edge === 1 ? w - depth : edge === 2 ? along * w : depth;
     const cy = edge === 0 ? depth : edge === 1 ? along * h : edge === 2 ? h - depth : along * h;
     const r = ((v.blobMinPct + rnd() * (v.blobMaxPct - v.blobMinPct)) / 100) * short, pts: Pt[] = [];
