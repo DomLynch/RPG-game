@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 
 const [targetFile, sourceFile, outFile] = process.argv.slice(2);
 assert.ok(targetFile && sourceFile && outFile, 'usage: exo-hero-clips.mjs <target rig.glb> <mixamo clips.glb> <out.glb>');
-const STAND_INS = new Set([]);   // none: Dom 2026-10-23, Mixamo's own clip for every one of the 27, the four nearest-match ones (Death_QuietOne, Skill_WitchArm, Skill_Pommel, Fin_RunThrough) included; a name here would keep the classic hero's clip instead
+const STAND_INS = new Set(['Fin_RunThrough']);   // Dom 2026-10-23: Mixamo's own clip for every one of the 27, the four nearest-match ones (Death_QuietOne, Skill_WitchArm, Skill_Pommel, Fin_RunThrough) included, EXCEPT Fin_RunThrough: Mixamo's is a 2.4 s stand-still loop (blade tip never leaves guard), so the Run Through finisher's held drive lets go of the victim (release row 1, finisher-preview runThrough); the classic clip, authored against Death_RunThrough, keeps the blade through the chest. A name here keeps the classic hero's clip instead.
 const KEEP_TRAVEL = /^Death/;
 const read = (f) => { const b = fs.readFileSync(f), n = b.readUInt32LE(12); return { j: JSON.parse(b.subarray(20, 20 + n)), bin: Buffer.from(b.subarray(28 + n)) }; };
 const B = read(targetFile), A = read(sourceFile);
