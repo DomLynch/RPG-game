@@ -2971,15 +2971,15 @@
      "file": "src/assets/warrior.glb",
      "class": "hero",
      "over": {
-      "bytes": 3225056
+      "bytes": 4515644
      },
      "figures": {
-      "tris": 37702,
+      "tris": 37678,
       "skinnedVerts": 18674,
       "joints": 65,
-      "draws": 14,
+      "draws": 12,
       "textureSide": 512,
-      "bytes": 3225056,
+      "bytes": 4515644,
       "pngBytes": 0
      }
     }
