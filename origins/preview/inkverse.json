@@ -7,7 +7,7 @@
         "ink": [0.02, 0.02, 0.03],
         "tone": { "gamma": 2.2, "exposure": 1.35, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
         "stills": { "holdMs": 4000, "spots": { "town-spawn": { "zone": "0", "x": 0, "z": -36, "headingDeg": 180 } } },
-        "testFigure": { "zone": "0", "variants": { "red": "world/ink/figure/kachujin-red.glb", "grey": "world/ink/figure/kachujin-grey.glb" }, "clip": "Idle", "x": 1.8, "z": -33.5, "facingDeg": 180, "scale": 1 },
+        "testFigure": { "zone": "0", "variants": { "red": "world/ink/figure/kachujin-red.glb", "grey": "world/ink/figure/kachujin-grey.glb" }, "clip": "Idle", "x": 1.8, "z": -34.5, "facingDeg": 0, "scale": 0.88 },
         "atlases": [
           { "objects": ["warrior"], "file": "world/ink/warrior-ink.webp", "materials": {} },
           { "objects": [], "file": "", "materials": { "Steel": "world/ink/hero/Steel.webp", "WeaponLongsword": "world/ink/hero/WeaponLongsword.webp", "WeaponLongswordShaft": "world/ink/hero/WeaponLongswordShaft.webp", "Leather": "world/ink/hero/Leather.webp", "Heraldry": "world/ink/hero/Heraldry.webp", "Gambeson": "world/ink/hero/Gambeson.webp", "Wrap": "world/ink/hero/Wrap.webp", "Skin": "world/ink/hero/Skin.webp", "Face": "world/ink/hero/Face.webp", "Photo": "world/ink/hero/Photo.webp", "PhotoEyes": "world/ink/hero/PhotoEyes.webp", "PhotoTeeth": "world/ink/hero/PhotoTeeth.webp" } }
