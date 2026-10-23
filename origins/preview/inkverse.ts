@@ -81,8 +81,8 @@ export function patchInkMaterial(look: InkLook): void {
   const a = M.hatchAngleDeg * Math.PI / 180, C = THREE.ShaderChunk as Record<string, string>;
   const stepped = M.steps > 0 ? `r = floor(r * ${f(M.steps)} + 0.5) / ${f(M.steps)};` : '';
   C.aomap_fragment += `
-#ifndef INK_OFF
-{
+#if ( defined( STANDARD ) || defined( PHONG ) || defined( LAMBERT ) || defined( TOON ) ) && !defined( INK_OFF )
+{   // lit materials only: a basic material (the sky, an unlit effect) has no light to ramp and keeps its own colour
   float inkAlbedo = max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.04);
   vec3 inkLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular;
   float r = smoothstep(${f(M.rampLow)}, ${f(M.rampHigh)}, dot(inkLight, vec3(0.2126, 0.7152, 0.0722)) / inkAlbedo);
