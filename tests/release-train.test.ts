@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName, trustAt, withoutTrustedRows } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -206,6 +206,42 @@ test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at
   assert.equal(pickPublish([c(9, 'a', { statusCheckRollup: OK.filter((r) => r.workflowName !== 'unit-ci') })]), null, 'a rollup without unit-ci (failed dispatch) is not green');
   assert.deepEqual(missingRows(OK.slice(1)), ['unit-ci/receipt']);
   assert.equal(pickPublish([]), null);
+});
+
+test('a Lead TRUST line at the head stands in for its named release rows only (Lead 2026-10-22: K6q26 row 57, green on the Mac and VPS, lost on CI to the apt mirror)', () => {
+  const head = 'f'.repeat(40), at = '2026-10-22T11:00:00Z';
+  const job = (name: string, status: string, conclusion: string | null) => ({ __typename: 'CheckRun', workflowName: 'release-checks', name, status, conclusion, startedAt: at, completedAt: conclusion ? at : null });
+  const rows = [job('checks 3,9 (finisher-preview, polearm-browser-check)', 'COMPLETED', 'SUCCESS'), job('checks 57 (ground-prompt-check)', 'IN_PROGRESS', null), job('summary', 'COMPLETED', 'FAILURE')];
+  const rollup = [...OK.filter((r) => r.workflowName !== 'release-checks'), ...rows];
+  const lead = (body: string, authorAssociation = 'OWNER') => ({ body, authorAssociation });
+  const c = (comments: { body: string; authorAssociation: string }[]) => ({ number: 3621, headRefName: 'release-K6q26', baseRefName: TRUNK, headRefOid: head, createdAt: 'a', isDraft: false, labels: [{ name: 'candidate:pass' }], comments: [lead('Auditor: PASS @fffffffff'), ...comments], statusCheckRollup: rollup });
+  const trust = lead('Lead: TRUST @fffffffff rows 57 — green on the Mac and the VPS at this tree; CI lost to the apt mirror');
+  assert.equal(pickPublish([c([])]), null, 'no trust: the summary red and row 57 pending block, as before');
+  const { rows: trustedRows, reason } = trustAt([trust], head)!;
+  assert.deepEqual({ rows: trustedRows, reason }, { rows: [57], reason: 'green on the Mac and the VPS at this tree; CI lost to the apt mirror' });
+  assert.equal(pickPublish([c([trust])])?.number, 3621, 'trusted row 57: publishable');
+  assert.deepEqual(missingRows(withoutTrustedRows(rollup, trustAt([trust], head))), []);
+  assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 57 — x', 'NONE')])]), null, 'an outsider on the public repo cannot trust a row');
+  assert.equal(pickPublish([c([lead('Lead: TRUST @eeeeeeeee rows 57 — another head')])]), null, 'a trust for another head does not carry');
+  assert.equal(pickPublish([c([lead('Lead: TRUST @fffffffff rows 12 — the wrong row')])]), null, 'only the named rows are trusted');
+  assert.equal(trustAt([lead('Lead: TRUST @fffffffff rows 57')], head), null, 'a reason is required');
+  assert.equal(trustAt([lead('Auditor: TRUST @fffffffff rows 57 — not Lead')], head), null, 'only Lead writes a trust');
+  const failed57 = [...rollup.filter((r) => r.name !== 'checks 57 (ground-prompt-check)'), job('checks 57 (ground-prompt-check)', 'COMPLETED', 'FAILURE')];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: failed57 }]), null, 'a row that FAILED (an assertion) stays blocking even when the TRUST line names it (Lead\'s review, HIGH)');
+  const failedThenCancelled = [...failed57, { ...job('checks 57 (ground-prompt-check)', 'COMPLETED', 'CANCELLED'), startedAt: '2026-10-22T12:00:00Z', completedAt: '2026-10-22T12:30:00Z' }];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: failedThenCancelled }]), null, 'a failure on ANY attempt blocks, even when a later attempt was cancelled');
+  for (const lost of ['CANCELLED', 'TIMED_OUT']) assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: [...rollup.filter((r) => r.name !== 'checks 57 (ground-prompt-check)'), job('checks 57 (ground-prompt-check)', 'COMPLETED', lost)] }])?.number, 3621, `a row the runner lost (${lost}) is trusted`);
+  const t = trustAt([{ ...trust, url: 'https://github.com/DomLynch/RPG-game/pull/3621#issuecomment-1' }], head)!;
+  assert.equal(t.line, 'Lead: TRUST @fffffffff rows 57 — green on the Mac and the VPS at this tree; CI lost to the apt mirror', 'the line is kept verbatim for the audit');
+  assert.match(t.url, /issuecomment-1$/, 'with its comment URL');
+  const twoRed = [...rollup.filter((r) => r.name !== 'checks 3,9 (finisher-preview, polearm-browser-check)'), job('checks 3,9 (finisher-preview, polearm-browser-check)', 'COMPLETED', 'FAILURE')];
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: twoRed }]), null, 'another red row still blocks: the summary is not made green');
+  assert.equal(pickPublish([{ ...c([trust]), statusCheckRollup: [...rollup.filter((r) => r.workflowName !== 'unit-ci')] }]), null, 'a trust never covers another workflow');
+  const sh = readFileSync('scripts/release-train-publish.sh', 'utf8');
+  assert.match(sh, /release-train\.mjs trust "\$sha"/, 'the publisher reads the trust for the audited sha');
+  assert.match(sh, /export DEPLOY_TRUST_ROWS="\$trust_rows" DEPLOY_TRUST_REASON=/, 'and hands deploy.sh the same rows with the reason (scripts/lib/deploy-trust.sh)');
+  assert.match(readFileSync('scripts/release-train.mjs', 'utf8'), /\$\{trust\.line[^}]*\}" \(\$\{trust\.url/, 'the reason is the TRUST line verbatim with its comment URL');
+  assert.match(readFileSync('scripts/deploy.sh', 'utf8'), /echo "Published with rows \$DEPLOY_TRUST_ROWS trusted by ruling, not run here: /, 'the Published block quotes it');
 });
 
 const runEnv = (p: { env: Record<string, string> }) => p.env;

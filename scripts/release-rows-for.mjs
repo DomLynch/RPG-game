@@ -44,44 +44,11 @@ export function rowsFor(files) {
 // rows of the AREAS its files touch, plus any row whose own check script changed; everything else is out of scope for that run.
 // The full 50 still run once a day: deploy.sh goes full when the last full run is over 24 h old (--full-age), so a closed laptop
 // only delays it to the next release. Not a dependency map: the daily full run is what catches a break outside these rows.
-const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
-const AREAS = [
-  { paths: ['supabase/**', 'src/core/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
-  { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
-  { paths: ['src/loot*.ts', 'src/fight/loot*.ts', 'src/core/profile.ts'], rows: ['loot-smoke-check'] },
-  { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
-  { paths: ['src/arena*.ts', 'src/fight/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
-  // Row 44, the Stage picker (every arena ship re-pins its list in scripts/sparring-browser-check.mjs): the arena files, the sparring
-  // files and main.ts, which builds #arena-select (Lead 2026-10-06: 17ab81e9 needed it and the picker had no mapping for it).
-  { paths: ['src/arena*.ts', 'src/sparring*.ts', 'src/stage-hide.ts', 'src/main.ts', 'public/arena/**'], rows: ['sparring-browser-check'] },
-  { paths: ['src/audio/**', 'src/assets/audio/**'], rows: ['audio-preview', 'arena-audio-check'] },
-  { paths: ['src/blade*.ts', 'src/fight/blade*.ts', 'src/fight/characters.ts', 'src/fight/shields.ts', 'src/gear-*.ts', 'src/fight/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
-  { paths: ['src/fight/finishers.ts', 'src/fight/gore.ts', 'src/fight/finisher-blood.ts', 'src/fight/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
-  { paths: ['src/fight/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
-  // The landscape Pit, the ☰ journal tabs and the paper-doll in Safari's engine (Mac row; Lead 2026-10-12): the layout files and the screens it draws.
-  { paths: ['src/style.css', 'index.html', 'src/core/gear-*.ts', 'src/core/loot-panel.ts', 'src/fight/stance-panel.ts', 'scripts/pit-landscape-*.mjs'], rows: ['pit-landscape-webkit'] },
-  // Thumbnails and portraits (public/game/img/**: loot, blood strips, fighter cards): the roster row (CORE) draws them; the gear rows show the loot tiles. Not a full run (Strategy 2026-10-10: two loot .webp files cost Y 35 extra rows).
-  { paths: ['public/game/img/**'], rows: ['loot-smoke-check', 'equip-fallback-check', 'polearm-browser-check:first', 'worn-loot-check'] },
-  { paths: ['scripts/lib/thumb-row.mjs'], rows: ['endgame-hud-check', 'desktop-layout-check'] },   // the two checks that import it
-  { paths: ['src/lessons*.ts', 'src/first-loss*.ts', 'src/main.ts'], rows: ['first-loss-browser-check'] },   // a fresh visitor's first minute (Lead 2026-10-06): no other row boots with an empty profile
-  // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
-  // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
-  { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
-  { paths: ['origins/preview/ground-*', 'origins/preview/main.ts', 'origins/preview/index.html', 'origins/preview/zone-sound.ts'], rows: ['ground-prompt-check'] },   // the ground-loot prompt's place on the walk page (row 57, Lead 2026-10-15)
-  { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
-  { paths: ['scripts/origins-writer.mjs', 'scripts/origins-writer-boot-check.sh', 'origins/**', 'src/fight/index.ts'], rows: ['origins-writer-boot-check'] },   // the writer boots on a box with no `three` (AA crash-looped on src/fight/index.ts, 2026-10-10); the rest of its src files come from the closure walk below
-];
-// The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
-// scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled
-// below: only the rows it adds or changes run. public/ assets: the folders with a row of their own are in AREAS (an arena or
-// versus .webp used to run all 51 rows, 15-21 min; Lead 2026-10-06); any other public/ folder (GLBs and looks many rows load)
-// still runs every row.
-// scripts/lib/** is a full run except the libraries below that no release row imports (the deploy pipeline's own scripts: their unit tests
-// cover them, as for deploy.sh) or that one or two rows import (AREAS). A lib listed nowhere stays a full run. Strategy 2026-10-10: Z cost 52 rows for scripts/lib/data-only.mjs.
-const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', 'scripts/lib/**'];
-const LIB_NO_ROWS = ['scripts/lib/deploy-*.sh', 'scripts/lib/row-placement.mjs', 'scripts/lib/vps-receipts.mjs', 'scripts/lib/hf-slots.mjs', 'scripts/lib/hf-wall-rows.mjs',
-  'scripts/lib/published-summary.mjs', 'scripts/lib/prelaunch-jobs.mjs', 'scripts/lib/prune-releases.sh', 'scripts/lib/data-only.mjs', 'scripts/lib/glb-stats.mjs', 'scripts/lib/gpu-run.mjs', 'scripts/lib/stop-workers.mjs', 'scripts/lib/player-bot-*.mjs'];
-const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**', 'public/game/img/**'];
+// The tables are a data row, scripts/release-scope.json (Lead 2026-10-22: the path->row map is data); a candidate's CI plan reads the same scope.
+const SCOPE = JSON.parse(readFileSync(new URL('./release-scope.json', import.meta.url), 'utf8'));
+const { core: CORE, areas: AREAS, full: FULL, lib_no_rows: LIB_NO_ROWS, public_scoped: PUBLIC_SCOPED } = SCOPE;
+// The build (`full`): a change there can break any row (Auditor B1 on #1381); deploy.sh and the two release scripts are not in it. The gate's own row list is
+// handled below: only the rows it adds or changes run. public/ outside `public_scoped` (GLBs and looks many rows load) still runs every row.
 const isFull = file => (FULL.some(glob => matchesGlob(file, glob)) && !LIB_NO_ROWS.some(glob => matchesGlob(file, glob)) && !AREAS.some(a => a.paths.includes(file)))
   || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
 const GATE = '.quality-gate.json';
@@ -121,8 +88,25 @@ export function fullAge(root) {
   return -1;
 }
 
+// The nightly full run on GitHub (Lead 2026-10-22, CI runners first): release-checks' scheduled run on trunk counts as a full run when every row job
+// (`checks <rows> ...`) in it succeeded, so the Mac keeps only its WebKit/iPhone rows. Its matrix leaves out GPU_ONLY and MAC_ROWS (the plan's
+// CI_SKIP_ROWS): those run at deploy when a diff scopes them. Seconds since that run started, or -1 (no such run, a red row, or any gh error).
+export function ciFullAge({ gh = process.env.FULL_AGE_GH || 'gh', now = Date.now() } = {}) {
+  const api = (path, jq) => JSON.parse(execFileSync(gh, ['api', path, '--jq', jq], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20_000 }));
+  try {
+    for (const run of api('repos/DomLynch/RPG-game/actions/workflows/release-checks.yml/runs?event=schedule&status=completed&per_page=3', '[.workflow_runs[]|{id, started: .run_started_at}]')) {
+      const rows = api(`repos/DomLynch/RPG-game/actions/runs/${run.id}/jobs?per_page=100`, '[.jobs[]|select(.name|startswith("checks "))|.conclusion]');
+      const at = Date.parse(run.started);
+      if (rows.length && rows.every(c => c === 'success') && Number.isFinite(at)) return Math.floor((now - at) / 1000);
+    }
+  } catch { /* no CI answer: the local receipt alone decides */ }
+  return -1;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--full-age')) {
-  console.log(fullAge(process.argv.slice(2).find(a => !a.startsWith('--')) || '.'));
+  // --ci (deploy.sh): the younger of the local full run and the nightly CI full run; -1 when neither is known.
+  const ages = [fullAge(process.argv.slice(2).find(a => !a.startsWith('--')) || '.'), ...(process.argv.includes('--ci') ? [ciFullAge()] : [])].filter(a => a >= 0);
+  console.log(ages.length ? Math.min(...ages) : -1);
 } else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--deploy-skip')) {
   // Changed files on stdin, one per line; prints the comma list of row indices OUT of scope, and the picked rows on stderr.
   // --base <rev>: the live revision, whose .quality-gate.json row list the changed gate is compared with (unreadable = every row).

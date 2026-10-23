@@ -25,6 +25,10 @@ on:
     # Not `ready_for_review`: the train flips a candidate out of draft 13 s before it merges it (release-train-publish.sh), which started a second ~50-job matrix on a
     # candidate whose checks had just passed (EK 2026-10-13: 38440789792). A candidate is a draft until then; every row already ran on opened/synchronize.
     types: [opened, labeled, synchronize, reopened]
+  # The nightly full run on trunk (Lead 2026-10-22, CI runners first): every row a runner can take, on the default branch's head. deploy.sh's
+  # --full-age --ci counts it as the daily full run (scripts/release-rows-for.mjs ciFullAge), so candidates run delta rows only and the Mac keeps WebKit/iPhone.
+  schedule:
+    - cron: '17 23 * * *'   # 03:17 +04, the train's quietest hour
   workflow_dispatch:
     inputs:
       ref:
@@ -42,6 +46,19 @@ concurrency:
 env:
   # Release checks the runner takes ~28 min on (80 s on the Mac): never worth waiting for from a pull request.
   RUNNER_SKIP_ON_PR: quiet-one-browser-check
+  # One apt call, bounded, with a mirror fallback (Lead 2026-10-22: K6q26/K6q27/K6q28b lost row groups and a unit shard to the runner's Azure mirror, stalled or just slow).
+  # In the workflow, not a repo script: a job checks out the candidate's own tree, which may predate any script. Use: bash -c "$APT_OR_MIRROR" apt-or-mirror "<command>".
+  # Each fetch gives up after 20 s (3 retries); the call gets APT_TRY_S s (300); a failed or slow call repairs dpkg, moves to archive.ubuntu.com, refreshes, runs once more.
+  # The same text is in quality.yml and unit-ci.yml (tests/release-checks-setup.test.ts pins all three equal).
+  APT_OR_MIRROR: |
+    set -u; cmd=$1; try_s=${APT_TRY_S:-300}
+    printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch >/dev/null
+    timeout "$try_s" bash -c "$cmd" && exit 0
+    echo "apt-or-mirror: failed or over ${try_s}s, retrying once on archive.ubuntu.com"
+    sudo dpkg --configure -a || true
+    sudo sed -i 's#azure.archive.ubuntu.com#archive.ubuntu.com#g' $(ls /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null)
+    timeout "$try_s" sudo apt-get update
+    timeout "$try_s" bash -c "$cmd"
 jobs:
   plan:
     # A release candidate (head branch release-*) runs as a DRAFT and carries ci:release-checks from the cut (scripts/cut-release.mjs): plan runs for it (Dom 2026-10-12, CI runners first).
@@ -79,6 +96,7 @@ jobs:
           PR_LABEL: ${{ github.event.label.name }}
           HEAD_REF: ${{ github.head_ref }}
           RUN_REF: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           # Rows CI never schedules because it never trusts them (row-placement.mjs): GPU_ONLY (the T4's: they miss the 600 s row ceiling without a GPU)
           # and MAC_ROWS (every MAC_ONLY row, the list deploy.sh places on the Mac: WebKit has no install here, rows 2 and 44 fail off the Mac).
@@ -106,7 +124,14 @@ jobs:
               else console.log(`${process.env.PR_ACTION}, labelled: full matrix (the diff triggers rows ${triggered.map(c => c.index).join(", ")})`);
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
-            const skipRows = [...process.env.CI_SKIP_ROWS.split(","), ...(pr ? execFileSync("node", ["scripts/lib/row-placement.mjs", "post-publish"], { encoding: "utf8", input: files.join("\n") }).trim().split(",") : [])].map(Number);
+            // Delta rows only (Lead 2026-10-22, cut-to-live <= 25 min): a candidate runs the rows its diff scopes (scripts/release-scope.json via deployRowsFor, the same scope deploy.sh
+            // uses); every other row is out of scope, trusted from the last full run, and named here so the receipt says why it did not run. An unreadable base gate = every row.
+            let outOfScope = [];
+            if (pr && run) {
+              outOfScope = execFileSync("node", ["scripts/release-rows-for.mjs", "--deploy-skip", "--base", process.env.BASE_SHA], { encoding: "utf8", input: files.join("\n"), stdio: ["pipe", "pipe", "inherit"], timeout: 60_000 }).trim().split(",").filter(Boolean);
+              console.log(`out of scope (trusted from the last full run): ${outOfScope.join(",") || "none"}`);
+            }
+            const skipRows = [...process.env.CI_SKIP_ROWS.split(","), ...outOfScope, ...(pr ? execFileSync("node", ["scripts/lib/row-placement.mjs", "post-publish"], { encoding: "utf8", input: files.join("\n") }).trim().split(",") : [])].map(Number);
             const checks = !run ? [] : (gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
@@ -166,22 +191,20 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      # Bounded apt (Lead 2026-10-22: on K6q26 the Azure mirror stalled ~16 min in this job and cost row 57 three CI attempts). Every apt call below, playwright's
-      # --with-deps included, gives up on a stalled fetch after 20 s and retries it 3 times, instead of sitting until the job's 30-min cap.
-      - name: Bound apt fetches
-        run: printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch
-      - run: npx playwright install --with-deps chromium
+      # Every apt call (playwright's --with-deps included) goes through APT_OR_MIRROR (env, above; Lead 2026-10-22, the K6q26/K6q27 apt stalls): each fetch gives up
+      # after 20 s, the call gets 300 s, and a failed or slow call is retried once on archive.ubuntu.com instead of the runner's Azure mirror.
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       # Row 49 (browser-replay-check --engine webkit, Strategy 2026-09-29): Safari's engine, installed only for the rows that name it.
       - if: matrix.group.webkit
-        run: npx playwright install --with-deps webkit
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps webkit"
       # jpegtran in every group: npm run build packs textures through scripts/lossless-jpeg.mjs.
       - name: Lossless JPEG build tool
-        run: timeout 300 sudo apt-get install -y libjpeg-turbo-progs
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       # ffmpeg (dozens of packages: the K6q26 stall was in its deps) only for a group that runs arena-audio-check, the row that spawns it (#2613, Deploy 2026-10-13;
       # a Mac-only row today, so CI installs it for no group). matrix.group.rows is the group's row list as JSON, so this matches the row's script name.
       - name: ffmpeg for arena-audio-check
         if: contains(matrix.group.rows, 'arena-audio')
-        run: timeout 600 sudo apt-get install -y ffmpeg
+        run: APT_TRY_S=600 bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y ffmpeg"
       - run: npm run build
       - name: Release checks ${{ matrix.group.id }}
         env:

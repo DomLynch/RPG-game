@@ -22,7 +22,7 @@ const plan = (env: Record<string, string>) => {
   assert.ok(start > 0 && end > start, 'the plan step');
   const script = yml.slice(start, end).split('\n').slice(1).map(line => line.slice(10)).join('\n');
   const dir = mkdtempSync(join(tmpdir(), 'gpu-only-plan-')), out = join(dir, 'out'), gh = join(dir, 'gh');
-  writeFileSync(gh, '#!/bin/sh\necho src/main.ts\n'); chmodSync(gh, 0o755);
+  writeFileSync(gh, '#!/bin/sh\necho "${FAKE_FILES:-src/main.ts}"\n'); chmodSync(gh, 0o755);   // the PR's changed files (FAKE_FILES; default one Pit file)
   writeFileSync(out, '');
   const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_OUTPUT: out,
     GITHUB_EVENT_NAME: 'pull_request', GITHUB_REPOSITORY: 'o/r', PR_NUMBER: '1', PR_ACTION: 'opened', PR_LABEL: '', PR_LABELS: '', HEAD_REF: 'release-CK',
@@ -35,9 +35,12 @@ test('the release-checks plan matrix and GPU_ONLY ∪ every MAC_ONLY row are dis
   const never = [...GPU_ONLY, ...MAC_ROWS];
   assert.deepEqual(MAC_ROWS, MAC_ONLY.map(e => e.row), 'all of MAC_ONLY, the list deploy.sh places on the Mac');
   for (const row of [2, 4, 22, 44, 45, 48, 49, 52, 54]) assert.ok(MAC_ROWS.includes(row), `row ${row} is the Mac's`);
-  const rows = plan({});
-  assert.ok(rows.length > 20, `a candidate still runs the matrix: ${rows.length} rows`);
+  const rows = plan({ FAKE_FILES: 'package.json' });   // a build file: the full matrix (release-scope.json full); a delta diff runs a subset of it (below)
+  assert.ok(rows.length > 20, `a full-run candidate runs the matrix: ${rows.length} rows`);
   assert.deepEqual(rows.filter(r => never.includes(r)), []);
+  const delta = plan({});   // one Pit file: core + its areas only (Lead 2026-10-22, delta rows)
+  assert.ok(delta.length > 0 && delta.length < rows.length && delta.every(r => rows.includes(r)), `a delta candidate runs a subset: ${delta.join(',')}`);
+  assert.deepEqual(delta.filter(r => never.includes(r)), []);
   assert.ok(rows.includes(13), 'the T4 rows that are not gpu-only are CI rows');
   // Rows 9 and 46 are POST_PUBLISH (row-placement.mjs): a candidate's matrix leaves them out (deploy.sh runs them right after Published); a dispatch measurement still runs them.
   assert.ok(!rows.includes(9) && !rows.includes(46), 'a candidate leaves the post-publish rows out');

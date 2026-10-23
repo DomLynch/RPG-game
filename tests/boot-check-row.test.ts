@@ -33,7 +33,7 @@ test('when the writer closure cannot be computed the boot-check row still runs, 
   const dir = mkdtempSync(join(tmpdir(), 'rows-failclosed-'));
   try {
     mkdirSync(join(dir, 'scripts'));
-    for (const f of ['scripts/release-rows-for.mjs', 'scripts/writer-closure.mjs', '.quality-gate.json']) copyFileSync(f, join(dir, f));
+    for (const f of ['scripts/release-rows-for.mjs', 'scripts/writer-closure.mjs', 'scripts/release-scope.json', '.quality-gate.json']) copyFileSync(f, join(dir, f));   // release-scope.json: the path -> row map the script reads (a data row since #3635)
     const run = (args: string[], input?: string) => spawnSync('node', ['scripts/release-rows-for.mjs', ...args], { cwd: dir, input, encoding: 'utf8' });
     const want = new RegExp(`\\b${index} origins-writer-boot-check\\b`);
     assert.match(run(['--deploy-skip'], 'src/fight/hud.ts').stderr, want, 'deploy runs it when the walk fails');
