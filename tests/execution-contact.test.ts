@@ -19,7 +19,7 @@ const worst:Record<string,number>={};
 test('Execution is optional per rig, and where installed the blade meets the nape of every victim body, Pitborn, Dwarf and the goblin-sized included',async()=>{
  const legacy=buildWarriors(await load('veteran'));legacy.player.update(0,.1,'ready');
  assert.throws(()=>legacy.player.update(0,0,'executionStrike',0),/not installed/);assert.throws(()=>legacy.opponent.update(0,0,'execution',0),/not installed/);
- const hero=await load('warrior');
+ const hero=await load('hero-classic');
  assert.ok(!hero.animations.some(c=>/Execution/.test(c.name)),'warrior.glb carries no Execution clip');
  // The goblin is not a victim in the game (its rig is its own) but is measured: the smallest body, shortest legs.
  for(const [id,weapon] of [['pitborn','cleaver'],['dwarf','warhammer'],['goblin','knife'],['executioner','scythe'],['veteran','longsword']] as const){
@@ -43,7 +43,7 @@ test('Execution is optional per rig, and where installed the blade meets the nap
 });
 
 test('the killer stands clear of the victim through the held raise and the blade is above the bowed head',async()=>{
- const hero=await load('warrior');
+ const hero=await load('hero-classic');
  for(const [id,weapon] of [['pitborn','cleaver'],['dwarf','warhammer']] as const){
   const actors=buildWarriors(hero,await load(id),['longsword',weapon]);actors.player.adoptClip('Fin_Execution',killer());actors.opponent.adoptClip('Death_Execution',victimClip(),EXECUTION_SOURCE_PELVIS,EXECUTION_FLOOR_MARKS);
   const player=new Group(),enemy=new Group();player.add(actors.player.anchor);enemy.add(actors.opponent.anchor);
@@ -60,7 +60,7 @@ test('the killer stands clear of the victim through the held raise and the blade
 
 // The clip is built on warrior.glb's proportions; the size extremes must still end on the floor, neither sunk nor hovering.
 test('the victim clip keeps Pitborn, the Dwarf and the goblin on the floor through the kneel, the held raise and the prone ending',async()=>{
- const hero=await load('warrior'),pelvis=hero.scene.getObjectByName('pelvis')!.position.length();
+ const hero=await load('hero-classic'),pelvis=hero.scene.getObjectByName('pelvis')!.position.length();
  assert.ok(Math.abs(pelvis-EXECUTION_SOURCE_PELVIS)<.001,'the pelvis constant is warrior.glb\'s');
  for(const [id,weapon] of [['pitborn','cleaver'],['dwarf','warhammer'],['goblin','knife']] as const){
   const {opponent}=buildWarriors(hero,await load(id),['longsword',weapon]);opponent.adoptClip('Death_Execution',victimClip(),EXECUTION_SOURCE_PELVIS,EXECUTION_FLOOR_MARKS);
@@ -75,7 +75,7 @@ test('the victim clip keeps Pitborn, the Dwarf and the goblin on the floor throu
 // The scene installs both paired scenes on one pair of rigs (both are prefetched): each must play its own clips (the clip JSON ships without a uuid and the mixer keys its
 // actions by uuid, so two adopted clips used to collapse into one action: the second scene played the first's clips).
 test('with Hamstrung and Execution both installed, each plays its own clips on both rigs',async()=>{
- const hero=await load('warrior');
+ const hero=await load('hero-classic');
  for(const [id,weapon] of [['pitborn','cleaver'],['dwarf','warhammer']] as const){
   const {player,opponent}=buildWarriors(hero,await load(id),['longsword',weapon]);
   player.adoptClip('Fin_Hamstrung',clip('hamstrung-killer')());opponent.adoptClip('Death_Hamstrung',clip('hamstrung-victim-hero')(),EXECUTION_SOURCE_PELVIS);opponent.prepareHamstrung();

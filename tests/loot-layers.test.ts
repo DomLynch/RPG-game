@@ -104,6 +104,6 @@ test('loot-layers: the committed Profile layers were rendered from the shipped l
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const stamp = css.match(/\/\* loot-layers: rendered from (.*?) \*\//)?.[1];
   assert.ok(stamp, 'style.css carries a loot-layers stamp inside the generated block');
-  const now = ['loot.glb', 'warrior.glb'].map((f) => `${f} ${createHash('sha256').update(readFileSync(new URL(`../src/assets/${f}`, import.meta.url))).digest('hex').slice(0, 12)}`).join(' ');
+  const now = ['loot.glb', 'warrior.glb'].map((f) => `${f} ${createHash('sha256').update(readFileSync(new URL(`../src/assets/${f === 'warrior.glb' ? 'hero-classic.glb' : f}`, import.meta.url))).digest('hex').slice(0, 12)}`).join(' ');
   assert.equal(stamp, now, 'the layers are stale for the shipped rig or loot file: run node scripts/loot-layers.mjs and commit public/game/img and src/style.css');
 });

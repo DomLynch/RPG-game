@@ -2952,19 +2952,16 @@
      "file": "src/assets/warrior.glb",
      "class": "hero",
      "over": {
-      "tris": 63572,
-      "draws": 19,
-      "bytes": 5602108,
-      "pngBytes": 165873
+      "bytes": 4840828
      },
      "figures": {
-      "tris": 63572,
-      "skinnedVerts": 33669,
+      "tris": 37678,
+      "skinnedVerts": 18674,
       "joints": 65,
-      "draws": 19,
-      "textureSide": 1024,
-      "bytes": 5602108,
-      "pngBytes": 165873
+      "draws": 12,
+      "textureSide": 512,
+      "bytes": 4923152,
+      "pngBytes": 0
      }
     }
    ]

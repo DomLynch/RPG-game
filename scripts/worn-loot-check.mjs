@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { preview } from 'vite';
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
@@ -45,6 +46,10 @@ const drawsPerId = (glb) => {
   return count;
 };
 await page.route('**/*sentry.io/**', route => route.abort());
+// The hero is the Exo body now (hero-body-rows.json), and the Exo asset carries scene extras noLoot: loot.glb's pieces are authored on the CLASSIC hero's bind pose, so wear() draws nothing on Exo (Lead 2026-10-23).
+// The worn-loot draws this row guards (over / replace / full set / covered slots) are therefore read on the classic body, served in place of the Exo file (same 65 joints); a last state then pins that Exo draws nothing.
+let heroClassic = true;
+await page.route(/\/warrior[-.][^/]*\.glb(\?.*)?$/, route => heroClassic ? route.fulfill({ status: 200, contentType: 'model/gltf-binary', body: readFileSync(new URL('../src/assets/hero-classic.glb', import.meta.url)) }) : route.continue());
 const receipt = { origin, revision: null, states: {}, errors, passed: false };
 const ready = async () => {
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false');
@@ -94,6 +99,16 @@ try {
   full.replaced = [...replaced];
   assert.ok(full.covered.length > 0 && full.covered.every((c) => replaced.has(c.split('|')[1].replace(/ \(shown\)$/, ''))), `full set: only replaced slots are covered: ${JSON.stringify({ replaced: full.replaced, covered: full.covered })}`);
   assert.ok(full.covered.some((c) => c.split('|')[1].startsWith('Body')), `full set: the player's own Body is hidden under goblin.Body: ${JSON.stringify(full.covered)}`);
+  // The Exo hero (the shipped body): a seeded full set draws nothing (scene extras noLoot), and nothing throws.
+  heroClassic = false;
+  await page.evaluate((equipped) => { const key = 'frankendom.fighter.v1'; const p = JSON.parse(localStorage.getItem(key)); p.loot = { owned: Object.values(equipped), equipped }; localStorage.setItem(key, JSON.stringify(p)); }, FULL);
+  await page.reload(); await ready();
+  const enterExo = page.getByRole('button', { name: 'Enter the arena' }); if (await enterExo.isVisible().catch(() => false)) await enterExo.tap();
+  await page.waitForTimeout(3000);
+  const exo = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.worn || '{}'));
+  receipt.states.exoNoLoot = { draws: exo.worn ?? [], covered: exo.covered ?? [] };
+  assert.deepEqual(receipt.states.exoNoLoot.draws, [], `the Exo hero draws no worn loot (noLoot): ${JSON.stringify(exo)}`);
+  assert.deepEqual(receipt.states.exoNoLoot.covered, [], 'the Exo hero covers none of its own draws');
   assert.deepEqual(errors, []);
   receipt.passed = true;
 } finally {

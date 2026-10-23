@@ -88,7 +88,7 @@ test('player equip files (Brief 5): each loot weapon is its own small file — W
   const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe', 'maul'];
   const swordRoles = new Set(['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; rig: string; contact: [number, number] }[] };
-  const hero = glbJson('src/assets/warrior.glb').json;
+  const hero = glbJson('src/assets/hero-classic.glb').json;
   assert.ok(!hero.nodes.some(n => n.name === 'WeaponDrawn') && !hero.animations!.some(a => /^(Warhammer|Trident|Scythe)_/.test(a.name)), 'the base download carries no loot weapon');
   for (const id of player) {
     const { json, bytes } = glbJson(`src/assets/weapons/player/${id}.glb`);
@@ -284,7 +284,7 @@ test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, 
   const contact = weapon.userData.contact as { from: number; to: number };
   assert.ok(contact && Math.abs(contact.to - .86) < .001 && contact.from > .1 && contact.from < .2, `the edge, ferrule to tip, the sword's length: ${JSON.stringify(contact)}`);
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
-  const sword = await readRig('src/assets/warrior.glb');
+  const sword = await readRig('src/assets/hero-classic.glb');
   sword.animations = sword.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name));   // the player's SKILL casts are the hero's alone
   assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
   for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
@@ -307,7 +307,7 @@ test('the cleaver\'s edge leads: over each cut\'s active window the tip moves al
     }
     return out;
   };
-  const cleaver = await lead(CLEAVER_GLB, 'WeaponDrawn'), sword = await lead('src/assets/warrior.glb', 'SwordDrawn');
+  const cleaver = await lead(CLEAVER_GLB, 'WeaponDrawn'), sword = await lead('src/assets/hero-classic.glb', 'SwordDrawn');
   assert.ok(cleaver.light_right > .6, `the chop leads with the edge: ${cleaver.light_right.toFixed(2)}`);
   assert.ok(cleaver.light_left < -.6, `the back of the cleaver leads with the spine: ${cleaver.light_left.toFixed(2)}`);
   assert.ok(cleaver.heavy_overhead > .85 && cleaver.heavy_overhead > sword.heavy_overhead + .15, `the hack leads with the edge (${cleaver.heavy_overhead.toFixed(2)}) more than the sword's overhead (${sword.heavy_overhead.toFixed(2)})`);
@@ -415,7 +415,7 @@ test('the knife is live (slice X): WEAPONS.knife is KNIFE, the goblin carries it
 });
 
 test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short blade as the contact segment and a forward grip, empty sword nodes, the sword\'s clip list in the sword\'s order, every knife path on a sword clip', async () => {
-  const asset = await readRig(KNIFE_GLB), hero = await readRig('src/assets/warrior.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  const asset = await readRig(KNIFE_GLB), hero = await readRig('src/assets/hero-classic.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
   const contact = weapon.userData.contact as { from: number; to: number };
   assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);

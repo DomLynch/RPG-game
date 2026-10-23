@@ -46,7 +46,7 @@ async function writeExecutionJson(index,file,out) {
  for(const t of data.tracks){t.times=round(t.times);t.values=round(t.values);}
  const text=JSON.stringify(data)+'\n';await fs.writeFile(out,text);return {file:out.pathname,bytes:text.length,tracks:data.tracks.length};
 }
-const WARRIOR=new URL('../src/assets/warrior.glb',import.meta.url);
+const WARRIOR=new URL('../src/assets/hero-classic.glb',import.meta.url);
 export const writeExecutionVictim=(file=WARRIOR,out=VICTIM_JSON)=>writeExecutionJson(0,file,out);
 export const writeExecutionKiller=(file=WARRIOR,out=KILLER_JSON)=>writeExecutionJson(1,file,out);
 if(process.argv[1]===new URL(import.meta.url).pathname){

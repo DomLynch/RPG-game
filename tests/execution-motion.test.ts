@@ -8,7 +8,7 @@ import {executionClips} from '../scripts/build-execution.mjs';
 import {EXECUTION_BEATS,executionAt} from '../src/fight/execution.ts';
 
 test('Execution authored motion: kneel turned away, a held half-second with both rigs frozen, the cut, the fall onto the face',async()=>{
- const bytes=await readFile(new URL('../src/assets/warrior.glb',import.meta.url)),length=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+length).toString());
+ const bytes=await readFile(new URL('../src/assets/hero-classic.glb',import.meta.url)),length=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+length).toString());
  json.images=[];json.textures=[];json.materials=json.materials.map((m:{name:string})=>({name:m.name}));json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+length).toString('base64');
  globalThis.ProgressEvent ??= class {constructor(_type:string,fields:object){Object.assign(this,fields);}} as unknown as typeof ProgressEvent;
  const asset=await new GLTFLoader().parseAsync(JSON.stringify(json),'');

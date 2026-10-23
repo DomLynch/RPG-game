@@ -14,7 +14,8 @@ import { createHash } from 'node:crypto';
 
 const ROOT = new URL('..', import.meta.url).pathname, OUT = join(ROOT, 'public/game/img'), HEIGHT = 720, QUALITY = 0.82;
 // `loot.glb <sha256:12> warrior.glb <sha256:12>`: the inputs every layer is a function of (the fixed frame, lights and camera live in this file).
-export const renderedFrom = async () => (await Promise.all(['loot.glb', 'warrior.glb'].map(async (f) => `${f} ${createHash('sha256').update(await readFile(join(ROOT, 'src/assets', f))).digest('hex').slice(0, 12)}`))).join(' ');
+// The Profile layers are the CLASSIC hero wearing loot (Exo wears none): the stamp keeps its `warrior.glb` label and hashes hero-classic.glb, the file the layers are rendered from.
+export const renderedFrom = async () => (await Promise.all(['loot.glb', 'warrior.glb'].map(async (f) => `${f} ${createHash('sha256').update(await readFile(join(ROOT, 'src/assets', f === 'warrior.glb' ? 'hero-classic.glb' : f))).digest('hex').slice(0, 12)}`))).join(' ');
 // The drawn half of src/core/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
 const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], off: ['Shield'] };
 const keyOf = (slot) => Object.keys(PAPERDOLL).find((key) => PAPERDOLL[key].includes(slot)) ?? (() => { throw new Error(`loot-layers: no paperdoll key for slot ${slot}`); })();
@@ -33,7 +34,7 @@ const scene = new THREE.Scene(), pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.28;
 scene.add(new THREE.HemisphereLight('#8d938e', '#2a2521', 0.55));
 for (const [c, i, p] of [['#ffd6a6', 3.4, [-2.2, 3.4, 2.6]], ['#9db2c9', 2.6, [2.6, 2.4, -2.4]], ['#c9773a', 1.1, [2.2, 0.4, 2.2]]]) { const l = new THREE.DirectionalLight(c, i); l.position.set(...p); scene.add(l); }
-const loader = new GLTFLoader(), rig = await loader.loadAsync('/assets/warrior.glb'), loot = await loader.loadAsync('/assets/loot.glb');
+const loader = new GLTFLoader(), rig = await loader.loadAsync('/assets/hero-classic.glb'), loot = await loader.loadAsync('/assets/loot.glb');
 const root = rig.scene; scene.add(root);
 const idle = rig.animations.find((c) => c.name === 'Idle'), mixer = new THREE.AnimationMixer(root); mixer.clipAction(idle).play(); mixer.setTime(0.5 % idle.duration);
 const drawn = root.getObjectByName('SwordDrawn'), sheathed = root.getObjectByName('SwordSheathed'); if (drawn && sheathed) { drawn.visible = false; sheathed.visible = true; }
