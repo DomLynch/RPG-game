@@ -34,6 +34,8 @@ export type InkLook = {
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
   /** ONE ink shading for every lit world material (`on` 1): outgoing diffuse = albedo x a ramp of the light that fell on it, specular dropped. `steps` 0 = smooth, 3 = toon; `rampLow`/`rampHigh` the light range the ramp spans; hatching only below `hatchBelow` of the ramp; `grain` the paper noise; `screenCurve` 0 = the screen pass skips its own tone curve (the materials already made the ramp); `exclude` names keep their own shading. */
   readonly material: { readonly on: number; readonly steps: number; readonly rampLow: number; readonly rampHigh: number; readonly gain: number; readonly hatchStrength: number; readonly hatchBelow: number; readonly hatchSpacingPx: number; readonly hatchAngleDeg: number; readonly hatchDuty: number; readonly grain: number; readonly screenCurve: number; readonly exclude: readonly string[] };
+  /** Painted blood splashes on the ground of one zone (`zone`; none when `count` is 0): `files` are the decal pictures, scattered `count` times within `radiusM` of (`cx`, `cz`), each `sizeMinM` to `sizeMaxM` across, `lift` above the ground, laid flat by `rotationDeg`, seeded. */
+  readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
   /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagFrames` how often the scene is searched again for tagged objects (pooled decals and effects appear lazily). */
   readonly tagPass: { readonly pull: number; readonly retagFrames: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
@@ -64,13 +66,16 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const mat = fields.material as Record<string, unknown> | undefined;
     if (!mat || typeof mat !== 'object') throw new Error(`ink look "${id}": material is missing`);
     const material = { ...group(id, 'material', mat, ['on', 'steps', 'rampLow', 'rampHigh', 'gain', 'hatchStrength', 'hatchBelow', 'hatchSpacingPx', 'hatchAngleDeg', 'hatchDuty', 'grain', 'screenCurve']), exclude: names(id, 'material.exclude', mat.exclude) };
+    const sp = fields.splashes as Record<string, unknown> | undefined;
+    if (!sp || typeof sp !== 'object' || typeof sp.zone !== 'string') throw new Error(`ink look "${id}": splashes is { zone, files, ... }`);
+    const splashes = { zone: sp.zone, files: names(id, 'splashes.files', sp.files), ...group(id, 'splashes', sp, ['count', 'cx', 'cz', 'radiusM', 'sizeMinM', 'sizeMaxM', 'seed', 'lift', 'rotationDeg', 'opacity']) };
     const sky = fields.skyPlate as Record<string, unknown> | undefined;
     if (!sky || typeof sky !== 'object') throw new Error(`ink look "${id}": skyPlate is missing`);
     const skyPlate = { passthrough: num(id, 'skyPlate.passthrough', sky.passthrough), objects: names(id, 'skyPlate.objects', sky.objects) };
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
