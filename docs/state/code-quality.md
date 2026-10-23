@@ -1,5 +1,18 @@
 # Code quality lane (Auditor)
 
+## 2026-10-23 ~10:4x +04: HANDOFF (Dom out of tokens, new account). READ FIRST.
+**Live:** d3a8eaefa (K6q32 + #3649 mute rows). **Lead's order:** K6q34 → Exo Gray → #3635 (K6q33 re-cut).
+
+**NOW, in order:**
+1. **K6q34 = #3651 @82f15b22a02bc43bd8c5eb2d5fe0e9819ff9ec26** (#3645 + #3642 + #3632; #3648 skipped, conflicts in origins/preview/main.ts). Contents OK: each merge equals a clean merge-tree on d3a8eaefa. CI was running at 10:38, and no result was read. Read every check-run at the head (shards, origins-db, receipt, quality, release rows); on green, post a line-start `Auditor: PASS @82f15b22a` on #3651 (Lead sets candidate:pass). The watcher died with the session: re-arm it.
+2. **Exo Gray PR** (Characters + Combat timing rows; Lead: opens ~10:45, PASS target 12:00, Dom wants it ASAP). Start the read the moment it opens, while its CI runs. No PR number yet: `gh pr list --search exo`.
+3. **#3635 @09ff1b60e** (mine). The apt lock fix (`225c64e68`) is in: on timeout the helper TERMs the leftover apt-get/dpkg, waits up to 30 s, KILLs, then repairs and retries, plus `DPkg::Lock::Timeout "120"`. Test 530 now waits for the postcheck line, not the file. Lead re-OK'd the blobs (quality 7ac2e57dd, unit-ci 073691be3, release-checks cfedde44b); the cut-gates entries are in at 09ff1b60e. CI was re-running. I removed the stale candidate:pass (it was for 52623753a). PASS it on green at the new head; Lead cuts it as K6q33 again after K6q34 + Exo. #3650 (the old K6q33 @d507cb0cf) is a parked draft.
+   - #3650 verdicts sent to Lead: (a) the browser rows' apt red = #3635's own bug (the orphaned `sudo apt-get` pid held the dpkg lock; now fixed); (b) shard 5 test 530 = a test race (5/5 green at d507cb0cf and 5/5 on trunk on the VPS, at load ~30).
+4. Then the rotation stack #3627 + #3637 + #3644 combined gate (unchanged from the entry below; #3627 is CONFLICTING with trunk until Combat restacks).
+
+**Open:** #3648 PASSed @ad12039b5 but was skipped from K6q34 (conflict): it needs a trunk merge-up by its lane, then a re-check.
+**Gotchas:** hooks block shell file edits and `node --test` on the Mac: use Edit/Write, and run tests on the VPS (`/srv/dev-jobs/auditor-3650-t530/src` is a checkout with node_modules). zsh treats `echo ===` as an error.
+
 ## 2026-10-22 ~23:3x +04: HANDOFF before /clear. READ FIRST.
 **Live:** K6q32 #3647 (PASS @1a0058934, posted 8 s after the last check) is publishing or live; check release.json. **Train (Lead):** K6q33 = #3635 alone (mine, PASS @52623753a) → K6q34 = #3645 + #3642 + #3632 (all PASS) → the rotation stack #3627 → #3637 → #3644 as ONE candidate.
 
