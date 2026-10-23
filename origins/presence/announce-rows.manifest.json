@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "announce-row", "file": "announce-rows.json", "at": "rows", "key": "id", "required": { "text": "string" } }
+  ]
+}
