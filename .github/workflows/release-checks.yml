@@ -52,9 +52,12 @@ env:
   # The same text is in quality.yml and unit-ci.yml (tests/release-checks-setup.test.ts pins all three equal).
   APT_OR_MIRROR: |
     set -u; cmd=$1; try_s=${APT_TRY_S:-300}
-    printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch >/dev/null
+    printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\nDPkg::Lock::Timeout "120";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch >/dev/null
     timeout "$try_s" bash -c "$cmd" && exit 0
     echo "apt-or-mirror: failed or over ${try_s}s, retrying once on archive.ubuntu.com"
+    sudo pkill -TERM -x apt-get || true; sudo pkill -TERM -x dpkg || true
+    for i in $(seq 1 30); do pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null || break; sleep 1; done
+    sudo pkill -KILL -x apt-get || true; sudo pkill -KILL -x dpkg || true
     sudo dpkg --configure -a || true
     sudo sed -i 's#azure.archive.ubuntu.com#archive.ubuntu.com#g' $(ls /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null)
     timeout "$try_s" sudo apt-get update

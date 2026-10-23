@@ -28,6 +28,11 @@ test('APT_OR_MIRROR is the same text in release-checks, unit-ci and quality, and
   assert.match(first, /Acquire::http::Timeout "20".*Acquire::Retries "3".*timeout "\$try_s" bash -c "\$cmd" && exit 0.*dpkg --configure -a.*s#azure\.archive\.ubuntu\.com#archive\.ubuntu\.com#g.*apt-get update\n.*timeout "\$try_s" bash -c "\$cmd"\n$/s,
     'bound every fetch, run the call under the cap, else repair dpkg, swap the mirror, refresh, run it once more (and exit with that run)');
   assert.match(first, /try_s=\$\{APT_TRY_S:-300\}/);
+  // K6q33 #3650 (2026-10-23): timeout killed the helper's bash, but Playwright's `sudo apt-get` (its own sudo session) lived on and held the dpkg lock, so the retry
+  // failed on "Could not get lock". Before the repair: TERM the leftover apt-get/dpkg, wait for them to go, then KILL; later apt calls wait up to 120 s for the lock.
+  assert.match(first, /DPkg::Lock::Timeout "120"/, 'apt waits for the dpkg lock instead of failing on it');
+  assert.match(first, /&& exit 0\n.*\n {4}sudo pkill -TERM -x apt-get.*sudo pkill -TERM -x dpkg.*\n.*pgrep -x apt-get.*pgrep -x dpkg.*break.*\n {4}sudo pkill -KILL -x apt-get.*sudo pkill -KILL -x dpkg.*\n {4}sudo dpkg --configure -a/,
+    'the leftover apt-get/dpkg from the timed-out call is stopped before the repair and the retry');
 });
 
 test('every apt call in release-checks, unit-ci and quality goes through APT_OR_MIRROR', () => {

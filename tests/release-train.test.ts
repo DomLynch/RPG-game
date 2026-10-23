@@ -784,7 +784,8 @@ test('release-train-resume (K6o2, 2026-10-21): production previews stale = STOP 
     const pc = join(p.dir, 'postcheck.calls');
     const tailStarted = async () => {
       assert.match(readFileSync(marker, 'utf8'), new RegExp(`^rev=${p.cand}\\nrows=3,10\\nat=`), 'the tail marker is written');
-      for (let i = 0; i < 40 && !existsSync(pc); i++) await new Promise((done) => setTimeout(done, 100));
+      // wait for the detached postcheck's LINE, not the file: `>>` creates it before the write (K6q33 #3650 shard 5 read '' once)
+      for (let i = 0; i < 100 && !(existsSync(pc) && readFileSync(pc, 'utf8').includes('\n')); i++) await new Promise((done) => setTimeout(done, 100));
       assert.match(readFileSync(pc, 'utf8'), new RegExp(`postcheck ${p.cand} 3,10 2400`), 'the postcheck is started detached');
     };
     // PRODUCTION previews (/zone1/, /preview/origins/) stale after live moved: STOP, with the exact words, but the live release's tail is still started.
