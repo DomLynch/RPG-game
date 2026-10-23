@@ -1,3 +1,45 @@
+## 2026-10-21 ~23:50 (+04) — Web: HANDOFF. Duel-bot fix live in K6q16, zone short links #3568 ride K6q17, morning = Steam art (plan below)
+
+**Now (pick up here, 2026-10-22 09:00):** Steam store art per the plan entry below (#3564). Order: 3 FRANKENDOM wordmark options in chat for Dom, then capsules/hero, screenshots, the 1080p ~30 s clip (Mac, one job at a time; check `~/.claude/state/deploy_hold`, load < 12, no other lane's browser before EACH run; Dom reported Mac memory trouble 21:35, so small jobs). Art A renders from `world/zone2-looks` @309f5af58 (`?z1look=a`, not on trunk); art B needs Characters' Nightborn LODs on trunk. Nothing rendered yet, no GPU/HF spend. Then: shadow-map literal (`PHONE ? 1024 : 2048`, origins/preview/main.ts) to a data row, value unchanged; lights A/B paired inside one T4 job (Lead's go first).
+**Done today:** #3529 labels cache and #3544 Chromium launch helper merged; **#3562** rows 37/38 duel fixture (HUD stays level 6, duel at level 1) in K6q16 live 2bf101977, 10/10 loaded runs won attempt 1; **#3568** `/zoneN/` short links (nginx regex + loader, Auditor-ready, rides K6q17) needs Deploy's provision.sh step then curl /zone2/ (200) and /zone2 (301); **#3564** this Steam plan (docs only).
+**Duel-bot cause, for the record:** the bot beat the level-6 Goblin about 1 duel in 3 under CPU load (reds started at K6q11, before RV89 at K6q12, so not a retune); undisturbed attempt 1 is byte-identical; under load it diverges ~9 s into the duel. NOT the sim ticking out of step with page time (tick tracks page-ms), and a tempo-chip accumulator reset (`#tempo-mode` clicked twice zeroes `accumulator`) did NOT make attempt 1 repeatable (0 of 6 duels won). The real-time input that diverges is still unnamed; the fixture fix avoids it, it does not explain it. Abandoned tick-based attempt saved on `web/duel-bot-ticks` @7ef2e02a6.
+**Open:** `wt-tr` (Mac scratchpad of an old session, detached at 05a39ccce, one untracked `scripts/_blob-probe.mjs`) waits for Lead to place it; VPS `/mnt/HC_Volume_107195252/dev-jobs/web-live-r38` (1.9 GB) NOT swept: its `node_modules` is a symlink into `web-live`, sweep only with `vps-scratch-sweep --path=<exact> --apply` after deciding the symlink is safe. `docs/state/web.md` older entries untouched. Parked: updateMatrixWorld on static props (upper bound ~0.6-0.7 ms/frame at x4, inside noise; owners World props, Characters rigs).
+**Gotchas:** (1) Bash hook blocks writing files via printf/heredoc/sed: use Write/Edit, then Bash only to run. (2) `pkill -f`/`pgrep -f` with the script name matches the ssh shell itself: use the `[x]` bracket trick or kill by PID. (3) A cross-session `SendMessage` needs the exact name, e.g. `Frankendom - World & Audio [ba1a50]`. (4) VPS load sits at 30-49 from other lanes: run small checks under `nice -n 10 taskset -c 12-15`. (5) `/zone1/` is nginx (deploy/frankendom.com.conf), installed only by scripts/provision.sh, never by deploy.sh.
+**Branches:** web/duel-bot-tempo-phase (#3562), web/steam-assets-plan (#3564, this entry), web/zone-short-links (#3568), web/duel-bot-ticks and web/occlusion-fade (WIP pushes, unreviewed).
+
+## 2026-10-21 night (+04) — Web: Steam store asset plan (renders start 2026-10-22 09:00; nothing rendered yet)
+
+Sizes read 2026-10-21 from https://partner.steamgames.com/doc/store/assets (Steam says old sizes are no longer accepted: re-read the page before exporting). Owner: Web. Dom picks the art and the logo. No GPU/HF spend and no Mac renders while a release's rows run (check `~/.claude/state/deploy_hold`, load < 12, no other lane's browser, before EACH Mac run). Real-GPU stills and the clip run on the Mac (Dom 2026-10-17: Mac first); the log of the renderer string goes in every receipt (a Playwright run can fall back to SwiftShader).
+
+**Two looks, shot as stills first, Dom picks one:**
+- **A** = golden hour: the hero mid-swing against a Goblin in the arena, blade sun glint visible (Dom loves it; keep it in every look change). Scene: Zone 1 arena duel (`?opponent=goblin`), wide fight camera, sun low.
+- **B** = Nightborn: a creature-led moody shot in Zone 2 (Characters' skeleton/Nightborn world LODs, from their 09:00 slot; if they are not on trunk by then, B waits and A goes first).
+
+**Order of work (Lead):** 1) FRANKENDOM wordmark, 2-3 options as stills (there is NO logo on trunk; the capsules wait on Dom's pick); 2) the capsules and hero; 3) screenshots; 4) the clip.
+
+| Asset | Size | Logo | Scene / camera | Capture |
+|---|---|---|---|---|
+| Header capsule | 920x430 | yes | A: hero left, Goblin right, sun behind the blade, room at the top-left for the wordmark. B: creature close, face lit | one 1920x1080 still per look, cropped; wordmark composited in post |
+| Small capsule | 462x174 | yes | the header's composition, tighter; must read at thumbnail size | crop of the header master |
+| Main capsule | 1232x706 | yes | A: wide duel, both fighters in frame, wordmark top; B: creature wide | still at 1920x1080, crop 16:9 |
+| Vertical capsule | 748x896 | yes | portrait: the hero's swing, Goblin below | still shot in portrait (phone-shaped viewport 748x896 at dpr 1, or a 1080x1296 crop), wordmark on top |
+| Library capsule | 600x900 | yes | portrait, as the vertical, simpler | crop of the vertical master |
+| Library hero | 3840x1240 .png | NO | very wide: the arena or Zone 2 skyline, fighters off-centre so the library logo sits on the clear side | a 3840x1240 render (dpr 2 on a 1920x620 viewport, or a stitched crop); no UI |
+| Library logo | 1280 wide and/or 720 tall .png, transparent | is the logo | the wordmark alone | exported from the wordmark pick |
+| Page background | 1438x810 (optional) | no | A's arena wide, darkened at the edges | still crop |
+| Screenshots | 5+ at 1920x1080 | no | (1) Zone 1 golden-hour fight, (2) Pit duel, (3) Zone 2 Nightborn, (4) loot or gear sheet, (5) town or character screen; real HUD on, desktop layout | `scripts/*-stills.mjs` pattern (Playwright against `artifacts/origins-preview`, `creature-spot-stills.mjs` takes FROM/LOOK coordinates and a SETTLE wait) at a 1920x1080 viewport |
+| Trailer/clip | 1920x1080, about 30 s | n/a | real fights: Zone 1 plus a Pit duel, golden hour, blade glint visible | NOT `src/clip.ts` (it is a 13 s portrait kill replay at CLIP_WIDTH x CLIP_HEIGHT, rows 'clip-seconds', 'clip-tail', 'clip-finish-cap'; it stays untouched). A separate landscape capture of the live build on the Mac real GPU, cut to about 30 s |
+
+**Settled tonight:**
+1. Golden hour (World & Audio, Lead's go): `?z1look=a` on branch `world/zone2-looks` @309f5af58 (not on trunk, no PR). Zone 1 URL `?region=1&zone=1&presence=0&daynight=0&z1look=a`, built or served from that sha; look row `town-a` (warm fog, sun at [-24,9,-15], intensity 5.0) over Zone 1's own skyline, so the blade glint stays; Zone 1 only, byte-identical without the flag. Before/after stills: docs/stills/z1look-a/ on that branch. Art A renders from that branch's build; record the sha in each receipt. The gate-arena start shows fence and totem: frame the duel with place()/tapMob.
+2. HUD-off: no capture/no-HUD flag exists (grepped src, scripts, docs). None needed: the HUD is DOM, so a screenshot of the canvas element alone has no HUD; screenshots that need it use the full page.
+
+**Things to settle at 09:00 (not guessed here):**
+3. Screen-recording route for the clip (Playwright `recordVideo` on a headed Mac Chromium, or a canvas MediaRecorder at 1080p); pick the one that holds 60 fps on the M5 and say which in the receipt.
+4. The wordmark: 2-3 options in the game's style (same pipeline as the art), Dom picks before any capsule is exported.
+
+**Receipt per asset:** the file path, its exact pixel size (`file`/`sips -g`), the renderer string, the commit sha of the build shot, and the Mac load figure.
+
 ## 2026-10-19 (+04) — Web: saved VPS web-asdata-ui work as a WIP branch
 
 Branch `wip/web-asdata-ui-vps-2026-10-19` @5a38b8022, base 052f57d99 (web/port-dome-hooks merge): 31 files, unreviewed; the next Web session decides whether any of it is wanted. Saved before the folder moves to the 200 GB disk.
