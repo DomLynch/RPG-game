@@ -30,10 +30,11 @@ export function loadInkComics(raw: unknown): ReadonlyMap<string, InkComic> {
   const out = new Map<string, InkComic>();
   for (const { id, fields } of table.rows as unknown as { id: string; fields: Record<string, unknown> }[]) {
     const vig = fields.vignette as Record<string, unknown> | undefined, ht = fields.halftone as Record<string, unknown> | undefined, pn = fields.panel as Record<string, unknown> | undefined, hs = fields.hitSplash as Record<string, unknown> | undefined;
-    const vignette = { ...group(id, 'vignette', vig, ['on', 'bandPct', 'gradientAlpha', 'blobs', 'blobMinPct', 'blobMaxPct', 'spikes', 'jitter', 'seed', 'opacity', 'texturePx']), ink: rgb(id, 'vignette.ink', vig?.ink) };
-    const halftone = { ...group(id, 'halftone', ht, ['on', 'cellPx', 'dotPct', 'angleDeg', 'opacity']), blend: ht?.blend, ink: rgb(id, 'halftone.ink', ht?.ink) };
-    const panel = { ...group(id, 'panel', pn, ['on', 'thicknessPx', 'raggedPx', 'steps', 'seed', 'fadeInMs', 'fadeOutMs', 'opacity']), fightClass: pn?.fightClass, ink: rgb(id, 'panel.ink', pn?.ink) };
-    const hitSplash = { ...group(id, 'hitSplash', hs, ['on', 'count', 'sizePct', 'holdMs', 'seed']), ink: rgb(id, 'hitSplash.ink', hs?.ink) };
+    const numbers = <K extends string>(what: string, v: unknown, keys: readonly K[]) => group(id, what, v, keys) as Record<K, number>;
+    const vignette = { ...numbers('vignette', vig, ['on', 'bandPct', 'gradientAlpha', 'blobs', 'blobMinPct', 'blobMaxPct', 'spikes', 'jitter', 'seed', 'opacity', 'texturePx']), ink: rgb(id, 'vignette.ink', vig?.ink) };
+    const halftone = { ...numbers('halftone', ht, ['on', 'cellPx', 'dotPct', 'angleDeg', 'opacity']), blend: ht?.blend, ink: rgb(id, 'halftone.ink', ht?.ink) };
+    const panel = { ...numbers('panel', pn, ['on', 'thicknessPx', 'raggedPx', 'steps', 'seed', 'fadeInMs', 'fadeOutMs', 'opacity']), fightClass: pn?.fightClass, ink: rgb(id, 'panel.ink', pn?.ink) };
+    const hitSplash = { ...numbers('hitSplash', hs, ['on', 'count', 'sizePct', 'holdMs', 'seed']), ink: rgb(id, 'hitSplash.ink', hs?.ink) };
     if (typeof halftone.blend !== 'string' || !halftone.blend) throw new Error(`ink comic "${id}": halftone.blend names a CSS blend mode`);
     if (typeof panel.fightClass !== 'string' || !panel.fightClass) throw new Error(`ink comic "${id}": panel.fightClass names the body class`);
     if (vignette.blobMinPct > vignette.blobMaxPct) throw new Error(`ink comic "${id}": vignette.blobMinPct is at most blobMaxPct`);
@@ -68,13 +69,13 @@ export function vignetteBlobs(v: InkComic['vignette'], w: number, h: number): { 
 
 /** The panel border's inner edge: a closed ragged loop inset by the thickness, `steps` points around the rectangle, in canvas pixels. */
 export function panelInner(p: InkComic['panel'], w: number, h: number): Pt[] {
-  const rnd = stream(p.seed), t = p.thicknessPx, perim = 2 * (w + h), pts: Pt[] = [];
+  const rnd = stream(p.seed), t = p.thicknessPx, iw = w - 2 * t, ih = h - 2 * t, perim = 2 * (iw + ih), pts: Pt[] = [];
   for (let i = 0; i < p.steps; i++) {
-    let d = (i / p.steps) * perim; const inset = t + rnd() * p.raggedPx;
-    if (d < w) { pts.push([d, inset]); continue; }
-    d -= w; if (d < h) { pts.push([w - inset, d]); continue; }
-    d -= h; if (d < w) { pts.push([w - d, h - inset]); continue; }
-    d -= w; pts.push([inset, h - d]);
+    let d = (i / p.steps) * perim; const inset = t + rnd() * p.raggedPx;   // along the inner rectangle (the thickness in from every side), each point pushed a random extra distance inward
+    if (d < iw) { pts.push([t + d, inset]); continue; }
+    d -= iw; if (d < ih) { pts.push([w - inset, t + d]); continue; }
+    d -= ih; if (d < iw) { pts.push([w - t - d, h - inset]); continue; }
+    d -= iw; pts.push([inset, h - t - d]);
   }
   return pts;
 }
