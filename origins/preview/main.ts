@@ -114,6 +114,7 @@ import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { gfxOn } from '../../src/fight/index.ts';
+import { trackFrameCost } from './frame-cost.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
@@ -153,6 +154,7 @@ canvas.addEventListener('webglcontextrestored', () => {   // at most one automat
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = theme.exposure;
 const scene = new THREE.Scene();
+const frameCost = trackFrameCost(renderer as unknown as Parameters<typeof trackFrameCost>[0], scene);
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
@@ -773,7 +775,7 @@ const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) 
   ambience?.update(dt); goblinSmoke?.update(dt, state); updateKitViews(state, previewRule('kitViewStepM'), camera.position);   // the zone's wind and fire bed, and the camp fires' smoke and flicker; the kit's shadow, draw radius and near/far swap re-pack
   zoneDome?.follow(camera); areas.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
   if (!draw) return;   // a capture tick between shots steps the world and draws nothing
-  if (gfx) gfx.render(); else renderer.render(scene, camera);
+  frameCost.begin(); if (gfx) gfx.render(); else renderer.render(scene, camera); frameCost.end();   // frame-cost.ts: renderInfo() reports the whole frame, not the composer's last pass
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true, clock.getElapsedTime()); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
@@ -1191,7 +1193,7 @@ function programOwners(): Record<string, string[]> {
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm, selfWorn: () => warriors?.player.worn().map((piece) => piece.name) ?? [],   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   pointLights: () => { let n = 0; scene.traverse((o) => { if ((o as THREE.PointLight).isPointLight) n++; }); return n; },   // the lights A/B reads this to prove which arm it is in
-  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
+  renderInfo: () => ({ triangles: frameCost.read().triangles, calls: frameCost.read().calls, scene: frameCost.read().scene, passes: frameCost.read().passes, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
