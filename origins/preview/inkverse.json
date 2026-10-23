@@ -8,6 +8,7 @@
         "tone": { "gamma": 2.2, "exposure": 1.35, "pivot": 0.3, "contrast": 1.9, "low": 0.2, "high": 0.8 },
         "stills": { "holdMs": 4000, "spots": { "town-spawn": { "zone": "0", "x": 0, "z": -36, "headingDeg": 180 } } },
         "testFigure": { "zone": "0", "variants": { "red": "world/ink/figure/kachujin-red.glb", "grey": "world/ink/figure/kachujin-grey.glb" }, "clip": "Idle", "x": 1.2, "z": -38.5, "facingDeg": 0, "scale": 0.88 },
+        "heroExtras": ["world/ink/hero/InkScarf.glb"],
         "atlases": [
           { "objects": ["warrior"], "file": "world/ink/warrior-ink.webp", "materials": {} },
           { "objects": [], "file": "", "materials": { "Steel": "world/ink/hero/Steel.webp", "WeaponLongsword": "world/ink/hero/WeaponLongsword.webp", "WeaponLongswordShaft": "world/ink/hero/WeaponLongswordShaft.webp", "Leather": "world/ink/hero/Leather.webp", "Heraldry": "world/ink/hero/Heraldry.webp", "Gambeson": "world/ink/hero/Gambeson.webp", "Wrap": "world/ink/hero/Wrap.webp", "Skin": "world/ink/hero/Skin.webp", "Face": "world/ink/hero/Face.webp", "Photo": "world/ink/hero/Photo.webp", "PhotoEyes": "world/ink/hero/PhotoEyes.webp", "PhotoTeeth": "world/ink/hero/PhotoTeeth.webp" } }
@@ -26,7 +27,7 @@
         "grain": { "strength": 0.035, "scalePx": 1 },
         "vignette": { "strength": 0.85, "start": 0.78, "breakup": 0.32, "freq": 9 },
         "tags": {
-          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal", "flame", "coal", "Heraldry"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
+          "red": { "color": [0.8, 0.1, 0.09], "keepLuma": 0.7, "gain": 1.4, "glowPx": 14, "glowStrength": 0.45, "materials": ["cloth", "blood decal", "flame", "coal", "Heraldry", "InkScarf"], "objects": ["banners", "armfeel burst", "class decal", "blood tithe"], "userData": ["inkStain"] },
           "blue": { "color": [0.1, 0.45, 1.0], "keepLuma": 0.7, "gain": 1.0, "glowPx": 0, "glowStrength": 0, "materials": [], "objects": [], "userData": [] }
         }
       }
