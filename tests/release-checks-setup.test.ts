@@ -10,17 +10,33 @@ const stepOf = (name: string) => { const i = yml.indexOf(`- name: ${name}`); ass
 // only the step's own `if:` / `run:` lines count: the comments between the steps mention the packages
 const lines = (name: string) => stepOf(name).split('\n').filter(l => /^\s+(if|run):/.test(l)).map(l => l.trim());
 
+const WRAP = 'bash -c "$APT_OR_MIRROR" apt-or-mirror ';
 test('release-checks: jpegtran is installed in every group (the build needs it), ffmpeg only for a group that runs the row that spawns it', () => {
-  assert.deepEqual(lines('Lossless JPEG build tool'), ['run: timeout 300 sudo apt-get install -y libjpeg-turbo-progs'], 'the build tool step is unconditional and carries no ffmpeg');
-  assert.deepEqual(lines('ffmpeg for arena-audio-check'), ["if: contains(matrix.group.rows, 'arena-audio')", 'run: timeout 600 sudo apt-get install -y ffmpeg'], 'ffmpeg runs only for arena-audio');
+  assert.deepEqual(lines('Lossless JPEG build tool'), [`run: ${WRAP}"sudo apt-get install -y libjpeg-turbo-progs"`], 'the build tool step is unconditional and carries no ffmpeg');
+  assert.deepEqual(lines('ffmpeg for arena-audio-check'), ["if: contains(matrix.group.rows, 'arena-audio')", `run: APT_TRY_S=600 ${WRAP}"sudo apt-get install -y ffmpeg"`], 'ffmpeg runs only for arena-audio');
   assert.match(yml, /\n {4}name: checks \$\{\{ matrix\.group\.label \}\}/, 'the row jobs are groups (matrix.group): a condition on matrix.check would be dead');
   assert.doesNotMatch(yml, /matrix\.check\./, 'no step reads the pre-group matrix.check');
 });
 
-test('release-checks: every apt fetch is bounded before the first apt call (playwright --with-deps included)', () => {
-  const bound = yml.indexOf('- name: Bound apt fetches'), firstApt = Math.min(...['npx playwright install --with-deps', 'apt-get install'].map(s => yml.indexOf(s)).filter(i => i >= 0));
-  assert.ok(bound >= 0 && bound < firstApt, 'the bound step comes before any apt call');
-  assert.match(stepOf('Bound apt fetches'), /Acquire::http::Timeout "20".*Acquire::Retries "3"/s);
+// The apt helper lives in each workflow's env, not in a repo script: a job checks out the PR head or the candidate tree, which may predate any script (Lead 2026-10-22, K6q26/K6q27/K6q28b apt stalls).
+const WORKFLOWS = ['release-checks', 'unit-ci', 'quality'].map(f => ({ f, text: readFileSync(`.github/workflows/${f}.yml`, 'utf8') }));
+const helperOf = (text: string) => { const m = /\n {2}APT_OR_MIRROR: \|\n((?: {4}.*\n)+)/.exec(text); assert.ok(m, 'APT_OR_MIRROR env block'); return m[1]; };
+
+test('APT_OR_MIRROR is the same text in release-checks, unit-ci and quality, and it bounds, caps, repairs, moves to archive.ubuntu.com and retries once', () => {
+  const [first, ...rest] = WORKFLOWS.map(w => helperOf(w.text));
+  for (const [i, h] of rest.entries()) assert.equal(h, first, `${WORKFLOWS[i + 1].f}.yml's APT_OR_MIRROR differs from release-checks.yml's`);
+  assert.match(first, /Acquire::http::Timeout "20".*Acquire::Retries "3".*timeout "\$try_s" bash -c "\$cmd" && exit 0.*dpkg --configure -a.*s#azure\.archive\.ubuntu\.com#archive\.ubuntu\.com#g.*apt-get update\n.*timeout "\$try_s" bash -c "\$cmd"\n$/s,
+    'bound every fetch, run the call under the cap, else repair dpkg, swap the mirror, refresh, run it once more (and exit with that run)');
+  assert.match(first, /try_s=\$\{APT_TRY_S:-300\}/);
+});
+
+test('every apt call in release-checks, unit-ci and quality goes through APT_OR_MIRROR', () => {
+  for (const { f, text } of WORKFLOWS) {
+    // the helper itself has no install line (only its own `apt-get update`), so every non-comment line that installs is a step's call
+    const calls = text.split('\n').filter(l => /(apt-get install|playwright install --with-deps)/.test(l) && !/^\s*#/.test(l));
+    assert.ok(calls.length >= 1, `${f}: apt calls found`);
+    for (const c of calls) assert.ok(c.includes(WRAP), `${f}.yml: not wrapped: ${c.trim()}`);
+  }
 });
 
 test('release-checks: the only row script that mentions ffmpeg is the one the ffmpeg step names (a new ffmpeg row must extend the condition)', () => {

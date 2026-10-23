@@ -40,7 +40,7 @@ export VITE_SENTRY_RELEASE="$revision"
 deploy_scope_apply() {
   [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
   local age live skip
-  age=$(node scripts/release-rows-for.mjs --full-age . || true)
+  age=$(node scripts/release-rows-for.mjs --full-age --ci . || true)   # --ci: the nightly full release-checks run on GitHub counts too (Lead 2026-10-22)
   [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
   if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
   live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
@@ -152,7 +152,7 @@ elif [[ "$vps_unit" == ok ]]; then
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
   npm run quality:deploy
-elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
+elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age --ci . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
   # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
   # tests run with the daily full release, the same 24 h rule as the browser rows.
   echo "No green CI quality run for $revision; scoped release (last full run ${age}s ago): fast unit suite, test:all with the daily full run"
@@ -401,11 +401,19 @@ if [[ -n "$presence_prev" ]]; then
   presence_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-presence/current" <<<"$presence_sums")
   [[ -z "$presence_gaps" ]] || { echo "presence parity: the installed presence service differs from $revision in: $(printf '%s' "$presence_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, presence differs" >&2; exit 1; }
 fi
+# Cut to live (Lead 2026-10-22, target <= 25 min): from the release PR's creation (the cut) to now. The train's merge subject names the release branch
+# ("Merge pull request #<member> (release-K6q25 candidate)"; the #number is a member PR, not the release PR), and the release PR is the one with that head.
+# Read before the Published line so the summary stays right under it (tests/vps-receipts-guards.test.ts).
+cut_branch=$(git log -1 --format=%s "$revision" 2>/dev/null | sed -nE 's/.*\((release-[A-Za-z0-9._-]+) candidate\)$/\1/p')
+cut_epoch=$([[ -n "$cut_branch" ]] && CUT_BRANCH="$cut_branch" node -e 'const at = require("child_process").execFileSync("gh", ["api", `repos/DomLynch/RPG-game/pulls?head=DomLynch:${process.env.CUT_BRANCH}&state=all`, "--jq", ".[0].created_at // empty"], { encoding: "utf8", timeout: 20_000 }); const t = Date.parse(at.trim()); if (Number.isFinite(t)) console.log(Math.floor(t / 1000))' 2>/dev/null || true)
 printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
 if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi
+if [[ "$cut_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$merge_to_live; cut to live $(( (now_epoch - cut_epoch) / 60 )) min (since $cut_branch was opened)"; else merge_to_live="$merge_to_live; cut to live unknown (${cut_branch:-no release branch in the merge subject})"; fi
 node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?') (open release PRs excluded); running T4 jobs: $(node scripts/lib/prelaunch-jobs.mjs running "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
+# A run that trusted rows by ruling says so IN the Published block, with the reason verbatim (Lead's review 2026-10-22: a train TRUST line arrives as the line itself + its comment URL).
+[[ -z "${DEPLOY_TRUST_ROWS:-}" ]] || echo "Published with rows $DEPLOY_TRUST_ROWS trusted by ruling, not run here: ${DEPLOY_TRUST_REASON:-no reason}"
 # The Published block carries presence's state (Strategy + Lead joint GO): active, restarts before -> after, the local health curl and what release.json says.
 if [[ -n "$presence_prev" ]]; then
   presence_state=$(ssh "${ssh_options[@]}" "$host" 'P=$(grep -E "^PRESENCE_PORT=" /etc/frankendom/presence.env 2>/dev/null | cut -d= -f2); echo "active=$(systemctl is-active frankendom-presence) NRestarts=$(systemctl show -p NRestarts --value frankendom-presence) health=$(curl -s -m 8 -o /dev/null -w "%{http_code}" http://127.0.0.1:${P:-8793}/origins/presence/health)"' || echo 'state unreadable')

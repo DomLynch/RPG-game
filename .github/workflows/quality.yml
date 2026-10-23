@@ -46,6 +46,20 @@ concurrency:
   # A trunk push never cancels the run in progress (Lead 2026-10-10: each merge of a batch cancelled and restarted trunk's quality run, so the
   # batch head's run never finished; deploy.sh needs that run green on the exact sha). Pull-request groups still cancel a superseded run.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  # One apt call, bounded, with a mirror fallback (Lead 2026-10-22: K6q26/K6q27/K6q28b lost row groups and a unit shard to the runner's Azure mirror, stalled or just slow).
+  # In the workflow, not a repo script: a job checks out the PR's own head, which may predate any script. Use: bash -c "$APT_OR_MIRROR" apt-or-mirror "<command>".
+  # Each fetch gives up after 20 s (3 retries); the call gets APT_TRY_S s (300); a failed or slow call repairs dpkg, moves to archive.ubuntu.com, refreshes, runs once more.
+  # The same text is in unit-ci.yml and release-checks.yml (tests/release-checks-setup.test.ts pins all three equal).
+  APT_OR_MIRROR: |
+    set -u; cmd=$1; try_s=${APT_TRY_S:-300}
+    printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch >/dev/null
+    timeout "$try_s" bash -c "$cmd" && exit 0
+    echo "apt-or-mirror: failed or over ${try_s}s, retrying once on archive.ubuntu.com"
+    sudo dpkg --configure -a || true
+    sudo sed -i 's#azure.archive.ubuntu.com#archive.ubuntu.com#g' $(ls /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null)
+    timeout "$try_s" sudo apt-get update
+    timeout "$try_s" bash -c "$cmd"
 jobs:
   plan:
     # Which heavy jobs does this change need? (Lead 2026-10-10, after trunk's run for S sat queued 13 min behind 12 other runs: 15 jobs a PR
@@ -142,7 +156,7 @@ jobs:
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
-        run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs"
       # quality:static = quality:lint + quality:checks. The lint half already ran in `static` on a pull request (this job needs it green), so it
       # runs here only when `static` did not (a trunk push, which deploy.sh reads): eslint and tsc once per PR, not twice (Dom's audit 2026-10-21).
       - if: matrix.part == 'static' && needs.static.result != 'success'
@@ -220,8 +234,10 @@ jobs:
     # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
     # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    # Post-publish, not on a candidate (Lead 2026-10-22: no candidate row over 10 min, cut-to-live <= 25 min): a release-* PR skips it, and the train's
+    # "... candidate)" merge push runs it against `before` (the trunk the release replaced) while the release publishes. A red there is fix-forward.
     needs: [plan, static]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
+    if: ${{ !cancelled() && ((github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) || (needs.plan.result == 'success' && (github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release-') && needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -238,9 +254,9 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: npx playwright install --with-deps chromium
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: sudo apt-get install -y libjpeg-turbo-progs
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - name: Head build
         run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
       - name: Base build
@@ -271,8 +287,9 @@ jobs:
     # already takes ~30 of its 40 minutes. The zone page is its own build (origins/preview/vite.config.mjs -> artifacts/origins-preview, a guest build:
     # no .env.production.local here, which a load measurement does not need), base and head on ONE runner, the same 9 Mbps / 85 ms, +1 s delta, 30 s
     # tripwire and `load-time-ruled` label as `load-time`; ready = the page's settledAt stamp (hero + kit loaded; load-bound, not render cost), plus a whole-load byte/file tripwire (scripts/load-time-check.mjs --page zone1).
+    # Post-publish like `load-time` (Lead 2026-10-22): a release-* PR skips it; the train's candidate merge push runs it against the trunk it replaced.
     needs: [plan, static]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
+    if: ${{ !cancelled() && ((github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) || (needs.plan.result == 'success' && (github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release-') && needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -286,9 +303,9 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: npx playwright install --with-deps chromium
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: sudo apt-get install -y libjpeg-turbo-progs
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - name: Head zone build
         run: npx vite build --config origins/preview/vite.config.mjs
       - name: Base zone build
@@ -359,9 +376,9 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: npx playwright install --with-deps chromium
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Lossless JPEG build tool
-        run: sudo apt-get install -y libjpeg-turbo-progs
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "sudo apt-get install -y libjpeg-turbo-progs"
       - run: npm run build
       - name: ${{ matrix.gate.name }} gate
         run: node ${{ matrix.gate.script }}
@@ -398,7 +415,7 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: npx playwright install --with-deps chromium webkit
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium webkit"
       - name: Node vs Chromium vs WebKit
         run: node scripts/net-engines-check.mjs
         env:
@@ -445,7 +462,7 @@ jobs:
         name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - if: steps.scope.outputs.run == '1'
-        run: npx playwright install --with-deps chromium
+        run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - if: steps.scope.outputs.run == '1'
         name: Polish rows (release row 29 and any later *-polish-check)
         run: for f in scripts/*-polish-check.mjs; do echo "== $f"; node "$f"; done
@@ -466,7 +483,7 @@ jobs:
       - run: npm ci
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
-      - run: npx playwright install --with-deps chromium
+      - run: bash -c "$APT_OR_MIRROR" apt-or-mirror "npx playwright install --with-deps chromium"
       - name: Challenger vs guest, two pages
         run: node scripts/duel-two-page-check.mjs
       - if: always()
