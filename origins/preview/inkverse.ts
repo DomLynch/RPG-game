@@ -36,6 +36,8 @@ export type InkLook = {
   readonly material: { readonly on: number; readonly steps: number; readonly rampLow: number; readonly rampHigh: number; readonly gain: number; readonly hatchStrength: number; readonly hatchBelow: number; readonly hatchSpacingPx: number; readonly hatchAngleDeg: number; readonly hatchDuty: number; readonly grain: number; readonly screenCurve: number; readonly exclude: readonly string[] };
   /** Painted blood splashes on the ground of one zone (`zone`; none when `count` is 0): `files` are the decal pictures, scattered `count` times within `radiusM` of (`cx`, `cz`), each `sizeMinM` to `sizeMaxM` across, `lift` above the ground, laid flat by `rotationDeg`, seeded. */
   readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
+  /** Alternate colour atlases (Characters' ink-painted bodies): every mesh named in `objects` draws `file` (under the page base) as its colour map in place of the atlas it loaded with, same UVs; a file that cannot be fetched leaves the original. */
+  readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string }[];
   /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagFrames` how often the scene is searched again for tagged objects (pooled decals and effects appear lazily). */
   readonly tagPass: { readonly pull: number; readonly retagFrames: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
@@ -66,6 +68,9 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const mat = fields.material as Record<string, unknown> | undefined;
     if (!mat || typeof mat !== 'object') throw new Error(`ink look "${id}": material is missing`);
     const material = { ...group(id, 'material', mat, ['on', 'steps', 'rampLow', 'rampHigh', 'gain', 'hatchStrength', 'hatchBelow', 'hatchSpacingPx', 'hatchAngleDeg', 'hatchDuty', 'grain', 'screenCurve']), exclude: names(id, 'material.exclude', mat.exclude) };
+    const atl = fields.atlases;
+    if (!Array.isArray(atl)) throw new Error(`ink look "${id}": atlases is a list of { objects, file }`);
+    const atlases = atl.map((a, i) => { if (!a || typeof a.file !== 'string' || !a.file) throw new Error(`ink look "${id}": atlases[${i}].file is a file name`); return { objects: names(id, `atlases[${i}].objects`, a.objects), file: a.file }; });
     const sp = fields.splashes as Record<string, unknown> | undefined;
     if (!sp || typeof sp !== 'object' || typeof sp.zone !== 'string') throw new Error(`ink look "${id}": splashes is { zone, files, ... }`);
     const splashes = { zone: sp.zone, files: names(id, 'splashes.files', sp.files), ...group(id, 'splashes', sp, ['count', 'cx', 'cz', 'radiusM', 'sizeMinM', 'sizeMaxM', 'seed', 'lift', 'rotationDeg', 'opacity']) };
@@ -75,7 +80,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
@@ -249,11 +254,24 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   const nameIn = (list: readonly string[], n: string | undefined): boolean => !!n && list.includes(n);
   const userIn = (list: readonly string[], x: THREE.Material): boolean => list.some((k) => x.userData[k] !== undefined);
   const HUD_LAYER = 4, SKY_LAYER = 5; let hudList: THREE.Object3D[] = [];
+  const atlasTextures = new Map<string, Promise<THREE.Texture | null>>(), swapped = new WeakSet<THREE.Material>();
+  const atlasFor = (file: string): Promise<THREE.Texture | null> => {
+    let p = atlasTextures.get(file);
+    if (!p) { p = new THREE.TextureLoader().loadAsync(`${import.meta.env?.BASE_URL ?? '/'}${file}`).then((t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; return t; }, () => null); atlasTextures.set(file, p); }   // glTF UVs: no flip
+    return p;
+  };
+  const swapAtlas = (m: THREE.Mesh): void => {
+    for (const a of look.atlases) if (nameIn(a.objects, m.name)) for (const x of Array.isArray(m.material) ? m.material : [m.material]) {
+      const std = x as THREE.MeshStandardMaterial; if (swapped.has(x) || !std.map) continue; swapped.add(x);
+      void atlasFor(a.file).then((t) => { if (t) { t.channel = std.map!.channel; std.map = t; std.needsUpdate = true; } });
+    }
+  };
   const retag = (): void => {
     tagList = []; hudList = hudPieces(scene); for (const o of hudList) o.layers.enable(HUD_LAYER);
     if (look.skyPlate.passthrough > 0) scene.traverse((o) => { if (nameIn(look.skyPlate.objects, o.name)) o.traverse((c) => c.layers.enable(SKY_LAYER)); });
     scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
+      if (look.atlases.length) swapAtlas(m);
       const own = Array.isArray(m.material) ? m.material[0] : m.material; if (!own) return;
       if (look.material.on && look.material.exclude.length) for (const x of Array.isArray(m.material) ? m.material : [m.material]) if (nameIn(look.material.exclude, x.name) && !x.defines?.INK_OFF) { x.defines = { ...x.defines, INK_OFF: 1 }; x.needsUpdate = true; }   // these keep their own shading
       const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
