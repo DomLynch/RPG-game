@@ -37,7 +37,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
-import { killCopy, legendIdOf, zoneHint } from './legend-copy.ts';
+import { killCopy, legendIdOf, legendRankLine, zoneHint } from './legend-copy.ts';
 import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createAreaSky } from './area-sky.ts';
@@ -497,7 +497,7 @@ function step(dt: number) {
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   syncRigWeapon();
-  if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(barSource); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
   const label = zone ? zone.name : PIT_LAYOUT && zoneRow ? zoneRow.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -1026,6 +1026,9 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
+// The fight bar names a Pit legend as the creature card does (legend-copy.json: name, level, "Rank N · title"): the foe the engine is fighting, read from the same spawn row the card reads, so the two cannot name different legends.
+const legendBarTarget = () => { const t = wc.target(), spec = t && mobs?.find(t.id)?.spec; return t && spec && legendIdOf(loadZone().spawns.rows.find((r) => r.id === spec.character)) ? { ...t, sub: legendRankLine(t.level ?? 0) } : t; };
+const barSource = { hero: () => wc.hero(), inCombat: () => wc.inCombat(), target: legendBarTarget };   // the engine's world combat as the bars read it: its hero, its fight state and its foe, plus the legend's rank line
 const meters = createZoneBars(<T extends HTMLElement>(id: string) => document.getElementById(id) as T, document.body); hudWatch.observe(document.querySelector('.combat-hud')!);   // the Pit's own bars (src/fight/hud.ts createZoneBars; look: src/style.css): the foe in reach, health, stamina, plus the hit vignette
 function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';

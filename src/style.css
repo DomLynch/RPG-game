@@ -801,6 +801,14 @@ dialog>p {
   text-transform: none;
   opacity: 0.7;
 }
+/* A Pit legend's rank line (legend-copy.json "Rank N · title") under the name and level in the fight bar. */
+#opponent-name .opponent-rank {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  opacity: 0.7;
+}
 #combat-status {
   line-height: 1.5;
   min-height: 34px;
@@ -1110,8 +1118,9 @@ dialog>p {
     text-transform: uppercase;
   }
   /* A legend's class sits after his name here too (the label's text is font-size 0 on phone; ::after draws the name, the small follows it). */
-  #opponent-name:has(.opponent-class) { display: inline-flex; align-items: baseline; gap: 5px; }
+  #opponent-name:has(.opponent-class) { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 5px; }
   #opponent-name .opponent-class { order: 1; font-size: 9px; }
+  #opponent-name .opponent-rank { order: 2; flex-basis: 100%; font-size: 9px; }
   #health-value,#player-health-value,#stamina-value {
     display: none;
   }

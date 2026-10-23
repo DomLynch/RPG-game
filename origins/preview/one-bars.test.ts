@@ -27,5 +27,5 @@ test('the Pit\'s bars sit under the HUD stack, and the name-tag floor follows th
   assert.match(main, /labelFloor = Math\.max\(bottom, Math\.ceil\(document\.querySelector\('\.combat-hud'\)/);
   assert.doesNotMatch(main, /querySelector\('\.fm-meters'\)/);
   assert.match(main, /hudWatch\.observe\(document\.querySelector\('\.combat-hud'\)!\)/);
-  assert.match(main, /if \(!duelLayer\.classList\.contains\('infight'\)\) meters\.feed\(wc\)/, 'the duel\'s own createHud paints its bars when a Practice drives them');
+  assert.match(main, /if \(!duelLayer\.classList\.contains\('infight'\)\) meters\.feed\(barSource\)/, 'the duel\'s own createHud paints its bars when a Practice drives them');
 });
