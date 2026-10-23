@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "hintTrait", "file": "hint-copy.json", "at": "traits", "keyed": true, "key": "id", "required": { "walk": "string", "watch": "string" } },
+    { "table": "hintTiming", "file": "hint-copy.json", "at": "timing", "keyed": true, "key": "id", "required": { "dismissSec": "number" } }
+  ]
+}

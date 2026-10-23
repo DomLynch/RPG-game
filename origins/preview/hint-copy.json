@@ -1,0 +1,16 @@
+{
+  "about": "The first-load hint box's words and timing, by what a zone IS, not by which zone it is (Dom 2026-10-22: 700 zones must not each carry copy). `traits` is keyed by a trait derived from the zone's own rows (origins/preview/hint-copy.ts): `creatures` = its spawn rows are not empty, `noCreatures` = they are. A zone that wants its own words adds a row to legend-copy.json `zoneHints`, which wins over these. `timing.hint.dismissSec` is how long the box stays up when the player has not moved a thumb (the box also goes at the first move).",
+  "traits": {
+    "creatures": {
+      "walk": "Left stick walks. Push to the edge to run. Walk up to a creature and tap STRIKE (slide to stab or slash, hold for heavy) to fight it. Drag empty screen to look round when the camera lock is off.",
+      "watch": "Left stick walks. Push to the edge to run. Creatures stop and watch when you come near."
+    },
+    "noCreatures": {
+      "walk": "Left stick walks. Push to the edge to run. Drag empty screen to look round when the camera lock is off.",
+      "watch": "Left stick walks. Push to the edge to run."
+    }
+  },
+  "timing": {
+    "hint": { "dismissSec": 12 }
+  }
+}
