@@ -1,8 +1,8 @@
 // The Exo Gray release hero's clips (Dom 2026-10-23: "make this real hero for everyone", with Mixamo's own clips).
 // The target is scripts/character/hero-exo.mjs's rig: the classic hero's 65 joints with the classic hero's REST ROTATIONS (so every clip authored against the classic rig - the execution and hamstring JSON, the weapon-pack
 // clips, the sheathed/drawn sword nodes - keeps working) and Exo Gray's joint positions and mesh. It starts out carrying the classic hero's own 27 clips.
-// This script replaces 23 of them with MIXAMO's clips, taken from OpenTrident's hero-mixamo-exo-mx.glb (the Mixamo animation on Exo's own rest rotations, under the game's clip names). The four stand-ins Mixamo has no
-// answer for (Death_QuietOne, Skill_WitchArm, Skill_Pommel, Fin_RunThrough) STAY the classic hero's own clips, untouched.
+// This script replaces all 27 with MIXAMO's clips, taken from OpenTrident's hero-mixamo-exo-mx.glb (the Mixamo animation on Exo's own rest rotations, under the game's clip names). Four of them are Mixamo's NEAREST match,
+// not the exact animation (Death_QuietOne, Skill_WitchArm, Skill_Pommel, Fin_RunThrough); STAND_INS below can name clips to keep as the classic hero's own instead (empty on Dom's ruling).
 // The two rigs share joint names but not rest rotations (37 of 65 joints differ, up to 180 degrees), so a track cannot be copied: per key, each bone keeps its WORLD rotation delta from rest,
 //   worldB_anim = (worldA_anim * worldA_rest^-1) * worldB_rest, then back to a local rotation under B's animated parent.
 // IN PLACE: Mixamo's walks, strafes, rolls and lunges carry the body through the pelvis (Walk 1.5 m, Run 2.2 m, Attack 2.2 m); the game moves the actor itself, so that travel makes the feet skate. The pelvis keeps its
@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 
 const [targetFile, sourceFile, outFile] = process.argv.slice(2);
 assert.ok(targetFile && sourceFile && outFile, 'usage: exo-hero-clips.mjs <target rig.glb> <mixamo clips.glb> <out.glb>');
-const STAND_INS = new Set(['Death_QuietOne', 'Skill_WitchArm', 'Skill_Pommel', 'Fin_RunThrough']);   // Mixamo's nearest were not the right animation: the classic clips stay
+const STAND_INS = new Set([]);   // none: Dom 2026-10-23, Mixamo's own clip for every one of the 27, the four nearest-match ones (Death_QuietOne, Skill_WitchArm, Skill_Pommel, Fin_RunThrough) included; a name here would keep the classic hero's clip instead
 const KEEP_TRAVEL = /^Death/;
 const read = (f) => { const b = fs.readFileSync(f), n = b.readUInt32LE(12); return { j: JSON.parse(b.subarray(20, 20 + n)), bin: Buffer.from(b.subarray(28 + n)) }; };
 const B = read(targetFile), A = read(sourceFile);
