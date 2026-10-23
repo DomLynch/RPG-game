@@ -38,6 +38,8 @@ export type InkLook = {
   readonly splashes: { readonly zone: string; readonly files: readonly string[]; readonly count: number; readonly cx: number; readonly cz: number; readonly radiusM: number; readonly sizeMinM: number; readonly sizeMaxM: number; readonly seed: number; readonly lift: number; readonly rotationDeg: number; readonly opacity: number };
   /** Alternate colour maps (Characters' ink-painted bodies), files under the page base, same UVs, only the colour map (normal, roughness, occlusion untouched); a file that cannot be fetched leaves the original. A mesh named in `objects` draws `file` for its map; a material named in `materials` (the hero rig: Steel, Skin, Heraldry...) draws that material's own file. */
   readonly atlases: readonly { readonly objects: readonly string[]; readonly file: string; readonly materials: Readonly<Record<string, string>> }[];
+  /** A figure idling beside the hero in one zone (`?fig=<variant>` picks a `variants` file; none = nothing added): at (`x`, `z`) facing `facingDeg`, `scale` times its file's size, looping the clip named `clip` (else its first). */
+  readonly testFigure: { readonly zone: string; readonly variants: Readonly<Record<string, string>>; readonly clip: string; readonly x: number; readonly z: number; readonly facingDeg: number; readonly scale: number };
   /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagMs` how often (milliseconds) the scene is searched again for tagged objects (the hero, pooled decals and effects appear lazily). */
   readonly tagPass: { readonly pull: number; readonly retagMs: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
@@ -74,6 +76,9 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
       if (!a || typeof a.file !== 'string' || typeof a.materials !== 'object' || !a.materials || !Object.values(a.materials).every((x) => typeof x === 'string' && x)) throw new Error(`ink look "${id}": atlases[${i}] is { objects, file, materials: { name: file } }`);
       return { objects: names(id, `atlases[${i}].objects`, a.objects), file: a.file, materials: a.materials as Record<string, string> };
     });
+    const tf = fields.testFigure as Record<string, unknown> | undefined;
+    if (!tf || typeof tf !== 'object' || typeof tf.zone !== 'string' || typeof tf.clip !== 'string' || !tf.variants || typeof tf.variants !== 'object' || !Object.values(tf.variants).every((x) => typeof x === 'string' && x)) throw new Error(`ink look "${id}": testFigure is { zone, variants: { key: file }, clip, x, z, facingDeg, scale }`);
+    const testFigure = { zone: tf.zone, clip: tf.clip, variants: tf.variants as Record<string, string>, ...group(id, 'testFigure', tf, ['x', 'z', 'facingDeg', 'scale']) };
     const sp = fields.splashes as Record<string, unknown> | undefined;
     if (!sp || typeof sp !== 'object' || typeof sp.zone !== 'string') throw new Error(`ink look "${id}": splashes is { zone, files, ... }`);
     const splashes = { zone: sp.zone, files: names(id, 'splashes.files', sp.files), ...group(id, 'splashes', sp, ['count', 'cx', 'cz', 'radiusM', 'sizeMinM', 'sizeMaxM', 'seed', 'lift', 'rotationDeg', 'opacity']) };
@@ -83,7 +88,7 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagMs']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], testFigure: testFigure as InkLook['testFigure'], atlases, splashes: splashes as InkLook['splashes'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagMs']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
