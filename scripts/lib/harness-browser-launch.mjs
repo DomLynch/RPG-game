@@ -66,9 +66,31 @@ const headlessShell = () => {   // Playwright's headless shell is what a launch 
   return null;
 };
 
+/** Pure: should rows on this platform be muted? HARNESS_MUTE=0 turns it off, HARNESS_MUTE=1 forces it (Dom 2026-10-23: a headless WebKit row looped the game's audio out of the Mac speakers). */
+export const mutedPlatform = (platform = process.platform, env = process.env, row = rows) => env.HARNESS_MUTE === '0' ? false : env.HARNESS_MUTE === '1' || row.mutePlatforms.includes(platform);
+
+/** The init script every muted page runs first: nothing a real AudioContext plays reaches the output and media elements stay muted. OfflineAudioContext rows (audio-preview, arena-audio-check, bell-start) render to a buffer, not to the speakers, and are untouched. */
+export const MUTE_INIT_SCRIPT = `(() => {
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (dest, ...rest) { if (typeof AudioDestinationNode !== 'undefined' && dest instanceof AudioDestinationNode && !(this.context instanceof OfflineAudioContext)) return dest; return connect.call(this, dest, ...rest); };
+  const muted = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'muted');
+  if (muted && muted.set) {
+    Object.defineProperty(HTMLMediaElement.prototype, 'muted', { configurable: true, get: muted.get, set() { muted.set.call(this, true); } });
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...a) { muted.set.call(this, true); return play.apply(this, a); };
+  }
+})();`;
+
+/** Every context the browser makes (newPage goes through newContext) gets the mute script, so no row has to opt in. */
+export function muteBrowser(browser) {
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (...args) => { const context = await newContext(...args); await context.addInitScript(MUTE_INIT_SCRIPT); return context; };
+  return browser;
+}
+
 export async function launchBrowser(type, options = {}) {
   const isChromium = typeof type.name === 'function' ? type.name() === 'chromium' : false;
-  if (!isChromium || !onVps()) return type.launch(options);
+  if (!isChromium || !onVps()) { const plain = await type.launch(options); return mutedPlatform() ? muteBrowser(plain) : plain; }
   const real = options.executablePath || ((options.headless === false ? null : headlessShell()) ?? type.executablePath());
   const stem = path.join(os.tmpdir(), `scope-chromium-${crypto.randomUUID().slice(0, 12)}`), wrapper = `${stem}.sh`, pidFile = `${stem}.pid`;
   fs.writeFileSync(wrapper, wrapperText(real, pidFile), { mode: 0o755 });

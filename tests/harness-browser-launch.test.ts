@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileS
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { launchBrowser, onVps, processTree, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/harness-browser-launch.mjs';
+import { launchBrowser, MUTE_INIT_SCRIPT, muteBrowser, mutedPlatform, onVps, processTree, reniceArgs, threadIds, vpsOptions, wrapperText } from '../scripts/lib/harness-browser-launch.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // The helper itself, and the two job scripts that run INSIDE Hugging Face jobs as node snippets (HF behaviour stays unchanged, not the VPS).
@@ -53,6 +53,19 @@ test('the VPS gets a low-weight, niced scope and software GL; its own GL choice 
   assert.doesNotMatch(text, /Nice=/);
   assert.match(text, /^unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR XDG_SESSION_ID$/m);   // without a session bus Chromium cannot hop into its own scope and shed the CPUWeight
   assert.deepEqual(reniceArgs([11, 12]), ['-n', '10', '-p', '11', '12']);
+});
+
+test('Mac rows are muted by default: every context a browser makes runs the mute script first; HARNESS_MUTE overrides', async () => {
+  assert.equal(mutedPlatform('darwin', {}), true);
+  assert.equal(mutedPlatform('linux', {}), false);
+  assert.equal(mutedPlatform('darwin', { HARNESS_MUTE: '0' }), false);
+  assert.equal(mutedPlatform('linux', { HARNESS_MUTE: '1' }), true);
+  const added: string[] = [];
+  const browser = muteBrowser({ newContext: async () => ({ addInitScript: async (script: string) => { added.push(script); } }) } as any) as any;
+  await browser.newContext({ viewport: { width: 375, height: 812 } });
+  assert.deepEqual(added, [MUTE_INIT_SCRIPT]);
+  assert.match(MUTE_INIT_SCRIPT, /AudioDestinationNode/);
+  assert.match(MUTE_INIT_SCRIPT, /OfflineAudioContext/);   // the offline audio rows render to a buffer and keep working
 });
 
 test('threadIds walks a process and its descendants, every thread', () => {

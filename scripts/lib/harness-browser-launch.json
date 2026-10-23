@@ -3,6 +3,7 @@
   "vpsHostnames": ["Brain"],
   "scopeProperties": ["CPUWeight=20"],
   "niceLevel": 10,
+  "mutePlatforms": ["darwin"],
   "softwareGlArgs": ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   "gpuArgPrefixes": ["--use-gl", "--use-angle", "--disable-gpu", "--enable-gpu"]
 }
