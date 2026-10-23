@@ -1,11 +1,12 @@
 // Frontier-zone presence, step 1 (docs/specs/origins/frontier-presence.md): the zone table as rows, the whole-world frame, the walkable clamp, the Pit's quiet, the v1 shim and the v2 hello.
+import '../origins/server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES, World } from '../origins/presence/interest.ts';
 import { createPresence, PROTOCOL, PROTOCOL_V2 } from '../origins/presence/server.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, SPAWN, ZONE_ROWS, fromLegacy, toLegacy, walkable, worldMetres, zoneAt } from '../origins/presence/zones.ts';
-import { zoneIds } from '../origins/zones/loader.ts';
+import { loadZone, zoneIds } from '../origins/zones/loader.ts';
 import { CONCORD_REGION } from '../origins/world/concord.ts';
 import { frontierPlan } from '../origins/preview/frontier-plan.ts';
 
@@ -26,7 +27,9 @@ test('frame: the u16 frame holds the whole world, the town square sits inside it
 
 test('rows: every Frontier zone is a row named by the plan, its centre and spawn homes resolve to it, and speed and quiet are row fields (1.0x everywhere, the Pit alone quiet)', () => {
   const ids = new Set(zoneIds().flatMap(zid => frontierPlan(true, zid).zones.filter(q => q.region !== CONCORD_REGION).map(q => q.zone)));
-  assert.ok(ids.size >= 9, 'the plan names the nine Frontier zones');
+  const concord = new Set(zoneIds().flatMap((zid) => frontierPlan(true, zid).zones.filter((q) => q.region === CONCORD_REGION).map((q) => q.zone)));   // the town's and the Pit's zones: not Frontier zones (Zone 0 is listed now, so its world 'exchange' is among the listed worlds)
+  const worlds = new Set(zoneIds().flatMap((zid) => loadZone(zid).world).filter((w) => !concord.has(w)));   // was `ids.size >= 9` (the nine zones of Zones 1-4); beta = Zone 0/1/2/Dungeon 1 (Dom 10-22) lists only 1 and 2, so the plan names every world zone of the LISTED zones
+  assert.ok(ids.size >= worlds.size && [...worlds].every((w) => ids.has(w)), 'the plan names every Frontier zone of the listed zones');
   for (const id of ids) {
     const row = ZONE_ROWS.find(z => z.id === id);
     assert.ok(row, `${id} is a row`);
