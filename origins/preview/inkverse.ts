@@ -34,6 +34,8 @@ export type InkLook = {
   readonly tags: { readonly red: InkTag; readonly blue: InkTag };
   /** ONE ink shading for every lit world material (`on` 1): outgoing diffuse = albedo x a ramp of the light that fell on it, specular dropped. `steps` 0 = smooth, 3 = toon; `rampLow`/`rampHigh` the light range the ramp spans; hatching only below `hatchBelow` of the ramp; `grain` the paper noise; `screenCurve` 0 = the screen pass skips its own tone curve (the materials already made the ramp); `exclude` names keep their own shading. */
   readonly material: { readonly on: number; readonly steps: number; readonly rampLow: number; readonly rampHigh: number; readonly gain: number; readonly hatchStrength: number; readonly hatchBelow: number; readonly hatchSpacingPx: number; readonly hatchAngleDeg: number; readonly hatchDuty: number; readonly grain: number; readonly screenCurve: number; readonly exclude: readonly string[] };
+  /** The tag pass's own tuning: `pull` the depth-offset (factor and units) that draws a tag over the surface the scene already wrote; `retagFrames` how often the scene is searched again for tagged objects (pooled decals and effects appear lazily). */
+  readonly tagPass: { readonly pull: number; readonly retagFrames: number };
   /** `passthrough` 1: where no geometry stands, the named sky objects (the dome and its plate sector) are drawn plain, as they are, instead of through the ink curve: a plate that is already inked (and red) must not be darkened twice. */
   readonly skyPlate: { readonly passthrough: number; readonly objects: readonly string[] };
   /** Alternate backdrop plates drawn under this look: `from` is the plate file the zone names, `to` the ink-painted one (a missing `to` falls back to `from`). */
@@ -41,7 +43,7 @@ export type InkLook = {
 };
 
 const num = (id: string, what: string, v: unknown): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`ink look "${id}": ${what} is a number`); return v; };
-const rgb = (id: string, what: string, v: unknown): Rgb => { if (!Array.isArray(v) || v.length !== 3) throw new Error(`ink look "${id}": ${what} is [r, g, b]`); return [num(id, what, v[0]), num(id, what, v[1]), num(id, what, v[2])]; };
+const rgb = (id: string, what: string, v: unknown): Rgb => { if (!Array.isArray(v)) throw new Error(`ink look "${id}": ${what} is [r, g, b]`); const [r, g, b, ...rest] = v; if (rest.length) throw new Error(`ink look "${id}": ${what} is [r, g, b]`); return [num(id, what, r), num(id, what, g), num(id, what, b)]; };
 const names = (id: string, what: string, v: unknown): readonly string[] => { if (!Array.isArray(v) || !v.every((s) => typeof s === 'string' && s)) throw new Error(`ink look "${id}": ${what} is a list of names`); return v as string[]; };
 const tag = (id: string, what: string, v: unknown): InkTag => { const t = v as Record<string, unknown> | undefined; if (!t || typeof t !== 'object') throw new Error(`ink look "${id}": ${what} is an object`); return { color: rgb(id, `${what}.color`, t.color), keepLuma: num(id, `${what}.keepLuma`, t.keepLuma), gain: num(id, `${what}.gain`, t.gain), glowPx: num(id, `${what}.glowPx`, t.glowPx), glowStrength: num(id, `${what}.glowStrength`, t.glowStrength), materials: names(id, `${what}.materials`, t.materials), objects: names(id, `${what}.objects`, t.objects), userData: names(id, `${what}.userData`, t.userData) }; };
 const group = (id: string, what: string, v: unknown, keys: readonly string[]): Record<string, number> => {
@@ -68,12 +70,12 @@ export function loadInkLooks(raw: unknown): ReadonlyMap<string, InkLook> {
     const tags = fields.tags as Record<string, unknown> | undefined, plates = fields.plates;
     if (!Array.isArray(plates) || !plates.every((p) => p && typeof p.from === 'string' && p.from && typeof p.to === 'string' && p.to)) throw new Error(`ink look "${id}": plates is a list of { from, to } files`);
     if (!tags || typeof tags !== 'object') throw new Error(`ink look "${id}": tags is missing`);
-    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], skyPlate, plates: plates as InkLook['plates'] });
+    out.set(id, { id, paper: rgb(id, 'paper', fields.paper), ink: rgb(id, 'ink', fields.ink), tone: tone as InkLook['tone'], halftone: halftone as InkLook['halftone'], edges: edges as InkLook['edges'], character: character as InkLook['character'], aa: aa as InkLook['aa'], ao: ao as InkLook['ao'], hatch: hatch as InkLook['hatch'], grain: grain as InkLook['grain'], vignette: vignette as InkLook['vignette'], tags: { red: tag(id, 'tags.red', tags.red), blue: tag(id, 'tags.blue', tags.blue) }, material: material as InkLook['material'], tagPass: group(id, 'tagPass', fields.tagPass, ['pull', 'retagFrames']) as InkLook['tagPass'], skyPlate, plates: plates as InkLook['plates'] });
   }
   return out;
 }
 
-const f = (n: number): string => n.toFixed(4);   // a GLSL float literal from a row value: the shader text carries no tuning of its own
+const f = (n: number): string => (Number.isInteger(n) ? `${n}.0` : `${n}`);   // a GLSL float literal from a row value (an integer needs its point): the shader text carries no tuning of its own
 let patched = false;
 /** The ink material: appends the ramp to three's `aomap_fragment` chunk (included by every lit material: standard, physical, phong, lambert), so one patch shades every world material. Call once, BEFORE the first material compiles (the gfx lift's fog patch has the same rule); a flag-off page never imports this file. */
 export function patchInkMaterial(look: InkLook): void {
@@ -210,7 +212,9 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   // The tag pass: each tagged mesh is on a camera layer (1 red, 2 blue) as well as 0; the scene draws once more through those layers over the scene's own depth, each tagged mesh wearing a tag material that keeps its own cut-out (a decal's map alpha,
   // a banner's alphaMap) and its own fade, or the decals would draw as red squares. The sand's blood-stain mask is redrawn from the inputs the sand's shader reads (exchange.ts `stained` leaves them on the material's userData.inkStain).
   const TAG = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1)];
-  const OFFSET = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };   // pulled toward the camera: the tag pass redraws surfaces the scene already wrote to the shared depth
+  const OFFSET = { polygonOffset: true, polygonOffsetFactor: -look.tagPass.pull, polygonOffsetUnits: -look.tagPass.pull };   // pulled toward the camera: the tag pass redraws surfaces the scene already wrote to the shared depth
+  const RED_LAYER = 1, BLUE_LAYER = 2, CHAR_LAYER = 3;   // camera layers of the tag pass: red, blue, and the skinned-character flag (.g)
+  const TAG_CLEAR = new THREE.Color(0, 0, 0);
   const VERT = 'varying vec2 vUv; varying vec3 vW; void main() { vUv = uv; vec4 p = vec4(position, 1.0);\n#ifdef USE_INSTANCING\n p = instanceMatrix * p;\n#endif\n vec4 w = modelMatrix * p; vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
   type Cut = THREE.MeshBasicMaterial;
   const cutMat = (src: THREE.Material, layer: number): THREE.ShaderMaterial => new THREE.ShaderMaterial({
@@ -220,17 +224,17 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   });
   const stainMat = (stain: { span: number; top: number; bottom: number; gain: number; patch: { value: THREE.Texture } }): THREE.ShaderMaterial => new THREE.ShaderMaterial({
     uniforms: { patchMap: stain.patch, tag: u(TAG[1]) }, vertexShader: VERT, ...OFFSET,
-    defines: { SPAN: stain.span.toFixed(2), TOP: stain.top.toFixed(2), DEPTH: (stain.bottom - stain.top).toFixed(2), GAIN: stain.gain.toFixed(2) },
+    defines: { SPAN: f(stain.span), TOP: f(stain.top), DEPTH: f(stain.bottom - stain.top), GAIN: f(stain.gain) },
     fragmentShader: 'uniform sampler2D patchMap; uniform vec3 tag; varying vec2 vUv; varying vec3 vW; void main() { vec4 s = texture2D(patchMap, fract(vW.xz / SPAN + 0.5)); float a = clamp(s.a * GAIN, 0.0, 1.0) * clamp((vW.y - TOP) / DEPTH, 0.0, 1.0); gl_FragColor = vec4(tag * a, 1.0); }',   // the sand shader's own stain amount
   });
-  const flat = (color: number) => new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false, ...OFFSET });
-  const flatMats = [null, flat(0xff0000), flat(0x0000ff), flat(0x00ff00)];   // layer 3 is the character flag (.g): every skinned mesh, whatever it wears
+  const flat = (color: THREE.Color) => new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false, ...OFFSET });
+  const flatMats = [null, flat(new THREE.Color(1, 0, 0)), flat(new THREE.Color(0, 0, 1)), flat(new THREE.Color(0, 1, 0))];   // layer 3 is the character flag (.g): every skinned mesh, whatever it wears
   const made = [0, 1, 2, 3].map(() => new WeakMap<THREE.Material, THREE.Material>());
   const tagMaterialFor = (src: THREE.Material, layer: number): THREE.Material => {
     let hit = made[layer]!.get(src);
     if (!hit) {
       const stain = src.userData.inkStain;
-      hit = layer === 3 ? flatMats[3]! : stain && layer === 1 ? stainMat(stain) : (src as Cut).map || (src as Cut).alphaMap ? cutMat(src, layer) : flatMats[layer]!;
+      hit = layer === CHAR_LAYER ? flatMats[layer]! : stain && layer === 1 ? stainMat(stain) : (src as Cut).map || (src as Cut).alphaMap ? cutMat(src, layer) : flatMats[layer]!;
       made[layer]!.set(src, hit);
     }
     return hit;
@@ -250,18 +254,18 @@ export function createInkverse(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       const hit = (t: InkTag): boolean => nameIn(t.objects, o.name) || nameIn(t.materials, own.name) || userIn(t.userData, own);
       const layer = hit(look.tags.red) ? 1 : hit(look.tags.blue) ? 2 : 0;
       if (layer) { o.layers.enable(layer); tagList.push({ mesh: m, layer, own }); }
-      if ((m as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(3); tagList.push({ mesh: m, layer: 3, own }); }
+      if ((m as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(CHAR_LAYER); tagList.push({ mesh: m, layer: CHAR_LAYER, own }); }
     });
   };
   let frames = 0; const toLight = new THREE.Vector3();
   // For picking tags: every mesh's object name, material name and kind in the scene right now (`window.inkNames()`, a look-test aid).
   (window as unknown as { inkNames: () => unknown }).inkNames = () => { const seen = new Map<string, number>(); scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; for (const x of mats) { const k = `${o.name || '-'} | ${x?.name || '-'} | ${x?.type}${(m as THREE.SkinnedMesh).isSkinnedMesh ? ' skinned' : ''}${(x as THREE.MeshBasicMaterial)?.emissive && (x as THREE.MeshStandardMaterial).emissiveIntensity > 0 ? ' emissive' : ''}`; seen.set(k, (seen.get(k) ?? 0) + 1); } }); return [...seen].map(([k, n]) => `${n} x ${k}`); };
   const render = (): void => {
-    if (frames++ % 30 === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
+    if (frames++ % look.tagPass.retagFrames === 0) retag();   // pooled decals and effects are made lazily: look again twice a second
     const before = renderer.getRenderTarget(), autoClear = renderer.autoClear, clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
     camera.layers.set(0); renderer.setRenderTarget(color); withoutHud(scene, () => renderer.render(scene, camera));   // the scene-space HUD pieces (name tags, "!", rings: userData.hud, hud-tag.ts) are left out of the pass and drawn plain over it below
-    if (look.skyPlate.passthrough > 0) { const bg = scene.background; scene.background = null; renderer.setRenderTarget(skyTarget); renderer.setClearColor(0x000000, 1); renderer.autoClear = true; camera.layers.set(SKY_LAYER); withoutHud(scene, () => renderer.render(scene, camera)); scene.background = bg; camera.layers.set(0); }
-    renderer.setRenderTarget(tagged); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, false, false);
+    if (look.skyPlate.passthrough > 0) { const bg = scene.background; scene.background = null; renderer.setRenderTarget(skyTarget); renderer.setClearColor(TAG_CLEAR, 1); renderer.autoClear = true; camera.layers.set(SKY_LAYER); withoutHud(scene, () => renderer.render(scene, camera)); scene.background = bg; camera.layers.set(0); }
+    renderer.setRenderTarget(tagged); renderer.setClearColor(TAG_CLEAR, 1); renderer.autoClear = false; renderer.clear(true, false, false);
     if (tagList.length) {
       const bg = scene.background, fog = scene.fog; scene.background = null; scene.fog = null;
       withoutHud(scene, () => {
