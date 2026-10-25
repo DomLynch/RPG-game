@@ -37,7 +37,7 @@ Leave behind: zones beyond one, catalogue bodies, the anti-cheat replay service,
 
 ## Bodies and clips from OpenTrident
 
-- One rig: the 106-joint Mixamo-style skeleton every OpenTrident body uses (MakeHuman bodies, the 20 monster archetypes, the first 100 factory bodies, anime bodies). Read, never copy, from the OpenTrident library (opentrident.org, repo `opentrident-steam`, `site/models/...` and the rows under `docs/parts-lab/`). The OpenTrident Dev owns that library and the physics package; you consume both.
+- One rig, and ONLY this rig: the 106-joint Mixamo-style skeleton every OpenTrident body uses (Mixamo bodies, MakeHuman bodies, the 20 monster archetypes, the first 100 factory bodies, anime bodies). NOT Frankendom's old 65-bone rig, NOT Frankendom's old bodies or clips: nothing from the old game's model or animation folders is used. Every body and every clip comes from the OpenTrident library, already standardised on the 106-joint rig. Read, never copy, from the OpenTrident library (opentrident.org, repo `opentrident-steam`, `site/models/...` and the rows under `docs/parts-lab/`). The OpenTrident Dev owns that library and the physics package; you consume both.
 - About 2,500 Mixamo clips plus Hellish Quart's decoded fencing clips, all on that rig; hit windows live OUTSIDE the clip as events (wind-up, active, recovery, i-frames), never baked in.
 - Phone budget per body: under 5 MB, 8 draws, validator clean. The library already enforces it.
 
