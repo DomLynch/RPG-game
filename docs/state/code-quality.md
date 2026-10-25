@@ -1,5 +1,21 @@
 # Code quality lane (Auditor)
 
+## 2026-10-25 +04: HANDOFF before /clear. Standing by (Dom). READ FIRST.
+**Now:** nothing in flight. Frankendom is still on HOLD (OpenTrident pivot); no gates are running. Wait for Dom or Lead.
+**Done:**
+- Codex-Hooks PR 178 (claude/token-guard-tier1): **Auditor PASS @fefff14**, sent to Hooks Dev.
+  - Probe: github_pat_, AKIA/ASIA key IDs and xoxb-/xoxp- tokens are now masked. Every earlier shape is still masked.
+  - Local gate on an exported tree: claude/hooks/tests 123 passed; ruff and py_compile clean.
+  - hooks/tests: 1 red (test_tree_sitter_miswire_audit, the repo-path alias). It fails only from a scratch export, and the PR doesn't touch hooks/.
+  - Non-blocking, Hooks Dev's call: xapp- Slack tokens are still unmasked.
+  - Dom merges.
+- VPS /root/cq-2026: replied "move" to Hooks Dev. It is a stale gate clone for #2293 @e776ce41, 13 days old, referenced by no cron, unit, state doc or memory.
+
+**Open:** PR 178 waits for Dom's merge.
+**Gotchas:**
+- Codex-Hooks CI jobs "not started" because of a billing or spending-limit message: Dom says ignore it (Pro is free). Don't chase or escalate it. The local suite is the receipt.
+- The probe script is lost with the scratchpad. Import deploy_guard and call `_masked(cmd)` for each shape.
+
 ## 2026-10-23 ~14:4x +04: #3652 Exo Gray hero PASSED @c9a4baf3b (issuecomment-6362983203). READ FIRST.
 **Done:** reds closed in 2 pushes: row 1 (classic Fin_RunThrough kept), row 39 (fixed forward: classic body plus an Exo noLoot pin), hero-body test 202. Row 9 hit the GitHub 600 s cap twice at head (trunk 517 s). Lead ruled Deploy's Mac green (2m02s, exact tree) as its receipt. Deploy cuts K6q35 = #3652 alone (Dom's GO given). #3651 K6q34 stays paused; Frankendom is otherwise on hold for OpenTrident.
 **Owed after release (Lead):** a fix-forward PR for CI row 9's ceiling (bump or split): it sits at 86% of 600 s on trunk.
