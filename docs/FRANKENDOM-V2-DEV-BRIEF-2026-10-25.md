@@ -1,6 +1,6 @@
 # Frankendom V2 Dev: onboarding brief (Strategy, 2026-10-25)
 
-You are the Frankendom V2 Dev. Read this, read the three documents below, set up the repo, then STOP and wait for Dom. Do not start building until he speaks to you.
+You are the Frankendom V2 Dev. Read this and the documents below. Dom gave GO on step 1 on 2026-10-25 at ~21:xx Dubai; this brief is the standing reference, updated 10-25 night with every ruling since (hosting, no sign-in, hit-stop, clip mapping, secrets). Where an older message from Strategy and this brief disagree, this brief wins.
 
 ## What we are building
 
@@ -13,7 +13,8 @@ The game in one sentence: kill an opponent, take a body part with its gear, wear
 1. Core reference, direction and every ruling: `frankendom-strategy/docs/COMBAT-101-TOP-25-2026-10-25.md` (GitHub: DomLynch/RPG-game, branch `strategy/state-1007b`). Read the whole file; the sections "V2 is a clean rewrite", "Game shape amendment" and "Three kinds of kill clip" are your spec.
 2. How Frankendom ran the pit as a live dungeon zone, and the shared-health bug to avoid: `frankendom-lead-catalogue/docs/v2/pit-live-zone-for-opentrident.md`.
 3. How Armagedom runs its live world (presence, writer, Supabase, Google Auth, message shapes, caps): `~/Library/Application Support/Claude/side-session-notes/local_ade728d1-210c-44f1-8a7f-904c8e1ad4f6/shared-zone-mmo-state-for-opentrident.md`.
-4. Numbers for combat physics (not needed for the prototype, needed for M3 onward): `opentrident-steam/docs/parts-lab/combat-physics-comparison-five-games.md`.
+4. Frankendom's controls and combat as one page with file paths and numbers (your combat spec, with the move table): `frankendom-lead-catalogue/docs/v2/controls-and-combat-for-v2.md`. Its clip families are listed "on the hero rig": take only the ROLE NAMES and the strike-frame numbers from it; the clips themselves come from the OpenTrident library (see "Bodies and clips").
+5. Numbers for combat physics (not needed for the prototype, needed for M3 onward): `opentrident-steam/docs/parts-lab/combat-physics-comparison-five-games.md`.
 
 ## Setup (our usual)
 
@@ -21,7 +22,8 @@ The game in one sentence: kill an opponent, take a body part with its gear, wear
 - Mac: coding only. Heavy work (builds, suites, Chromium, clips, stills) on the VPS: `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18` (fallback 100.96.74.1). Hugging Face CPU jobs ($0.03/h) for batch work; GPU only on Dom's word.
 - GitHub Actions is the gate: every check that can run there runs there, sharded; merge on green. Tier A (data and pure changes) must land in 15 minutes.
 - Branch per task, PR with before/after at 375 wide when the player sees a change, no stacking, no wording pins. Commit receipts; nobody relays them.
-- Deploy target: a preview path on the VPS first (Dom tests on his phone at 375 wide), the live domain when Dom says.
+- Deploy target (Dom, 10-25 night): **https://v2.frankendom.com**, push-to-deploy on every green main, from day one. Frankendom Deploy set it up: VPS folder `/srv/frankendom-v2/live`, its own nginx server block and certificate, deploy user `frankendom-v2` with an rsync-locked key, and these four repository secrets, use exactly these names: `V2_DEPLOY_HOST`, `V2_DEPLOY_USER`, `V2_DEPLOY_KEY`, `V2_DEPLOY_KNOWN_HOSTS` (the path is fixed, there is no path secret). Serve from the site root, no path prefix anywhere, nothing shared with V1; when V2 replaces V1 the root is switched by one proxy rule. Dom tests every push on his phone at that URL.
+- No sign-in, no Supabase, no accounts, no cookies for now (Dom, 10-25 night): the URL opens straight into the fight as a guest. Accounts and the live zone come in step 3 and nothing built before may depend on them.
 - Rules: no hard-coded values (data layer first); never touch anything armagedom on the VPS or the storage box; never edit the two sandboxes; no blocking questions (pick the default, state it in one line, continue).
 
 ## Carry over from Frankendom as DATA (never its code)
@@ -38,7 +40,9 @@ Leave behind: zones beyond one, catalogue bodies, the anti-cheat replay service,
 ## Bodies and clips from OpenTrident
 
 - One rig, and ONLY this rig: the 106-joint Mixamo-style skeleton every OpenTrident body uses (Mixamo bodies, MakeHuman bodies, the 20 monster archetypes, the first 100 factory bodies, anime bodies). NOT Frankendom's old 65-bone rig, NOT Frankendom's old bodies or clips: nothing from the old game's model or animation folders is used. Every body and every clip comes from the OpenTrident library, already standardised on the 106-joint rig. Read, never copy, from the OpenTrident library (opentrident.org, repo `opentrident-steam`, `site/models/...` and the rows under `docs/parts-lab/`). The OpenTrident Dev owns that library and the physics package; you consume both.
-- About 2,500 Mixamo clips plus Hellish Quart's decoded fencing clips, all on that rig; hit windows live OUTSIDE the clip as events (wind-up, active, recovery, i-frames), never baked in.
+- About 2,500 Mixamo clips plus Hellish Quart's decoded fencing clips, all on that rig, served per clip from `https://opentrident.org/models/mixamo/clips/...`; hit windows live OUTSIDE the clip as events (wind-up, active, recovery, i-frames), never baked in.
+- Clip roles are a MAPPING TABLE (`data/clips.json`): one row per role name from the controls page (Attack, Return, Heavy, Thrust, Kick, Guard, Roll, Hit, Death, Idle, Armed, Run, Strafe...) naming the OpenTrident clip id and the strike fraction. NEVER load clips from the old hero's files (`hero-mixamo-exo-mx.glb` is the 65-bone Frankendom hero; a Strategy message on 10-25 wrongly pointed at it and is withdrawn). Never remap 65-bone clips.
+- Hit-stop (Dom, 10-25 night): the live game has it OFF (all 0 ms since 10-07) while the core doc carries the 30 to 220 ms table. Both as data: the table in `data/hit-stop.json` plus one global multiplier row defaulting to 0, so step 1 feels like the live game; Dom flips it to 1 on the URL and judges. Never hard-coded.
 - Phone budget per body: under 5 MB, 8 draws, validator clean. The library already enforces it.
 
 ## Rules that stand (from the core document)
@@ -52,7 +56,7 @@ Leave behind: zones beyond one, catalogue bodies, the anti-cheat replay service,
 
 ## Build order, once Dom says go
 
-1. Two fighters on a flat floor, one sword, light and heavy attacks, guard, thumb controls, playable on Dom's phone from a VPS preview path. Local sim only for this step, but written as the shared module.
+1. Two fighters on the OpenTrident viewer stage (grid floor, blue sky, height ruler, nothing else), one sword, the full Frankendom thumb controls (stick, slash, forward slash, stab, heavy, kick, guard, dodge roll, specials), one simple opponent driven from one behaviour row, playable on Dom's phone at https://v2.frankendom.com. Local sim only for this step, but written as the shared module. Ship it as one PR with green CI; the first green push goes live.
 2. Parry, riposte, roll, hit-stun and hit-stop from the Frankendom numbers. Acceptance: a two-minute side by side on Dom's phone, V2's light attack feels identical to V1's.
 3. The sim headless on the VPS, one live zone, drop in and out, one opponent with server-held health, two phones hitting it, credit settled on the server. One opponent brain from the behaviour rows.
 4. Finishers from data and the ragdoll layer from the OpenTrident physics package.
@@ -66,4 +70,4 @@ Each step is days. Every step ends with one clip or still at 375 for Dom, one li
 - OpenTrident Dev: owns the body and clip library and the physics package (milestones M1 to M6). Ask it for library questions.
 - Make Human Dev: builds the factory bodies. Armagedom Lead and Frankendom Lead wrote the two live-zone pages; ask them only about those pages.
 
-Now: clone, read, set up CI, write a one-page `docs/PLAN.md` restating the four steps in your own words with the files you will create, and wait for Dom.
+Setup is done (repo cloned, CI gate, data lint, `docs/PLAN.md` on main). Now: step 1 as one PR with green CI, live on the URL, one line and one 375 clip to Dom, then step 2 without waiting. Minimal lines, no dependencies beyond three.js, every number in `data/`, no bloat.
