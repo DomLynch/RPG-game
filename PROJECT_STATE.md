@@ -25,12 +25,14 @@ This index is generated: `node scripts/state-index.mjs` after adding or renaming
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) |
 | Goblin | [docs/state/goblin.md](docs/state/goblin.md) |
 | Hero Look — project state (AAA-look pilot) | [docs/state/herolook.md](docs/state/herolook.md) |
+| Lead handoff, 2026-10-26 (Frankendom - Lead Dev session; Dom clearing it). Strategy writes its own entries below; this one is Lead's | [docs/state/lead-catalogue.md](docs/state/lead-catalogue.md) |
 | Lead | [docs/state/lead.md](docs/state/lead.md) |
 | Multi-chars (scalable characters) | [docs/state/multichar.md](docs/state/multichar.md) |
 | Nightborn | [docs/state/nightborn.md](docs/state/nightborn.md) |
 | The Pit | [docs/state/pit.md](docs/state/pit.md) |
 | Pitborn | [docs/state/pitborn.md](docs/state/pitborn.md) |
 | Sandbox v2 (foe folder): state, 2026-10-17 (read first; detail in docs/state/combat-sandbox.md) | [docs/state/sandbox-foe.md](docs/state/sandbox-foe.md) |
+| Sandbox master list (Lead, 2026-10-18) | [docs/state/sandbox-master-list.md](docs/state/sandbox-master-list.md) |
 | Combat Sandbox lane: handoff (2026-10-15) | [docs/state/sandbox.md](docs/state/sandbox.md) |
 | Stats, damage and defence | [docs/state/stats.md](docs/state/stats.md) |
 | Strategy | [docs/state/strategy.md](docs/state/strategy.md) |
@@ -48,6 +50,7 @@ This index is generated: `node scripts/state-index.mjs` after adding or renaming
 | Beta launch-gate audit, 2026-10-17 (Backend, read-only) | [docs/state/beta-gates-2026-10-17.md](docs/state/beta-gates-2026-10-17.md) |
 | New combat-feel ideas (Combat Sandbox, 2026-10-13) | [docs/state/combat-new-ideas-2026-10-13.md](docs/state/combat-new-ideas-2026-10-13.md) |
 | Combat donor research (Combat Sandbox lane, 2026-10-13) | [docs/state/combat-research-2026-10-13.md](docs/state/combat-research-2026-10-13.md) |
+| Donor research: starter kill pace, damage-share credit, crowding (Lead, 2026-10-19) | [docs/state/donor-spawns-research-2026-10-19.md](docs/state/donor-spawns-research-2026-10-19.md) |
 | Live phone rank sweep — 2026-09-30 / 10-01 | [docs/state/herolook-sweep-2026-10-01.md](docs/state/herolook-sweep-2026-10-01.md) |
 | Nightborn lane: full handover, 2026-10-02 (night) | [docs/state/nightborn-handover-2026-10-02.md](docs/state/nightborn-handover-2026-10-02.md) |
 | strategy-ledger-2026-10-08 | [docs/state/strategy-ledger-2026-10-08.md](docs/state/strategy-ledger-2026-10-08.md) |
