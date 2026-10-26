@@ -1,3 +1,8 @@
+# Lead, 2026-10-26 afternoon (READ FIRST)
+- #3654 (kill credit: no solo-kill exception, two full bars split the kill) is MERGED; trunk is 2beaa116 and live is still 82a994d15. Dom: "yes ship it as a V1 release". K6q36 is blocked by a hooks cache_guard false block on deploy.sh:379 (`rm -f "$svc"`, svc=$(mktemp)). Ruling: Hooks fixes the guard, deploy.sh is not edited. Hooks Dev tells Deploy when it's installed, and Deploy launches. TRUNK FROZEN until it's published; #3655 (these docs) merges after.
+- Cleanup: frankendom-main reset to trunk (its staged index was backed up as local branch backup/frankendom-main-index-2026-10-26 @e59b4d7d3). Root handover/security files and the stills folders moved to ~/Developer/.scratch-shadow/lead-catalogue-archive-2026-10-26/ (private: VPS IP, not for the public repo).
+- V2 Dev has the V1-vs-V2 combat verdicts (27 rows plus 5 missing rules) and the map corrections (lift from 82a994d15; V2 is JS).
+
 # Lead handoff, 2026-10-26 (Frankendom - Lead Dev session; Dom clearing it). Strategy writes its own entries below; this one is Lead's
 ## Now
 - Nothing is mid-task. FRANKENDOM V1 IS ARCHIVED / ON HOLD: Dom is building Frankendom V2 (repo DomLynch/Frankendom-v2, ~/Developer/frankendom-v2, live https://v2.frankendom.com, built per sha under /b/<sha>/). The V2 Dev session is local_0d75328b-4dc5-4e9d-88a8-9059e05232c2.
