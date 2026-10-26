@@ -1,6 +1,13 @@
-# Physics Dev brief: M3 to M6 as a package for Frankendom V2 (Strategy, drafted 2026-10-25 night for a 10-26 start)
+# Physics Dev brief: M3 to M6 as a package (Strategy, drafted 2026-10-25 night; updated 2026-10-26 ~20:00 Dubai at Dom's go)
 
-Owner: decided by Dom on 10-26 morning, either the OpenTrident Dev (with agents) or a dedicated Physics Dev session in the Frankendom v2 group. Either way this is the brief. Physics is the critical path: V2 is live at https://v2.frankendom.com on its feel layer and installs the result as a package.
+## Update 2026-10-26 evening (Dom's decisions; this block wins over anything below that disagrees)
+- **Owner: a dedicated Physics Dev**, its own session and repo, neutral (not under Frankendom or Armagedom): repo `DomLynch/physics`, Mac folder `~/Developer/physics`. OpenTrident Dev hands over the M1/M2 state and stays the owner of bodies, measure rows and clips.
+- **Consumer is Frankendom V3** (repo `DomLynch/Frankendom-v3`, live https://v3.frankendom.com), not V2. V2 is retired. The V3 dev agrees the API in one message.
+- **Two rigs.** V3 runs V1's 65-joint UE-style rig today (warrior, Centurion, Psyche, Minotaur bodies) and moves to OpenTrident's 106-joint rig in a later swap. The package takes body MEASURE ROWS (part lengths, masses, joint limits), never bone names, so one ragdoll generator serves both; a 65-rig measure-row set for V3's current bodies is part of M2's handover, and the M3 proof clip may run on the 106 bodies.
+- **Universal by design: Armagedom uses the same package** (top-down 2.5D, ten passive ragdolls, motors off, same 3 ms budget) after V3's M3 passes. Nothing Frankendom-specific in the API; rule rows are data per game. Frankendom first.
+- Everything else in this brief stands: Jolt, WASM, deterministic fixed step, one module for phone and headless Node, the sim decides every outcome, the budgets, the rulings, the deliverables in order, the package shape.
+
+
 
 ## Read first
 1. Core reference, direction and rulings: `frankendom-strategy/docs/COMBAT-101-TOP-25-2026-10-25.md` (items 13 to 18, addendum 1 A1 to A10, addendum 2 B1 to B8, the budget correction, the finisher trigger).
