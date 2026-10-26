@@ -266,8 +266,8 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       }
       else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
-    // The share of the kill's credit. Only a record that VERIFIED speaks for the damage: its replayed damage to this creature, set against what earlier reports on this incarnation dealt (damage-share.ts: a
-    // full bar alone is a solo kill at 100%, otherwise qualifiers split by damage). No verified damage is 0 damage, never the creature's health (Auditor, #3303 F1): the FIRST kill of a creature without a
+    // The share of the kill's credit. Only a record that VERIFIED speaks for the damage: its replayed damage to this creature, set against what earlier reports on this incarnation dealt (damage-share.ts:
+    // qualifiers split by damage, no solo-kill exception). No verified damage is 0 damage, never the creature's health (Auditor, #3303 F1): the FIRST kill of a creature without a
     // verified record pays as before (the old path paid every first report; share 1, nothing recorded in the ledger), but a JOIN has no old path to match (it used to answer 'dead'), so a join without a
     // verified record is refused 'dead' and pays nothing.
     let share = 1, damage = 0;

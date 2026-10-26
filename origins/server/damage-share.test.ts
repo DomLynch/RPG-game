@@ -32,12 +32,13 @@ test('exactly 25% of the top qualifies', () => {
   assert.ok(shares([{ id: 'a', damage: 80 }, { id: 'b', damage: 20 }], 100, rows).get('b')! > 0);
 });
 
-test('a full bar alone is a solo kill at 100% even beside another full bar (interim rule); a smaller qualifier gets its fraction of the bar', () => {
+test('two full bars split the credit, never 100% each (Dom 10-26: each page plays its own copy, so both "solo" it)', () => {
   const s = shares([{ id: 'a', damage: 100 }, { id: 'b', damage: 100 }, { id: 'c', damage: 40 }, { id: 'd', damage: 10 }], 100, rows);
-  assert.equal(s.get('a'), 1);
-  assert.equal(s.get('b'), 1);
-  assert.equal(s.get('c'), 0.4);
+  assert.equal(s.get('a'), 100 / 240);
+  assert.equal(s.get('b'), 100 / 240);
+  assert.equal(s.get('c'), 40 / 240);
   assert.equal(s.get('d'), 0);   // under 25% of the top (100): out
+  assert.ok(Math.abs(sum(s) - 1) < 1e-12);
 });
 
 test('entries expire tagExpiryS after the contributor\'s last hit', () => {

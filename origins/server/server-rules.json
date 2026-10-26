@@ -131,7 +131,7 @@
       "tagExpiryS": 120,
       "joinWindowS": 120,
       "replaysPerAccount": 2,
-      "note": "kill credit is split by damage dealt (Dom 2026-10-19, rules from Lead's donor research): a contributor qualifies at this share of the TOP contributor's damage; a hit counts for tagExpiryS seconds after the contributor's last hit (the replay drops older damage); a report may join an already-killed spawn for joinWindowS seconds after the kill, only with a token engaged before the kill; at most replaysPerAccount replays of one account queued at once (the rest pay as an unreplayed kill). A contributor whose own verified damage reaches the creature's full health is a solo kill at 100% (interim until a shared server health bar). No first-hit and no last-hit bonus."
+      "note": "kill credit is split by damage dealt (Dom 2026-10-19, rules from Lead's donor research): a contributor qualifies at this share of the TOP contributor's damage; a hit counts for tagExpiryS seconds after the contributor's last hit (the replay drops older damage); a report may join an already-killed spawn for joinWindowS seconds after the kill, only with a token engaged before the kill; at most replaysPerAccount replays of one account queued at once (the rest pay as an unreplayed kill). No solo-kill exception: two contributors who each dealt a full bar split it (Dom 2026-10-26; each page still plays its own copy until a shared server health bar). No first-hit and no last-hit bonus."
     }
   ],
   "worldMarks": [
