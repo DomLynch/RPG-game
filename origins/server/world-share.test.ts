@@ -77,11 +77,10 @@ test('a report under 25% of the top share earns nothing (the event only), and th
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']);
 });
 
-test('interim: a full bar alone is a solo kill at 100% even when another contributor also dealt a full bar', async () => {
+test('a join that also dealt a full bar splits the kill with the first reporter, never a second 100%', async () => {
   const s = stub({ mode: 'join', prior: [{ token: 'first-reporter-token-xxx', damage: wolf.hp, joined: false }] });
   const got = await mk(async () => verdict(wolf.hp)).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: 'r' }) as { share: number; joined: boolean };
-  assert.equal(got.share, 1); assert.equal(got.joined, true);
-  assert.ok(s.kills[0]!.b.some((o) => o.op === 'career_set') || cpOf(s.kills[0]!.b) === 0, 'it is paid like a whole kill');
+  assert.equal(got.share, 0.5); assert.equal(got.joined, true);
 });
 
 test('winner-first: a report the database would refuse costs no replay and writes nothing', async () => {
