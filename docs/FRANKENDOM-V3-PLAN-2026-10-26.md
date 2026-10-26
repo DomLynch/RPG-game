@@ -77,7 +77,30 @@ V1's feel is in the code and the data, not the skeleton: timings, windows, hit-s
 
 Data layer first (every number a row; the validator rejects unknown rows). One deterministic sim shared by phone and headless Node (V1's `duel.ts` already qualifies). Six-unit fighter contract from day one. GitHub Actions the only gate, merge on green, 375 stills for anything visible, no stacking. Donor games first for any new feature. Dom judges every picture on his phone.
 
-## 8. Open questions for the sense-check
+## 8. Sense-check (second dev, 2026-10-26): agreed, with three corrections and six additions (all adopted)
+
+**Corrections to the map**
+1. **Lift from a pinned commit, never from `frankendom-main` as it sits.** `frankendom-main` on the Mac is stale (fefb8fe19, 2026-09-20, flat `src/`, no `src/fight`). GitHub trunk is **82a994d15** (2026-10-23) and has `src/fight`; the measured checkout was `frankendom-lead-catalogue` @ 6d236ab62. **V3 seeds from 82a994d15.**
+2. **V2 is JavaScript, not TypeScript** (2,683 src lines, 3,946 with tests and scripts). V3 = V1's TypeScript fight and feel inside V2's JS shell. V2's validator (`src/sim/validate.js`) is JS and gates V1's JSON data rows unchanged: a free win.
+3. "2.2k lines" was src-only; the parity harness (`test/parity.mjs`, `test/v1-parity.test.mjs`, `scripts/parity-table.mjs`) and the deploy scripts are part of what V3 inherits. Note: that harness drives a frozen fixture (`test/fixtures/v1-combat.json`), not live V1 code; good template, not V3's gate.
+
+**Additions**
+1. **Gate 0, before the phone: a headless replay diff in CI.** Both sides are pure 60 Hz. Run recorded input scripts through V1's `src/fight` at 82a994d15 and through V3's lifted copy, hash the state per tick, require identical, on every V3 PR. Port the driver from V2's `parity.mjs`, swap the fixture for live V1 code. "Nothing different" becomes a red/green row and catches any accidental edit during the lift.
+2. **One `stubs.ts`**, one line per stub naming the V1 module it replaces, plus a CI grep asserting nothing outside `stubs.ts` imports `core/*` (except `registry.ts`), `net`, `zones`, `legends`, `pit`. "Dropped" becomes enforced.
+3. **Page weight is measured and published at Gate 1.** V2's lightness is module weight; V3's first cut is dominated by GLBs (warrior 5.6 MB, opponents up to 8.5 MB). Hashed paths make repeat visits cheap; the first visit is not 12 KB and the number is stated, not assumed.
+4. **Inert-rules removal is scheduled right after Gate 1** (~900 lines of spell, missile, mana and stance rules, 13 of `duel.ts`'s 24 imports). They ride along for the first cut and are cut in the first PR after Gate 1, not left.
+5. **Seed once, then never pull.** `git filter-repo` seed from V1 history (`src/fight`, `src/audio`, `src/core/registry.ts`, `src/roster.ts`, the assets), the seed commit tagged `v1-seed-82a994d15`; afterwards V1 fixes enter V3 only as manual cherry-picks. Blame stays readable and the repos never entangle.
+6. **Fallback named now:** if Gate 1 fails on feel, the fix is in the lift or the cut (copy-only work), never a re-litigation of in-place editing. The only sanctioned re-open is the rig-swap gate with `?rig=65`.
+
+The order of work in section 5 is unchanged: repo + shell, lift, Gate 0 then Gate 1, rig swap, V2 rows one PR each.
+
+## 9. Open questions (now answered)
+1. Map read differently from the code: see the three corrections above.
+2. Spell/missile/mana rules in `duel.ts`: inert for the first cut, cut in the first PR after Gate 1 (addition 4).
+3. V1's HUD stays exactly for Gate 1; V2's HUD labels are a step-5 item.
+4. esbuild to ES modules, not Vite: keeps V2's hashed-path loading and no bundle.
+
+## Old section 8 kept for the record: open questions as first posed
 
 1. Anything in section 3 the checker reads differently from the code (the map was taken from import blocks and `wc -l`, not from running it).
 2. Whether the ~900 lines of spell/missile/mana rules inside `duel.ts` should be cut in the first lift or left inert (Strategy: leave inert, cut after gate 1).
