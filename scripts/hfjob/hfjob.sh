@@ -13,16 +13,27 @@ with_token() { if [ -z "${HF_TOKEN:-}" ] && [ -r /root/.hf/token ]; then HF_TOKE
 # hfjob logs|inspect|cancel|ps ARGS... : the same hf subcommands, with the token, so a job can be followed without `hf auth login`
 case "${1:-}" in logs|inspect|cancel|ps) with_token; exec "${HFJOB_BIN:-hf}" jobs "$@" ;; esac
 
-timeout=30m; flavor=cpu-upgrade
+here=$(dirname "$(readlink -f "$0")")
+# Standing boxes (Dom 2026-10-27): hfjob boxes | box-up NAME [--update] | box-pause NAME | box-logs NAME ID [--follow] ; hfjob --box NAME [--wait] -- CMD runs on the Space <owner>/<prefix>NAME
+# (names, flavor, sleep time all in data/hf-boxes.json; docs/HF-BOXES.md). Jobs below stay for fire-and-forget and need no box.
+case "${1:-}" in
+  boxes) shift; exec python3 "$here/boxes.py" list "$@" ;;
+  box-up) shift; exec python3 "$here/boxes.py" up "$@" ;;
+  box-pause) shift; exec python3 "$here/boxes.py" pause "$@" ;;
+  box-logs) shift; exec python3 "$here/boxes.py" logs "$@" ;;
+esac
+timeout=30m; flavor=cpu-upgrade; timeout_set=0; box=""; wait=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --timeout) timeout=${2:-}; shift 2 ;;
+    --timeout) timeout=${2:-}; timeout_set=1; shift 2 ;;
     --flavor) flavor=${2:-}; shift 2 ;;
+    --box) box=${2:-}; shift 2 ;;
+    --wait) wait=(--wait); shift ;;
     --) shift; break ;;
     *) break ;;
   esac
 done
-[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] -- <cmd...>" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] [--box NAME [--wait]] -- <cmd...>   |   hfjob boxes | box-up NAME | box-pause NAME | box-logs NAME ID" >&2; exit 2; }
 [[ "$timeout" =~ ^[0-9]+[mh]$ ]] || { echo "hfjob: --timeout must look like 30m or 2h, got '$timeout'" >&2; exit 2; }
 case "$flavor" in cpu-upgrade|cpu-basic) ;; *) echo "hfjob: --flavor '$flavor' is not a CPU flavor (cpu-upgrade, cpu-basic); GPU jobs go through scripts/gpu-run.mjs" >&2; exit 2 ;; esac
 
@@ -43,14 +54,20 @@ depth=${HFJOB_DEPTH:-1}
 argv=$(printf '%q ' "$@" | base64 | tr -d '\n')
 lane=$(basename "$top" | sed -e 's/^frankendom-//' -e 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
 
-inner='set -euo pipefail; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }
-mkdir -p /w && cd /w && git init -q && git remote add origin "$HFJOB_REPO"
-f=(); [ "$HFJOB_DEPTH" = 0 ] || f=(--depth "$HFJOB_DEPTH")
-for i in 1 2 3; do timeout 120 git fetch -q "${f[@]}" origin "$HFJOB_SHA" && break; [ "$i" = 3 ] && { echo "hfjob: could not fetch $HFJOB_SHA from $HFJOB_REPO" >&2; exit 1; }; sleep $((i * 5)); done
-git checkout -q --detach FETCH_HEAD; lap checkout
-if [ -f package-lock.json ]; then timeout 600 npm ci --no-audit --no-fund >/dev/null 2>&1 || { echo "hfjob: npm ci failed" >&2; exit 1; }; lap npm-ci; fi
-echo "hfjob: running at $(git rev-parse --short HEAD): $(printf %s "$HFJOB_ARGV_B64" | base64 -d)"
-exec bash -c "$(printf %s "$HFJOB_ARGV_B64" | base64 -d)"'
+inner=$(cat "$here/inner.sh")   # the clone + npm ci + exec body, shared with the box runner
+
+if [ -n "$box" ]; then
+  [ "$timeout_set" = 1 ] && { secs=$(( ${timeout%[mh]} * $([ "${timeout: -1}" = h ] && echo 3600 || echo 60) )); tarr=(--timeout "$secs"); } || tarr=()
+  bargs=(run "$box" --repo "$repo" --sha "$sha" --argv-b64 "$argv" --depth "$depth" ${tarr[@]+"${tarr[@]}"} ${wait[@]+"${wait[@]}"})
+  if [ "${HFJOB_DRY:-}" = 1 ]; then HFJOB_DRY=1 exec python3 "$here/boxes.py" "${bargs[@]}"; fi
+  with_token
+  tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
+  python3 "$here/boxes.py" "${bargs[@]}" | tee "$tmp" && rc=0 || rc=$?   # tee: --wait streams the job log live
+  rc=${PIPESTATUS[0]:-$rc}
+  line=$(grep -m1 '^tier=hf-box ' "$tmp" || true)
+  [ -n "$line" ] && echo "$(date -u +%FT%TZ) user=$(id -un) $line" >> "${HFJOB_LEDGER:-/var/log/hfjob.log}" 2>/dev/null || true
+  exit "$rc"
+fi
 
 hf=${HFJOB_BIN:-hf}
 args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane"

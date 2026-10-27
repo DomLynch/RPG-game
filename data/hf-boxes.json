@@ -1,0 +1,20 @@
+{
+  "_note": "Standing Hugging Face CPU boxes (Dom 2026-10-27): one Space per heavy lane, put to sleep by the Hub after sleepMinutes idle. Add a lane = add a key under boxes, then `hfjob box-up <name>`. See docs/HF-BOXES.md.",
+  "owner": "Domlynch",
+  "prefix": "box-",
+  "flavor": "cpu-upgrade",
+  "sleepMinutes": 15,
+  "pricePerHour": 0.03,
+  "port": 7860,
+  "pollSeconds": 60,
+  "readyTimeoutSeconds": 900,
+  "defaultTimeoutSeconds": 1800,
+  "awakeStages": ["RUNNING", "RUNNING_BUILDING", "APP_STARTING", "BUILDING"],
+  "boxes": {
+    "v3": { "lane": "Frankendom v3 Dev" },
+    "physics": { "lane": "Physics Dev" },
+    "armagedom": { "lane": "ARMAGEDOM - Lead Dev" },
+    "opentrident": { "lane": "OpenTrident - Dev" },
+    "v1": { "lane": "Frankendom V1 lanes" }
+  }
+}

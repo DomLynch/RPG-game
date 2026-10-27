@@ -25,6 +25,12 @@ if git -C "$repo" cat-file -e "$sha:scripts/hfjob/hfjob.sh" 2>/dev/null; then
   install -d -m 755 "$stage/scripts/hfjob"
   git -C "$repo" show "$sha:scripts/hfjob/hfjob.sh" > "$stage/scripts/hfjob/hfjob.sh" && chmod 755 "$stage/scripts/hfjob/hfjob.sh" && bash -n "$stage/scripts/hfjob/hfjob.sh" || { echo "install-vps: staged hfjob.sh does not parse" >&2; exit 1; }
   hfjob=1
+  # the standing-box files (inner.sh, boxes.py, box/*) and the data row they read ride along: hfjob finds them next to itself and in ../../data
+  for f in $(git -C "$repo" ls-tree -r --name-only "$sha" -- scripts/hfjob data/hf-boxes.json); do
+    install -d -m 755 "$stage/$(dirname "$f")"; git -C "$repo" show "$sha:$f" > "$stage/$f"; chmod 755 "$stage/$f"
+  done
+  [ ! -f "$stage/scripts/hfjob/boxes.py" ] || python3 -m py_compile "$stage/scripts/hfjob/boxes.py" || { echo "install-vps: staged boxes.py does not compile" >&2; exit 1; }
+  rm -rf "$stage/scripts/hfjob/__pycache__"
 fi
 bash -n "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: staged lanejob.sh does not parse" >&2; exit 1; }
 grep -Eq '^export const VPS_MAX_LOAD1 = [0-9]+(\.[0-9]+)?;' "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: waterfall.mjs has no VPS_MAX_LOAD1 line" >&2; exit 1; }
