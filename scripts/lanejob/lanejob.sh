@@ -59,11 +59,14 @@ spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queu
   local hj out rc tier id
   hj="${LANEJOB_HFJOB:-$(dirname "$(readlink -f "$0")")/../hfjob/hfjob.sh}"
   [ -x "$hj" ] || hj=$(command -v hfjob 2>/dev/null) || { nospill "no hfjob next to this script and none on PATH (scripts/lanejob/install-vps.sh installs it)"; return 1; }
-  out=$("$hj" --timeout "${LANEJOB_HF_TIMEOUT:-30m}" -- "$@" 2>&1); rc=$?
+  out=$("$hj" --spill --timeout "${LANEJOB_HF_TIMEOUT:-30m}" -- "$@" 2>&1); rc=$?
   if [ "$rc" -ne 0 ]; then nospill "hfjob failed (rc=$rc): $(printf '%s' "$out" | tail -n 1 | cut -c1-200)"; return 1; fi
   tier=$(printf '%s\n' "$out" | grep -m1 '^tier=')
-  id=$(printf '%s\n' "$tier" | sed -n 's/.*job=\([0-9a-f]\{24\}\).*/\1/p')
-  tierlog "${tier:-tier=hf-cpu job=unknown} (detached; follow: hf jobs logs ${id:-<id>})"
+  id=$(printf '%s\n' "$tier" | sed -n 's/.*job=\([0-9a-f]\{12,24\}\).*/\1/p')
+  case "$tier" in   # hfjob --spill picks the repo's standing box when HF Jobs would queue (Strategy + Dom 2026-10-27): say which tier ran
+    tier=hf-box*) tierlog "$tier (detached on the standing box; follow: hfjob box-logs $(printf '%s' "$tier" | sed -n 's/.*box=\([^ ]*\).*/\1/p') ${id:-<id>})" ;;
+    *) tierlog "${tier:-tier=hf-cpu job=unknown} (detached; follow: hf jobs logs ${id:-<id>})" ;;
+  esac
   return 0
 }
 tierlog() { echo "$1" >&2; echo "$(date -u +%FT%TZ) user=$(id -un) $1" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true; }

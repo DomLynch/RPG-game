@@ -183,7 +183,7 @@ test('spill hands the command and the timeout to hfjob, run from the caller\'s c
     const work = pushedRepoWithSpillTools(b), marker = join(b.dir, 'must-not-run');
     const r = spawnSync('bash', [script, 'touch', marker], { cwd: work, env: { ...b.env, LANEJOB_LOAD: '40', LANEJOB_HF_TIMEOUT: '45m' }, encoding: 'utf8', timeout: 20000 });
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(readFileSync(join(b.dir, 'hfjob-args'), 'utf8').trim(), `${work}|--timeout 45m -- touch ${marker}`);
+    assert.equal(readFileSync(join(b.dir, 'hfjob-args'), 'utf8').trim(), `${work}|--spill --timeout 45m -- touch ${marker}`);
     assert.equal(existsSync(marker), false);
     freeSlots(b);
   } finally { b.done(); }
