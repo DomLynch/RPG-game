@@ -303,3 +303,19 @@ test('launch.mjs unit refuses a sha that is not on trunk and not this checkout H
   assert.match(String(unitShaRefusal('abc', git as never, 'trunk', false)), /full 40-hex sha/);
   assert.equal(unitShaRefusal(pr, git as never, 'trunk', true), null, 'LAUNCH_UNIT_ANY=1 forces it');
 });
+
+test('lane jobs clone the caller\'s own repo: genericJobCommand takes a validated https github URL, receipt jobs stay on RPG-game, launch.mjs job --repo reaches the command', async () => {
+  const { genericJobCommand, DEFAULT_JOB_REPO } = await import('../scripts/lib/vps-receipts.mjs');
+  const { genericJobArgs } = await import('../scripts/lib/waterfall.mjs');
+  const sha = 'a'.repeat(40);
+  assert.match(genericJobCommand(sha)[2], /git remote add origin https:\/\/github\.com\/DomLynch\/RPG-game\.git;/, 'the default is unchanged');
+  assert.match(genericJobCommand(sha, 'https://github.com/acme/Frankendom-v3.git')[2], /git remote add origin https:\/\/github\.com\/acme\/Frankendom-v3\.git;/);
+  for (const bad of ['http://github.com/a/b.git', 'https://github.com/a/b', 'https://evil.example/a/b.git', 'https://github.com/a/b.git; rm -rf /', 'git@github.com:a/b.git', 'https://x:tok@github.com/a/b.git', ''])
+    assert.throws(() => genericJobCommand(sha, bad), /job repo must look like/, bad);
+  assert.match(jobCommand('rows', sha)[2], /git remote add origin https:\/\/github\.com\/DomLynch\/RPG-game\.git;/, 'receipt jobs stay pinned to RPG-game');
+  assert.equal(DEFAULT_JOB_REPO, 'https://github.com/DomLynch/RPG-game.git');
+  const spec = genericJobArgs([sha, '--lane', 'v3', '--repo', 'https://github.com/acme/Frankendom-v3.git', '--', 'true']);
+  assert.equal(spec.opts.repo, 'https://github.com/acme/Frankendom-v3.git');
+  assert.ok(spec.args.some((a: string) => a.includes('github.com/acme/Frankendom-v3.git')));
+  assert.throws(() => genericJobArgs([sha, '--repo', 'https://evil.example/a/b.git', '--', 'true']), /job repo must look like/);
+});

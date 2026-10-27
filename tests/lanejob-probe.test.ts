@@ -96,8 +96,9 @@ function pushedRepoWithSpillTools(b: ReturnType<typeof box>) {
   writeFileSync(join(work, 'f'), 'x');
   git(['add', 'f'], work, genv); git(['commit', '-q', '-m', 'x'], work, genv); git(['push', '-q', 'origin', 'HEAD'], work, genv);
   mkdirSync(join(tools, 'scripts/vps-shadow'), { recursive: true });
-  writeFileSync(join(tools, 'scripts/vps-shadow/launch.mjs'), "console.log('tier=hf-cpu slot=1 queued=0s'); console.log('Job started with ID: ' + 'a'.repeat(24));\n");
+  writeFileSync(join(tools, 'scripts/vps-shadow/launch.mjs'), `require('fs').writeFileSync(${JSON.stringify(join(b.dir, 'launch-args'))}, process.argv.slice(2).join(' ')); console.log('tier=hf-cpu slot=1 queued=0s'); console.log('Job started with ID: ' + 'a'.repeat(24));\n`);
   b.env.LANEJOB_TOOLS = tools;
+  b.env.JOB_REPO = 'https://github.com/acme/Frankendom-v3.git';   // the fixture's origin is a local bare repo, not a github URL
   return work;
 }
 const freeSlots = (b: ReturnType<typeof box>) => { for (let i = 1; i <= 4; i++) execFileSync('flock', ['-n', join(b.slots, `slot${i}`), 'true'], { timeout: 5000 }); };
@@ -170,6 +171,56 @@ test('real run over the load gate: spills to hf-cpu at once (no 120 s wait), run
     assert.equal(existsSync(marker), false);
     assert.match(readFileSync(b.log, 'utf8'), /tier=hf-cpu/);
     freeSlots(b);
+  } finally { b.done(); }
+});
+
+test('spill passes the checkout\'s own repo to the job: JOB_REPO wins, else origin (ssh form turned into https), else a clear refusal', { skip }, () => {
+  const b = box();
+  try {
+    const work = pushedRepoWithSpillTools(b), marker = join(b.dir, 'must-not-run'), args = join(b.dir, 'launch-args');
+    const run = (env: NodeJS.ProcessEnv) => spawnSync('bash', [script, 'touch', marker], { cwd: work, env: { ...b.env, LANEJOB_LOAD: '40', ...env }, encoding: 'utf8', timeout: 20000 });
+    assert.equal(run({}).status, 0);
+    assert.match(readFileSync(args, 'utf8'), / --repo https:\/\/github\.com\/acme\/Frankendom-v3\.git /);
+    delete b.env.JOB_REPO;
+    git(['remote', 'set-url', 'origin', 'git@github.com:acme/physics.git'], work);
+    assert.equal(run({ JOB_REPO: '' }).status, 0);
+    assert.match(readFileSync(args, 'utf8'), / --repo https:\/\/github\.com\/acme\/physics\.git /);
+    git(['remote', 'set-url', 'origin', join(b.dir, 'origin.git')], work);
+    const bad = run({ JOB_REPO: '' });
+    assert.match(bad.stderr, /no spill to hf-cpu: origin .* is not a plain https:\/\/github\.com\//);
+    assert.equal(existsSync(marker), false);
+    freeSlots(b);
+  } finally { b.done(); }
+});
+
+test('LANEJOB_FORCE_HF=1: spills at low load with free slots; the probe says reason=forced; a failed spill stops with the reason, never runs on the VPS', { skip }, async () => {
+  const b = box();
+  try {
+    const work = pushedRepoWithSpillTools(b), marker = join(b.dir, 'must-not-run');
+    b.env.LANEJOB_FORCE_HF = '1';
+    assert.equal(await b.probe('tsc'), 'would=spill reason=forced');
+    const r = spawnSync('bash', [script, 'touch', marker], { cwd: work, env: b.env, encoding: 'utf8', timeout: 20000 });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /tier=hf-cpu .*job=a{24}/);
+    assert.equal(existsSync(marker), false);
+    b.env.LANEJOB_TOOLS = join(b.dir, 'no-tools');
+    const f = spawnSync('bash', [script, 'touch', marker], { cwd: work, env: b.env, encoding: 'utf8', timeout: 20000 });
+    assert.equal(f.status, 1);
+    assert.match(f.stderr, /no spill to hf-cpu: .*no-tools has no scripts\/vps-shadow\/launch\.mjs/);
+    assert.match(f.stderr, /not falling back to the VPS/);
+    assert.equal(existsSync(marker), false);
+    freeSlots(b);
+  } finally { b.done(); }
+});
+
+test('an unpushed HEAD or a missing tools checkout over the gate prints why before queueing (no silent return 1)', { skip }, () => {
+  const b = box();
+  try {
+    const work = pushedRepoWithSpillTools(b);
+    b.env.LANEJOB_TOOLS = join(b.dir, 'no-tools');
+    for (let i = 1; i <= 4; i++) b.hold(i);
+    const r = spawnSync('bash', [script, 'true'], { cwd: work, env: { ...b.env, LANEJOB_LOAD: '40', LANEJOB_SPILL_WAIT: '1000' }, encoding: 'utf8', timeout: 4000 });
+    assert.match(String(r.stderr), /no spill to hf-cpu: .*no-tools has no scripts\/vps-shadow\/launch\.mjs/);
   } finally { b.done(); }
 });
 

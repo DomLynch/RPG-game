@@ -37,6 +37,7 @@ if [ "$1" = "--probe" ]; then
   shift; probing=1
   [ -n "$(vps_max)" ] || router_unreadable   # before any other answer: an unreadable router must never read as spill (Deploy B on #2332)
   [ "$(id -u)" -ne 0 ] && printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }   # the refusal is a non-root rule in the run path, so root is not refused here either
+  [ "${LANEJOB_FORCE_HF:-0}" = 1 ] && { echo "would=spill reason=forced"; exit 0; }
   if find "${RELEASE_LOCK_DIR:-/run/frankendom-release}" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | grep -q .; then echo "would=spill reason=release-lock"; exit 0; fi
   if over_load; then echo "would=spill reason=load"; exit 0; fi
   for i in 1 2 3 4; do
@@ -51,20 +52,34 @@ if [ "$(id -u)" -ne 0 ] && printf '%s\n' "$*" | grep -Eq "$refuse_re"; then
   echo "lanejob: refused. full suites run on HF via Deploy (launch.mjs unit)" >&2; exit 126
 fi
 start=$SECONDS
-spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queue
+nospill() { echo "lanejob: no spill to hf-cpu: $1" >&2; return 1; }   # every spill failure says why (Strategy 2026-10-26: root fell back to the VPS silently for two weeks)
+spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queue (with the reason on stderr)
   [ "${LANEJOB_NO_SPILL:-0}" = 1 ] && return 1
-  local top sha tools lane out rc id tier
-  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
-  sha=$(git -C "$top" rev-parse HEAD 2>/dev/null) || return 1
-  [ -n "$(git -C "$top" branch -r --contains "$sha" 2>/dev/null)" ] || return 1   # HF checks out the sha: it must be pushed
+  local top sha tools lane out rc id tier repo ref
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || { nospill "the cwd is not inside a git checkout"; return 1; }
+  sha=$(git -C "$top" rev-parse HEAD 2>/dev/null) || { nospill "no HEAD commit in $top"; return 1; }
+  [ -n "$(git -C "$top" branch -r --contains "$sha" 2>/dev/null)" ] || { nospill "HEAD ${sha:0:9} is not pushed (HF checks out the sha)"; return 1; }
+  # the job clones THIS checkout's repo (Frankendom-v3, physics...), not a hard-coded one; JOB_REPO overrides
+  repo="${JOB_REPO:-$(git -C "$top" remote get-url origin 2>/dev/null)}"
+  case "$repo" in git@github.com:*) repo="https://github.com/${repo#git@github.com:}" ;; esac
+  case "$repo" in *.git) ;; https://github.com/*) repo="${repo%/}.git" ;; esac
+  [[ "$repo" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git$ ]] || { nospill "origin '${repo##*@}' is not a plain https://github.com/<owner>/<name>.git URL (set JOB_REPO)"; return 1; }
   tools="${LANEJOB_TOOLS:-$HOME/.spill-tools}"
+  [ -f "$tools/scripts/vps-shadow/launch.mjs" ] || { nospill "$tools has no scripts/vps-shadow/launch.mjs (install-vps.sh creates it as root; or set LANEJOB_TOOLS)"; return 1; }
   if [ -z "$LANEJOB_TOOLS" ]; then
     git -C "$top" fetch -q origin 2>/dev/null
-    git -C "$tools" checkout -q --detach "$(git -C "$top" symbolic-ref --short refs/remotes/origin/HEAD)" 2>/dev/null || return 1
+    ref=$(git -C "$top" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null) || ref=
+    git -C "$tools" fetch -q --depth 1 origin "${ref#origin/}" 2>/dev/null || true   # the tools clone is shallow: pull the trunk tip it will check out
+    if ! { [ -n "$ref" ] && git -C "$tools" checkout -q --detach "$ref" 2>/dev/null; }; then   # a non-Frankendom checkout has another trunk name: the tools follow their own origin HEAD
+      git -C "$tools" fetch -q --depth 1 origin HEAD 2>/dev/null && git -C "$tools" checkout -q --detach FETCH_HEAD 2>/dev/null || { nospill "could not check out ${ref:-the tools trunk} in $tools"; return 1; }
+    fi
   fi
   lane="${LANEJOB_LANE:-$(basename "$top" | sed 's/^frankendom-//')}"
-  out=$(cd "$tools" && node scripts/vps-shadow/launch.mjs job "$sha" --lane "$lane" --timeout "${LANEJOB_HF_TIMEOUT:-30m}" --max-wait-s "${LANEJOB_HF_WAIT:-20}" -- "$@" 2>&1); rc=$?
-  [ "$rc" -eq 0 ] || { [ "$rc" -ne 75 ] && echo "lanejob: spill refused (rc=$rc): $(printf '%s' "$out" | tail -1 | cut -c1-160)" >&2; return 1; }
+  out=$(cd "$tools" && node scripts/vps-shadow/launch.mjs job "$sha" --lane "$lane" --repo "$repo" --timeout "${LANEJOB_HF_TIMEOUT:-30m}" --max-wait-s "${LANEJOB_HF_WAIT:-20}" -- "$@" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 75 ]; then [ "${LANEJOB_FORCE_HF:-0}" = 1 ] && nospill "no HF slot within ${LANEJOB_HF_WAIT:-20}s"; else nospill "launch.mjs refused (rc=$rc): $(printf '%s' "$out" | tail -1 | cut -c1-160)"; fi
+    return 1
+  fi
   id=$(printf '%s\n' "$out" | sed -n 's/.*Job started with ID: *\([0-9a-f]\{24\}\).*/\1/p' | head -1)
   tier=$(printf '%s\n' "$out" | grep -m1 '^tier=')
   tierlog "${tier:-tier=hf-cpu} job=${id:-unknown} (detached; follow: hf jobs logs $id)"
@@ -72,6 +87,11 @@ spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queu
 }
 tierlog() { echo "$1" >&2; echo "$(date -u +%FT%TZ) user=$(id -un) $1" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true; }
 slots="${LANEJOB_SLOTS:-/run/lanejobs}"; got=; said=; lastspill=
+# LANEJOB_FORCE_HF=1 (Strategy 2026-10-26, Dom "max out HF CPU"): straight to hf-cpu, no slot, no load gate; a failed spill stops the job with the reason instead of running it on the VPS.
+if [ "${LANEJOB_FORCE_HF:-0}" = 1 ]; then
+  spill "$@" && exit 0
+  echo "lanejob: LANEJOB_FORCE_HF=1 and the spill failed; not falling back to the VPS" >&2; exit 1
+fi
 while [ -z "$got" ]; do
   if over_load && { [ -z "$lastspill" ] || [ $((SECONDS-lastspill)) -ge "${LANEJOB_SPILL_WAIT:-120}" ]; }; then
     lastspill=$SECONDS; spill "$@" && exit 0

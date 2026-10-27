@@ -36,5 +36,18 @@ printf '#!/bin/sh\n# lanejob shim: the real script is the current release copy (
 chmod 755 "$tmp"
 if [ -e "$shim" ] && ! cmp -s "$tmp" "$shim"; then cp -p "$shim" "$shim.bak-$stamp"; fi
 mv "$tmp" "$shim"
-echo "$(date -u +%FT%TZ) lanejob installed $sha" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
+# root's HF spill needs a tools checkout at $HOME/.spill-tools (lanejob.sh spill()): a shallow trunk clone of the repo this install came from (Strategy 2026-10-26: it was missing, so root never spilled).
+# Only on the real install (default --root, running as root, or an explicit --spill-tools DIR); best effort, an offline clone warns and never fails the install. Existing clones are left to spill() to refresh.
+spill_tools=${SPILL_TOOLS:-}
+[ -n "$spill_tools" ] || { [ "$root" = /opt/frankendom/lanejob ] && [ "$(id -u)" -eq 0 ] && spill_tools=/root/.spill-tools; }
+if [ -n "$spill_tools" ] && [ ! -f "$spill_tools/scripts/vps-shadow/launch.mjs" ]; then
+  origin=$(git -C "$repo" remote get-url origin 2>/dev/null || true)
+  trunk=$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+  if [ -n "$origin" ] && [ -n "$trunk" ] && rm -rf "$spill_tools.tmp" && git clone -q --depth 1 --branch "$trunk" "$origin" "$spill_tools.tmp" && [ -f "$spill_tools.tmp/scripts/vps-shadow/launch.mjs" ]; then
+    rm -rf "${spill_tools:?}" && mv -T "$spill_tools.tmp" "$spill_tools" && echo "spill tools: $spill_tools at $(git -C "$spill_tools" rev-parse --short HEAD)"
+  else
+    rm -rf "$spill_tools.tmp"; echo "install-vps: WARNING could not create $spill_tools (origin '${origin##*@}', trunk '$trunk'); root's HF spill will say so" >&2
+  fi
+fi
+echo "$(date -u +%FT%TZ) lanejob installed $sha" >>"${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
 echo "lanejob installed $sha -> $shim"

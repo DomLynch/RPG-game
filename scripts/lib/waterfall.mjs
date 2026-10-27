@@ -3,7 +3,7 @@
 // without gfx never gets a T4. Pure decision (pickTarget) + one reader for the VPS (vpsStatus); the launchers call both, so the rule lives in one place.
 // tests/waterfall.test.ts pins every branch and fails when a script starts a heavy job without going through here (shrink-only KNOWN list).
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
+import { DEFAULT_JOB_REPO, FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 import { T4_DEFAULT_FLAVOR } from './hf-wall-rows.mjs';
 
 export const VPS_MAX_LOAD1 = 12;
@@ -54,13 +54,14 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
 // requeues to the VPS), 2 refused. Lane jobs use their own ledger (artifacts/hf-lane-jobs), never the release ledger deploy.sh's exit cleanup reads.
 export function genericJobArgs(argv) {
   const dd = argv.indexOf('--');
-  if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <command…>');
+  if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--repo https://github.com/O/N.git] [--timeout 40m] [--max-wait-s 600] -- <command…>');
   const [sha, ...flags] = argv.slice(0, dd), cmd = argv.slice(dd + 1);
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600, env: [] };
+  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600, env: [], repo: DEFAULT_JOB_REPO };
   for (let i = 0; i < flags.length; i++) {
     const f = flags[i];
     if (f === '--gfx') opts.gfx = true;
+    else if (f === '--repo') opts.repo = String(flags[++i] ?? '');
     else if (f === '--lane') opts.lane = String(flags[++i] ?? '');
     else if (f === '--timeout') opts.timeout = String(flags[++i] ?? '');
     else if (f === '--max-wait-s') opts.maxWaitS = Number(flags[++i]);
@@ -75,7 +76,7 @@ export function genericJobArgs(argv) {
   if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
   if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
   if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
-  const flavor = opts.gfx ? T4_DEFAULT_FLAVOR : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
+  const flavor = opts.gfx ? T4_DEFAULT_FLAVOR : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha, opts.repo);
   const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
   return { args, flavor, opts, sha };
 }
