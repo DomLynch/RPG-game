@@ -48,7 +48,11 @@ V3). One review round per PR; a second fail comes to Strategy. OpenTrident repo 
   #157 and #152 have reviewer PASS-with-nits, V3 Dev merges. Strength-rung fix parked, not started (first item in
   its note). Note: memory `physics-dev-state` + top of physics `docs/BRIEF.md` (edit UNCOMMITTED on main, commit it
   first thing). A worktree with b22f333 (text-only perf.json edit) may not be on main. The #158 agent runs until done.
-- V3 Dev: reply pending; state note memory `v3-state-2026-10-27-afternoon-handoff` (live 819ab46 at that time).
+- V3 Dev: wound down. main 05dd15f live, #157 hero reactions merged (82c2351a8), presence server REDEPLOYED on the VPS
+  (release 370ab65, two wss clients verified). Open: #158 M4 flip, RULED flip now (20 lights = 0 falls proven; a heavy
+  on a torso under 60% not dropping him is the next account's first tuning item, one feel-sim row + re-prove on Dom's
+  phone); #155 half-opacity boss fade awaits a reviewer PASS; #122 zone design doc (D3a undecided). State note: memory
+  `v3-state-2026-10-27-wind-down`.
 
 ## Save-your-work roll call (18:30 Dubai, verified on disk)
 Fresh memory note today: Armagedom Lead, Auditor, Backend, Combat, Deploy, Web, World, Characters & Art
