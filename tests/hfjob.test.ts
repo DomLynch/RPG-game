@@ -108,6 +108,10 @@ test('real path with a stub hf: prints the tier line and the logs line, appends 
     assert.equal(l.status, 0, l.stderr);
     assert.match(readFileSync(seen, 'utf8'), /^jobs\nlogs\nx1\ntoken=hf_SECRETSECRETSECRET/);
     assert.doesNotMatch(l.stdout.replace('Job started with ID', '') + l.stderr, /SECRETSECRET/);
+    // ps/logs/inspect/cancel need no git checkout (Strategy 2026-10-27): they work from any cwd
+    const anywhere = run(tmpdir(), ['ps', '-a'], { HFJOB_BIN: hf });
+    assert.equal(anywhere.status, 0, anywhere.stderr);
+    assert.match(readFileSync(seen, 'utf8'), /^jobs\nps\n-a\n/);
     // hf failing is exit 1 with its last line, not a silent success
     writeFileSync(hf, '#!/bin/sh\necho "quota exceeded" >&2; exit 3\n');
     const f = run(c.work, ['--', 'true'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger });
