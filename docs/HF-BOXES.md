@@ -31,7 +31,7 @@ Add `"<name>": { "lane": "<who>" }` under `boxes` in `data/hf-boxes.json`, merge
 
 `scripts/hfjob/boxes.py` talks to the Hub (`huggingface_hub`) and to the runner (`scripts/hfjob/box/runner.mjs`, baked into the Space with `inner.sh`, the same clone + `npm ci` + exec body Jobs use). The private Space is reachable only with the owner's token as a bearer header; the runner has no auth of its own and never sees a token. It accepts only `https://github.com/<owner>/<name>.git` repos and 40-hex shas. The token is read inside the script from `/root/.hf/token` (or `HF_TOKEN`), never printed, never on a command line. All names, flavor, sleep time and prices are in `data/hf-boxes.json`; `tests/hf-boxes.test.ts` fails if code names a repo or a flavor.
 
-Changed the runner? `hfjob box-up <name> --update` re-uploads it (the Space rebuilds and drops running jobs). Never touch `Domlynch/char-tool-stage` (the Blender dataset).
+**Boxes bake in the runner and `inner.sh` (the clone step) when they are built, so `install-vps.sh` does NOT update them: after any install that changes `scripts/hfjob/box/*` or `scripts/hfjob/inner.sh`, rebuild every box with `for b in v3 physics armagedom v1; do hfjob box-up $b --update; done` (check `/var/lib/hfjob/open-jobs.jsonl` is empty first).** `hfjob box-up <name> --update` re-uploads them (the Space rebuilds and drops running jobs). Last rebuilt for the tags fix: 2026-10-27. Never touch `Domlynch/char-tool-stage` (the Blender dataset).
 
 ## Clone depth
 
