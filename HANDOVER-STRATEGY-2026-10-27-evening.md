@@ -15,7 +15,9 @@ sense; V3 is ONE endless MMO world, no bounded area/circle/instance ever; Huggin
 - **Physics** `DomLynch/physics` main, 12 PRs today; M1-M9 done, M10 is V3's server work. Next: strength-rung fix
   (a light glance must never read `kill` on an undamaged body), perf budget rows (#138 merged), m4b A/B row live.
   65-rig bodies parked for good (V3 = 106 only).
-- **Armagedom** 18 PRs today, Dom's phone fixes shipping as small releases; alpha gate still Dom's phone.
+- **Armagedom** release 281 LIVE (eab4865f, rollback 280, floor 279), 18 PRs today. Wound down 13:55Z; finishing
+  only: #368 golden (cut 282), #373 airdrop (QC then Auditor, 283), #366 population (+ writer redeploy pre-staged,
+  284). State note: side-session-notes local_61f070fb/lead-status.md "WIND-DOWN 27 Oct". Alpha gate = Dom's phone.
 - **V1** frankendom.com `2beaa116`, archived reference, Deploy on standby, touch nothing.
 - **Infra**: `hfjob` + four standing HF boxes (v3, physics, armagedom, v1) on the Playwright image, 15-min auto-sleep,
   cron job record, runbook `docs/HF-BOXES.md` (RPG-game). Waterfall = Mac (stills, WebKit) -> VPS (lanejob, load < 12)
@@ -36,6 +38,14 @@ leg falls only via part-HP over repeated hits; sim tracks its own counts, never 
 alpha, no brotli. Camera: portrait as approved, landscape same hero height (V1 `min(aspect,1)`). Presence shards of
 20 invisible; Postgres on the VPS; local kill stands, server records credit after. One merger per repo (V3 Dev for
 V3). One review round per PR; a second fail comes to Strategy. OpenTrident repo stays private (no box).
+
+## Wind-down receipts (17:55 Dubai)
+- Armagedom Lead: wound down, see above.
+- Hooks Dev: wound down, no jobs running; note memory `handoff-disk-sweep-2026-10-27`; for Dom: ue-keys 23 GB,
+  /var/www 19 GB, ARMAGEDOM ports 8811/8812/8891-8896 live, winedevice 3577501; HF-token hook change NOT done (wants
+  Dom's own word in chat); hooks PRs #178/#165 held for the Auditor read.
+- V3 Dev, Physics Dev: replies pending at the time of writing; their state notes are memory `v3-state-2026-10-27-*`
+  and physics `docs/BRIEF.md` HANDOFF.
 
 ## Sessions
 Frankendom v3 Dev local_1ca78c9a (merger of V3), Physics Dev local_e7ad7655, ARMAGEDOM Lead local_5e22da4d, Hooks
