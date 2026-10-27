@@ -19,6 +19,13 @@ trap 'rm -rf "$stage"' EXIT
 git -C "$repo" show "$sha:scripts/lanejob/lanejob.sh" > "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: scripts/lanejob/lanejob.sh is not in $sha" >&2; exit 1; }
 git -C "$repo" show "$sha:scripts/lib/waterfall.mjs" > "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: scripts/lib/waterfall.mjs is not in $sha" >&2; exit 1; }
 chmod 755 "$stage/scripts/lanejob/lanejob.sh"; chmod 644 "$stage/scripts/lib/waterfall.mjs"
+# hfjob (Strategy + Dom 2026-10-27): the repo-agnostic HF CPU command ships in the same release copy and gets its own shim next to lanejob's. A commit without it still installs lanejob.
+hfjob=0
+if git -C "$repo" cat-file -e "$sha:scripts/hfjob/hfjob.sh" 2>/dev/null; then
+  install -d -m 755 "$stage/scripts/hfjob"
+  git -C "$repo" show "$sha:scripts/hfjob/hfjob.sh" > "$stage/scripts/hfjob/hfjob.sh" && chmod 755 "$stage/scripts/hfjob/hfjob.sh" && bash -n "$stage/scripts/hfjob/hfjob.sh" || { echo "install-vps: staged hfjob.sh does not parse" >&2; exit 1; }
+  hfjob=1
+fi
 bash -n "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: staged lanejob.sh does not parse" >&2; exit 1; }
 grep -Eq '^export const VPS_MAX_LOAD1 = [0-9]+(\.[0-9]+)?;' "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: waterfall.mjs has no VPS_MAX_LOAD1 line" >&2; exit 1; }
 mkdir "$stage/.no-locks" "$stage/.no-slots"   # empty: no marker, four free slots (the slot files are created by the probe's open)
@@ -36,18 +43,14 @@ printf '#!/bin/sh\n# lanejob shim: the real script is the current release copy (
 chmod 755 "$tmp"
 if [ -e "$shim" ] && ! cmp -s "$tmp" "$shim"; then cp -p "$shim" "$shim.bak-$stamp"; fi
 mv "$tmp" "$shim"
-# root's HF spill needs a tools checkout at $HOME/.spill-tools (lanejob.sh spill()): a shallow trunk clone of the repo this install came from (Strategy 2026-10-26: it was missing, so root never spilled).
-# Only on the real install (default --root, running as root, or an explicit --spill-tools DIR); best effort, an offline clone warns and never fails the install. Existing clones are left to spill() to refresh.
-spill_tools=${SPILL_TOOLS:-}
-[ -n "$spill_tools" ] || { [ "$root" = /opt/frankendom/lanejob ] && [ "$(id -u)" -eq 0 ] && spill_tools=/root/.spill-tools; }
-if [ -n "$spill_tools" ] && [ ! -f "$spill_tools/scripts/vps-shadow/launch.mjs" ]; then
-  origin=$(git -C "$repo" remote get-url origin 2>/dev/null || true)
-  trunk=$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
-  if [ -n "$origin" ] && [ -n "$trunk" ] && rm -rf "$spill_tools.tmp" && git clone -q --depth 1 --branch "$trunk" "$origin" "$spill_tools.tmp" && [ -f "$spill_tools.tmp/scripts/vps-shadow/launch.mjs" ]; then
-    rm -rf "${spill_tools:?}" && mv -T "$spill_tools.tmp" "$spill_tools" && echo "spill tools: $spill_tools at $(git -C "$spill_tools" rev-parse --short HEAD)"
-  else
-    rm -rf "$spill_tools.tmp"; echo "install-vps: WARNING could not create $spill_tools (origin '${origin##*@}', trunk '$trunk'); root's HF spill will say so" >&2
-  fi
+if [ "$hfjob" = 1 ]; then   # /usr/local/bin/hfjob (beside the lanejob shim), same shim shape, same backup rule
+  hshim="$(dirname "$shim")/hfjob"
+  tmp=$(mktemp "$(dirname "$shim")/.hfjob-shim.XXXXXX")
+  printf '#!/bin/sh\n# hfjob shim: the real script is the current release copy (scripts/lanejob/install-vps.sh)\nexec %s/current/scripts/hfjob/hfjob.sh "$@"\n' "$root" > "$tmp"
+  chmod 755 "$tmp"
+  if [ -e "$hshim" ] && ! cmp -s "$tmp" "$hshim"; then cp -p "$hshim" "$hshim.bak-$stamp"; fi
+  mv "$tmp" "$hshim"
+  echo "hfjob installed -> $hshim"
 fi
 echo "$(date -u +%FT%TZ) lanejob installed $sha" >>"${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
 echo "lanejob installed $sha -> $shim"

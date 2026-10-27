@@ -55,34 +55,15 @@ start=$SECONDS
 nospill() { echo "lanejob: no spill to hf-cpu: $1" >&2; return 1; }   # every spill failure says why (Strategy 2026-10-26: root fell back to the VPS silently for two weeks)
 spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queue (with the reason on stderr)
   [ "${LANEJOB_NO_SPILL:-0}" = 1 ] && return 1
-  local top sha tools lane out rc id tier repo ref
-  top=$(git rev-parse --show-toplevel 2>/dev/null) || { nospill "the cwd is not inside a git checkout"; return 1; }
-  sha=$(git -C "$top" rev-parse HEAD 2>/dev/null) || { nospill "no HEAD commit in $top"; return 1; }
-  [ -n "$(git -C "$top" branch -r --contains "$sha" 2>/dev/null)" ] || { nospill "HEAD ${sha:0:9} is not pushed (HF checks out the sha)"; return 1; }
-  # the job clones THIS checkout's repo (Frankendom-v3, physics...), not a hard-coded one; JOB_REPO overrides
-  repo="${JOB_REPO:-$(git -C "$top" remote get-url origin 2>/dev/null)}"
-  case "$repo" in git@github.com:*) repo="https://github.com/${repo#git@github.com:}" ;; esac
-  case "$repo" in *.git) ;; https://github.com/*) repo="${repo%/}.git" ;; esac
-  [[ "$repo" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git$ ]] || { nospill "origin '${repo##*@}' is not a plain https://github.com/<owner>/<name>.git URL (set JOB_REPO)"; return 1; }
-  tools="${LANEJOB_TOOLS:-$HOME/.spill-tools}"
-  [ -f "$tools/scripts/vps-shadow/launch.mjs" ] || { nospill "$tools has no scripts/vps-shadow/launch.mjs (install-vps.sh creates it as root; or set LANEJOB_TOOLS)"; return 1; }
-  if [ -z "$LANEJOB_TOOLS" ]; then
-    git -C "$top" fetch -q origin 2>/dev/null
-    ref=$(git -C "$top" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null) || ref=
-    git -C "$tools" fetch -q --depth 1 origin "${ref#origin/}" 2>/dev/null || true   # the tools clone is shallow: pull the trunk tip it will check out
-    if ! { [ -n "$ref" ] && git -C "$tools" checkout -q --detach "$ref" 2>/dev/null; }; then   # a non-Frankendom checkout has another trunk name: the tools follow their own origin HEAD
-      git -C "$tools" fetch -q --depth 1 origin HEAD 2>/dev/null && git -C "$tools" checkout -q --detach FETCH_HEAD 2>/dev/null || { nospill "could not check out ${ref:-the tools trunk} in $tools"; return 1; }
-    fi
-  fi
-  lane="${LANEJOB_LANE:-$(basename "$top" | sed 's/^frankendom-//')}"
-  out=$(cd "$tools" && node scripts/vps-shadow/launch.mjs job "$sha" --lane "$lane" --repo "$repo" --timeout "${LANEJOB_HF_TIMEOUT:-30m}" --max-wait-s "${LANEJOB_HF_WAIT:-20}" -- "$@" 2>&1); rc=$?
-  if [ "$rc" -ne 0 ]; then
-    if [ "$rc" -eq 75 ]; then [ "${LANEJOB_FORCE_HF:-0}" = 1 ] && nospill "no HF slot within ${LANEJOB_HF_WAIT:-20}s"; else nospill "launch.mjs refused (rc=$rc): $(printf '%s' "$out" | tail -1 | cut -c1-160)"; fi
-    return 1
-  fi
-  id=$(printf '%s\n' "$out" | sed -n 's/.*Job started with ID: *\([0-9a-f]\{24\}\).*/\1/p' | head -1)
+  # the spill IS `hfjob` (scripts/hfjob/hfjob.sh, Strategy + Dom 2026-10-27): repo-agnostic, clones the cwd checkout's own origin at its pushed HEAD. LANEJOB_HFJOB overrides the path (tests).
+  local hj out rc tier id
+  hj="${LANEJOB_HFJOB:-$(dirname "$(readlink -f "$0")")/../hfjob/hfjob.sh}"
+  [ -x "$hj" ] || hj=$(command -v hfjob 2>/dev/null) || { nospill "no hfjob next to this script and none on PATH (scripts/lanejob/install-vps.sh installs it)"; return 1; }
+  out=$("$hj" --timeout "${LANEJOB_HF_TIMEOUT:-30m}" -- "$@" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ]; then nospill "hfjob failed (rc=$rc): $(printf '%s' "$out" | tail -n 1 | cut -c1-200)"; return 1; fi
   tier=$(printf '%s\n' "$out" | grep -m1 '^tier=')
-  tierlog "${tier:-tier=hf-cpu} job=${id:-unknown} (detached; follow: hf jobs logs $id)"
+  id=$(printf '%s\n' "$tier" | sed -n 's/.*job=\([0-9a-f]\{24\}\).*/\1/p')
+  tierlog "${tier:-tier=hf-cpu job=unknown} (detached; follow: hf jobs logs ${id:-<id>})"
   return 0
 }
 tierlog() { echo "$1" >&2; echo "$(date -u +%FT%TZ) user=$(id -un) $1" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true; }
