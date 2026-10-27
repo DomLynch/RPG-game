@@ -48,7 +48,7 @@ echo "hfjob: running at $(git rev-parse --short HEAD): $(printf %s "$HFJOB_ARGV_
 exec bash -c "$(printf %s "$HFJOB_ARGV_B64" | base64 -d)"'
 
 hf=${HFJOB_BIN:-hf}
-args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane" --label "sha=${sha:0:12}"
+args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane"
   -e "HFJOB_REPO=$repo" -e "HFJOB_SHA=$sha" -e "HFJOB_DEPTH=$depth" -e "HFJOB_ARGV_B64=$argv" node:22 bash -c "$inner")
 
 if [ "${HFJOB_DRY:-}" = 1 ]; then printf '%q' "$hf"; printf ' %q' "${args[@]}"; printf '\n'; exit 0; fi
@@ -57,7 +57,9 @@ if [ "${HFJOB_DRY:-}" = 1 ]; then printf '%q' "$hf"; printf ' %q' "${args[@]}"; 
 if [ -z "${HF_TOKEN:-}" ] && [ -r /root/.hf/token ]; then HF_TOKEN=$(cat /root/.hf/token); export HF_TOKEN; fi
 
 out=$("$hf" "${args[@]}" 2>&1) && rc=0 || rc=$?
-if [ "$rc" -ne 0 ]; then echo "hfjob: hf jobs run failed (rc=$rc): $(printf '%s' "$out" | tail -n 1 | cut -c1-200)" >&2; exit 1; fi
+if [ "$rc" -ne 0 ]; then   # the hf CLI puts the reason a few lines above its "Set HF_DEBUG=1" hint: show the last three real lines, colour codes stripped
+  echo "hfjob: hf jobs run failed (rc=$rc): $(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -v -e '^[[:space:]]*$' -e 'HF_DEBUG' | tail -n 3 | tr '\n' ' ' | cut -c1-300)" >&2; exit 1
+fi
 id=$(printf '%s\n' "$out" | sed -n 's/.*Job started with ID: *\([0-9a-f]\{24\}\).*/\1/p' | head -n 1)
 [ -n "$id" ] || { echo "hfjob: submitted, but no job id in the hf output: $(printf '%s' "$out" | tail -n 1 | cut -c1-200)" >&2; exit 1; }
 line="tier=hf-cpu job=$id repo=$name sha=${sha:0:12}"

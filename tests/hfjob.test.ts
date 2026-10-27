@@ -34,6 +34,7 @@ test('dry run: submits a detached node:22 cpu-upgrade job for THIS checkout\'s o
     assert.ok(r.stdout.includes(`HFJOB_SHA=${c.sha}`));
     assert.match(r.stdout, / node:22 bash -c /);
     assert.doesNotMatch(r.stdout, /HF_TOKEN|hf_[A-Za-z0-9]{10}/);
+    assert.doesNotMatch(r.stdout, /--label sha=/, 'the HF API rejects a "sha" label key (labels.sha: Invalid key in record, smoke 2026-10-27); the sha is in the env and the ledger');
   } finally { c.done(); }
 });
 
