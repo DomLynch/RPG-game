@@ -22,13 +22,14 @@ case "${1:-}" in
   box-pause) shift; exec python3 "$here/boxes.py" pause "$@" ;;
   box-logs) shift; exec python3 "$here/boxes.py" logs "$@" ;;
 esac
-timeout=30m; flavor=cpu-upgrade; timeout_set=0; box=""; wait=()
+timeout=30m; flavor=cpu-upgrade; timeout_set=0; box=""; wait=(); spill=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --timeout) timeout=${2:-}; timeout_set=1; shift 2 ;;
     --flavor) flavor=${2:-}; shift 2 ;;
     --box) box=${2:-}; shift 2 ;;
     --wait) wait=(--wait); shift ;;
+    --spill) spill=1; shift ;;
     --) shift; break ;;
     *) break ;;
   esac
@@ -55,6 +56,11 @@ argv=$(printf '%q ' "$@" | base64 | tr -d '\n')
 lane=$(basename "$top" | sed -e 's/^frankendom-//' -e 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
 
 inner=$(cat "$here/inner.sh")   # the clone + npm ci + exec body, shared with the box runner
+
+if [ "$spill" = 1 ] && [ -z "$box" ]; then   # lanejob's spill: the repo's box when Jobs would queue, a Job otherwise (the reason goes to stderr)
+  with_token
+  box=$(python3 "$here/boxes.py" pick "$name" || true)
+fi
 
 if [ -n "$box" ]; then
   [ "$timeout_set" = 1 ] && { secs=$(( ${timeout%[mh]} * $([ "${timeout: -1}" = h ] && echo 3600 || echo 60) )); tarr=(--timeout "$secs"); } || tarr=()

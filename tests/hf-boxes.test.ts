@@ -26,6 +26,12 @@ class HfApi:
     def get_space_runtime(s, sid):
         if os.environ.get('STUB_MISSING') == sid: raise Exception('404 not found')
         return _RT()
+    def list_jobs(s, namespace=None, token=None):
+        class _S: pass
+        out = []
+        for st in [x for x in os.environ.get('STUB_JOBS', '').split(',') if x]:
+            j = _S(); j.status = _S(); j.status.stage = st; out.append(j)
+        return out
     def set_space_sleep_time(s, sid, t): _log('set_sleep', sid, t)
     def restart_space(s, sid): _log('restart', sid)
     def pause_space(s, sid): _log('pause', sid)
@@ -161,6 +167,40 @@ test('list shows each box stage with its cost; only awake boxes cost; a missing 
     const p = py(fx.env, ['pause', 'opentrident']);
     assert.match(p.stdout, /box=opentrident space=Domlynch\/box-opentrident paused/);
     assert.ok(fx.calls().some((x) => x[0] === 'pause' && x[1] === 'Domlynch/box-opentrident'));
+  } finally { fx.done(); }
+});
+
+test('spill pick: the repo\'s box only when Jobs would queue (jobsConcurrent active), a Job otherwise, and always says why', () => {
+  const fx = fixture();
+  try {
+    const queued = py({ ...fx.env, STUB_JOBS: 'RUNNING,SCHEDULING,COMPLETED,ERROR' }, ['pick', 'domlynch/frankendom-v3']);
+    assert.equal(queued.stdout.trim(), 'v3');
+    assert.match(queued.stderr, /2 Job\(s\) active \(>= 2\) so a Job would queue; using box v3/);
+    const free = py({ ...fx.env, STUB_JOBS: 'RUNNING,COMPLETED' }, ['pick', 'DomLynch/Frankendom-v3']);
+    assert.equal(free.stdout.trim(), '');
+    assert.match(free.stderr, /1 Job\(s\) active \(< 2\); using a Job/);
+    const none = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING,RUNNING' }, ['pick', 'acme/unknown']);
+    assert.equal(none.stdout.trim(), '');
+    assert.match(none.stderr, /no box owns acme\/unknown; using a Job/);
+    const second = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING' }, ['pick', 'DomLynch/opentrident-steam']);
+    assert.equal(second.stdout.trim(), 'opentrident');
+  } finally { fx.done(); }
+});
+
+test('hfjob --spill: lands on the repo\'s box when Jobs would queue, on a Job when they would not or the repo has no box', () => {
+  const fx = fixture(), w = join(fx.dir, 'w'), g = { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' };
+  try {
+    execFileSync('git', ['init', '-q', w]); writeFileSync(join(w, 'f'), 'x');
+    execFileSync('git', ['add', 'f'], { cwd: w, env: g }); execFileSync('git', ['commit', '-q', '-m', 'x'], { cwd: w, env: g });
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: w });
+    execFileSync('git', ['remote', 'add', 'origin', 'https://github.com/DomLynch/physics.git'], { cwd: w });
+    const run = (jobs: string) => spawnSync('bash', [hfjob, '--spill', '--timeout', '45m', '--', 'true'], { cwd: w, env: { ...fx.env, HFJOB_DRY: '1', STUB_JOBS: jobs }, encoding: 'utf8' });
+    const q = run('RUNNING,SCHEDULING');
+    assert.equal(q.status, 0, q.stderr);
+    assert.match(q.stdout, /^box run Domlynch\/box-physics: /);
+    assert.match(run('RUNNING').stdout, /jobs run --detach --timeout 45m /);
+    execFileSync('git', ['remote', 'set-url', 'origin', 'https://github.com/acme/other.git'], { cwd: w });
+    assert.match(run('RUNNING,SCHEDULING').stdout, /jobs run --detach /);
   } finally { fx.done(); }
 });
 

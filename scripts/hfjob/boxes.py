@@ -200,6 +200,23 @@ def listing():
     print(f"awake cost if left running 24h: ${total:.2f}/day (sleeping or paused boxes cost $0)")
 
 
+def pick(repo):
+    """The lanejob spill's choice: print the box that owns `repo` (owner/name) when HF Jobs would queue (jobsConcurrent or more already active), else print nothing = use a Job.
+    The reason always goes to stderr; any Hub error means no box (a Job is the safe default)."""
+    box = next((n for n, row in cfg['boxes'].items() if repo.lower() in [r.lower() for r in row.get('repos', [])]), None)
+    if not box:
+        return print(f'hfjob: no box owns {repo}; using a Job', file=sys.stderr)
+    try:
+        t = token()
+        active = sum(1 for j in api().list_jobs(namespace=cfg['owner'], token=t) if str(j.status.stage) not in cfg['jobDoneStages'])
+    except Exception as e:  # noqa: BLE001 - the Hub being unreachable must not block a job
+        return print(f'hfjob: could not count Jobs ({str(e)[:80]}); using a Job', file=sys.stderr)
+    if active < cfg['jobsConcurrent']:
+        return print(f'hfjob: {active} Job(s) active (< {cfg["jobsConcurrent"]}); using a Job', file=sys.stderr)
+    print(f'hfjob: {active} Job(s) active (>= {cfg["jobsConcurrent"]}) so a Job would queue; using box {box}', file=sys.stderr)
+    print(box)
+
+
 def pause(name):
     sid = space_id(name)
     api().pause_space(sid)
@@ -217,6 +234,7 @@ def main():
     l = s.add_parser('logs'); l.add_argument('name'); l.add_argument('id'); l.add_argument('--follow', action='store_true')
     w = s.add_parser('watch'); w.add_argument('name'); w.add_argument('id'); w.add_argument('--timeout', type=int, default=cfg['defaultTimeoutSeconds'])
     s.add_parser('list')
+    k = s.add_parser('pick'); k.add_argument('repo')
     z = s.add_parser('pause'); z.add_argument('name')
     a = p.parse_args()
     if a.op == 'up': up(a.name, a.update)
@@ -224,6 +242,7 @@ def main():
     elif a.op == 'logs': follow(space_id(a.name), a.id, a.follow)
     elif a.op == 'watch': watch(a.name, a.id, a.timeout)
     elif a.op == 'list': listing()
+    elif a.op == 'pick': pick(a.repo)
     elif a.op == 'pause': pause(a.name)
 
 

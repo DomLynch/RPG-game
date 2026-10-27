@@ -1,5 +1,5 @@
 {
-  "_note": "Standing Hugging Face CPU boxes (Dom 2026-10-27): one Space per heavy lane, put to sleep by the Hub after sleepMinutes idle. Add a lane = add a key under boxes, then `hfjob box-up <name>`. See docs/HF-BOXES.md.",
+  "_note": "Standing Hugging Face CPU boxes (Dom 2026-10-27): one Space per heavy lane, put to sleep by the Hub after sleepMinutes idle. Add a lane = add a key under boxes (with its repos, for the lanejob spill), then `hfjob box-up <name>`. See docs/HF-BOXES.md.",
   "owner": "Domlynch",
   "prefix": "box-",
   "flavor": "cpu-upgrade",
@@ -11,12 +11,14 @@
   "watchMaxMisses": 5,
   "readyTimeoutSeconds": 900,
   "defaultTimeoutSeconds": 1800,
+  "jobsConcurrent": 2,
+  "jobDoneStages": ["COMPLETED", "ERROR", "CANCELED", "CANCELLED", "DELETED", "TIMEOUT"],
   "awakeStages": ["RUNNING", "RUNNING_BUILDING", "APP_STARTING", "BUILDING"],
   "boxes": {
-    "v3": { "lane": "Frankendom v3 Dev" },
-    "physics": { "lane": "Physics Dev" },
-    "armagedom": { "lane": "ARMAGEDOM - Lead Dev" },
-    "opentrident": { "lane": "OpenTrident - Dev" },
-    "v1": { "lane": "Frankendom V1 lanes" }
+    "v3": { "lane": "Frankendom v3 Dev", "repos": ["DomLynch/Frankendom-v3"] },
+    "physics": { "lane": "Physics Dev", "repos": ["DomLynch/physics"] },
+    "armagedom": { "lane": "ARMAGEDOM - Lead Dev", "repos": ["DomLynch/ARMAGEDOM"] },
+    "opentrident": { "lane": "OpenTrident - Dev", "repos": ["DomLynch/opentrident", "DomLynch/opentrident-steam"] },
+    "v1": { "lane": "Frankendom V1 lanes", "repos": ["DomLynch/RPG-game"] }
   }
 }
