@@ -118,7 +118,10 @@ def up(name, update=False):
 def follow(sid, jid, live):
     off = 0
     while True:
-        _, h, body = http(sid, f'/logs/{jid}?from={off}', retries=5)
+        code, h, body = http(sid, f'/logs/{jid}?from={off}', retries=5)
+        if code != 200:   # 404 = the box lost the job (rebuilt or slept): say so and stop, never spin on the error body (it kept a box awake for 24 min)
+            print(f'hfjob: job {jid} is gone from the box ({body.decode("utf8", "replace")[:120]})', file=sys.stderr)
+            return 'lost', ''
         sys.stdout.write(body.decode('utf8', 'replace')); sys.stdout.flush()
         off = int(h.get('x-next-offset', off))
         state = h.get('x-job-state', '')
