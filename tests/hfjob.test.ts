@@ -41,7 +41,7 @@ test('dry run: submits a detached node:22 cpu-upgrade job for THIS checkout\'s o
 test('no repo name in the script, and the job installs only when there is a lockfile', () => {
   const src = readFileSync(script, 'utf8');
   assert.doesNotMatch(src, /DomLynch|RPG-game|Frankendom-v3|physics\.git|armagedom/i, 'no repo names in the code');
-  assert.match(src, /if \[ -f package-lock\.json \]/);
+  assert.match(readFileSync(join(process.cwd(), 'scripts/hfjob/inner.sh'), 'utf8'), /if \[ -f package-lock\.json \]/);   // the job body moved to inner.sh so the box runner shares it
 });
 
 test('origin forms: ssh and a missing .git become the https .git URL; --timeout and --flavor pass through; HFJOB_REPO overrides', () => {

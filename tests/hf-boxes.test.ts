@@ -106,7 +106,7 @@ test('run on the real runner: clones the sha, runs the command with its argument
     const ok = py(env, ['run', 'armagedom', '--repo', repo, '--sha', sha, '--argv-b64', argv(['sh', '-c', 'cat hello.txt; echo "[$0]"', 'a b']), '--timeout', '60', '--wait']);
     assert.equal(ok.status, 0, ok.stdout + ok.stderr);
     assert.match(ok.stdout, new RegExp(`tier=hf-box box=armagedom repo=.*src sha=${sha.slice(0, 12)} job=[0-9a-f]{12}`));
-    assert.match(ok.stdout, /from-the-sha\n\[a b\]/);
+    assert.match(ok.stdout, /from-the-sha\[a b\]/);
     assert.match(ok.stdout, /job [0-9a-f]{12} done exit=0/);
     const bad = py(env, ['run', 'armagedom', '--repo', repo, '--sha', sha, '--argv-b64', argv(['sh', '-c', 'exit 7']), '--timeout', '60', '--wait']);
     assert.equal(bad.status, 1);
