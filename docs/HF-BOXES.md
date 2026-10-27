@@ -35,4 +35,6 @@ Changed the runner? `hfjob box-up <name> --update` re-uploads it (the Space rebu
 
 ## Limits
 
+Public GitHub repos only: the box clones without a credential. `DomLynch/opentrident-steam` is private, so `box-opentrident` has no `repos` (the spill never routes there) and is paused until Dom makes the repo public or rules on a read-only token.
+
 The box runs as an unprivileged user (no `apt`, no Playwright browsers). Browser rows go to CI or the VPS. Concurrent jobs on one box share its 8 vCPUs.
