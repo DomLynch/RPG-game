@@ -18,7 +18,7 @@
     "v3": { "lane": "Frankendom v3 Dev", "repos": ["DomLynch/Frankendom-v3"] },
     "physics": { "lane": "Physics Dev", "repos": ["DomLynch/physics"] },
     "armagedom": { "lane": "ARMAGEDOM - Lead Dev", "repos": ["DomLynch/ARMAGEDOM"] },
-    "opentrident": { "lane": "OpenTrident - Dev", "repos": ["DomLynch/opentrident", "DomLynch/opentrident-steam"] },
+    "opentrident": { "lane": "OpenTrident - Dev", "repos": [] },
     "v1": { "lane": "Frankendom V1 lanes", "repos": ["DomLynch/RPG-game"] }
   }
 }
