@@ -160,6 +160,20 @@ test('job record: run writes it, and tick (cron) ledgers every end: a finished j
   } finally { rn.stop(); fx.done(); }
 });
 
+test('the shared clone step (Jobs and boxes) fetches the repo\'s tags: a test that reads `git show <tag>:file` finds it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hfbox-tag-')), repo = join(dir, 'src'), genv = { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' };
+  const g = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env: genv });
+  try {
+    mkdirSync(repo); g('init', '-q'); writeFileSync(join(repo, 'f'), 'seed'); g('add', '.'); g('commit', '-q', '-m', 'seed'); g('tag', 'v1-seed-test');
+    writeFileSync(join(repo, 'f'), 'later'); g('commit', '-qam', 'later'); g('config', 'uploadpack.allowAnySHA1InWant', 'true');
+    const cmd = Buffer.from("git show v1-seed-test:f").toString('base64');
+    const r = spawnSync('bash', [inner], { env: { ...process.env, HFJOB_WORKDIR: join(dir, 'w'), HFJOB_REPO: repo, HFJOB_SHA: g('rev-parse', 'HEAD').trim(), HFJOB_DEPTH: '1', HFJOB_ARGV_B64: cmd }, encoding: 'utf8', timeout: 60000 });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /\nseed$/m, 'the tag resolves to the seed commit\'s file');
+    assert.match(r.stdout, /LAP tags/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the default runner only takes plain public github https repos and 40-hex shas', async () => {
   const fx = fixture(), port = await freePort();
   const child = spawn('node', [runner], { env: { ...process.env, PORT: String(port), HFBOX_INNER: inner, HFBOX_LOGDIR: join(fx.dir, 'l'), HFBOX_WORK: join(fx.dir, 'w') }, stdio: 'ignore' });
