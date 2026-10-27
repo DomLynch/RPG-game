@@ -2,11 +2,16 @@
 # hfjob [--timeout 30m] [--flavor cpu-upgrade] -- CMD ARGS... : run CMD on a Hugging Face CPU job ($0.03/h, 8 vCPU / 32 GB) at the CURRENT checkout's pushed HEAD.
 # Repo-agnostic (Dom 2026-10-27: "any dev any time can use hugging face"): no repo name lives in this file. It reads `git remote get-url origin` and HEAD of the cwd, refuses
 # if HEAD is not pushed, then submits a detached node:22 job that clones that repo at that sha, runs `npm ci` when there is a package-lock.json, and execs CMD.
-# Prints `tier=hf-cpu job=<id> repo=<owner/name> sha=<sha>` and the `hf jobs logs <id>` line, and appends one line to the ledger. Exit 0 = submitted, 2 = usage/refused, 1 = hf failed.
+# Prints `tier=hf-cpu job=<id> repo=<owner/name> sha=<sha>` and the `hfjob logs <id>` line (hfjob logs|inspect|cancel|ps pass through to `hf jobs`, with the token), and appends one line to the ledger. Exit 0 = submitted, 2 = usage/refused, 1 = hf failed.
 # Public GitHub repos only (no secret goes into the job). The HF token is read here, inside the script, from /root/.hf/token when HF_TOKEN is unset; it is never echoed, logged or passed on a command line.
 # Env: HFJOB_REPO (override origin), HFJOB_DEPTH (git fetch depth, default 1, 0 = full history), HFJOB_LEDGER (default /var/log/hfjob.log), HFJOB_BIN (the hf CLI, default hf), HFJOB_DRY=1 (print the hf command, run nothing).
 # GPU jobs are not run here: they need a stated reason and go through scripts/gpu-run.mjs.
 set -euo pipefail
+
+# the hf CLI is not logged in as root: the token is read here, inside the script, and exported to the hf process only (never printed, never on a command line)
+with_token() { if [ -z "${HF_TOKEN:-}" ] && [ -r /root/.hf/token ]; then HF_TOKEN=$(cat /root/.hf/token); export HF_TOKEN; fi; }
+# hfjob logs|inspect|cancel|ps ARGS... : the same hf subcommands, with the token, so a job can be followed without `hf auth login`
+case "${1:-}" in logs|inspect|cancel|ps) with_token; exec "${HFJOB_BIN:-hf}" jobs "$@" ;; esac
 
 timeout=30m; flavor=cpu-upgrade
 while [ $# -gt 0 ]; do
@@ -48,19 +53,20 @@ echo "hfjob: running at $(git rev-parse --short HEAD): $(printf %s "$HFJOB_ARGV_
 exec bash -c "$(printf %s "$HFJOB_ARGV_B64" | base64 -d)"'
 
 hf=${HFJOB_BIN:-hf}
-args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane" --label "sha=${sha:0:12}"
+args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane"
   -e "HFJOB_REPO=$repo" -e "HFJOB_SHA=$sha" -e "HFJOB_DEPTH=$depth" -e "HFJOB_ARGV_B64=$argv" node:22 bash -c "$inner")
 
 if [ "${HFJOB_DRY:-}" = 1 ]; then printf '%q' "$hf"; printf ' %q' "${args[@]}"; printf '\n'; exit 0; fi
 
-# the token: read here only, exported to the hf process, never printed (Dom 2026-10-21)
-if [ -z "${HF_TOKEN:-}" ] && [ -r /root/.hf/token ]; then HF_TOKEN=$(cat /root/.hf/token); export HF_TOKEN; fi
+with_token
 
 out=$("$hf" "${args[@]}" 2>&1) && rc=0 || rc=$?
-if [ "$rc" -ne 0 ]; then echo "hfjob: hf jobs run failed (rc=$rc): $(printf '%s' "$out" | tail -n 1 | cut -c1-200)" >&2; exit 1; fi
+if [ "$rc" -ne 0 ]; then   # the hf CLI puts the reason a few lines above its "Set HF_DEBUG=1" hint: show the last three real lines, colour codes stripped
+  echo "hfjob: hf jobs run failed (rc=$rc): $(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -v -e '^[[:space:]]*$' -e 'HF_DEBUG' | tail -n 3 | tr '\n' ' ' | cut -c1-300)" >&2; exit 1
+fi
 id=$(printf '%s\n' "$out" | sed -n 's/.*Job started with ID: *\([0-9a-f]\{24\}\).*/\1/p' | head -n 1)
 [ -n "$id" ] || { echo "hfjob: submitted, but no job id in the hf output: $(printf '%s' "$out" | tail -n 1 | cut -c1-200)" >&2; exit 1; }
 line="tier=hf-cpu job=$id repo=$name sha=${sha:0:12}"
 echo "$line"
-echo "follow: hf jobs logs $id   (state: hf jobs inspect $id, stop: hf jobs cancel $id)"
+echo "follow: hfjob logs $id   (state: hfjob inspect $id, stop: hfjob cancel $id)"
 echo "$(date -u +%FT%TZ) user=$(id -un) $line flavor=$flavor timeout=$timeout" >> "${HFJOB_LEDGER:-/var/log/hfjob.log}" 2>/dev/null || true

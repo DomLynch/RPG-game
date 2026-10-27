@@ -34,6 +34,7 @@ test('dry run: submits a detached node:22 cpu-upgrade job for THIS checkout\'s o
     assert.ok(r.stdout.includes(`HFJOB_SHA=${c.sha}`));
     assert.match(r.stdout, / node:22 bash -c /);
     assert.doesNotMatch(r.stdout, /HF_TOKEN|hf_[A-Za-z0-9]{10}/);
+    assert.doesNotMatch(r.stdout, /--label sha=/, 'the HF API rejects a "sha" label key (labels.sha: Invalid key in record, smoke 2026-10-27); the sha is in the env and the ledger');
   } finally { c.done(); }
 });
 
@@ -98,10 +99,19 @@ test('real path with a stub hf: prints the tier line and the logs line, appends 
     const r = run(c.work, ['--', 'node', '--test'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger, HF_TOKEN: 'hf_SECRETSECRETSECRET' });
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.stdout.includes(`tier=hf-cpu job=${'b'.repeat(24)} repo=acme/Frankendom-v3 sha=${c.sha.slice(0, 12)}`), r.stdout);
-    assert.ok(r.stdout.includes(`hf jobs logs ${'b'.repeat(24)}`));
+    assert.ok(r.stdout.includes(`hfjob logs ${'b'.repeat(24)}`));
     assert.doesNotMatch(r.stdout + r.stderr, /SECRETSECRET/);
     assert.match(readFileSync(seen, 'utf8'), /^jobs\nrun\n--detach\n/);
     assert.match(readFileSync(ledger, 'utf8'), new RegExp(`tier=hf-cpu job=${'b'.repeat(24)} repo=acme/Frankendom-v3 .*flavor=cpu-upgrade timeout=30m`));
+    // logs|inspect|cancel|ps pass straight through to `hf jobs`, with the token in the hf process's env only
+    const l = run(c.work, ['logs', 'x1'], { HFJOB_BIN: hf, HF_TOKEN: 'hf_SECRETSECRETSECRET' });
+    assert.equal(l.status, 0, l.stderr);
+    assert.match(readFileSync(seen, 'utf8'), /^jobs\nlogs\nx1\ntoken=hf_SECRETSECRETSECRET/);
+    assert.doesNotMatch(l.stdout.replace('Job started with ID', '') + l.stderr, /SECRETSECRET/);
+    // ps/logs/inspect/cancel need no git checkout (Strategy 2026-10-27): they work from any cwd
+    const anywhere = run(tmpdir(), ['ps', '-a'], { HFJOB_BIN: hf });
+    assert.equal(anywhere.status, 0, anywhere.stderr);
+    assert.match(readFileSync(seen, 'utf8'), /^jobs\nps\n-a\n/);
     // hf failing is exit 1 with its last line, not a silent success
     writeFileSync(hf, '#!/bin/sh\necho "quota exceeded" >&2; exit 3\n');
     const f = run(c.work, ['--', 'true'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger });
