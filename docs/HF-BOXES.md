@@ -5,7 +5,7 @@ Dom, 2026-10-27: "max it out". HF Jobs only start about 2 at once on our account
 ## Use it
 
 ```bash
-hfjob --box v3 -- npm test                 # fire and forget: prints tier=hf-box ..., a keep-alive watcher follows the job
+hfjob --box v3 -- npm test                 # fire and forget: prints tier=hf-box ..., the cron poller records its end
 hfjob --box physics --wait -- npm run build  # stream the log, exit code follows the job
 hfjob box-logs v3 <job-id> [--follow]
 hfjob boxes                                # stage, sleep time and $/day for every box
@@ -14,7 +14,7 @@ hfjob box-pause v3                         # pause now (the kill switch by hand)
 
 **Front door stays `lanejob`** (Mac → VPS slot while load1 < the gate → Hugging Face only as the spill). The spill is `hfjob --spill`: if the repo has a box (`repos` in the data row) and `jobsConcurrent` (2) HF Jobs are already active, so a Job would queue, it runs on the box; otherwise it submits a Job. Both print `tier=...` (`hf-box` or `hf-cpu`), so the log says which ran. `hfjob --box` direct use is for a lane that knows it wants the box.
 
-Run it from a checkout of the repo whose code you want to run; HEAD must be pushed (the box clones origin at that sha, public repos only, `npm ci` when there is a lockfile). Boxes: `v3`, `physics`, `armagedom`, `opentrident`, `v1`. Plain `hfjob -- <cmd>` (a Job) still exists for fire-and-forget with no box.
+Run it from a checkout of the repo whose code you want to run; HEAD must be pushed (the box clones origin at that sha, public repos only, `npm ci` when there is a lockfile). Boxes: `v3`, `physics`, `armagedom`, `opentrident`, `v1`. Plain `hfjob -- <cmd>` (a Job) still exists for fire-and-forget with no box. Pass the command unquoted after `--`: `-- "node --test a b"` is run as one filename and exits 127 (ARMAGEDOM, 2026-10-27).
 
 ## Add a box for a new lane (one line)
 
@@ -24,7 +24,7 @@ Add `"<name>": { "lane": "<who>" }` under `boxes` in `data/hf-boxes.json`, merge
 
 - Every Space is created with `sleep_time = sleepMinutes * 60` (row `sleepMinutes`, 15) and `box-up` re-reads the runtime from the Hub and fails loudly if it is not set.
 - A box is billed only while awake: $0.72/day each if it never slept, $3.60/day for all five. `hfjob boxes` shows what is awake now.
-- A running job holds the box awake by itself only if traffic keeps flowing: the detached watcher `hfjob --box` starts polls the job every `pollSeconds` (60). The watcher always writes an `ended=done|failed|timeout|unknown reason=...` line to `/var/log/hfjob.log` (unknown = job lost, box silent, or timeout + `watchMarginSeconds` reached). If it dies outright (reboot), the box sleeps 15 minutes later and the job dies with it. Use `--wait` or a Job for anything you cannot afford to lose.
+- **Job record:** a fire-and-forget `hfjob --box` appends the job to `/var/lib/hfjob/open-jobs.jsonl` (row `openJobsFile`). A root cron entry (`/etc/cron.d/hfjob-box-tick`, written by `install-vps.sh`) runs `hfjob box-tick` every minute: it polls each recorded job (those requests also keep the box awake past the 15 min idle timer), and when a job ends writes `tier=hf-box box= job= ended=done|failed|timeout|unknown reason=...` to `/var/log/hfjob.log` and drops it from the record. unknown = the box lost the job (404), stopped answering (`watchMaxMisses`), or timeout + `watchMarginSeconds` passed. The box runs the command to completion by itself; the poller only reads, so a closed terminal or a reboot loses nothing. Jobs started on a machine without that cron (a Mac) are not recorded: use `--wait` there.
 - The Space filesystem is wiped on sleep: nothing on a box is durable. Logs live in the runner for the life of the awake box.
 
 ## How it works

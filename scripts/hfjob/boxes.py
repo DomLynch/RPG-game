@@ -3,10 +3,10 @@
 Every name, flavor, sleep time and price comes from data/hf-boxes.json (HFBOX_DATA overrides the path); nothing about a lane or a flavor lives here.
   boxes.py up NAME [--update]                 create the Space if missing, unpause it, wait until the runner answers, print the sleep-time receipt
   boxes.py run NAME --repo R --sha S --argv-b64 B [--timeout SEC] [--depth N] [--wait]
-  boxes.py logs NAME ID [--follow]            boxes.py watch NAME ID (keep-alive poll until the job ends)
+  boxes.py logs NAME ID [--follow]            boxes.py tick (cron: poll every recorded job, ledger the ends)
   boxes.py list                               boxes.py pause NAME
 The token is read here, from HF_TOKEN or /root/.hf/token, and is only ever sent to the Hub as a bearer header. It is never printed or put on a command line."""
-import argparse, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import argparse, json, os, sys, tempfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -147,9 +147,7 @@ def run(name, repo, sha, argv_b64, timeout, depth, wait):
         state, code = follow(sid, jid, True)
         print(f'job {jid} {state} exit={code}')
         sys.exit(0 if state == 'done' else 1)
-    # fire and forget: a detached watcher keeps traffic flowing so the Hub's idle timer does not sleep the box mid-run (the token goes in the env, not argv)
-    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'watch', name, jid, '--timeout', str(timeout)], env=dict(os.environ, HF_TOKEN=token()), stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    record(name, jid, timeout)   # fire and forget: the cron tick (hfjob box-tick) polls it, keeps the box awake and ledgers the end
 
 
 def ledger(line):
@@ -160,27 +158,58 @@ def ledger(line):
         pass
 
 
-def watch(name, jid, timeout):
-    """Keep-alive poll until the job ends. Never dies silently: every exit writes an ended= line to the ledger. A runner that went quiet, lost the job (404) or outlived
-    timeout + watchMarginSeconds is ended=unknown, not a hang."""
-    sid, tag = space_id(name), f'tier=hf-box box={name} job={jid}'
-    deadline, misses = time.time() + timeout + cfg['watchMarginSeconds'], 0
-    while time.time() < deadline:
-        try:
-            code, _, body = http(sid, f'/status/{jid}', retries=2)
-        except SystemExit:
-            code, body = 0, b'{}'
-        state = json.loads(body).get('state') if code == 200 else None
-        if state and state != 'running':
-            return ledger(f'{tag} ended={state}')
-        if state is None:
-            misses += 1
-            if code == 404 or misses >= cfg['watchMaxMisses']:
-                return ledger(f'{tag} ended=unknown reason={"job lost (box restarted or slept)" if code == 404 else "box stopped answering"}')
+def open_file():
+    return Path(os.environ.get('HFBOX_OPEN') or cfg['openJobsFile'])
+
+
+def record(name, jid, timeout):
+    """The job record: one JSON line per running box job, on the VPS. `tick` (cron, every minute) reads it, so a dead terminal, a dead watcher or a reboot cannot lose a job."""
+    f = open_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with open(f, 'a') as h:
+        h.write(json.dumps({'box': name, 'id': jid, 'deadline': int(time.time()) + timeout + cfg['watchMarginSeconds'], 'misses': 0}) + '\n')
+
+
+def poll(row):
+    """One poll of one recorded job -> (ended text or None, updated row). Polling also keeps the box awake (the Hub's idle timer counts requests)."""
+    name, jid = row['box'], row['id']
+    sid = space_id(name)
+    try:
+        code, _, body = http(sid, f'/status/{jid}', retries=2)
+    except SystemExit:
+        code, body = 0, b'{}'
+    state = json.loads(body).get('state') if code == 200 else None
+    if state and state != 'running':
+        return f'ended={state}', row
+    if state is None:
+        row['misses'] += 1
+        if code == 404 or row['misses'] >= cfg['watchMaxMisses']:
+            return f'ended=unknown reason={"job lost (box restarted or slept)" if code == 404 else "box stopped answering"}', row
+    else:
+        row['misses'] = 0
+    if time.time() > row['deadline']:
+        return 'ended=unknown reason=ceiling (timeout+margin) reached', row
+    return None, row
+
+
+def tick():
+    """Cron entry (every minute): poll every recorded job, write an ended= ledger line for each that finished, keep the rest. Never silent: every record ends in the ledger."""
+    f = open_file()
+    if not f.exists():
+        return
+    keep = []
+    for line in f.read_text().splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        ended, row = poll(row)
+        if ended:
+            ledger(f"tier=hf-box box={row['box']} job={row['id']} {ended}")
         else:
-            misses = 0
-        time.sleep(cfg['pollSeconds'])
-    ledger(f'{tag} ended=unknown reason=watch ceiling (timeout+margin) reached')
+            keep.append(json.dumps(row))
+    tmp = f.with_suffix('.tmp')
+    tmp.write_text('\n'.join(keep) + ('\n' if keep else ''))
+    tmp.replace(f)
 
 
 def listing():
@@ -232,7 +261,7 @@ def main():
         r.add_argument(k, required=True)
     r.add_argument('--timeout', type=int, default=cfg['defaultTimeoutSeconds']); r.add_argument('--depth', type=int, default=1); r.add_argument('--wait', action='store_true')
     l = s.add_parser('logs'); l.add_argument('name'); l.add_argument('id'); l.add_argument('--follow', action='store_true')
-    w = s.add_parser('watch'); w.add_argument('name'); w.add_argument('id'); w.add_argument('--timeout', type=int, default=cfg['defaultTimeoutSeconds'])
+    s.add_parser('tick')
     s.add_parser('list')
     k = s.add_parser('pick'); k.add_argument('repo')
     z = s.add_parser('pause'); z.add_argument('name')
@@ -240,7 +269,7 @@ def main():
     if a.op == 'up': up(a.name, a.update)
     elif a.op == 'run': run(a.name, a.repo, a.sha, a.argv_b64, a.timeout, a.depth, a.wait)
     elif a.op == 'logs': follow(space_id(a.name), a.id, a.follow)
-    elif a.op == 'watch': watch(a.name, a.id, a.timeout)
+    elif a.op == 'tick': tick()
     elif a.op == 'list': listing()
     elif a.op == 'pick': pick(a.repo)
     elif a.op == 'pause': pause(a.name)

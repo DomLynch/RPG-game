@@ -21,6 +21,7 @@ case "${1:-}" in
   box-up) shift; exec python3 "$here/boxes.py" up "$@" ;;
   box-pause) shift; exec python3 "$here/boxes.py" pause "$@" ;;
   box-logs) shift; exec python3 "$here/boxes.py" logs "$@" ;;
+  box-tick) shift; exec python3 "$here/boxes.py" tick "$@" ;;   # cron, every minute (install-vps.sh): polls the recorded box jobs
 esac
 timeout=30m; flavor=cpu-upgrade; timeout_set=0; box=""; wait=(); spill=0
 while [ $# -gt 0 ]; do
