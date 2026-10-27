@@ -44,8 +44,11 @@ V3). One review round per PR; a second fail comes to Strategy. OpenTrident repo 
 - Hooks Dev: wound down, no jobs running; note memory `handoff-disk-sweep-2026-10-27`; for Dom: ue-keys 23 GB,
   /var/www 19 GB, ARMAGEDOM ports 8811/8812/8891-8896 live, winedevice 3577501; HF-token hook change NOT done (wants
   Dom's own word in chat); hooks PRs #178/#165 held for the Auditor read.
-- V3 Dev, Physics Dev: replies pending at the time of writing; their state notes are memory `v3-state-2026-10-27-*`
-  and physics `docs/BRIEF.md` HANDOFF.
+- Physics Dev: wound down. #158 (8c32621) waits on stills + 20-light/heavy traces + one reviewer, then V3 Dev merges;
+  #157 and #152 have reviewer PASS-with-nits, V3 Dev merges. Strength-rung fix parked, not started (first item in
+  its note). Note: memory `physics-dev-state` + top of physics `docs/BRIEF.md` (edit UNCOMMITTED on main, commit it
+  first thing). A worktree with b22f333 (text-only perf.json edit) may not be on main. The #158 agent runs until done.
+- V3 Dev: reply pending; state note memory `v3-state-2026-10-27-afternoon-handoff` (live 819ab46 at that time).
 
 ## Sessions
 Frankendom v3 Dev local_1ca78c9a (merger of V3), Physics Dev local_e7ad7655, ARMAGEDOM Lead local_5e22da4d, Hooks
