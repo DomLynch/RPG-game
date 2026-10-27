@@ -135,6 +135,7 @@ test('job record: run writes it, and tick (cron) ledgers every end: a finished j
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const [rec] = lines();
     assert.equal(rec.box, 'v3');
+    assert.match(readFileSync(ledger, 'utf8').split('\n')[0], new RegExp(`tier=hf-box box=v3 repo=.* sha=[0-9a-f]{12} job=${rec.id}$`), 'a direct boxes.py run writes the start line itself, at submit');
     assert.match(r.stdout, new RegExp(`job=${rec.id}`));
     const w = py(env, ['run', 'v3', '--repo', repo, '--sha', g('rev-parse', 'HEAD').trim(), '--argv-b64', argv, '--timeout', '30', '--wait']);   // --wait records too: a killed terminal loses nothing
     assert.equal(w.status, 0, w.stdout + w.stderr);
@@ -146,6 +147,8 @@ test('job record: run writes it, and tick (cron) ledgers every end: a finished j
     const led = readFileSync(ledger, 'utf8');
     assert.match(led, new RegExp(`tier=hf-box box=v3 job=${rec.id} ended=done`));
     assert.match(led, new RegExp(`tier=hf-box box=v3 job=${waitedId} ended=done`));
+    assert.ok(led.indexOf(`sha=`) >= 0 && led.indexOf(`job=${waitedId}\n`) < led.indexOf(`job=${waitedId} ended=`), 'start line before ended line for the --wait job');
+    assert.equal(led.split(`job=${waitedId}\n`).length, 2, 'exactly one start line per job (hfjob.sh no longer writes a second)');
     assert.doesNotMatch(led, /user=\? /, 'the ended line names the submitting user, not ?');
     assert.match(led, /job=deadbeef0000 ended=unknown reason=job lost/);
     assert.equal(lines().length, 0, 'both ended, so the record is empty');

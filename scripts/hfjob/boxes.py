@@ -141,7 +141,9 @@ def run(name, repo, sha, argv_b64, timeout, depth, wait):
     if code != 200:
         die(f"box refused the run: {res.get('error')}")
     jid = res['id']
-    print(f"tier=hf-box box={name} repo={repo.split('github.com/')[-1].removesuffix('.git')} sha={sha[:12]} job={jid}")
+    start = f"tier=hf-box box={name} repo={repo.split('github.com/')[-1].removesuffix('.git')} sha={sha[:12]} job={jid}"
+    ledger(start)   # the start line is written here, at submit, for every caller (hfjob.sh, a direct boxes.py run): start always precedes the tick's ended= line
+    print(start)
     print(f'space: https://huggingface.co/spaces/{sid}   follow: hfjob box-logs {name} {jid}')
     record(name, jid, timeout)   # every box job, --wait or not: the cron tick (hfjob box-tick) polls it, keeps the box awake and ledgers the end (a killed terminal loses nothing)
     if wait:

@@ -68,12 +68,7 @@ if [ -n "$box" ]; then
   bargs=(run "$box" --repo "$repo" --sha "$sha" --argv-b64 "$argv" --depth "$depth" ${tarr[@]+"${tarr[@]}"} ${wait[@]+"${wait[@]}"})
   if [ "${HFJOB_DRY:-}" = 1 ]; then HFJOB_DRY=1 exec python3 "$here/boxes.py" "${bargs[@]}"; fi
   with_token
-  tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
-  python3 "$here/boxes.py" "${bargs[@]}" | tee "$tmp" && rc=0 || rc=$?   # tee: --wait streams the job log live
-  rc=${PIPESTATUS[0]:-$rc}
-  line=$(grep -m1 '^tier=hf-box ' "$tmp" || true)
-  [ -n "$line" ] && echo "$(date -u +%FT%TZ) user=$(id -un) $line" >> "${HFJOB_LEDGER:-/var/log/hfjob.log}" 2>/dev/null || true
-  exit "$rc"
+  exec python3 "$here/boxes.py" "${bargs[@]}"   # boxes.py writes the start line to the ledger itself, at submit, for every caller
 fi
 
 hf=${HFJOB_BIN:-hf}
