@@ -11,11 +11,21 @@ import { lookOf, withZoneLook, zoneDayNight, zoneHour, type ZoneFields } from '.
 
 const of = (spec: Record<string, unknown>): ZoneFields => { const r = resolveZone('999', { name: 'T', level: 999, ...spec }); assert.deepEqual(r.problems, []); return { fields: r.values, set: r.explicit }; };
 
-test('Zone 1 and Zone 2 set no look, time or day/night field: every preset look comes back untouched', () => {
-  for (const id of ['1', '2']) {
+test('Zone 1 = Test Zone look (Dom-approved 2026-10-18): it sets the kit, density and rim and no fog, sun, time or day/night field', () => {
+  const z = loadZone('1');
+  assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(), ['look.props.camp', 'look.props.density', 'look.props.kit', 'look.props.rim']);   // look.props.camp (#3313): where the camp kit stands in the Cinder Fields, the sandbox's spawn camp
+  for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `1/${preset}`);
+});
+// Zone 2 sets the reach-plate look since #3570 (2026-10-21, Dom's moonlit castle plate): fog, sun key, ambient, exposure and ground tint are its own rows in zone2.row.json; time of day and day/night stay untouched.
+test('Zone 2 sets the reach-plate look only (fog, sun, ambient, exposure, ground tint); time and day/night are untouched', () => {
+  for (const id of ['2']) {
     const z = loadZone(id);
-    assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)), [], `zone ${id}`);
-    for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) assert.deepEqual(withZoneLook(lookOf(preset), z), lookOf(preset), `${id}/${preset}`);
+    assert.deepEqual((z.set ?? []).filter((p) => /^(look\.(fog|sun|ambient|exposure|ground\.tint|timeOfDay|props)|dayNight)/.test(p)).sort(),
+      ['look.ambient.ground', 'look.ambient.intensity', 'look.ambient.sky', 'look.exposure', 'look.fog.colour', 'look.fog.density', 'look.ground.tint', 'look.sun.colour', 'look.sun.intensity', 'look.sun.pos'], `zone ${id}`);
+    for (const preset of ['zone1', 'frontier-haze', 'cinder-haze', 'frontier-night', 'ash-pit']) {
+      const l = withZoneLook(lookOf(preset), z);   // the zone's rows win over whichever preset it is laid over
+      assert.equal(l.fog, '#5b5478', `${id}/${preset}`); assert.equal(l.sunColor, '#b4c0ff', `${id}/${preset}`); assert.equal(l.exposure, 1.25, `${id}/${preset}`); assert.deepEqual(l.ground, [0.78, 0.78, 0.92], `${id}/${preset}`);
+    }
     assert.equal(zoneHour(z), null); assert.equal(zoneDayNight(z), true);
   }
 });
@@ -46,6 +56,6 @@ test('time of day: follow:false pins the hour; dayNight.on:false turns the cycle
 
 test('look.props.density scales how many props the kit places (1 = as the kit says, the default)', () => {
   const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), n = (density?: number) => frontierKit(F, B, D, density).placements.length;
-  assert.equal(n(1), n(), 'the default is 1'); assert.ok(n(2) > n(1) * 1.5, `${n(2)} vs ${n(1)}`); assert.ok(n(0.5) < n(1) * 0.7); assert.equal(n(0), 0);
-  assert.equal(loadZone().fields?.['look.props.density'], 1, 'Zone 1 keeps the default');
+  assert.equal(n(loadZone().fields?.['look.props.density'] as number), n(), 'the default is Zone 1\'s own row'); assert.ok(n(2) > n(1) * 1.5, `${n(2)} vs ${n(1)}`); assert.ok(n(0.5) < n(1) * 0.7); assert.equal(n(0), 0);
+  assert.ok((loadZone().fields?.['look.props.density'] as number) < 1, 'Zone 1 = Test Zone look (Dom-approved 2026-10-18): the fortress biome thins the clutter');
 });

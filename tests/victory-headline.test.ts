@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { headlineFlag, victoryHeadline } from '../src/fight/victory-headline.ts';
@@ -43,7 +44,7 @@ test('the line is read from events only: it never touches the log it is given', 
 test('the HUD splices the headline before the rematch prompt of a win and leaves every other line alone (wiring pin)', async () => {
   const { readFileSync } = await import('node:fs');
   const hud = readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8');
-  assert.match(hud, /view\.headline \? practiceHint\(practice, foe, view\.legend\)\.replace\(' Ready for a rematch\?'/);
+  assert.match(hud, /view\.headline \? practiceHint\(practice, foe, view\.legend, nameOfSpecial\)\.replace\(' Ready for a rematch\?'/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /const HEADLINE = headlineFlag\(window\.location\?\.search \?\? ''\)/);
   assert.match(main, /headline: HEADLINE && shown\.finish && !shown\.finish\.draw && shown\.playerHealth > 0 && !shown\.health && match\.mode !== 'pvp' && !match\.replay \? victoryHeadline\(match\.fightLog, shown\.playerHealth\) : null/);

@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "groundLook",
+      "file": "ground-looks.json",
+      "at": "groundLooks",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

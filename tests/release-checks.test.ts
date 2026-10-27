@@ -1,6 +1,7 @@
 // Runner behaviour for scripts/release-checks.mjs against a throwaway repo with synthetic checks: independent checks run
 // concurrently, fixed-port (`strictPort`) scripts run alone, one retry absorbs a flake, a hard failure exits non-zero, and
 // the receipt is written only on success. No browser, no GPU.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -118,6 +119,34 @@ test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.ok((Date.now() - started) / 1000 >= 0.8, 'serial: sum of durations');
   assert.equal(maxOverlap(root), 1, 'serial: never two checks alive at once');
+});
+
+test('SERIAL_ROWS (row-placement.mjs: WebKit rows, rows that fail off the Mac, timing gates) run alone after the concurrent rows, even at width 3', () => {
+  // rows 2 and 4 are in SERIAL_ROWS (MAC_ONLY); rows 1, 3, 5, 6 are not. The serial mocks log under another tag so the spans tell them apart.
+  const root = repo([
+    ['node', 'scripts/sleep.mjs', '500'], ['node', 'scripts/tagged.mjs', '300'], ['node', 'scripts/sleep.mjs', '500'],
+    ['node', 'scripts/tagged.mjs', '300'], ['node', 'scripts/sleep.mjs', '500'], ['node', 'scripts/sleep.mjs', '500'],
+  ]);
+  writeFileSync(join(root, 'scripts', 'tagged.mjs'), readFileSync(join(root, 'scripts', 'sleep.mjs'), 'utf8').replace('`sleep ', '`tagged '));
+  const result = run(root, { RELEASE_CHECK_CONCURRENCY: '3' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /2 serial row\(s\) run alone after the concurrent ones: 2,4/);
+  const all = spans(root), serial = all.filter(s => s.tag === 'tagged'), others = all.filter(s => s.tag === 'sleep');
+  assert.equal(serial.length, 2);
+  assert.ok(alive(root).filter(s => s.tag === 'tagged').every(s => s.n === 1), 'a serial row never has another row alive beside it');
+  assert.ok(Math.min(...serial.map(s => s.a)) >= Math.max(...others.map(s => s.b)), 'the serial rows start after every concurrent row has ended');
+  assert.ok(alive(root).filter(s => s.tag === 'sleep').some(s => s.n >= 2), 'the other rows do overlap (width 3)');
+  assert.ok(Math.max(...alive(root).filter(s => s.tag === 'sleep').map(s => s.n)) <= 3, 'never wider than the width');
+});
+
+test('with no RELEASE_CHECK_CONCURRENCY the width is row-placement.mjs LOCAL_CONCURRENCY (3) off CI, CI_CONCURRENCY (4) on GitHub', () => {
+  const off = (extra: Record<string, string>) => { const root = repo([['node', 'scripts/sleep.mjs', '20'], ['node', 'scripts/sleep.mjs', '20']]); return run(root, extra).stdout; };
+  const env = { ...clean() } as Record<string, string>;
+  delete env.GITHUB_ACTIONS;
+  const outside = spawnSync(process.execPath, [runner, repo([['node', 'scripts/sleep.mjs', '20']])], { encoding: 'utf8', env }).stdout;
+  assert.match(outside, /concurrency 3,/, 'off GitHub: LOCAL_CONCURRENCY');
+  assert.match(off({ GITHUB_ACTIONS: 'true' }), /concurrency 4,/, 'on GitHub: CI_CONCURRENCY');
+  assert.match(off({ RELEASE_CHECK_CONCURRENCY: '2' }), /concurrency 2,/, 'an explicit width still wins');
 });
 
 test('longest checks from the previous receipt start first; unknown checks sit at the median', () => {
@@ -274,10 +303,22 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
   for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/fight/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/fight/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/fight/input.ts' ? [] : ['next-fight-black-check']), ...(file === 'src/style.css' ? ['pit-landscape-webkit'] : [])].sort(), file);   // + the WebKit landscape Pit row (Lead 2026-10-12): the layout file runs it   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/fight/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/fight/input.ts' ? [] : ['next-fight-black-check', 'end-overlap-check']), ...(file === 'src/style.css' ? ['pit-landscape-webkit'] : []), ...(file === 'src/fight/input.ts' ? ['spell-slots-zone-check'] : [])].sort(), file);   // input.ts also runs row 56 (spell slots 3b)   // + the WebKit landscape Pit row (Lead 2026-10-12): the layout file runs it   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
+  assert.deepEqual(rowsFor('scripts/end-overlap-check.mjs'), ['end-overlap-check']);   // row 55 (Lead 2026-10-15): nothing under Next fight on the kill screen; joined the page rules above, its own script runs only itself
+  // Row 56 (spell slots 3b, Lead 2026-10-15): the open-world page under a dev server with two picks must show SPELL 2. It rides the four files that decide it (the HUD, the input, the equip, the slot view) by a narrow rule placed BEFORE src/**, which keeps every row src/** gave them, and origins/preview/main.ts by a rule before origins/**; a bare src or origins change does not run it.
+  for (const f of ['src/fight/hud.ts', 'src/fight/input.ts', 'src/core/spell-equip.ts', 'src/core/spell-slot-view.ts']) assert.ok(rowsFor(f).includes('spell-slots-zone-check') && rowsFor(f).includes('double-tap-browser-check'), `${f}: its earlier rows plus spell-slots-zone-check`);
+  assert.deepEqual(rowsFor('origins/preview/main.ts'), ['ground-prompt-check', 'origins-writer-boot-check', 'spell-slots-zone-check', 'zone-pages-check']);   // + row 58 (zone-pages-check, Lead 2026-10-22: it opens every zone page). + row 57 (ground-prompt-check) joined main.ts's rule: first match wins, so it carries the spell-slots row too
+  assert.deepEqual(rowsFor('scripts/spell-slots-zone-check.mjs'), ['spell-slots-zone-check'], 'its own script runs only itself');
+  // Row 57 (Lead 2026-10-15): the ground-loot prompt clear of the fight buttons. The walk page's files carry the writer boot row they already had (origins/**), plus it; its own scripts run only it.
+  assert.deepEqual(rowsFor('scripts/ground-prompt-check.mjs'), ['ground-prompt-check']); assert.deepEqual(rowsFor('scripts/lib/origins-preview-harness.mjs'), ['ground-prompt-check', 'zone-pages-check']);
+  // Row 58 (Lead 2026-10-22, "unblocks K6q26 and every new zone"): load every zone page the registry lists (a /dungeon1/ crash passed full CI because no row opened that page). A zone row, the loader, the preview page and the world data carry it beside the writer boot row they already had; its own scripts run only it.
+  for (const f of ['origins/zone-rows/zone7.row.json', 'origins/zones/loader.ts', 'origins/zones/registry.ts', 'scripts/gen-zones.mjs', 'origins/preview/frontier.ts', 'origins/world/concord.ts']) assert.deepEqual(rowsFor(f), ['origins-writer-boot-check', 'zone-pages-check'], f);
+  assert.deepEqual(rowsFor('scripts/zone-pages-check.mjs'), ['zone-pages-check']); assert.deepEqual(rowsFor('scripts/lib/zone-pages.mjs'), ['zone-pages-check']);
+  for (const file of ['origins/preview/main.ts', 'origins/preview/index.html', 'origins/preview/ground-pickup.ts', 'origins/preview/zone-sound.ts']) assert.ok(rowsFor(file).includes('ground-prompt-check') && rowsFor(file).includes('origins-writer-boot-check'), file);
+  for (const f of ['src/fight/ai.ts', 'src/main.ts', 'origins/server/server.ts']) assert.ok(!rowsFor(f).includes('spell-slots-zone-check'), `${f} does not run the spell-slots row`);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
@@ -398,9 +439,10 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
 });
 
-test('deploy.sh runs the Mac rows one at a time unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-10)', () => {
+test('deploy.sh leaves the Mac width to row-placement.mjs (LOCAL_CONCURRENCY, serial rows alone) unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-20, was width 1 since 2026-10-10)', () => {
   const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
-  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP=/, 'the Mac invocation defaults the width to 1 and keeps the caller\'s value');
+  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-\}" RELEASE_CHECKS_SKIP=/, 'no hard-coded width: the caller\'s value, else the data row');
+  assert.doesNotMatch(deploy, /RELEASE_CHECK_CONCURRENCY:-1\}/, 'the old fixed width 1 is gone');
 });
 
 test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full run (Strategy 2026-10-10: Y and Z each ran all 52 rows for two .webp files and for scripts/lib/data-only.mjs)', () => {
@@ -518,6 +560,6 @@ esac
   assert.match(r.stderr, /stopped waiting after 2s with CI row\(s\) \[3\] unfinished: they run locally/);
   assert.ok(Date.now() - t < 15_000, 'bounded');
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits');
+  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" CI_DISPATCH_IF_MISSING="\$\{CI_DISPATCH_IF_MISSING:-1\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits, and dispatches release-checks first when the tree has no CI run');
   assert.match(deploy, /early_trusted=\$\(node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the planning call stays instant');
 });

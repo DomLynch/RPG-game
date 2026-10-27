@@ -92,6 +92,21 @@ export const setActive = async (db: Db, account: string, character: string): Pro
 };
 export const active = async (db: Db, account: string): Promise<string | null> =>
   (await db.run(`select coalesce(public.origins_active(:'a'::uuid), '');`, { a: acct(account) })) || null;
+// The ACTIVE character's display name (migration 20261016161137), for presence's name tags: null when there is none, and also null on a database without the function (a name tag is then
+// simply missing, nothing else changes). The answer is JSON (a string is quoted), so a character named "absent" cannot be mistaken for the gate's 'absent' sentinel.
+const HAS_ACTIVE_NAME = `select to_regprocedure('public.origins_active_name(uuid)') is not null as actname \\gset\n`;
+export const activeName = async (db: Db, account: string): Promise<string | null> => {
+  const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select coalesce(to_jsonb(public.origins_active_name(:'a'::uuid))::text, 'null');`, { a: acct(account) });
+  return out === 'absent' ? null : (JSON.parse(out) as string | null);
+};
+// The ACTIVE character's equipped pieces (migration 20261016200000), for the gear other players see: [{item, tier, slot}], a plain read with no lock (origins_open locks the career row and returns
+// the whole snapshot, too heavy for a 30 s refresh per player). Null on a database without the function: nothing worn is shown, nothing else changes.
+const HAS_ACTIVE_WORN = `select to_regprocedure('public.origins_active_worn(uuid)') is not null as actworn \\gset\n`;
+export type WornRow = { item: string; tier: string | null; slot: string };
+export const activeWorn = async (db: Db, account: string): Promise<WornRow[] | null> => {
+  const out = await gated(db, 'active_worn', HAS_ACTIVE_WORN, 'actworn', `select public.origins_active_worn(:'a'::uuid)::text;`, { a: acct(account) });
+  return out === 'absent' ? null : (JSON.parse(out) as WornRow[]);
+};
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
 export const saveLocation = async (db: Db, account: string, at: { x: number; z: number; zone: string | null; atMs: number }): Promise<{ character: string | null; stored: boolean }> =>
   JSON.parse(await db.run(`select public.origins_save_location(:'a'::uuid, :'x'::int, :'z'::int, nullif(:'zone', ''), :'t'::bigint)::text;`,
@@ -164,19 +179,55 @@ const spawnCall = async (db: Db, call: string, vars: Record<string, string>): Pr
   return out === 'absent' ? null : out;
 };
 export type SpawnRow = { instance: string; kind: string; alive: boolean; respawnAt: string | null; generation: number };
-export type SpawnEngage = { token: string; character: string; instance: string; generation: number; issuedAt: string; expiresAt: string };
+export type SpawnEngage = { token: string; character: string; instance: string; layer?: number; generation: number; issuedAt: string; expiresAt: string };   // layer: the token's layer (migration 20261019170000; absent before it)
 export type SpawnRefusal = { refused?: string; respawnAt?: string | null };
-export const spawnState = async (db: Db, instances: readonly string[]): Promise<{ now: string; spawns: SpawnRow[] } | null> => {
-  const out = await spawnCall(db, `public.origins_spawn_state(array(select jsonb_array_elements_text(:'i'::jsonb)))`, { i: JSON.stringify(instances) });
+// Per-layer spawn clocks (migration 20261019170000): a `layer` argument asks the layer-taking function; no layer, or the migration not applied, reads the layer-less one, which is layer 1, today's single pool.
+const HAS_LAYERS = `select to_regprocedure('public.origins_spawn_engage_layer(integer,uuid,text,text,text,text)') is not null as layers \\gset\n`;
+const layerCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'spawn layers', HAS_LAYERS, 'layers', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+export const spawnState = async (db: Db, instances: readonly string[], layer?: number): Promise<{ now: string; spawns: SpawnRow[] } | null> => {
+  const vars = { i: JSON.stringify(instances), l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_state_layer(:'l'::int, array(select jsonb_array_elements_text(:'i'::jsonb)))`, vars))
+    ?? await spawnCall(db, `public.origins_spawn_state(array(select jsonb_array_elements_text(:'i'::jsonb)))`, vars);
   return out === null ? null : JSON.parse(out);
 };
-export const spawnEngage = async (db: Db, account: string, character: string, token: string, instance: string, kind: string): Promise<(SpawnEngage & SpawnRefusal) | null> => {
-  const out = await spawnCall(db, `public.origins_spawn_engage(:'a'::uuid, :'c', :'t', :'i', :'k')`, { a: acct(account), c: character, t: token, i: instance, k: kind });
+export const spawnEngage = async (db: Db, account: string, character: string, token: string, instance: string, kind: string, layer?: number): Promise<(SpawnEngage & SpawnRefusal) | null> => {
+  const vars = { a: acct(account), c: character, t: token, i: instance, k: kind, l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_engage_layer(:'l'::int, :'a'::uuid, :'c', :'t', :'i', :'k')`, vars))
+    ?? await spawnCall(db, `public.origins_spawn_engage(:'a'::uuid, :'c', :'t', :'i', :'k')`, vars);
   return out === null ? null : JSON.parse(out);
+};
+/** The janitor: delete the spawn rows of every layer not in `live` (the layers presence says exist). `null` = the migration is not applied. */
+export const spawnLayersSweep = async (db: Db, live: readonly number[]): Promise<number | null> => {
+  const out = await layerCall(db, `public.origins_spawn_layers_sweep(array(select jsonb_array_elements_text(:'l'::jsonb)::int))`, { l: JSON.stringify(live) });
+  return out === null ? null : Number(out);
+};
+// World marks (migration 20261022100000): settle the kills whose join window has closed. `waitS` = joinWindowS + graceS, `ofTop` the qualify share, `cap` the beta cut on TOTAL marks. `null` = the migration is not applied.
+const HAS_MARKS = `select to_regprocedure('public.origins_world_marks_settle(integer,numeric,integer,integer,text[],integer)') is not null as marks \\gset\n`;
+export const worldMarksSettle = async (db: Db, rule: { waitS: number; ofTop: number; cap: number; perHour: number; instances: readonly string[]; limit: number }): Promise<number | null> => {
+  const out = await gated(db, 'world marks', HAS_MARKS, 'marks',
+    `select public.origins_world_marks_settle(:'w'::int, :'o'::numeric, :'c'::int, :'h'::int, array(select jsonb_array_elements_text(:'i'::jsonb)), :'n'::int)::text;`,
+    { w: String(rule.waitS), o: String(rule.ofTop), c: String(rule.cap), h: String(rule.perHour), i: JSON.stringify(rule.instances), n: String(rule.limit) });
+  return out === 'absent' ? null : Number(out);
 };
 export const spawnEngageGet = async (db: Db, account: string, token: string): Promise<SpawnEngage | 'none' | null> => {
   const out = await spawnCall(db, `coalesce(public.origins_spawn_engage_get(:'a'::uuid, :'t'), 'null'::jsonb)`, { a: acct(account), t: token });
   return out === null ? null : out === 'null' ? 'none' : JSON.parse(out);
+};
+// The QA mark (migration 20261018084514; fighter_profiles.is_test, 202610110021): true for the one service-role-created QA account. `null` = the migration is not applied.
+const HAS_QA = `select to_regprocedure('public.origins_account_is_test(uuid)') is not null as qa \\gset\n`;
+export const accountIsTest = async (db: Db, account: string): Promise<boolean | null> => {
+  const out = await gated(db, 'qa mark', HAS_QA, 'qa', `select public.origins_account_is_test(:'a'::uuid)::text;`, { a: acct(account) });
+  return out === 'absent' ? null : out === 'true';
+};
+const HAS_RECEIPT = `select to_regprocedure('public.origins_spawn_receipt(uuid,text)') is not null as receipt \\gset\n`;
+// Launch gate V5: what happened to a token that is not open any more, from the stored rows only (migration 20261018081137; null when the token is not this account's, or the migration is not applied).
+export type SpawnReceipt = { kind: 'paid'; instance: string; killedAt: string; cp: number; bronze: number; loot: number } | { kind: 'expired' } | { kind: 'open' };
+export const spawnReceipt = async (db: Db, account: string, token: string): Promise<SpawnReceipt | 'unknown' | null> => {
+  const out = await gated(db, 'spawn receipt', HAS_RECEIPT, 'receipt', `select coalesce(public.origins_spawn_receipt(:'a'::uuid, :'t'), 'null'::jsonb)::text;`, { a: acct(account), t: token });
+  return out === 'absent' ? null : out === 'null' ? 'unknown' : JSON.parse(out);
 };
 export const spawnTouch = async (db: Db, account: string, token: string): Promise<{ token: string; expiresAt: string } | null> => {
   const out = await spawnCall(db, `public.origins_spawn_touch(:'a'::uuid, :'t')`, { a: acct(account), t: token });
@@ -186,6 +237,46 @@ export const spawnTouch = async (db: Db, account: string, token: string): Promis
 export type BetaLedger = { reach: 'checked' | 'unchecked' };   // cp is derived in SQL from the career row (Auditor)
 export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
+  return out === null ? null : JSON.parse(out);
+};
+// Kill credit by damage (migration 20261019113226, origins/server/damage-share.ts). `null` = the migration is not applied: the writer then pays the old way (first valid report wins).
+const HAS_SHARE = `select to_regprocedure('public.origins_spawn_kill_v2(uuid,text,integer,integer,jsonb,jsonb,numeric,integer)') is not null as share \\gset\n`;
+const shareCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'share', HAS_SHARE, 'share', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+/** Read-only: would a kill report on this token be refused (dead, too-fast, cap), and is it the 'first' kill of the creature or a 'join' to one made while the token was open. Nothing is written. */
+export const spawnCheck = async (db: Db, account: string, token: string, minMs: number, joinS: number, cooldownS?: number): Promise<({ ok?: true; mode?: 'first' | 'join'; instance?: string; generation?: number } & SpawnRefusal) | null> => {
+  const vars = { a: acct(account), t: token, m: String(minMs), j: String(joinS), r: String(cooldownS ?? 0) };
+  // cooldownS given (layers on): the layer-aware check, which also refuses a creature this account already killed in ANOTHER layer inside the respawn window
+  const out = (cooldownS === undefined ? null : await layerCall(db, `public.origins_spawn_check_layer(:'a'::uuid, :'t', :'m'::int, :'j'::int, :'r'::int)`, vars))
+    ?? await shareCall(db, `public.origins_spawn_check(:'a'::uuid, :'t', :'m'::int, :'j'::int)`, vars);
+  return out === null ? null : JSON.parse(out);
+};
+/** The damage ledger of one incarnation of a creature, oldest first. */
+export const spawnDamage = async (db: Db, instance: string, generation: number, layer?: number): Promise<{ token: string; damage: number; joined: boolean }[] | null> => {
+  const vars = { i: instance, g: String(generation), l: String(layer ?? 1) };
+  const out = (layer === undefined ? null : await layerCall(db, `public.origins_spawn_damage_read_layer(:'l'::int, :'i', :'g'::int)`, vars))
+    ?? await shareCall(db, `public.origins_spawn_damage_read(:'i', :'g'::int)`, vars);
+  return out === null ? null : (JSON.parse(out) as { token: string; damage: string | number; joined: boolean }[]).map((d) => ({ ...d, damage: Number(d.damage) }));
+};
+export const spawnKillShared = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger, damage: number, joinS: number): Promise<({ result?: string; instance?: string; respawnAt?: string; joined?: boolean } & SpawnRefusal) | null> => {
+  const out = await shareCall(db, `public.origins_spawn_kill_v2(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb, :'d'::numeric, :'j'::int)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger), d: String(damage), j: String(joinS) });
+  return out === null ? null : JSON.parse(out);
+};
+// Ground loot (migration 20261015120000): a ground item is taken once per account per respawn window; the claim, the mint and the event commit in one transaction. `null` = the migration is not applied.
+const HAS_GROUND = `select to_regprocedure('public.origins_ground_take(uuid,text,integer,integer,jsonb)') is not null as ground \\gset\n`;
+const groundCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'ground', HAS_GROUND, 'ground', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+export type GroundClaim = { instance: string; n: number; takenAt: string };
+export const groundState = async (db: Db, account: string, instances: readonly string[]): Promise<{ now: string; takes: GroundClaim[] } | null> => {
+  const out = await groundCall(db, `public.origins_ground_state(:'a'::uuid, array(select jsonb_array_elements_text(:'i'::jsonb)))`, { a: acct(account), i: JSON.stringify(instances) });
+  return out === null ? null : JSON.parse(out);
+};
+export const groundTake = async (db: Db, account: string, instance: string, expectedN: number, respawnS: number, batch: readonly Json[]): Promise<({ result?: string; instance?: string; n?: number; refused?: string; availableAt?: string } & Record<string, unknown>) | null> => {
+  const out = await groundCall(db, `public.origins_ground_take(:'a'::uuid, :'i', :'n'::int, :'r'::int, :'b'::jsonb)`, { a: acct(account), i: instance, n: String(expectedN), r: String(respawnS), b: JSON.stringify(batch) });
   return out === null ? null : JSON.parse(out);
 };
 // A character's fame (0..15000) and karma (-15000..15000), migration 202610130030: storage and read only for now. null = not this account's; 'absent' = the migration is not applied.
@@ -212,6 +303,17 @@ export const skillPool = async (db: Db, account: string, character: string): Pro
 };
 export const skillFocus = async (db: Db, account: string, character: string, skill: string, on: boolean): Promise<PoolRow | null | 'absent'> => {
   const out = await gated(db, 'skillpool', HAS_SKILL_POOL, 'skillpool', `select coalesce(public.origins_skill_focus(:'a'::uuid, :'c', :'s', :'o'::boolean)::text, 'null');`, { a: acct(account), c: character, s: skill, o: on ? 'true' : 'false' });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+// The two SPECIAL slots a character carries (migration 20261020150000): { slot1, slot2 }, each a skill id or null. 'absent' = the migration is not applied; null = not the account's character.
+export type SpecialSlotsRow = { slot1: string | null; slot2: string | null };
+const HAS_SPECIAL_SLOTS = `select to_regprocedure('public.origins_special_slots_set(uuid,text,text,text)') is not null as specialslots \\gset\n`;
+export const specialSlotsGet = async (db: Db, account: string, character: string): Promise<SpecialSlotsRow | null | 'absent'> => {
+  const out = await gated(db, 'specialslots', HAS_SPECIAL_SLOTS, 'specialslots', `select coalesce(public.origins_special_slots_get(:'a'::uuid, :'c')::text, 'null');`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+export const specialSlotsSet = async (db: Db, account: string, character: string, slot1: string | null, slot2: string | null): Promise<SpecialSlotsRow | null | 'absent'> => {
+  const out = await gated(db, 'specialslots', HAS_SPECIAL_SLOTS, 'specialslots', `select coalesce(public.origins_special_slots_set(:'a'::uuid, :'c', nullif(:'s1', ''), nullif(:'s2', ''))::text, 'null');`, { a: acct(account), c: character, s1: slot1 ?? '', s2: slot2 ?? '' });
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 export const buildSet = async (db: Db, account: string, character: string, placed: Record<string, number>, respreadRank: number, expected: number): Promise<BuildRow | null | 'absent'> => {

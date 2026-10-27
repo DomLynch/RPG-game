@@ -1,0 +1,329 @@
+[
+  {
+    "frame": "zone",
+    "diag": {
+      "slots": "[\"alvis\",\"andvari\"]",
+      "auth": true,
+      "skill2": "<button id=\"skill2-button\" data-mobile=\"Spell 2\" aria-label=\"Spell 2\" aria-disabled=\"false\">Spell 2</button>"
+    },
+    "writerOps": [
+      "open:auth",
+      "grimoire_get:auth"
+    ],
+    "viewport": "375x812",
+    "buttons": [
+      "attack-button",
+      "kick-button",
+      "heavy-button",
+      "skill-button",
+      "skill2-button",
+      "thrust-button",
+      "dodge-button",
+      "guard-button"
+    ],
+    "hasSkill2": true,
+    "toast": false,
+    "overlaps": [],
+    "off": [],
+    "small": [],
+    "boxes": [
+      {
+        "id": "attack-button",
+        "l": 188,
+        "t": 615,
+        "w": 60,
+        "h": 60
+      },
+      {
+        "id": "kick-button",
+        "l": 253,
+        "t": 680,
+        "w": 44,
+        "h": 44
+      },
+      {
+        "id": "heavy-button",
+        "l": 301,
+        "t": 632,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill-button",
+        "l": 294,
+        "t": 509,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill2-button",
+        "l": 216,
+        "t": 509,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "thrust-button",
+        "l": 253,
+        "t": 574,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "dodge-button",
+        "l": 180,
+        "t": 718,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "guard-button",
+        "l": 295,
+        "t": 726,
+        "w": 64,
+        "h": 64
+      }
+    ]
+  },
+  {
+    "frame": "zone",
+    "diag": {
+      "slots": "[\"alvis\",\"andvari\"]",
+      "auth": true,
+      "skill2": "<button id=\"skill2-button\" data-mobile=\"Spell 2\" aria-label=\"Spell 2\" aria-disabled=\"false\">Spell 2</button>"
+    },
+    "writerOps": [
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "open:auth",
+      "grimoire_get:auth"
+    ],
+    "viewport": "320x568",
+    "buttons": [
+      "attack-button",
+      "kick-button",
+      "heavy-button",
+      "skill-button",
+      "skill2-button",
+      "thrust-button",
+      "dodge-button",
+      "guard-button"
+    ],
+    "hasSkill2": true,
+    "toast": false,
+    "overlaps": [],
+    "off": [],
+    "small": [],
+    "boxes": [
+      {
+        "id": "attack-button",
+        "l": 133,
+        "t": 371,
+        "w": 60,
+        "h": 60
+      },
+      {
+        "id": "kick-button",
+        "l": 198,
+        "t": 436,
+        "w": 44,
+        "h": 44
+      },
+      {
+        "id": "heavy-button",
+        "l": 246,
+        "t": 388,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill-button",
+        "l": 239,
+        "t": 265,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill2-button",
+        "l": 161,
+        "t": 265,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "thrust-button",
+        "l": 198,
+        "t": 330,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "dodge-button",
+        "l": 125,
+        "t": 474,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "guard-button",
+        "l": 240,
+        "t": 482,
+        "w": 64,
+        "h": 64
+      }
+    ]
+  },
+  {
+    "frame": "pit",
+    "diag": {
+      "slots": "[\"alvis\",\"andvari\"]",
+      "auth": true,
+      "skill2": "<button id=\"skill2-button\" data-mobile=\"Spell 2\" aria-label=\"Spell 2\" aria-disabled=\"true\" hidden=\"\">Spell 2</button>"
+    },
+    "writerOps": [
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "grimoire_get:auth"
+    ],
+    "viewport": "375x812",
+    "buttons": [
+      "attack-button",
+      "heavy-button",
+      "skill-button",
+      "thrust-button",
+      "dodge-button",
+      "guard-button"
+    ],
+    "hasSkill2": false,
+    "toast": false,
+    "overlaps": [],
+    "off": [],
+    "small": [],
+    "boxes": [
+      {
+        "id": "attack-button",
+        "l": 188,
+        "t": 615,
+        "w": 60,
+        "h": 60
+      },
+      {
+        "id": "heavy-button",
+        "l": 301,
+        "t": 632,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill-button",
+        "l": 294,
+        "t": 509,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "thrust-button",
+        "l": 253,
+        "t": 574,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "dodge-button",
+        "l": 180,
+        "t": 718,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "guard-button",
+        "l": 295,
+        "t": 726,
+        "w": 64,
+        "h": 64
+      }
+    ]
+  },
+  {
+    "frame": "pit",
+    "diag": {
+      "slots": "[\"alvis\",\"andvari\"]",
+      "auth": true,
+      "skill2": "<button id=\"skill2-button\" data-mobile=\"Spell 2\" aria-label=\"Spell 2\" aria-disabled=\"true\" hidden=\"\">Spell 2</button>"
+    },
+    "writerOps": [
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "grimoire_get:auth",
+      "open:auth",
+      "grimoire_get:auth"
+    ],
+    "viewport": "320x568",
+    "buttons": [
+      "attack-button",
+      "heavy-button",
+      "skill-button",
+      "thrust-button",
+      "dodge-button",
+      "guard-button"
+    ],
+    "hasSkill2": false,
+    "toast": false,
+    "overlaps": [],
+    "off": [],
+    "small": [],
+    "boxes": [
+      {
+        "id": "attack-button",
+        "l": 133,
+        "t": 371,
+        "w": 60,
+        "h": 60
+      },
+      {
+        "id": "heavy-button",
+        "l": 246,
+        "t": 388,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "skill-button",
+        "l": 239,
+        "t": 265,
+        "w": 58,
+        "h": 58
+      },
+      {
+        "id": "thrust-button",
+        "l": 198,
+        "t": 330,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "dodge-button",
+        "l": 125,
+        "t": 474,
+        "w": 56,
+        "h": 56
+      },
+      {
+        "id": "guard-button",
+        "l": 240,
+        "t": 482,
+        "w": 64,
+        "h": 64
+      }
+    ]
+  }
+]

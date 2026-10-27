@@ -2,9 +2,10 @@
 // macOS TCC keeps a launchd job out of ~/Desktop (and ~/Documents, ~/Downloads), and the train's checkout was a worktree whose gitdir lives there.
 // Ruling: no Full Disk Access; everything the job touches is a standalone clone (or a worktree of it) outside those folders. These tests pin the
 // refusal (scripts/lib/train-layout.sh), the setup (scripts/release-train-setup.sh) and the publisher's dry run.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -51,7 +52,13 @@ for (const linked of [false, true]) test(`release-train-setup.sh${linked ? ' (HO
     assert.equal(g('-C', train, 'remote', 'get-url', 'origin'), origin, 'cloned from origin, not from the Desktop checkout');
     assert.equal(readFileSync(join(train, '.env.production.local'), 'utf8'), 'VITE_SENTRY_DSN=x\n', 'the build env file is copied');
     assert.match(r.stdout, /layout OK/);
+    // the train's env file: a reference to ~/.zshenv's HF_TOKEN, mode 600, never a token-shaped string
+    const envFile = join(home, '.claude', 'state', 'release-train.env');
+    assert.match(readFileSync(envFile, 'utf8'), /grep '\^export HF_TOKEN=' "\$HOME\/\.zshenv"/);
+    assert.doesNotMatch(readFileSync(envFile, 'utf8'), /hf_[A-Za-z0-9]{8,}/, 'no token value is ever written');
+    assert.equal(statSync(envFile).mode & 0o777, 0o600);
     assert.equal(setup().status, 0, 'idempotent');
+    assert.equal(readFileSync(envFile, 'utf8').split('\n').filter(l => l.startsWith('eval ')).length, 1, 'a second run does not duplicate the line');
     // the old layout: the train checkout is a worktree of the Desktop repo -> refused, nothing removed
     rmSync(train, { recursive: true, force: true }); g('-C', src, 'worktree', 'add', '-q', '--detach', train);
     const bad = setup();

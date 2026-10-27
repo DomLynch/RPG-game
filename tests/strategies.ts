@@ -1,7 +1,8 @@
 // The scripted strategies and the battery runner shared by tests/battery.test.ts, tests/opponents.test.ts and tests/autopsy.test.ts.
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/fight/ai.ts';
-import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, withSheet, type Duel, type Intent } from '../src/fight/duel.ts';
+import type { Sheet } from '../src/fight/sheet-rows.ts';
 import { struck } from '../src/events.ts';
 import type { CombatEvent } from '../src/fight/duel.ts';
 import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/fight/moves.ts';
@@ -53,13 +54,14 @@ export const POMMEL = skillUses('pommel');
 export const SKILL_STRATEGIES = Object.fromEntries((Object.keys(SKILL_MOVE) as SkillId[]).map(id => [id, skillUses(id)])) as Record<SkillId, Record<string, (d: Duel) => Intent>>;
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
 // `level`: a named table, or a ladder level 1–46 (moves.ts profileAt).
-export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
+export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null, heroSheet?: Sheet) {   // heroSheet: the player's sheet (build points + worn set), absent = the bare 150 hp default body
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number; firstBreak: number[] }> = {};
   for (const [name, strategy] of Object.entries(strategies)) {
     const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] as number[] };
     const profile = typeof level === 'number' ? profileAt(opponent, level) : opponent.profiles[level] as AiProfile;
     for (let s = 1; s <= seeds; s++) {
       let d = arena(typeof level === 'number' ? opponentAt(opponent, level) : opponent, weapon, skill), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
+      if (heroSheet) d = withSheet(d, [heroSheet, undefined]);
       for (let i = 0; i < ticks && !d.finish; i++) {
         const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight

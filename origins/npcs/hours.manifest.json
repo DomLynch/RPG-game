@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "npc-hours", "file": "hours.json", "at": "hours", "key": "id", "required": { "open": "integer", "close": "integer" } }
+  ]
+}

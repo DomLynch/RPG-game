@@ -1,6 +1,7 @@
 {
   "tables": [
     { "table": "wear-event", "file": "wear-repair.json", "at": "wearEvents", "key": "id", "required": { "chancePct": "integer", "note": "string" } },
+    { "table": "wear-hit-type", "file": "wear-repair.json", "at": "wearHitTypes", "key": "id", "required": { "note": "string" } },
     { "table": "wear-slot", "file": "wear-repair.json", "at": "wearSlots", "key": "id", "required": { "share": "integer", "note": "string" } },
     { "table": "wear-tier", "file": "wear-repair.json", "at": "wearTiers", "key": "id", "required": { "hitWear": "integer", "killWear": "integer", "bronzePerPoint": "integer", "metalPerTenPoints": "integer", "metalItem": "string" } },
     { "table": "wear-family", "file": "wear-repair.json", "at": "wearFamilies", "key": "id", "required": { "tier": "string", "note": "string" } },

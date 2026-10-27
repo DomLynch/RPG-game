@@ -9,6 +9,14 @@ import type { HitLocation } from './blade.ts';
 import type { Direction } from './moves.ts';
 import { bloodDark, bloodHidden, type BloodMode } from './blood-mode.ts';
 import { bloodNum, bloodObj } from './blood-rows.ts';
+import { fxNum } from './fx-rows.ts';
+import { phoneTier } from './quality.ts';
+// The phone skips the per-triangle surface rays (row gore.phone-surface-ray = 0 in blood-rows.json): on the contact frame they skin every vertex of the
+// creature once (surfaceHit > skinPass > intersectObjects), 77 % of a 155 ms task at x4 on an M5 (CPU profile 2026-10-21). The wound then
+// takes the fallback it already has for "nothing met": the site table's direction at its own radius out from the bone.
+const surfaceRays = (): boolean => !phoneTier() || bloodNum('gore.phone-surface-ray') > 0;
+const BLOODIED_METALNESS_MAX = fxNum('fx.gore.bloodiedMetalnessMax');
+const BLOODIED_ROUGHNESS_MIN = fxNum('fx.gore.bloodiedRoughnessMin');
 
 export type { BloodMode };
 type Rigs = { player: { anchor: THREE.Object3D }; opponent: { anchor: THREE.Object3D } };
@@ -239,6 +247,7 @@ function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
   return skins;
 }
 export function surfaceHit(root: THREE.Object3D, bone: THREE.Object3D, normal: THREE.Vector3): { point: THREE.Vector3; normal: THREE.Vector3 } | null {
+  if (!surfaceRays()) return null;
   const skins = skinsOf(root).filter((o) => o.visible);
   if (!skins.length) return null;
   bone.getWorldPosition(surfaceBone); surfaceFrom.copy(surfaceBone).addScaledVector(normal, SURFACE.reach); surfaceDir.copy(normal).negate();
@@ -520,8 +529,8 @@ export function createBladeBlood() {
               .copy(original.color)
               .lerp(new THREE.Color(bloodDark(bloodMode) || twoHanded ? '#2a1516' : '#7a1410'), 0.55);
             if (twoHanded) {
-              bloodied.metalness = Math.min(original.metalness, 0.3);
-              bloodied.roughness = Math.max(original.roughness, 0.7);
+              bloodied.metalness = Math.min(original.metalness, BLOODIED_METALNESS_MAX);
+              bloodied.roughness = Math.max(original.roughness, BLOODIED_ROUGHNESS_MIN);
             }
           } else if (bladeOriginals.has(object)) {
             object.material.dispose();

@@ -1,5 +1,6 @@
 // The as-data checker (scripts/as-data/check.ts, `npm run check:as-data`): report-only, so these tests pin what it SEES, on a fixture tree whose answer is known, not the live repo's
 // count (which only goes down as content moves into data; the live numbers are in the PR that added it and in the checker's own output). A planted compare must raise the count.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

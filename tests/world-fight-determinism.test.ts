@@ -1,5 +1,6 @@
 // A world creature fight is played as a Match in sparring mode (origins/preview/pit-duel.ts) and re-simulated on the server as initialPractice + stepPractice (the Pit's verifier
 // pattern). This pins that the two are the SAME fight at the same seed and intents, tick for tick, so a verified record means what the client played. A divergence names its first tick.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';

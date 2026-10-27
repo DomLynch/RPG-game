@@ -1,5 +1,6 @@
 // The poise ladder (Combat, top-30 item 10, PROVISIONAL numbers, Lead 2026-10-13): a creature's poise gains a FLINCH tier between the shrug and the full stagger, and a full stagger buys poise-rest.
 // Era-keyed at v54 (poise-era.ts): below it the single threshold. Creatures only: the player keeps poise 0.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stepDuel, type CombatEvent, type Duel } from '../src/fight/duel.ts';

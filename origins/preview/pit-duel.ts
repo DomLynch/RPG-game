@@ -7,7 +7,7 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
+import { idleIntent, type Duel, type Fighter, type Intent, type SkillId } from '../../src/fight/index.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { createFeedback } from '../../src/fight/index.ts';
 import { createHud } from '../../src/fight/index.ts';
@@ -15,8 +15,9 @@ import { initialPractice, PROFILES, stepPractice, type Practice } from '../../sr
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { memoryMatch } from '../../src/fight/match.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
-import { mountCareer, renameAccount } from '../../src/core/index.ts';
+import { worldStancePick, type PickedStance } from '../../src/fight/index.ts';
+import { DEFAULT_WEAPON, OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from '../../src/fight/index.ts';
+import { equippedSpecial, mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
 import { authClient } from './save.ts';
 import { loadScene, type WorldMount } from '../../src/fight/index.ts';
@@ -40,7 +41,7 @@ import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 import { previewRule } from './preview-rules.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean; stance?: PickedStance; weapon?: WeaponId };   // stance (RV81): the player's standing stance for this fight (the open world applies it as the Pit does); absent = no stances   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
@@ -55,7 +56,7 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<SceneModule['createScene']>;
-type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
+type Stage = { opponent: OpponentId; level: number; weapon: WeaponId; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
 const CAMERA_EASE_S = previewRule('cameraEase');   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
@@ -88,7 +89,7 @@ let world = false;
 const idle = (() => {
   const rest = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: false } as unknown as Parameters<typeof stepPractice>[1];
   let p = stepPractice(initialPractice(), { ...rest, action: 'light' });
-  for (let i = 0; i < 240 && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
+  for (let i = 0; i < previewRule('pitSettleTicks') && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
   return p;
 })();
 const paused = () => world ? document.hidden || !!journal?.open : !running || !stage?.ready || document.hidden || !!journal?.open;
@@ -160,8 +161,8 @@ function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
 
-function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel) {
-  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount) {   // the same scene again: its art is in, so the page's "Loading…" goes now
+function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel, weapon: WeaponId = DEFAULT_WEAPON) {
+  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount && stage.weapon === weapon) {   // the weapon is in the key: the scene's rig is built wielding it, so another weapon is another scene   // the same scene again: its art is in, so the page's "Loading…" goes now
     if (stage.ready) element('art-status').textContent = '';
     return stage;
   }
@@ -174,11 +175,12 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?
     host.prepend(canvas);
   }
   const status = document.getElementById('art-status');
-  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
+  const made: Stage = { opponent, level, weapon, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
-  }, opponent, undefined, 'longsword', () => {}, level, undefined, mount);
+  }, opponent, undefined, weapon, () => {}, level, undefined, mount);
+  if (/[?&]debug\b/.test(globalThis.location?.search ?? '')) (globalThis as { __view?: unknown }).__view = made.view;   // ?debug only, as the Pit page's exposeDebugView: the measurement harnesses read view.playing()
   made.view.setTier(tierAt(level - 1)); made.view.setPlayerTier(tierAt(level - 1));   // the sparring look: his kit at the fight's rung (main.ts shownTier)
   return (stage = made);
 }
@@ -208,6 +210,7 @@ export function warmStage(host: HTMLElement, opponent: string, level: number, mo
   }
 }
 
+const pageStorage = (): Storage | null => { try { return localStorage; } catch { return null; } };   // blocked storage (private window, a sandboxed frame) reads as no stored pick
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
@@ -217,11 +220,13 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
   fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
   mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
-  stageFor(host, opponent, asked.level, mount);
-  match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
+  const weapon = asked.weapon ?? DEFAULT_WEAPON;   // the weapon the player fights with (the page's rig weapon, never a claim the rig cannot draw): the scene, the sim and the record all use this one
+  stageFor(host, opponent, asked.level, mount, weapon);
+  match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level, { skill2: () => equippedSpecial(1) as SkillId | undefined });   // SPECIAL 2: the career/practice port, read from the player's picks (Dom 2026-10-20: the Pit duel had no specials)
   if (asked.mob) match.layer = mobLayer(asked.mob);
-  match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
-  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
+  match.worldStances = true; match.stancePref = asked.stance ?? (asked.record ? worldStancePick(location.search, pageStorage()) : undefined);   // RV81: the world's duel takes the player's stance (begin() reads it in startSparring): the host's standing pick, else the stance menu's stored pick for this device's character, ?stances= over it (off = none); Balanced when nothing is stored
+  match.startSparring({ weapon, skill: (equippedSpecial(0) as SkillId | undefined) ?? null, difficulty: asked.level }, null, undefined, true);   // SPECIAL 1 = the player's first pick, specials on (match.ts sparPicked)
+  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed, weapon);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
@@ -245,13 +250,13 @@ let wsim: Practice = idle, wacc = 0;
 const frozen = (): Intent => idleIntent();
 export type WorldMove = { dx: number; dz: number; phase: string; stamina: number; facing: number };   // facing: the way the fighter faces (a roll turns him)
 export function worldStep(dt: number, heading: number, i: ControlIntent): WorldMove {
-  wacc = Math.min(wacc + dt, STEP * 6);
+  wacc = Math.min(wacc + dt, STEP * previewRule('pitStepCap'));
   let dx = 0, dz = 0;
   const rolling = (p: Practice) => p.phase === 'roll' || p.phase === 'backstep';
   while (wacc >= STEP) {
     wacc -= STEP;
     const [me, foe] = wsim.duel.fighters, from = rolling(wsim) ? me.body : { ...me.body, x: 0, z: 0 };
-    const ahead = { ...foe.body, x: Math.sin(heading) * 6, z: Math.cos(heading) * 6 };
+    const foeAt = previewRule('pitFoeAhead'), ahead = { ...foe.body, x: Math.sin(heading) * foeAt, z: Math.cos(heading) * foeAt };
     wsim = { ...wsim, duel: { ...wsim.duel, fighters: [{ ...me, body: rolling(wsim) ? me.body : { ...from, heading }}, { ...foe, body: ahead }] as unknown as Duel['fighters'] } };
     const before = wsim.duel.fighters[0].body, action = i.action === 'dodge' || i.action === 'backstep' ? i.action : null;
     wsim = stepPractice(wsim, { move: { x: i.x, z: i.z, yaw: heading + Math.PI, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: false, lock: false }, PROFILES.normal, frozen);
@@ -260,8 +265,21 @@ export function worldStep(dt: number, heading: number, i: ControlIntent): WorldM
   }
   return { dx, dz, phase: wsim.phase, stamina: wsim.duel.fighters[0].stamina, facing: wsim.duel.fighters[0].body.heading };
 }
+let worldSlotB = false, worldSlotBName: string | undefined;
+/** The page's SPECIAL picks (the specials PR): the open world's input judges every press against this idle stand-in fighter (`accepts(wsim, action)`), so a skill the stand-in does not carry is never pressed at all. It carries the picks: SPECIAL 1 on
+ *  the `skill` button, SPECIAL 2 on `skill2`, each off cooldown (the real cooldowns live in the bout), so the press reaches the page and the HUD lights the buttons from the same legality test. Set on a pick, never per frame. */
+export const setWorldSpecials = (first: SkillId | null, second?: SkillId): void => {
+  const [me, foe] = wsim.duel.fighters, next: Fighter = { ...me, skill: first, skillCooldown: 0 };
+  if (second) { next.skill2 = second; next.skillCooldown2 = 0; } else delete next.skill2;
+  wsim = { ...wsim, duel: { ...wsim.duel, fighters: [next, foe] as unknown as Duel['fighters'] } };
+};
+/** The page's slot-b pick (the open world's idle practice carries no spells, so the HUD is told): SPELL 2 shows while it is true. Set on a pick or a book read, never per frame. */
+export const setWorldSlotB = (shown: boolean, name?: string): void => { worldSlotB = shown; worldSlotBName = name; };
+let worldSlotAName: string | undefined;
+/** SPECIAL 1's button name outside a fight (the idle stand-in carries the default weapon, so the page says what the wielded weapon calls the pick: a bow's Power Shot, a sword's Skull Crack). Set on a pick or a weapon swap, never per frame. */
+export const setWorldSlotA = (name?: string): void => { worldSlotAName = name; };
 export function worldIntent(): ControlIntent {
-  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran' });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBName: worldSlotBName, ...(worldSlotAName ? { slotAName: worldSlotAName } : {}) });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 
@@ -274,7 +292,7 @@ export function closeDuel() {
 
 function frame(now: number) {
   if (!running || !stage || !match) return;
-  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < 60 ? raw : 0, 0.1);
+  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < previewRule('pitFrameMaxS') ? raw : 0, previewRule('pitDtMax'));
   last = now;
   if (!paused()) {
     accumulator += dt;

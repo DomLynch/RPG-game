@@ -1,4 +1,5 @@
 // scripts/lib/deploy-notes-only.sh: only a diff made wholly of docs/state/ paths skips the unit suite; any mixed or doubtful diff does not.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

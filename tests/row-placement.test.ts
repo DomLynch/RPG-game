@@ -1,7 +1,8 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { MAC_ENFORCE, MAC_MAX, MAC_ONLY, ON_T4, placementLine, planLine } from '../scripts/lib/row-placement.mjs';
+import { CI_CONCURRENCY, LOCAL_CONCURRENCY, MAC_ENFORCE, MAC_MAX, MAC_ONLY, ON_T4, SERIAL_ROWS, TIMING_ROWS, placementLine, planLine } from '../scripts/lib/row-placement.mjs';
 import { coverageGaps, SLOW_ROWS } from '../scripts/lib/vps-receipts.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -12,6 +13,15 @@ test('the Mac-only list is the rows no Hugging Face job may vouch for, minus the
   assert.deepEqual(MAC_ONLY.map(entry => entry.row), computed);
   assert.ok(MAC_ONLY.length <= MAC_MAX, 'the Mac runs the Mac-only rows and nothing else');
   for (const entry of MAC_ONLY) assert.ok(entry.why, `row ${entry.row} needs a reason`);
+});
+
+test('the serial set is data: every Mac-only row plus the timing gates (each with a reason), sorted, unique, real rows; the widths are positive integers', () => {
+  for (const entry of MAC_ONLY) assert.ok(SERIAL_ROWS.includes(entry.row), `Mac-only row ${entry.row} must run alone`);
+  for (const entry of TIMING_ROWS) { assert.ok(entry.why, `timing row ${entry.row} needs a reason`); assert.ok(SERIAL_ROWS.includes(entry.row)); }
+  assert.deepEqual(SERIAL_ROWS, [...new Set(SERIAL_ROWS)].sort((a: number, b: number) => a - b));
+  for (const row of SERIAL_ROWS) assert.ok(Number.isInteger(row) && row >= 1 && row <= commands.length, `row ${row} exists`);
+  for (const [name, width] of Object.entries({ LOCAL_CONCURRENCY, CI_CONCURRENCY })) assert.ok(Number.isInteger(width) && width >= 1, `${name} is a positive integer`);
+  assert.ok(LOCAL_CONCURRENCY <= 4, 'the Mac holds two cores for the app (Dom 2026-10-10): never wider than 4 without a measurement');
 });
 
 test('every slow row runs on the T4 with its measurement, and the T4 beat every box that ran it (Lead 2026-10-09: the fastest box wins)', () => {

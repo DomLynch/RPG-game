@@ -1,6 +1,7 @@
 // The 50-level ladder's profiles (moves.ts profileAt; Dom via Strategy 2026-09-27, anchors 1 / 6 / 18 / 46). The fairness of each level is
 // the battery's (tests/ladder-battery.test.ts); this file pins the blend itself: the anchors are the tables, the novice lowers only skill,
 // identity holds, the tick counts round, and the ladder's ceiling agrees with the career's.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ } from '../src/fight/ai.ts';
@@ -12,8 +13,8 @@ const kitted = (o: Opponent, l: number): Opponent => { const k = LOADOUT_FROM[o.
 // Identity where nothing is re-kitted (an accidental clone of an unkitted opponent is still caught); structural equality only for a re-kit (Auditer, #942).
 const same = (got: Opponent, o: Opponent, l: number, msg: string) => { const want = kitted(o, l); if (want === o) assert.equal(got, o, msg); else assert.deepEqual(got, want, msg); };
 
-const SKILL: (keyof AiProfile)[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
-const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
+const SKILL: Exclude<keyof AiProfile, 'tactic'>[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
+const IDENTITY: Exclude<keyof AiProfile, 'tactic'>[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
 const ladder = LADDER.map(o => OPPONENTS[o.id]);
 
 test('levels 6 / 18 / 46 ARE the easy / normal / hard tables (same object: the same fight, the same RNG draws)', () => {

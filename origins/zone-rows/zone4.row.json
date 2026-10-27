@@ -1,5 +1,6 @@
 {
   "name": "The Drowned Marsh",
+  "unlisted": true,
   "defaultKind": "goblin",
   "biome": "drowned-marsh",
   "look": {

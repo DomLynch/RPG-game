@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "id": "bone-hollow",
+  "zone": 5,
+  "unlisted": true,
+  "world": [
+    "bone-hollow"
+  ],
+  "owns": {
+    "exits": [
+      "hollow-gate"
+    ],
+    "dungeon": "bone-hollow",
+    "theme": "bone-camp",
+    "warps": []
+  },
+  "inbound": {
+    "exits": [
+      "cave-mouth"
+    ]
+  },
+  "uses": {
+    "kit": [
+      "/world/kit/zone1-kit.glb"
+    ],
+    "theme": "bone-camp",
+    "characters": [
+      "character:cinder-scavenger",
+      "character:giant-salamander",
+      "character:pit-goblin"
+    ],
+    "loot": [
+      "loottable:cinder-scavenger",
+      "loottable:giant-salamander",
+      "loottable:pit-goblin"
+    ]
+  },
+  "files": {
+    "zone.row.json": {
+      "bytes": 5585,
+      "sha256": "9c82aec02984965dd02717b8852d567b1fa48d82bf0e6d61228fb1aa29fca9ad"
+    },
+    "dungeon.row.json": {
+      "bytes": 4740,
+      "sha256": "ef56d3f6b77d5e4589dbe3c4f586bc6e920d761f28e7b0657d7aa1bbf4c97eb5"
+    },
+    "theme.row.json": {
+      "bytes": 831,
+      "sha256": "0c8597b1cd0ce4a0f4ebab0220188851e49a18a8aa2d3e1a9bc63822b3bb3674"
+    },
+    "exits.json": {
+      "bytes": 552,
+      "sha256": "9c5d6e977c0e316f6a4441101b7814b0ad6e2c2549cfc884fff6fd89e5fe9ca9"
+    }
+  }
+}

@@ -25,5 +25,16 @@ done
 for env_file in "$here"/.env*.local; do
   [ -e "$env_file" ] && [ ! -e "$repo/$(basename "$env_file")" ] && cp "$env_file" "$repo/" && echo "release-train-setup: copied $(basename "$env_file") into $repo"
 done
+# The launchd job's `bash -lc` never reads ~/.zshenv, where HF_TOKEN lives: without it `hf jobs inspect` says "Not logged in", a finished T4 job reads as UNKNOWN and is
+# cancelled as "no hardware" (Release HA, 22 rows fell to the Mac). The train's env file (sourced by release-train-publish.sh before deploy.sh) gets a REFERENCE to
+# ~/.zshenv, never the token value; idempotent (the marker is the word zshenv), mode 600.
+envf="${RELEASE_TRAIN_ENV:-${RELEASE_TRAIN_STATE:-$HOME/.claude/state}/release-train.env}"
+if ! grep -q 'zshenv' "$envf" 2>/dev/null; then
+  mkdir -p "$(dirname "$envf")" && cat >> "$envf" <<'EOF'
+# HF_TOKEN lives only in ~/.zshenv, which launchd's `bash -lc` never reads (Release HA: finished T4 jobs cancelled as "no hardware"). The value is read from the dotfile, never copied here.
+eval "$(grep '^export HF_TOKEN=' "$HOME/.zshenv")"
+EOF
+  chmod 600 "$envf" && echo "release-train-setup: wrote the HF_TOKEN reference (not the value) into $envf"
+fi
 echo "release-train-setup: layout OK: $repo is a standalone clone; slots ${RELEASE_SLOTS:-$HOME/Developer/frankendom-train-deploy}; Mac rows ${MAC_ROWS_DIR:-$HOME/Developer/frankendom-train-macrows}"
 echo "  proof: touch ~/.claude/state/release-train.dry-run; launchctl kickstart gui/\$(id -u)/com.frankendom.release-train; tail ~/.claude/state/release-train.log; rm ~/.claude/state/release-train.dry-run"

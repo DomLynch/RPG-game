@@ -2,19 +2,19 @@
 // one Mac, so the caps are counted from `hf jobs ps` (the truth) under a Mac-local lock, not from anything a lane remembers:
 //   hf-cpu (cpu-upgrade): at most 4 live jobs in all; a lane's generic job stops at 3, so one slot is always free for the deploy lane's unit/rows jobs
 //                         (the release is what waits on them).
-//   hf-t4  (t4-medium)  : at most 4 live jobs; graphics work only (stills, clips, Blender, browser rows); CPU work never gets a T4.
+//   hf-t4  (t4-small, or t4-medium on a stated reason): at most 4 live jobs per flavor; graphics work only (stills, clips, Blender, browser rows); CPU work never gets a T4.
 // `hf jobs ps` is the ONLY source of truth, so the same code works from the Mac and from the VPS lane runner. The mkdir lock below only serialises launchers on ONE host;
 // across hosts a rank check after the launch settles a race: the live jobs of the flavor sorted by (created_at, id), and a launcher whose own job ranks beyond its limit cancels it
 // and queues again (the youngest excess job backs off, so two simultaneous launchers cannot both keep the last slot).
 // A launcher calls withSlot(): it waits (polling) for a slot, runs `launch()` while holding the lock (so two lanes cannot both take the last slot), and the caller
 // prints tierLine(). No slot within maxWaitS => withSlot returns { ok: false } and the caller exits 75 (the submit path requeues to the VPS).
-import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { record, t4Refusal } from './hf-ledger.mjs';
+import { record, t4Refusal, taggedReason } from './hf-ledger.mjs';
 
-export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };
+export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-small': { total: 4, generic: 4, tier: 'hf-t4' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };   // t4-small is the default (Dom 2026-10-21); same cap as medium
 const LIVE = /^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/;
 export const tierOf = flavor => CAPS[flavor]?.tier ?? null;
 export const tierLine = (flavor, slot, queuedS) => `tier=${tierOf(flavor)} slot=${slot} queued=${Math.round(queuedS)}s`;
@@ -51,6 +51,14 @@ export function rankOf(flavor, jobs, id) {
   return live.findIndex(j => j.id === id) + 1;
 }
 
+/** The live CPU jobs (any lane's) in a `hf jobs ps --format json` array. A GPU launch beside one is warned and logged (Lead + Strategy 2026-10-21: HF CPU jobs were cancelled twice when a gpu-run settled next to them). */
+export const cpuLiveIds = jobs => (Array.isArray(jobs) ? jobs : []).filter(j => /^cpu/.test(String(j?.flavor ?? '')) && LIVE.test(String(j?.status?.stage ?? j?.status ?? ''))).map(j => j.id);
+/** 'warn' (default) or 'refuse': GPU_WITH_CPU_INFLIGHT, else the data row scripts/lib/hf-submit.json gpuWithCpuInflight. */
+export function cpuInflightMode(env = process.env, file = new URL('./hf-submit.json', import.meta.url)) {
+  let row = 'warn'; try { row = JSON.parse(readFileSync(file, 'utf8')).gpuWithCpuInflight || 'warn'; } catch { /* no row: warn */ }
+  return (env.GPU_WITH_CPU_INFLIGHT || row) === 'refuse' ? 'refuse' : 'warn';
+}
+
 export function livePs(hf = 'hf') {
   const r = spawnSync(hf, ['jobs', 'ps', '--format', 'json'], { encoding: 'utf8', timeout: 60_000 });
   try { const parsed = JSON.parse(r.stdout || '[]'); return r.status === 0 && Array.isArray(parsed) ? parsed : null; } catch { return null; }
@@ -71,7 +79,7 @@ export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, po
       const jobs = ps(hf), d = jobs === null ? { ok: true, used: 0, limit: 0, slot: 1 } : slotDecision(flavor, jobs, generic);
       if (d.ok) {
         const value = launch(), id = idOf ? idOf(value) : null, launched = jobId(value);
-        if (cost && launched) record({ id: launched, flavor, timeout: cost.timeout, reason: cost.reason });   // before the rank check: a job cancelled below still ran
+        if (cost && launched) record({ id: launched, flavor, timeout: cost.timeout, reason: taggedReason(cost.reason) });   // before the rank check: a job cancelled below still ran
         const after = id && cancel ? ps(hf) : null, rank = after ? rankOf(flavor, after, id) : 0;
         if (!rank || rank <= d.limit || d.limit === 0) return { ok: true, slot: rank || d.slot, queuedS: (now() - t0) / 1000, value };
         cancel(id);   // another host took the slot first: this job is the youngest beyond the cap, so it backs off and queues again

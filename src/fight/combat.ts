@@ -1,7 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import type { Sheet } from './sheet-rows.ts';
-import { inBufferWindow, initialDuel, legal, type DuelPose, withGambit, withSheet, withSpecials, withSpell, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { inBufferWindow, initialDuel, legal, type DuelPose, withGambit, withSheet, withSpecials, withSpell, withSkill2, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import type { Spell } from './spell-cast.ts';
 import { asStance, moodOf, type PickedStance } from './stance.ts';
 import { MOVES, OPPONENTS, SKILL_MOVE, PATHS, PROFILES, RULES, total, weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, BASH_MOVE, SKILL_ROWS, skillOfMove, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
@@ -9,6 +9,8 @@ import type { State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { specialStage } from './special-look.ts';
 import { stepFatigue, type Fatigue } from './fatigue.ts';
+import { simBound } from './sim-bounds-rows.ts';
+const RESULT_AGE_CAP = simBound('practice.resultAgeCap');   // rows: sim-bounds-defs.json
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
 export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
@@ -112,7 +114,7 @@ const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {
 };
 export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: Intent): Practice {
   const [p, w] = duel.fighters;
-  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0;
+  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(RESULT_AGE_CAP, previous.resultAge + 1) : 0;
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
   let resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false;
   let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null, resultDealt = previous?.resultDealt ?? 0;
@@ -151,13 +153,15 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
   };
 }
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = DEFAULT_WEAPON, skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance, pose?: DuelPose, sheet?: Sheet, spell?: Spell): Practice => {   // spell: the player's spell (RV53, spell-cast.ts): needs the specials; the record's flag, the draw seeded by this fight's seed
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = DEFAULT_WEAPON, skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance, pose?: DuelPose, sheet?: Sheet, spell?: Spell, spell2?: Spell, foeSpell?: Spell, skill2?: SkillId): Practice => {   // foeSpell (sandbox opponent spells): the opponent's spell, slot 1   // spell: the player's spell (RV53, spell-cast.ts): needs the specials; the record's flag, the draw seeded by this fight's seed
    // stance: the fight has stances (RV34, the record's flag): the player's pick, and the opponent's mood drawn from the seed   // sheet: the player's sheet (RV48, sheet-rows.ts)   // gambit: the fight has the Gambit (RV33, the record's flag); its draws are seeded by this number, the fight's own seed
   const duel = specials ? withSpecials(initialDuel(opponent, weapon, skill, pose), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill, pose);
   const armed = gambit === undefined ? duel : withGambit(duel, gambit);
   const staged = stance === undefined ? armed : withStances(armed, asStance(stance), asStance(moodOf(seed, opponent.id)));
   const sheeted = sheet ? withSheet(staged, [sheet, undefined]) : staged;
-  return project(spell ? withSpell(sheeted, 0, spell, seed) : sheeted, initialAi(seed));   // sheet (RV48): the player's sheet, slot 0; the record's flag, never a number a client sent
+  const armedSpell = spell ? withSpell(sheeted, 0, spell, seed) : sheeted;
+  const armedTwo = spell2 ? withSpell(armedSpell, 0, spell2, seed, 1) : skill2 ? withSkill2(armedSpell, 0, skill2) : armedSpell, armedFoe = foeSpell ? withSpell(armedTwo, 1, foeSpell, seed) : armedTwo;
+  return project(armedFoe, initialAi(seed));   // sheet (RV48): the player's sheet, slot 0; the record's flag, never a number a client sent
 };
 // `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/fight/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal, layer?: (duel: Duel, warden: Intent) => Intent): Practice {
@@ -203,7 +207,7 @@ const NAMES: Partial<Record<MoveId, string>> = {   // a skill's name is its row'
 // The sheathed line's threat names the legend when the fight has one (Dom 2026-09-28: the legend on every surface), else the class.
 export const counterLine = (foe: string, legend?: string): string => `${legend ?? `The ${foe}`} will counterattack.`;
 export const beatLegend = (s: Practice, legend?: string): boolean => !!legend && !s.finish?.draw && !!s.playerHealth && !s.health;
-export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): string {
+export function practiceHint(s: Practice, foe = 'Opponent', legend?: string, specialLabel?: (skill: string) => string | undefined): string {   // specialLabel: the HUD hands in the picker's name for a special (Whirlwind), so this SIM-boundary module never imports the presentation names
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
@@ -216,8 +220,8 @@ export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): st
   }
   if (me.exhausted) return 'Exhausted';
   if (s.phase === 'ready' && s.chain > 0) return 'Follow-through';
-  if (s.result !== 'none' && s.resultAge < 120) {
-    const name = me.chained ? 'follow-up' : (NAMES[me.lastMove ?? 'light_right'] ?? SKILL_ROWS[skillOfMove(me.lastMove) ?? '']?.name);
+  if (s.result !== 'none' && s.resultAge < RESULT_AGE_CAP) {
+    const name = me.chained ? 'follow-up' : (NAMES[me.lastMove ?? 'light_right'] ?? specialLabel?.(skillOfMove(me.lastMove) ?? '') ?? SKILL_ROWS[skillOfMove(me.lastMove) ?? '']?.name);
     const wall = (text: string) => s.resultWalled ? ` · ${text}` : '';
     return {
       kicked: 'Kick connected',

@@ -1,5 +1,6 @@
 // ?look=armfeel (src/fight/armfeel.ts): the flag, the flinch's numbers (Dom's Armagedom handoff), the blade's hit hold and its cap, and the promise that
 // matters most: presentation only, so a fight's records and replays are byte-identical with the flag on or off.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -52,8 +53,10 @@ test('the blade hold is a floor, never an addition: every real hit already stops
   assert.equal(weaponHoldMs('high', light, [hit('light_right')], 'half'), 0);
   assert.equal(weaponHoldMs('high', FULL_TIER_STOP_MS, [hit('heavy_overhead')], 'full'), 0);
   assert.equal(weaponHoldMs('high', 303, [{ ...hit('light_right'), type: 'Killed' } as CombatEvent], 'half'), 0);
-  assert.equal(weaponHoldMs('high', 30, [hit('light_right')], 'half'), 10, 'a stop shorter than the floor is lifted to it (40 ms)');
-  assert.ok(30 + weaponHoldMs('high', 30, [{ ...hit('x'), type: 'Killed' } as CombatEvent], 'half') <= FULL_TIER_STOP_MS);
+  // RV80 (Dom 2026-10-19: no time change on any contact): the heaviest stop (the cap) is 0 ms, so the blade hold is capped to nothing and a short stop is not lifted any more.
+  assert.equal(FULL_TIER_STOP_MS, 0);
+  assert.equal(weaponHoldMs('high', 30, [hit('light_right')], 'half'), 0, 'a stop is never lifted past the cap (0 ms)');
+  assert.ok(weaponHoldMs('high', 30, [{ ...hit('x'), type: 'Killed' } as CombatEvent], 'half') <= FULL_TIER_STOP_MS);
   assert.equal(weaponHoldMs('low', 30, [hit('light_right')], 'half'), 0);
   assert.equal(weaponHoldMs('off', 30, [hit('light_right')], 'half'), 0);
   assert.equal(weaponHoldMs('high', 0, [], null), 0, 'no contact, no hold');

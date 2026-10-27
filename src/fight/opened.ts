@@ -211,7 +211,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
       // A rotated weapon can lie entirely above its baked origin. Let that origin descend below zero.
       weapon.position.y += Math.min(0,floors[2][120]) * smooth(p,.12,.62);
       for (const [h,half] of [lower,upper,weapon].entries()) {
-        const at = p*120, i = Math.min(119,Math.floor(at)), floor = floors[h][i]+(floors[h][i+1]-floors[h][i])*(at-i);
+        const at = p*120, i = Math.min(floors[h].length - 2,Math.floor(at)), floor = floors[h][i]+(floors[h][i+1]-floors[h][i])*(at-i);
         half.position.y = Math.max(half.position.y,floor);
       }
       cut.color.set(spectral ? '#788385' : dark ? '#302126' : '#501c20');

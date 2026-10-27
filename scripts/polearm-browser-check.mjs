@@ -1,5 +1,6 @@
 // Actual game playback, no pose/simulation overrides. The rig test checks anatomy;
 // this receipt checks routing, loaded bytes, gait/attack selection and browser errors.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import fs from 'node:fs/promises';
@@ -12,7 +13,7 @@ const server = process.env.QA_URL ? null : await preview({ preview: { host: '127
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.POLEARM_RECEIPT_DIR || 'artifacts/weapons/polearm-browser';
 await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, physicalPhone: false, views: [], errors: [] };
 // `--opponents executioner --screens phone` narrows the run to one view: the release contract lists the check once per view so a
 // CI job stays short — on the software-GL runner a fixed-step frame costs ~1.2 s and a view needs 315–400 of them, four in one job

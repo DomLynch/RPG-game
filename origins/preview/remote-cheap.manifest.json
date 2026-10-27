@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "remoteCheap",
+      "file": "remote-cheap.json",
+      "at": "remoteCheap",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

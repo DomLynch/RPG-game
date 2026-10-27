@@ -1,4 +1,5 @@
 // The shared registry loader: every rejection has a fixture, the gate reports file:row:id + the rule, and the towns run on it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -107,6 +108,43 @@ test('optional fields: absent is fine, present and the wrong type is wrong-type'
   const t = (rows: Record<string, unknown>[]) => [{ manifest: m, rows }];
   assert.deepEqual(rules(t([{ id: 'smith' }, { id: 'baker', shop: true, order: 1, kit: { walls: 2 } }])), []);
   assert.deepEqual(rules(t([{ id: 'smith', shop: 'yes' }, { id: 'baker', order: 1.5 }, { id: 'x', kit: { walls: 'tall' } }])), ['t.json:0:smith wrong-type', 't.json:1:baker wrong-type', 't.json:2:x wrong-type']);
+});
+
+test('a field with min/max: the string form still works, an in-range row loads, an out-of-range row is out-of-range naming file:row:id and the bound', () => {
+  const m: Manifest = { table: 'flee', file: 'f.json', key: 'id', required: { percent: { type: 'integer', min: 1, max: 99 }, plain: 'integer', 'catch[]': { type: 'number', min: 0.5 } }, optional: { still: { type: 'integer', max: 30 } } };
+  const run = (rows: Record<string, unknown>[]) => checkTables([{ manifest: m, rows }]).problems.map((p) => `${p.file}:${p.row}:${p.id} ${p.rule}${p.rule === 'out-of-range' ? ` ${p.message}` : ''}`);
+  const ok = { id: 'a', percent: 50, plain: 7_000_000, catch: [0.5, 2] };
+  assert.deepEqual(run([ok, { ...ok, id: 'b', percent: 1, still: 30 }, { ...ok, id: 'c', percent: 99 }]), []);   // both bounds inclusive; plain has no range; an optional bound holds when present
+  assert.deepEqual(run([{ ...ok, percent: 0 }]), ['f.json:0:a out-of-range percent = 0 is outside 1..99']);
+  assert.deepEqual(run([{ ...ok, percent: 100 }]), ['f.json:0:a out-of-range percent = 100 is outside 1..99']);
+  assert.deepEqual(run([{ ...ok, still: 31 }]), ['f.json:0:a out-of-range still = 31 is outside -inf..30']);
+  assert.deepEqual(run([{ ...ok, catch: [1, 0.4] }]), ['f.json:0:a out-of-range catch[] = 0.4 is outside 0.5..inf']);   // every element of an array field
+  assert.deepEqual(run([{ ...ok, percent: 'x' }]), ['f.json:0:a wrong-type']);                                          // a wrong type is never also out of range
+  assert.deepEqual(run([{ ...ok, still: undefined }]), []);                                                               // optional + absent is fine
+});
+
+test('a manifest with a range on a non-number field, or min above max, is bad-manifest', () => {
+  const bad = (spec: unknown) => checkTables([{ manifest: { table: 't', file: 't.json', key: 'id', required: { x: spec as never } }, rows: [] }]).problems.map((p) => `${p.rule}: ${p.message}`);
+  assert.deepEqual(bad({ type: 'string', max: 4 }), ['bad-manifest: x: min/max need a number or integer field, not string']);
+  assert.deepEqual(bad({ type: 'integer', min: 5, max: 1 }), ['bad-manifest: x: min 5 is above max 1']);
+  assert.deepEqual(bad({ type: 'integer', min: 1, max: 5 }), []);
+});
+
+test('a manifest spec is checked as strictly as a row: an unknown key, a non-numeric or non-finite bound, an unknown type and a non-spec value are bad-manifest (never silently unbounded)', () => {
+  const bad = (spec: unknown) => checkTables([{ manifest: { table: 't', file: 't.json', key: 'id', required: { x: spec as never } }, rows: [] }]).problems.map((p) => `${p.rule}: ${p.message}`);
+  assert.deepEqual(bad({ type: 'integer', mx: 3 }), ['bad-manifest: x: unknown spec key "mx" (a spec has type, min and max)']);       // the misspelled max the Auditor named
+  assert.deepEqual(bad({ type: 'integer', minimum: 1, max: 3 }), ['bad-manifest: x: unknown spec key "minimum" (a spec has type, min and max)']);
+  assert.deepEqual(bad({ type: 'integer', min: '1' }), ['bad-manifest: x: min must be a finite number']);
+  assert.deepEqual(bad({ type: 'integer', max: null }), ['bad-manifest: x: max must be a finite number']);
+  assert.deepEqual(bad({ type: 'number', max: Number.NaN }), ['bad-manifest: x: max must be a finite number']);
+  assert.deepEqual(bad({ type: 'number', min: Number.NEGATIVE_INFINITY }), ['bad-manifest: x: min must be a finite number']);
+  assert.deepEqual(bad({ type: 'int', min: 1 }), ['bad-manifest: x: type must be one of string, number, integer, boolean, array, object, any', 'bad-manifest: x: min/max need a number or integer field, not int']);
+  assert.deepEqual(bad({ min: 1 }), ['bad-manifest: x: type must be one of string, number, integer, boolean, array, object, any', 'bad-manifest: x: min/max need a number or integer field, not undefined']);
+  assert.deepEqual(bad(7), ['bad-manifest: x: a field spec is a type string or { type, min?, max? }']);
+  assert.deepEqual(bad(null), ['bad-manifest: x: a field spec is a type string or { type, min?, max? }']);
+  assert.deepEqual(bad({ type: 'integer' }), []);                  // an object spec with no range is fine
+  assert.deepEqual(bad({ type: 'number', min: -2.5, max: 2.5 }), []);   // negative and fractional bounds are fine
+  assert.deepEqual(bad('integer'), []);                            // the string form is as it always was
 });
 
 test('unique fields: a second row claiming the same value is duplicate-value naming the first owner', () => {

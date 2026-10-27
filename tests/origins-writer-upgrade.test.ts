@@ -1,6 +1,7 @@
 // The writer's smith (origins/server/upgrade.ts) over real HTTP against a small in-memory stand-in for the database: origins_open (items and the
 // career row), origins_event and origins_commit (event + put + burn ops with the database's own O0001 / O0002 refusals). No Postgres; the real
 // cluster is scripts/origins-writer-check.mjs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -11,7 +12,7 @@ import { withContent } from '../origins/server/handlers.ts';
 import { createWriter } from '../origins/server/server.ts';
 import type { Json } from '../origins/server/store.ts';
 import { PRESENCE_FRESH_MS, smithContent, upgradeHandler } from '../origins/server/upgrade.ts';
-import { lookup } from '../origins/inventory/testkit.ts';
+import { lookup } from './items-testkit.ts';
 import { fakeWhere, landmarkAt, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
 import type { Where, WhereFn } from '../origins/presence/where.ts';
 

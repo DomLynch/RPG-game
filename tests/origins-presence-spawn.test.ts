@@ -1,5 +1,6 @@
 // X2 stage 1 (docs/specs/origins/x2-presence-saved-location.md; Lead's rulings 2026-10-07): a fresh join starts at the Pit yard's centre; a first pose never places anyone;
 // a reconnect lands where the server last saw the player, never where the client says; a rejoin is never inside a trade area; the memory expires and is bounded.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES, World, type Player } from '../origins/presence/interest.ts';

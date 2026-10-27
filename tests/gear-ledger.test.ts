@@ -1,4 +1,5 @@
 // The engine's gear screen over the ONE item ledger (src/core/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

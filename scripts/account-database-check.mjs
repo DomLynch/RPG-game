@@ -151,7 +151,7 @@ try {
     set role anon;
     do $$begin
       begin perform secret from public.daily_secret; raise exception 'Anonymous read of the daily secret allowed'; exception when insufficient_privilege then null; end;
-      if (select seed from public.daily_fight(current_date)) is null then raise exception 'Guest cannot fetch today''s daily seed'; end if;
+      begin perform seed from public.daily_fight(current_date); raise exception 'Guest can fetch the daily seed (20261019100155 revoked anon)'; exception when insufficient_privilege then null; end;
       if not exists(select 1 from public.daily_results where day=current_date) then raise exception 'Guest cannot read the day''s results'; end if;
       begin perform user_id from public.daily_results where day=current_date limit 1; raise exception 'Anonymous read of daily_results.user_id allowed'; exception when insufficient_privilege then null; end;
       begin perform record from public.daily_results where day=current_date limit 1; raise exception 'Anonymous read of daily_results.record allowed'; exception when insufficient_privilege then null; end;

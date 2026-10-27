@@ -1,5 +1,6 @@
 // Seamless step 3, Match half (RV38): match.startPose is the open world's hero/foe positions; the next career/practice begin() fights from it,
 // the record carries it (v38), a rematch goes back to the pit marks, and a lesson ignores it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';

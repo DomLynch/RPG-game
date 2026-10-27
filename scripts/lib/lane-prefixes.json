@@ -1,0 +1,14 @@
+{
+  "about": "Which lane a git branch belongs to, by its prefix: the middle fallback of the HF cost ledger's lane tag (scripts/lib/hf-ledger.mjs callerOf) for clones that have no CLAUDE.local.md and no FRANKENDOM_LANE, i.e. most VPS clones. First matching prefix wins.",
+  "lanePrefixes": [
+    { "prefix": "combat/", "lane": "combat" },
+    { "prefix": "web/", "lane": "web" },
+    { "prefix": "world/", "lane": "world" },
+    { "prefix": "char/", "lane": "char" },
+    { "prefix": "backend/", "lane": "backend" },
+    { "prefix": "deploy/", "lane": "deploy" },
+    { "prefix": "release-", "lane": "deploy" },
+    { "prefix": "lead/", "lane": "lead" },
+    { "prefix": "zone/", "lane": "zone-sandbox" }
+  ]
+}

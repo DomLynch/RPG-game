@@ -14,7 +14,7 @@ export function presenceFiles(repo = resolve(dirname(fileURLToPath(import.meta.u
     if (!existsSync(join(repo, file))) throw new Error(`presence imports ${file}, which does not exist`);
     seen.add(file);
     const source = readFileSync(join(repo, file), 'utf8');
-    // The `{ … }` clause of an import/export may span lines (origins/contracts/economy.ts does): a single-line pattern missed items.ts and presence crashed on the box.
+    // The `{ … }` clause of an import/export may span lines (src/core/contracts/economy.ts does): a single-line pattern missed items.ts and presence crashed on the box.
     const specs = [...source.matchAll(/^\s*(?!import\s+type\b)(?:import|export)\b(?:[^'";{}]|\{[^}]*\})*?\bfrom\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)];
     for (const [, spec] of specs) {
       if (spec.startsWith('node:')) continue;

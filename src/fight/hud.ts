@@ -8,53 +8,57 @@ import { bareName } from '../roster.ts';
 import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from '../lessons.ts';
 import { createGapHistory } from './kick-close.ts';
 import { staminaLow } from './fatigue-preview.ts';
-import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
+import { SKILL_MOVE, SKILL_ROWS, weaponOf, type OpponentId } from './moves.ts';
 import { fxNum } from './fx-rows.ts';
+import { specialCueText } from './sandbox-rules.ts';
+import { specialName } from './special-names.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 // Lit = a kick pressed from here lands on a guard-raised foe. Measured 2026-10-07 (tests/hud.test.ts): the true far edge is 1.585 m (the 1.2 m cone plus the kick's .55 stride), so 1.5 keeps a margin for the foe's step.
 export const KICK_LANDS = fxNum('hud.kick-light-m');   // a HUD margin under the true edge (tests/hud.test.ts ties it to the live sim: 0 <= edge - this <= 0.15)
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean; fatiguePreview?: boolean; staminaShown?: number };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { slotB?: boolean; slotBName?: string; slotAName?: string; legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean; fatiguePreview?: boolean; staminaShown?: number };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 // The one bar drawing: a meter's max, its value and the --fill custom property the style sheets draw it from (a <meter>'s own pseudo bars differ per engine).
 export function fillMeter(meter: HTMLElement, value: number, max: number) { meter.style.setProperty('--fill', `${Math.max(0, value / max) * 100}%`); }   // never below 0 (a dead foe's bar at -2 hp, the zone bars' old clamp)
 export function paintMeter(meter: HTMLMeterElement, value: number, max: number) { meter.max = max; meter.value = value; fillMeter(meter, value, max); }
 
-// The meters a zone shows over the walk (health, stamina, the foe in reach, the hit flash): the same bar drawing the Pit's createHud uses (fillMeter / paintMeter), from plain numbers and with
-// no Practice, because the open-world loop has none. The page builds nothing of its own (tests/fight-no-twins.test.ts); the look is src/fight/meters.css.
-export type MeterState = { hp: number; maxHp: number; stamina: number; maxStamina: number; foe: { name: string; hp: number; max: number } | null };
-export function createMeters(parent: HTMLElement) {
-  const doc = parent.ownerDocument, make = <T extends HTMLElement>(tag: string, cls: string, label?: string): T => { const e = doc.createElement(tag) as T; e.className = cls; if (label) e.setAttribute('aria-label', label); return e; };
-  const root = make('div', 'fm-meters'), name = make('div', 'fm-name'), flashEl = make('div', 'fm-flash');
-  const foe = make<HTMLMeterElement>('meter', 'fm-bar fm-foe', 'Foe health'), hp = make<HTMLMeterElement>('meter', 'fm-bar fm-hp', 'Your health'), stamina = make<HTMLMeterElement>('meter', 'fm-bar fm-st', 'Your stamina');
-  root.hidden = true; root.append(name, foe, hp, stamina); parent.append(root, flashEl);
+// The bars a zone shows over the walk are the Pit's own (Dom 2026-10-14, "the original ones look better"): the same .combat-hud markup and src/style.css, painted from plain numbers because the open-world loop has no
+// Practice. The foe's name over its bar, then HEALTH and STAMINA, are the Pit's #opponent-name / #target-health / #player-health / #stamina, drawn through the same fillMeter / paintMeter createHud uses; the page builds
+// nothing of its own (tests/fight-no-twins.test.ts). `shown` toggles body.zone-bars (origins/preview/index.html shows the Pit's .combat-hud only then); the hit vignette is the one element this adds.
+export type MeterState = { hp: number; maxHp: number; stamina: number; maxStamina: number; foe: { name: string; level?: number; hp: number; max: number } | null };
+type Lookup = <T extends HTMLElement>(id: string) => T;
+export function createZoneBars(element: Lookup, parent: HTMLElement) {
+  const flashEl = parent.ownerDocument.createElement('div'); flashEl.className = 'fm-flash'; parent.append(flashEl);
+  const name = element('opponent-name'), foe = element<HTMLMeterElement>('target-health'), hp = element<HTMLMeterElement>('player-health'), stamina = element<HTMLMeterElement>('stamina');
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
   return {
-    /** Paint the meters; `shown` false hides them (the zone hides them while the hero is whole and nothing is in reach). */
+    /** Paint the Pit's bars; `shown` false hides them (the zone hides them while the hero is whole and nothing is in reach). */
     update(state: MeterState, shown: boolean) {
-      root.hidden = !shown; if (!shown) return;
-      paintMeter(hp, state.hp, state.maxHp); paintMeter(stamina, state.stamina, state.maxStamina);
-      name.textContent = state.foe ? state.foe.name : '';
+      parent.classList.toggle('zone-bars', shown);
+      paintMeter(hp, state.hp, state.maxHp); paintMeter(stamina, state.stamina, state.maxStamina);   // the hero's own bars and numbers are painted even while hidden, so the DOM never says the static "150 / 150" once the sheet's max is known
+      element('player-health-value').textContent = `${Math.round(state.hp)} / ${state.maxHp}`; element('stamina-value').textContent = `${Math.round(state.stamina)} / ${state.maxStamina}`;
+      if (!shown) return;
+      name.replaceChildren(state.foe ? state.foe.name.toUpperCase() : ''); name.dataset.mobile = state.foe ? state.foe.name : '';
+      if (state.foe?.level !== undefined) { const small = name.ownerDocument.createElement('small'); small.className = 'opponent-class'; small.textContent = `Lv ${state.foe.level}`; name.append(' ', small); }   // the Pit's own level slot (origins/preview/pit-duel.ts nameOpponent): the name large, the level small beside it   // the phone draws data-mobile (src/style.css .meter-label::after)
       if (state.foe) paintMeter(foe, state.foe.hp, state.foe.max); else paintMeter(foe, 0, 1);
+      element('health-value').textContent = state.foe ? `${Math.round(state.foe.hp)} / ${state.foe.max}` : '';
     },
     /** Paint from the open-world loop itself (hero, the foe in reach, whether a fight is on); hidden while the hero is whole and nothing is in reach. */
-    feed(wc: { hero(): { health: number; max: number; stamina: number; maxStamina: number }; target(): { name: string; health: number; max: number } | null; inCombat(): boolean }) {
+    feed(wc: { hero(): { health: number; max: number; stamina: number; maxStamina: number }; target(): { name: string; level?: number; health: number; max: number } | null; inCombat(): boolean }) {
       const h = wc.hero(), t = wc.target(), full = h.health >= h.max - 0.5 && h.stamina >= h.maxStamina - 0.5;
-      this.update({ hp: h.health, maxHp: h.max, stamina: h.stamina, maxStamina: h.maxStamina, foe: t ? { name: t.name, hp: t.health, max: t.max } : null }, !(full && !t && !wc.inCombat()));
+      this.update({ hp: h.health, maxHp: h.max, stamina: h.stamina, maxStamina: h.maxStamina, foe: t ? { name: t.name, level: t.level, hp: t.health, max: t.max } : null }, !(full && !t && !wc.inCombat()));
     },
     /** The hero was hit: a red vignette for a moment. */
     flash() { flashEl.dataset.on = 'true'; clearTimeout(flashTimer); flashTimer = setTimeout(() => { flashEl.dataset.on = 'false'; }, 120); },
   };
 }
 
-type Lookup = <T extends HTMLElement>(id: string) => T;
-
 export function createHud(element: Lookup) {
   const attackButton = element<HTMLButtonElement>('attack-button');
   const kickButton = element<HTMLButtonElement>('kick-button');
   const heavyButton = element<HTMLButtonElement>('heavy-button');
-  const skillButton = element<HTMLButtonElement>('skill-button');
+  const skillButton = element<HTMLButtonElement>('skill-button'), skill2Button = element<HTMLButtonElement>('skill2-button'), SPELL2_LABEL = skill2Button.dataset.mobile ?? '', SKILL_LABEL = skillButton.dataset.mobile ?? '';   // the generic words are the page's own markup (index.html), read once
   const dodgeButton = element<HTMLButtonElement>('dodge-button');
   const guardButton = element<HTMLButtonElement>('guard-button');
   const thrustButton = element<HTMLButtonElement>('thrust-button');
@@ -79,7 +83,7 @@ export function createHud(element: Lookup) {
     },
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
-      const foe = bareName(view.opponentId), line = view.headline ? practiceHint(practice, foe, view.legend).replace(' Ready for a rematch?', ` ${view.headline} Ready for a rematch?`) : practiceHint(practice, foe, view.legend),   // ?look=headline (victory-headline.ts): the earned line sits before the rematch prompt of a win
+      const foe = bareName(view.opponentId), nameOfSpecial = (skill: string) => specialName(practice.duel.fighters[0].weapon, skill, SKILL_ROWS[skill as keyof typeof SKILL_ROWS]?.name ?? '') || undefined, line = view.headline ? practiceHint(practice, foe, view.legend, nameOfSpecial).replace(' Ready for a rematch?', ` ${view.headline} Ready for a rematch?`) : practiceHint(practice, foe, view.legend, nameOfSpecial),   // ?look=headline (victory-headline.ts): the earned line sits before the rematch prompt of a win
         hint = view.lesson ? lessonText(view.lesson) : view.lessonFight && !practice.playerHealth ? LESSON_FELL : view.dummy ? line.replace(counterLine(foe, view.legend), 'The dummy never attacks.') : line,   // lesson: a teaching beat the fight set (lessons.ts) wins the line while it is up
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
@@ -93,10 +97,14 @@ export function createHud(element: Lookup) {
       // A cone skill (path null: reach × the kick's arc) lands only inside its reach, so SKILL says so the way Kick does (Combat,
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]!] : null;
-      const inSkillReach = skillMove?.path === null ? gap <= skillMove.reach : null;
+      const inSkillReach = skillMove?.path === null && !me.spell ? gap <= skillMove.reach : null;   // an equipped spell casts through this slot and has its own range rows: the pommel's cone must not dim it (Dom 2026-10-16: SPELL 1 always dim)
+      const manaEl = typeof document === 'undefined' ? null : document.getElementById('mana') as HTMLMeterElement | null;   // sandbox-mech mana: entry.ts adds the bar while the mana rows are on
+      const ammoEl = typeof document === 'undefined' ? null : document.getElementById('ammo-value');   // sandbox-mech quiver counter (entry.ts adds it while a quiver row is on)
+      if (ammoEl) ammoEl.textContent = me.ammo === undefined ? 'unlimited' : String(me.ammo);
+      if (manaEl) { manaEl.max = me.maxMana ?? 100; manaEl.value = me.mana ?? 0; fillMeter(manaEl, manaEl.value, manaEl.max); const mv = document.getElementById('mana-value'); if (mv) mv.textContent = `${Math.floor(me.mana ?? 0)} / ${me.maxMana ?? 100}`; }
       const staminaNow = view.staminaShown ?? practice.stamina;   // ?stamina=N (fatigue-preview.ts): the BAR alone reads the forced number; accepts() and every button stay on the real stamina
       const lowNext = !!view.fatiguePreview && staminaLow(staminaNow, staminaLowOn);   // in the skip key below: the floor of stamina alone would hide a 10.0 / 10.7 crossing
-      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(staminaNow)}${lowNext ? 'L' : ''}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}${view.debug ? 'd' : ''}`;   // d: ?debug shown follows the test tools (#1093), so an admin opening them rewrites #debug
+      const key = `${view.slotAName ? `A${view.slotAName}` : ''}${view.slotB ? `B${view.slotBName ?? ''}` : ''}${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(staminaNow)}${lowNext ? 'L' : ''}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}${view.debug ? 'd' : ''}`;   // d: ?debug shown follows the test tools (#1093), so an admin opening them rewrites #debug
       if (key === lastHud) return;
       lastHud = key; staminaLowOn = lowNext;
       paintMeter(health, practice.health, practice.enemyMaxHealth);
@@ -155,9 +163,23 @@ export function createHud(element: Lookup) {
       const ended = !practice.health || !practice.playerHealth;
       heavyButton.hidden = ended;
       skillButton.hidden = ended;   // the seventh button follows Heavy's visibility
+      const slotB = practice.duel.fighters[0].spell2 !== undefined || practice.duel.fighters[0].skill2 !== undefined || view.slotB === true;   // slot b is a spell, or (the specials PR) a melee SPECIAL 2   // slot b is the fight's own, or (the open world's idle practice carries no spells) the page's say-so: an empty slot b shows no button (Strategy's ruling); the Pit never fills it
+      skill2Button.hidden = ended || !slotB;
+      const melee2 = practice.duel.fighters[0].skill2, spell2Name = view.slotBName || (melee2 ? specialName(practice.duel.fighters[0].weapon, melee2, SKILL_ROWS[melee2]?.name ?? '') || undefined : undefined) || SPELL2_LABEL;   // a melee SPECIAL 2 shows its skill row's own name   // the page hands the spell's own name over (it holds the lazy catalogue; the HUD stays out of the entry bundle's spell data); an empty or unnamed slot keeps the generic words; CSS clamps a long name to the button
+      if (skill2Button.dataset.mobile !== spell2Name) {
+        skill2Button.dataset.mobile = spell2Name; { if (spell2Name !== SPELL2_LABEL) skill2Button.dataset.named = '1'; else delete skill2Button.dataset.named; } skill2Button.setAttribute('aria-label', spell2Name); skill2Button.title = spell2Name;
+        const text = skill2Button.firstChild; if (text && text.nodeType === 3) text.textContent = spell2Name; else skill2Button.textContent = spell2Name;
+      }
+      const melee1 = practice.duel.fighters[0].skill, skillName = view.slotAName || (melee1 && practice.duel.fighters[0].spell === undefined ? specialName(practice.duel.fighters[0].weapon, melee1, SKILL_ROWS[melee1]?.name ?? '') || undefined : undefined) || SKILL_LABEL;   // a picked melee skill (SPECIAL 1) shows its row's own name, as SPECIAL 2 does; a spell or no skill keeps the generic word
+      if (skillButton.dataset.mobile !== skillName) {
+        skillButton.dataset.mobile = skillName; { if (skillName !== SKILL_LABEL) skillButton.dataset.named = '1'; else delete skillButton.dataset.named; } skillButton.setAttribute('aria-label', skillName); skillButton.title = skillName;
+        const text1 = skillButton.firstChild; if (text1 && text1.nodeType === 3) text1.textContent = skillName; else skillButton.textContent = skillName;
+      }
+      skill2Button.setAttribute('aria-disabled', String(!controlsReady || !(view.slotB === true || accepts(practice, 'skill2'))));
       // Lit off the simulation's own test (legal: a skill equipped, not cooling, 40 stamina), never while cooling. No ring, no countdown.
       skillButton.setAttribute('aria-disabled', String(!controlsReady || !skillOk));
       if (inSkillReach === null) delete skillButton.dataset.reach; else skillButton.dataset.reach = String(inSkillReach);   // out of its cone: the cluster's dim, still pressable
+      { const two = typeof document === 'undefined' ? null : document.getElementById('sbx-spell2'), f0 = practice.duel.fighters[0]; if (two) { two.hidden = ended; two.setAttribute('aria-disabled', String(!controlsReady || !(f0.spell2 || f0.skill2) || !!f0.skillCooldown2 || !accepts(practice, 'skill2'))); } }   // sandbox spell slot 2: lit off the same test as SPELL 1 (cooldown, mana, standing), dim when it would not cast
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
@@ -177,11 +199,30 @@ export function createHud(element: Lookup) {
     hideDamage() {
       for (const span of dmgPool) span.hidden = true;
     },
+    // sandbox spellRange (Dom 2026-10-16: a tap on SPELL must never feel like nothing): a refused cast floats its short cue ("too far" / "too close", a spellCue row) over the caster, a landed spell floats its damage over the foe.
+    floatSpell(
+      events: CombatEvent[],
+      fighters: readonly { body: { x: number; z: number }; scale: number }[],
+      project: ((point: [number, number, number]) => [number, number] | null) | undefined,
+    ): void {
+      if (!dmgPool.length || typeof project !== 'function') return;
+      for (const e of events) {
+        const cue = e.type === 'SpecialLanded' && e.spell && e.damage ? String(Math.round(e.damage)) : '';   // a refused press (SpecialRefused) floats through floatDamage's specialCue path
+        const who = e.target;
+        if (!cue || who === undefined) continue;
+        const body = fighters[who]!, at = project([body.body.x, 1.9 * body.scale, body.body.z]);
+        if (!at) continue;
+        const span = dmgPool[dmgCursor++ % dmgPool.length]!;
+        span.textContent = cue; span.className = `dmg heavy${who === 0 ? ' taken' : ''}`; span.style.left = `${at[0]}px`; span.style.top = `${at[1]}px`; span.hidden = false;
+        if (typeof span.animate === 'function') span.animate([{ transform: 'translate(-50%, 0)', opacity: 1 }, { transform: 'translate(-50%, -52px)', opacity: 0 }], { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => { span.hidden = true; };
+        else setTimeout(() => { span.hidden = true; }, 1100);
+      }
+    },
     // Clarity cue 3 (Lead's brief): a press the sim refused dims and shakes its button for a moment, no text. The CSS class restarts on each refusal.
     refused(clarity: readonly ClarityEvent[]) {
       for (const c of clarity) {
         if (c.type !== 'PressRefused' || c.actor !== 0) continue;
-        const button = c.action === 'heavy' ? heavyButton : c.action === 'thrust' ? thrustButton : c.action === 'kick' ? kickButton : c.action === 'skill' ? skillButton
+        const button = c.action === 'heavy' ? heavyButton : c.action === 'thrust' ? thrustButton : c.action === 'kick' ? kickButton : c.action === 'skill' ? skillButton : c.action === 'skill2' ? skill2Button
           : c.action === 'dodge' || c.action === 'backstep' ? dodgeButton : c.action === 'parry' ? guardButton : attackButton;
         button.classList.remove('refused'); void button.offsetWidth; button.classList.add('refused');
         setTimeout(() => button.classList.remove('refused'), 260);
@@ -200,16 +241,18 @@ export function createHud(element: Lookup) {
       events: CombatEvent[],
       fighters: readonly { body: { x: number; z: number }; scale: number }[],
       project: ((point: [number, number, number]) => [number, number] | null) | undefined,
+      numbers = true,   // false: the journal setting hides damage numbers, but a refused special press still floats its cue
     ): void {
       if (!dmgPool.length || typeof project !== 'function') return; // the VM harness ships an empty pool and a stub view: nothing to float there (the entry point gates on the journal setting)
       for (const e of events) {
-        if (e.type !== 'Hit' || e.target === undefined || !e.damage) continue;
-        const victim = fighters[e.target];
+        const refused = e.type === 'SpecialRefused' && e.actor === 0 ? specialCueText(e.cue ?? '') : '';   // sandbox specialMeleeReach: a tap on SPECIAL must never feel like nothing: the refused press floats its cue ("too far", a specialCue row) over the hero
+        if (!refused && (!numbers || e.type !== 'Hit' || e.target === undefined || !e.damage)) continue;
+        const victim = fighters[refused ? e.actor : e.target!];
         const at = project([victim.body.x, 1.62 * victim.scale, victim.body.z]);
         if (!at) continue;
         const span = dmgPool[dmgCursor++ % dmgPool.length];
-        span.textContent = String(Math.round(e.damage));
-        span.className = `dmg${e.target === 0 ? ' taken' : ''}${e.counter || e.charged || HEAVY_MOVES.has(e.move ?? '') ? ' heavy' : ''}`;
+        span.textContent = refused || String(Math.round(e.damage!));
+        span.className = refused ? 'dmg taken heavy' : `dmg${e.target === 0 ? ' taken' : ''}${e.counter || e.charged || HEAVY_MOVES.has(e.move ?? '') ? ' heavy' : ''}`;
         span.style.left = `${at[0]}px`;
         span.style.top = `${at[1]}px`;
         span.hidden = false;

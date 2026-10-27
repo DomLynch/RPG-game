@@ -20,14 +20,17 @@ export { setStab, STAB_ON } from './stab-rule.ts';
 export { setStanceRows, STANCE_ROWS_ON } from './stance-era.ts';
 export { setPoiseLadder, POISE_LADDER_ON } from './poise-era.ts';
 export { setCone, CONE_ON } from './cone-era.ts';
+export { setSandbox, SANDBOX_ON } from './sandbox-era.ts';
+export { specialsFromLevelAt } from './rows80.ts';   // RV80: the level a record's specials start at, by the record's own version (the encounter verifier)
 export { AFTER_HIT_TICKS, CHAIN_CAP, EXHAUSTED_BELOW, initialKit, kitIntent, type ChainRow, type KitRow } from './mobkit.ts';
 export { SPEEDS } from './speeds.ts';
 export { worldRule } from './world-rules.ts';   // the open-world rules as rows (world-sim.ts reads its notice rings from them)
-export { percentOf, rollUnit } from './roll.ts';   // the roll's two draws (duel.ts already re-exports ROLL_BAND, rolledDamage); origins/luck reads them here
-export { PORTRAIT_KEYS, rungTopLevel } from '../legends.ts';
+export { percentOf, rollUnit } from './roll.ts';   // the roll's two draws (duel.ts already re-exports ROLL_BAND, rolledDamage); src/core/luck.ts reads them here
+export { PORTRAIT_KEYS, rungOf, rungTopLevel } from '../legends.ts';
 export { LEGEND_FAMILIES, isSpellless, legendText } from './legend-families.ts';   // which family and rank a legend wears: the server prices a boss:<legend> fight from it (origins/boss/legend-boss.ts)
 export { ROSTER, isOpponentId, type OpponentId } from '../roster.ts';
 export { hash32 } from './bout-seed.ts';
 export { MAX_HERO_MPS, MAX_WORLD_TICKS, decodeWorldRecord, encodeWorldRecord, replayWorldRecord, unpackWorldRecord, packWorldRecord, type WorldRecord, type RecordHero, type Replayed } from './world-record.ts';
 export * from './weapon-skills.ts';
 export * from './loot-deck.ts';   // loot decks with pity: the rows, the loader and the pure draw (Backend reads them here, no copy of the numbers)
+export { DROP_REASONS } from './record-drop-rows.ts';   // the page's record-drop reasons as rows: the writer's kill_report tally keys only these (origins/server/world-spawns.ts)

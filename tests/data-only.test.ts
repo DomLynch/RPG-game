@@ -1,4 +1,5 @@
 // Data-only PRs (scripts/lib/data-only.mjs): which files may skip the Auditor, and the proof that a zone module is data, not code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -19,7 +20,11 @@ test('every zone module on trunk is pure data, and the loot table is JSON', () =
 test('the path list is strict: engine code, loaders, biomes, catalogue rows, legends and tests are never data', () => {
   for (const f of ['origins/zones/loader.ts', 'origins/zones/biomes.ts', 'origins/zones/place.ts', 'origins/zones/zone1/place.test.ts', 'origins/zones/zone1/zone.test.ts', 'origins/zones/zone1/places.ts', 'src/fight/catalogue-rows.ts',
     'docs/research/legends-fame.md', 'src/core/loot.ts', 'origins/zones/biomes.ts.data', 'origins/zones/zone1/biomes-data.ts', 'origins/zones/zone1/zone.ts.bak', 'origins/zones/zone1/../loader.ts',
-    'origins/zone-rows/zone1.row.json.bak', 'origins/zone-rows/zone01.row.json', 'origins/zone-rows/README.md', 'origins/zone-rows/zone1.row.ts']) assert.equal(onDataPath(f), false, f);
+    'origins/zone-rows/zone1.row.json.bak', 'origins/zone-rows/zone01.row.json', 'origins/zone-rows/zone00.row.json', 'origins/zone-rows/README.md', 'origins/zone-rows/zone1.row.ts']) assert.equal(onDataPath(f), false, f);
+});
+
+test('a zone row is data, zone 0 (the town) included', () => {
+  for (const f of ['origins/zone-rows/zone0.row.json', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone700.row.json']) assert.equal(onDataPath(f), true, f);
 });
 
 test('anything that runs is not data (mutation cases: a call, a value import, an outside identifier, ${}, a function, a spread, a second statement)', () => {
@@ -143,12 +148,17 @@ test('the patron venue rows are data; the module that reads them (patrons.ts) is
 });
 
 test('the burn reason rows are data; the inventory code that reads them is not', () => {
-  for (const f of ['origins/inventory/burn-reasons.json', 'origins/inventory/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
-  for (const f of ['origins/inventory/inventory.ts', 'origins/inventory/burn-reasons.test.ts', 'origins/inventory/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
+  for (const f of ['src/core/items/burn-reasons.json', 'src/core/items/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['src/core/items/inventory.ts', 'tests/items-burn-reasons.test.ts', 'src/core/items/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
 });
 
 test('the contract vocabulary rows are data at their moved home src/core/contracts/, not at the old origins/contracts/ path; the loader beside them stays code', () => {
   for (const f of ['src/core/contracts/definitions.json', 'src/core/contracts/definitions.manifest.json']) assert.equal(onDataPath(f), true, f);
   for (const f of ['origins/contracts/definitions.json', 'origins/contracts/definitions.manifest.json', 'src/core/contracts/definitions.ts', 'src/core/contracts/world.ts',
     'src/core/contracts/definitions.json.bak']) assert.equal(onDataPath(f), false, f);
+});
+
+test('ground-items.json stays OFF the data-only path until the starter check is in force and reviewed: a data-only PR cannot place a ground item without the Auditor', () => {
+  assert.equal(onDataPath('origins/world/ground-items.json'), false);
+  assert.equal(onDataPath('origins/world/ground-items.manifest.json'), false);
 });

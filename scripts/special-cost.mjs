@@ -4,6 +4,7 @@
 // stand-in, NOT its GPU: a Mac GPU under ANGLE/Metal is far faster than a phone's). Each row runs REPS times; the line prints the median p50 / p95 and the share of frames over 20 ms (a single dropped frame spikes a rep's p95 on either side, so p95 alone is noisy).
 //   node scripts/special-cost.mjs [--special typhon] [--reps 3]   (this tree's build; run `npm run build` first)  → artifacts/special-cost/<kind>.json + one line per row
 /* global process, console, document, window, performance, requestAnimationFrame, WebGL2RenderingContext, WebGLRenderingContext */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
@@ -14,7 +15,7 @@ await fs.mkdir(DIR, { recursive: true });
 const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const load = (await import('node:os')).loadavg()[0].toFixed(1);
 const STUB = 'export function createPitbornSpecial(){return{render(){},clear(){}}}export const PITBORN_KINDS=[],isPitbornSpecial=()=>false;';
 const probe = () => {

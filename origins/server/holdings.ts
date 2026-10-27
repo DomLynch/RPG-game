@@ -3,7 +3,7 @@
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
 import type { ServiceDefinition, UpgradeCostTable } from '../../src/core/server.ts';
 import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
-import { openInventory, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { openInventory, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { BadRequest } from './handlers.ts';
 import type { Db } from './db.ts';
 import * as store from './store.ts';

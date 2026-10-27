@@ -1,5 +1,6 @@
 // The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { CC_LADDER } from '../src/fight/cc-ladder.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -143,7 +144,7 @@ test('the new fields are what their sources say: render scale, weapon, home stan
     assert.deepEqual(row.ladder, { order: at < 0 ? null : at + 1, hold: at < 0 }, `${id}: ladder`);
     assert.deepEqual(row.finisher.timing.map((t) => [t.id, t.pose, t.seconds, t.measured]), row.finisher.finishers.map((f) => [f, FINISHER_POSE[f] ?? null, finisherSeconds(f).seconds, finisherSeconds(f).measured]), `${id}: finisher timing`);
   }
-  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2, 1.8, 2.2], 'the beasts draw at the size they are met walking');
+  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2.8, 2.7, 2.2], 'the beasts draw at the size they are met walking');
   assert.equal(catalogueRow('goblin')!.home, 'trickster'); assert.equal(catalogueRow('executioner')!.home, 'aggressive'); assert.equal(catalogueRow('shieldmaiden')!.home, 'defensive');
   assert.deepEqual(CATALOGUE.filter((r) => r.ladder.order !== null).map((r) => r.ladder.order), LADDER.map((_, i) => i + 1).slice(0, LADDER.length), 'the ladder is 1..n with no gaps');
 });

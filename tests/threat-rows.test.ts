@@ -1,6 +1,7 @@
 // Threat as data (Row 9 of the top-30 table, EQEmu hate list / AzerothCore ThreatManager: a hate source carries a modifier). The existing fights must pick the SAME foe tick for tick: a scripted
 // two-player, three-creature world is stepped 1800 ticks and the sequence of who-fights-whom (pairs) plus every creature's threat table is hashed. The expected hashes were taken on trunk
 // BEFORE the rows existed; they must not move when the rows are read instead of the literals. Structure only (ids and rounded threat), never raw float state, so Node 22 and 25 agree.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -27,7 +28,7 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['b28747fbd82099c1', '8a4f5bf80ad9b99e', '556b1f7d7c5bf3ef'], 'one player, goblin and wolf': ['6a4b7f5ffbd6ca92', 'ddee928773af6d76', 'c16314fd82ee80c1'] };   // first taken on unchanged trunk ff15ed478, before the rows; RE-PINNED with world-hero (Dom 2026-10-13: directionalGuard is on in the world, so a held guard with no side no longer covers every blow): the same hashes come from trunk b3b5613ab with only directionalGuard switched on
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['716ae25391800a49', 'abe3c1d08758d72c', 'ef766c30a04ab398'], 'one player, goblin and wolf': ['7b3351a4c7ab6fa5', 'a690400f644b4aa7', 'afe2741334afe4e6'] };   // RE-PINNED at RV75 / WSV52 (2026-10-17, the sim batch, reason: the fights are whole-world fingerprints and a world creature now stops at 0.85 of its reach, stands and faces, turn-capped, so its positions and swings differ; the foe CHOICE rule is untouched (threat.ts, attackers.ts); was 4070932c0daa9040... at RV73 / WSV4)9 (many-on-one): the hero now retargets at ready to the creature he faces, so a scripted fight's foe choice moves ON PURPOSE; read with PRINT_THREAT_HASHES=1 on a clean VPS clone. Was b28747fb.. / 6a4b7f5f.. before.   // first taken on unchanged trunk ff15ed478, before the rows; RE-PINNED with world-hero (Dom 2026-10-13: directionalGuard is on in the world, so a held guard with no side no longer covers every blow): the same hashes come from trunk b3b5613ab with only directionalGuard switched on
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {

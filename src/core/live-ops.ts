@@ -2,12 +2,13 @@
 // validated here through the shared registry loader; a row the loader refuses is dropped and reported, never applied, and never blocks the rows around it (a kill switch must still
 // work when someone typos an event). Time is UTC. Pure: no clock, no database; the writer owns both (origins/server/live-ops.ts).
 import { checkTables, type Manifest } from './registry.ts';
+import CADENCE from './cadence-rules.json' with { type: 'json' };
 
 export type LiveEvent = { readonly id: string; readonly cron: string; readonly lengthMin: number; readonly kind: string; readonly params: Readonly<Record<string, unknown>>; readonly enabled: boolean };
 export type LiveOps = { readonly events: readonly LiveEvent[]; readonly switches: ReadonlyMap<string, boolean> };
 export type Rejected = { readonly table: string; readonly id: string; readonly why: string };
 
-export const MAX_EVENT_MINUTES = 7 * 24 * 60;
+export const MAX_EVENT_MINUTES = CADENCE.liveOps[0]!.maxEventMinutes;   // the liveOps row of cadence-rules.json (7 days)
 export const EMPTY_LIVE_OPS: LiveOps = { events: [], switches: new Map() };
 
 export const EVENT_MANIFEST: Manifest = { table: 'live-events', key: 'id', required: { id: 'string', cron: 'string', lengthMin: 'integer', kind: 'string', enabled: 'boolean' }, optional: { params: 'object' } };

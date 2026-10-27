@@ -158,7 +158,7 @@ jobs:
           ref: ${{ needs.plan.outputs.ref }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
@@ -166,12 +166,22 @@ jobs:
       # bash with pipefail, hence the || true when grep finds nothing.
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      # Bounded apt (Lead 2026-10-22: on K6q26 the Azure mirror stalled ~16 min in this job and cost row 57 three CI attempts). Every apt call below, playwright's
+      # --with-deps included, gives up on a stalled fetch after 20 s and retries it 3 times, instead of sitting until the job's 30-min cap.
+      - name: Bound apt fetches
+        run: printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/80-bounded-fetch
       - run: npx playwright install --with-deps chromium
       # Row 49 (browser-replay-check --engine webkit, Strategy 2026-09-29): Safari's engine, installed only for the rows that name it.
       - if: matrix.group.webkit
         run: npx playwright install --with-deps webkit
-      - name: Lossless JPEG build tool and ffmpeg (arena-audio-check spawns ffmpeg)
-        run: sudo apt-get install -y libjpeg-turbo-progs ffmpeg
+      # jpegtran in every group: npm run build packs textures through scripts/lossless-jpeg.mjs.
+      - name: Lossless JPEG build tool
+        run: timeout 300 sudo apt-get install -y libjpeg-turbo-progs
+      # ffmpeg (dozens of packages: the K6q26 stall was in its deps) only for a group that runs arena-audio-check, the row that spawns it (#2613, Deploy 2026-10-13;
+      # a Mac-only row today, so CI installs it for no group). matrix.group.rows is the group's row list as JSON, so this matches the row's script name.
+      - name: ffmpeg for arena-audio-check
+        if: contains(matrix.group.rows, 'arena-audio')
+        run: timeout 600 sudo apt-get install -y ffmpeg
       - run: npm run build
       - name: Release checks ${{ matrix.group.id }}
         env:

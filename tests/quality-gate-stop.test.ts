@@ -1,6 +1,7 @@
 // .quality-gate.json completion_commands run in every lane's Stop hook, on a loaded VPS or the shared Mac. A browser row there trapped
 // Deploy B in its Stop hook for ~2 h on 2026-10-12 (sparring-browser-check hit the 420 s limit again and again). Browser rows run on
 // GitHub (release-checks) and in every release; the Stop gate keeps only fast, browser-free checks (Lead 2026-10-12).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

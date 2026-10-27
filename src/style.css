@@ -659,6 +659,8 @@ dialog>p {
   text-transform: uppercase;
   text-shadow: 0 1px 6px #000c;
 }
+/* A short landscape phone (844x390): 28% of the height lands on the legend's tier line ("THE CENTURION · RECRUIT"), so the loading line drops to the middle (Lead 2026-10-19, audit pass 2). */
+@media (orientation: landscape) and (max-height: 430px) { .versus-loading { top: 50%; } }
 /* Owner 2026-09-22: the loading line is the caption's twin (same size, spacing, brightness), and its three dots breathe one after
    another — a slow 1.6 s cycle, never fully off, so it reads as a pulse and not a blink. */
 .versus-dots i {
@@ -1291,7 +1293,8 @@ dialog>p {
 }
 
 #thrust-button,
-#skill-button {
+#skill-button,
+#skill2-button {
   display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
@@ -1455,6 +1458,24 @@ dialog>p {
     height: 58px;
     left: 119px;
     top: -65px;
+  }
+  /* SPELL 2 (spell slots, Strategy's ruling: a second button, no button for an empty slot): SKILL's 58 px, one SKILL-to-STAB spacing to the LEFT of SKILL on the same row above the cluster, centre 70,-36 (rim gaps 20.0 to SKILL and 16.4 to STAB, none of the six touched). Shown only while slot b holds a spell (the page toggles [hidden] on a pick, not per frame). */
+  .actions[data-gestures=cluster] #skill2-button:not([hidden]) {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 41px;
+    top: -65px;
+  }
+  .actions[data-gestures=cluster] #skill2-button:not([hidden])::after {   /* the spell's name: two small lines inside the 58 px circle, the rest ellipsised (the full name stays in aria-label and the tooltip) */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    max-width: 46px;
+    margin: 0 auto;
+    font: 10px/11px Arial;
+    overflow-wrap: anywhere;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
@@ -2092,7 +2113,7 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
 }
 dialog .rank-seg { --rank-fill: var(--js); }
-.rank-next { opacity: 0.65; }
+.rank-next { opacity: 0.85; }
 .share-status {
   display: block;
   color: #efe6d3;
@@ -2253,6 +2274,9 @@ dialog .rank-seg { --rank-fill: var(--js); }
      be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
+  /* Once the fight is over and Next fight is up, the fight buttons have nothing to do: ROLL and GUARD sat under it and showed through at 375
+     (Lead 2026-10-15, scripts/end-overlap-check.mjs). Hidden and inert, nothing reflows; they return with the next fight (Next fight hides again). */
+  :root:has(#reset-button:not([hidden], [data-play='1'])) .actions[data-gestures=cluster] :is(#attack-button, #heavy-button, #skill-button, #thrust-button, #kick-button, #dodge-button, #guard-button, #run-button) { visibility: hidden; pointer-events: none; }
 }
 /* ===== The gear sheet: Fitting rail (Strategy 2026-10-01, concept 03). Grey box: the painted pieces (docs: gear-fitting-painted-pieces) replace these plain plates.
    The sheet is the whole phone, dark in the /game Golden Order palette. While the live mannequin is up (#journal[data-gear=live]) the Gear tab leaves
@@ -2488,7 +2512,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 @media (prefers-reduced-motion: reduce) { #actions button.refused { animation: none; opacity: .45; } }
 
 /* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
-#fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
+#rank, #fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
 
 /* ?look=defence (defence-grade.ts): the GUARD button rings once in the colour of the grade the player's own defence earned, and wears its name for half a second. Ring and caption only, drawn
    on the button itself: nothing over the fighters. plain = a thin white ring; heavy = a thick amber ring with a push; perfect = a gold double ring; parry = a cold white-blue flash. */
@@ -2536,8 +2560,6 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 }
 
 /* The Coached tag (TOP10 row 8): one component, the live "tap to play" button while the Coach fights and the plain "Coached win" mark on the end screen. A direct child of the page, NOT of the thumb cluster (the cluster's button rules would make it a round control over the fight buttons): fixed at the top right under the menu, clear of the HUD text and the thumb zone. Only the live state takes pointer events. */
-/* The stance panel (inline-styled, z 20, top 64 / 110 high) sat on the kill screen's tour-stop tap point above the loot panel (row 36: a BUTTON at 195,166): hide it while the kill screen or the take offer is up. */
-:root.endgame-fade #stance-panel, :root:has(#loot-panel[data-on='1']) #stance-panel { display: none !important; }
 .coach-tag { position: fixed; right: max(16px, env(safe-area-inset-right)); top: calc(env(safe-area-inset-top, 0px) + 96px); z-index: 6; width: auto; height: auto; min-height: 32px; margin: 0; padding: 0 var(--s3, 12px); display: inline-flex; align-items: center; border-radius: var(--r-btn, 8px); font: 700 var(--t-12, 12px)/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; color: var(--parchment, #f3e9cf); background: var(--panel, #172329e6); border: 1px solid var(--panel-edge, #e9d9b380); pointer-events: none; }
 .coach-tag[data-live='true'] { pointer-events: auto; cursor: pointer; min-height: var(--touch, 44px); }
 .coach-tag[hidden] { display: none; }
@@ -2573,18 +2595,28 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .gear-stats > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
 .gear-stats dt { margin: 0; color: var(--jm, #a89a7c); font: 600 13px/1.5 "Instrument Sans", Arial, sans-serif; }
 .gear-stats dd { margin: 0; color: var(--jf2, #f3ead6); font: 600 14px/1.5 "Instrument Sans", Arial, sans-serif; font-variant-numeric: tabular-nums; }
-/* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The stance panel (inline-styled, top 64 right 8, two rows) sat on the SKILL button and the menu button in every landscape view:
-   on a short screen it moves left of the action cluster (the cluster's left edge is 81 px in; the notch's right inset is added). The journal name no longer runs under the Stats / Career / Settings icons:
+/* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The journal name no longer runs under the Stats / Career / Settings icons:
    it ellipsizes before them (the pencil is the name's own background so a long name keeps it). */
-@media (orientation: landscape) and (max-height: 520px) { #stance-panel { right: calc(env(safe-area-inset-right, 0px) + 92px) !important; top: 8px !important; } }
 #journal #journal-name { display: block; width: fit-content; max-width: calc(100% - 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; padding-right: 30px; background: url(/gear-ui/edit.png) right center / 24px no-repeat; }
 #journal #journal-name::after { content: none; }
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
-/* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
+/* The stance setting (Dom 2026-10-19: a character setting in the menu, beside gear; src/fight/stance-panel.ts): four buttons in a row at the top of the Gear tab, above the paperdoll (#3379), the lit one ringed in its colour, the effect line and the lock hint under them. The fighter card names the stance in its colour. */
+#journal .stance-menu { margin: 0; padding: 10px 16px 12px; border-bottom: 1px solid var(--jl); background: var(--jb); }   /* Lead 2026-10-19: the stance block is the first thing on the Gear tab, above the paperdoll, so it shows without scrolling */
+#journal .stance-menu[hidden] { display: none; }
+#journal .stance-menu h4 { margin: 0 0 8px; }
+#journal .stance-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#journal .stance-pick { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 44px; padding: 6px 2px; background: var(--jp); border: 1.5px solid var(--jl); border-radius: 10px; color: var(--jf); font: 600 11px/1.1 "Instrument Sans", Arial, sans-serif; cursor: pointer; }
+#journal .stance-icon { display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+#journal .stance-pick[aria-pressed='true'] { border-color: var(--jg); box-shadow: 0 0 0 1px var(--jg) inset; background: var(--jb); }
+#journal .stance-pick:disabled { opacity: .5; cursor: not-allowed; }
+#journal .stance-effect { margin: 8px 0 0; font: 600 13px/1.35 "Instrument Sans", Arial, sans-serif; }
+#journal .stance-hint { margin: 2px 0 0; color: var(--jm); font: 12px/1.3 "Instrument Sans", Arial, sans-serif; }
+#journal .stance-menu[data-locked='true'] .stance-hint { color: var(--ja); font-weight: 600; }
+#journal .fighter-stance { display: block; margin-top: 2px; font: 700 12px/1.3 "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+#journal .fighter-stance[hidden] { display: none; }
+/* part B, round 2: iPad: clear of the menu button; very short landscape: SKILL below the menu button;
    the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
-@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 64px !important; max-width: 72px !important; padding: 4px !important; } #stance-panel > div:last-child { flex-direction: column !important; } #stance-panel button { min-width: 0 !important; font-size: 11px !important; padding: 4px 2px !important; } #stance-reveal { font-size: 10px; } }   /* a column down the right edge: clear of the HUD bars (x < 290), the opponent and the cluster */
-@media (min-width: 900px) { #stance-panel { top: 84px !important; } }
-@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
+@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button, .actions[data-gestures=cluster] #skill2-button:not([hidden]) { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
 @media (max-width: 440px) { #journal #journal-name, #journal:has(#journal-tab-fighter:checked) #journal-name { display: block; font-size: 20px; max-width: calc(100vw - 204px); padding-right: 22px; background-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 44px; min-height: 44px; } }   /* vw, not %: the header cell is shrink-wrapped (a % of it cut "Wanderer" to "Wa…"); 262 = the avatar, the three tabs and a Safari margin (Safari's wider fallback face broke "Wander|er" at 254); a name that does not fit ends in an ellipsis, never mid-word */
@@ -2622,7 +2654,6 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 }
 #journal .cmp-delta[data-sign='up'] { color: #6fcf6f; }
 #journal .cmp-delta[data-sign='down'] { color: #e0584f; }
-@media (min-width: 600px), (orientation: landscape) { #stance-panel { max-width: 244px !important; } #stance-panel button { font-size: 11px !important; padding: 4px 2px !important; } }   /* Safari: "Aggressive" was 68 px in a 63 px button */
 #journal .stats-gear strong { white-space: normal; overflow-wrap: break-word; }   /* a worn piece's long name wraps instead of ending in an ellipsis (Safari run: 270 px of name in 168) */
 @media (max-width: 440px) { #journal:has(#journal-tab-fighter:checked) .fighter { grid-template-columns: 46px 1fr; column-gap: 10px; } #journal:has(#journal-tab-fighter:checked) .fighter-sigil { width: 44px; height: 44px; } #journal:has(#journal-tab-fighter:checked) #journal-name { max-width: calc(100vw - 250px); padding-right: 16px; background-size: 16px; } }   /* Stats tab: a smaller avatar gives the name its room beside the tabs */
 /* The NEW-vs-EQUIPPED compare (Dom's pickup-compare reference, 2026-10-11): two cards in the take panel's head when the offer would replace a worn piece. */
@@ -2683,3 +2714,9 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal [data-weight]::after { content: attr(data-weight); display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 8px; font: 600 10px/16px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .75; vertical-align: middle; }
 #journal #fitting-name[data-weight], #journal .pack li strong[data-weight] { white-space: normal; overflow: visible; text-overflow: clip; }   /* a badged name wraps instead of truncating: Safari's ellipsis swallowed the pill (the WebKit row, 2026-10-13) */
 #journal #fitting-name[data-weight]::after, #journal .pack li strong[data-weight]::after { white-space: nowrap; }
+/* Phone-layout audit, Pit side (Web, 2026-10-20, live at 375). The backing plate is the zone page's (#3423): the same tokens, so both HUDs match. */
+:root { --c-plate: rgba(18, 12, 8, 0.62); --plate-r: 6px; --plate-pad: 2px 8px; --tab-gap: 6px; }
+@media (max-width: 700px) { .combat-hud > span:first-child, #fight-rank { background: var(--c-plate); border-radius: var(--plate-r); padding: var(--plate-pad); } }   /* the foe's name and the rank row read on the busy sky, statue and torches */
+#journal .tab-strip .tab-career { margin-right: var(--tab-gap); }   /* CAREER and SETTINGS no longer touch at 375; the gap sits only there, and Stats gives back 4 px at phone width, so the strip stays <= the 166 px the name's room was sized for (a 6 px gap between all three put journal-name 7 px into Stats at 375: release row 54, pit-landscape-webkit) */
+@media (max-width: 440px) { #journal .tab-strip .tab-fighter { min-width: 48px; } }
+#journal .tab-strip .tab-career { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3h10v5a5 5 0 0 1-10 0zM4 4h3v2a2 2 0 0 0 1 1.7A3 3 0 0 1 4 5zM20 4h-3v2a2 2 0 0 1-1 1.7A3 3 0 0 0 20 5zM11 13h2v4h3v2H8v-2h3z'/%3E%3C/svg%3E"); }   /* a trophy: Career is no longer the Stats bars */

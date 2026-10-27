@@ -1,8 +1,9 @@
-import { audioRule } from './audio-rules.ts';
+import { audioRule, SYNTH_CUES } from './audio-rules.ts';
 import type { ClarityEvent, CombatEvent } from '../combat.ts';
-import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './cues.ts';
+import { cuesFor, isSpecialRowCue, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './cues.ts';
+import { countSpecial } from '../special-counter.ts';
 import { MANIFEST, type CueName } from '../../audio/manifest.ts';
-import { loadSprite } from '../../audio/sprite.ts';
+import { decodePrefetched, sharedPrefetch, type Prefetched } from '../../audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame } from '../../audio/arena.ts';
 import { createBreath, type Breath } from './breath.ts';
 import { sayPowerWord } from './power-word.ts';
@@ -10,6 +11,7 @@ import { voiceCreature, type CreatureCue } from './creature.ts';
 import { prepareBell } from '../../audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './special.ts';
 import { loadDuel, playDuel, type DuelCue } from './duel.ts';
+import { groundLootCue, type GroundLootKind } from './ground-loot.ts';
 import { armfeelLayers, MAX_LAYERS, OUTPUT_GAIN } from './armfeel-sound.ts';
 import type { Feel } from '../armfeel.ts';
 
@@ -43,7 +45,7 @@ export function createFeedback(host?: FeedbackHost) {
   let arenaAudio: ReturnType<typeof createArenaAudio> | undefined, arenaOutput: AudioNode;
   let context: BaseAudioContext | undefined, master: GainNode | undefined, balance: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
   const level = host?.balance ?? { combat: COMBAT_LEVEL, finish: FINISH_LEVEL };
-  let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
+  let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = !(typeof location !== 'undefined' && /[?&]sound=0\b/.test(location.search)), quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
@@ -61,6 +63,10 @@ export function createFeedback(host?: FeedbackHost) {
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
+  // The sprite's 563 kB is fetched at idle, before any gesture (fetching needs none); unlock() then only decodes it, so the first blows on a phone network are not silent.
+  let prefetching: Promise<Prefetched | null> | undefined;
+  const prefetch = (): Promise<Prefetched | null> => (prefetching ??= sharedPrefetch());
+  if (!host && enabled && typeof window !== 'undefined') { const idle = () => { if (enabled) prefetch(); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(idle, { timeout: 4000 }); else setTimeout(idle, 1500); }   // ?sound=0 (enabled false from the start): nothing is fetched
   function unlock() {
     if (!enabled || (!host && typeof AudioContext === 'undefined')) return;
     if (!context) {
@@ -71,7 +77,7 @@ export function createFeedback(host?: FeedbackHost) {
       build(context);
       specialLoad(); duelLoad();
       if (host && host.sprite !== undefined) sprite = host.sprite;
-      else loading = loadSprite(context).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
+      else loading = decodePrefetched(context, prefetch()).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
     }
     quieted = false;
     // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
@@ -112,14 +118,13 @@ export function createFeedback(host?: FeedbackHost) {
   }
   // Fallback while the sprite is still decoding: the original synthesised air, body and inharmonic steel layers.
   function synth(kind: 'swing' | 'hit' | 'steel' | 'parry' | 'charged', time: number) {
-    const duration = kind === 'swing' ? .16 : kind === 'charged' ? .3 : .24, level = .7;
+    const row = SYNTH_CUES[`synth-${kind}`]!, duration = row.seconds, level = .7;   // the cue's own length, band, level and tone layers are its synth-cue row
     const air = context!.createBufferSource(), filter = context!.createBiquadFilter(), gain = context!.createGain();
-    air.buffer = noise!; filter.type = 'bandpass'; filter.frequency.value = kind === 'swing' ? 900 : 1800; filter.Q.value = .7;
-    gain.gain.setValueAtTime(.001, time); gain.gain.exponentialRampToValueAtTime((kind === 'swing' ? .35 : .7) * level, time + .008); gain.gain.exponentialRampToValueAtTime(.001, time + duration);
+    air.buffer = noise!; filter.type = 'bandpass'; filter.frequency.value = row.filterHz; filter.Q.value = .7;
+    gain.gain.setValueAtTime(.001, time); gain.gain.exponentialRampToValueAtTime(row.airGain * level, time + .008); gain.gain.exponentialRampToValueAtTime(.001, time + duration);
     air.connect(filter).connect(gain).connect(bus!); sources.add(air); air.start(time); air.stop(time + duration);
     air.onended = () => { sources.delete(air); air.disconnect(); filter.disconnect(); gain.disconnect(); };
-    if (kind === 'swing') return;
-    for (const frequency of kind === 'hit' ? [95, 173] : kind === 'parry' ? [940, 1491, 2273] : kind === 'charged' ? [131, 196] : [620, 1037, 1613]) {
+    for (const frequency of row.tones) {
       const tone = context!.createOscillator(), envelope = context!.createGain();
       tone.frequency.value = frequency; envelope.gain.setValueAtTime(.18 * level, time); envelope.gain.exponentialRampToValueAtTime(.001, time + duration);
       tone.connect(envelope).connect(bus!); sources.add(tone); tone.start(time); tone.stop(time + duration);
@@ -164,6 +169,8 @@ export function createFeedback(host?: FeedbackHost) {
       wordBus ??= (() => { const g = context!.createGain(); g.gain.value = 1; g.connect(bus!); return g; })();
       sayPowerWord(context, wordBus, noise, word, caster, now(), gain);
     },
+    // A ground-loot cue (ground-loot.ts: a drop, a take, a lost race): the row's sprite cue at its own level and pitch, on the combat bus; silent until the sprite has decoded, never gating anything.
+    groundLoot(kind: GroundLootKind, itemClass?: string) { if (!enabled || quieted || !context || !live() || !sprite) return; play(groundLootCue(kind, itemClass), now()); },
     creature(body: string, cue: CreatureCue) {   // ?look=creatures (audio/creature.ts): a Frontier creature's growl, bite or death cry, synthesised on the combat bus; absent = silent as shipped
       if (!context || !bus || !noise || !live() || quieted || !enabled) return;
       voiceCreature(context, bus, noise, body, cue, now());
@@ -173,7 +180,7 @@ export function createFeedback(host?: FeedbackHost) {
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
     // It plays into the arena output, past the combat balance, like the crowd bank: the cues are levelled for that path (build-special-audio.mjs).
     want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
-    special(cue: SpecialCue, gain = 1, actor: 0 | 1 = 1) { specialCut(actor); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard[actor] = playSpecial(context, buffer, arenaOutput, gain); return specialHeard[actor]; },
+    special(cue: SpecialCue, gain = 1, actor: 0 | 1 = 1) { specialCut(actor); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard[actor] = playSpecial(context, buffer, arenaOutput, gain); countSpecial('cues'); return specialHeard[actor]; },
     cutSpecial: specialCut,
     dispose() { quieted = true; stopSources(); specialCut(); },
     // A duel lobby cue: `wantDuel` asks for it to be fetched (once the first tap has made the context), `duel` plays it now at `gain`, silent if it has not loaded.
@@ -219,7 +226,7 @@ export function createFeedback(host?: FeedbackHost) {
       }
       if (wordBus && events.some(e => e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'GuardBroken')) { const g = wordBus.gain; g.cancelScheduledValues(time); g.setValueAtTime(.2, time); g.linearRampToValueAtTime(1, time + .5); }   // a landing blow or a parry/block owns the moment; the chant ducks to -14 dB and comes back
       armfeelPlay(events, time);
-      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity, undefined, defenceGrades)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity, undefined, defenceGrades)) { play(cue, time); if (isSpecialRowCue(cue)) countSpecial('cues'); } return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

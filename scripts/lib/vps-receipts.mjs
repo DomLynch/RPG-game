@@ -36,17 +36,17 @@ export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
   if (isWebKitRow(command) || /\bwebkit\b/i.test(code) || /clock\s*\.\s*resume/.test(code)) return false;
   return allowWall || timingOf(source) !== 'wall';
 };
-// Receipts come ONLY from Hugging Face jobs (a fresh container each run, Dom's hardware rule 2026-10-08: cpu-upgrade or t4-medium, never another
+// Receipts come ONLY from Hugging Face jobs (a fresh container each run, Dom's hardware rule 2026-10-08: cpu-upgrade or a T4 (t4-small by default, Dom 2026-10-21; t4-medium allowed), never another
 // GPU). The flavor is never read off the receipt: the job it names is looked up (`hf jobs inspect <id>`, scripts/vps-receipt-trust.mjs does the I/O)
 // and must be COMPLETED, on an allowed flavor, with the run's sha in its own environment (-e SHA=...). `jobs` = { <id>: inspect record }.
-export const FLAVORS = ['cpu-upgrade', 't4-medium'];
+export const FLAVORS = ['cpu-upgrade', 't4-small', 't4-medium'];
 // The job's own command must be the canonical runner invocation for this sha (jobCommand below), so a job that merely sets SHA=<sha> and runs some
 // other script is not a receipt. The runner it executes is the file inside the checked-out tree, whose sha256 the receipt carries (boundToTree).
 // Setup steps are capped at 300 s each (S attempt 1, 2026-10-10: unit job 6ac9b126 sat 15+ min in apt-get and the release fell to the Mac suite): a wedged setup fails the job in 5 min, not at its 40 m cap.
 // A lane's job spilled from the VPS (work waterfall): the same capped setup, then the caller's command, passed base64 in JOB_ARGV_B64 so nothing is re-quoted here.
 // It is NOT a receipt job (no run-*.sh, never verified by jobVerified); lane jobs keep their own ledger so deploy.sh's exit cleanup never cancels them.
-export const genericJobCommand = sha => ['bash', '-c', `set -e; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }; timeout 300 apt-get update -qq >/dev/null; lap apt-update; timeout 300 apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; lap apt-install; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; timeout 300 git fetch -q origin ${sha}; lap git-fetch; git checkout -q --detach ${sha}; lap checkout; if [ -f package-lock.json ]; then timeout 600 npm ci --no-audit --no-fund >/dev/null 2>&1; lap npm-ci; fi; exec bash -c "$(printf %s "$JOB_ARGV_B64" | base64 -d)"`];
-export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }; timeout 300 apt-get update -qq >/dev/null; lap apt-update; timeout 300 apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; lap apt-install; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; timeout 300 git fetch -q origin ${sha}; lap git-fetch; git checkout -q --detach ${sha}; lap checkout; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
+export const genericJobCommand = sha => ['bash', '-c', `set -e; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }; timeout 300 apt-get update -qq >/dev/null; lap apt-update; timeout 300 apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; lap apt-install; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; for i in 1 2 3; do timeout 120 git fetch -q origin ${sha} && break; [ "$i" = 3 ] && exit 1; sleep $((i * 5)); done; lap git-fetch; git checkout -q --detach ${sha}; lap checkout; if [ -f package-lock.json ]; then timeout 600 npm ci --no-audit --no-fund >/dev/null 2>&1; lap npm-ci; fi; exec bash -c "$(printf %s "$JOB_ARGV_B64" | base64 -d)"`];
+export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }; timeout 300 apt-get update -qq >/dev/null; lap apt-update; timeout 300 apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; lap apt-install; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; for i in 1 2 3; do timeout 120 git fetch -q origin ${sha} && break; [ "$i" = 3 ] && exit 1; sleep $((i * 5)); done; lap git-fetch; git checkout -q --detach ${sha}; lap checkout; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
 // The job's whole environment is part of what it ran: the canonical command with NODE_OPTIONS=--require, BASH_ENV or npm_config_* injected could print its own RECEIPT.
 // So the env keys are a closed set with strict values, and the job carries no secrets.
 const ENV_RULES = { SHA: (v, sha) => v === sha, ROWS_ONLY: v => /^\d+(,\d+)*$/.test(v), RELEASE_CHECK_CONCURRENCY: v => /^[1-8]$/.test(v), RELEASE_CHECK_CEILING_S: v => /^[1-9]\d{2,3}$/.test(v) };
@@ -70,7 +70,7 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
   return (receipt.rows || [])
     .filter(row => Number.isInteger(row.index) && row.status === 'pass' && row.exit === 0)   // strict: a missing, null or negative exit is never a pass
     .filter(row => commands[row.index - 1]?.join(' ') === row.command)   // a renumbered or edited row is never trusted by number
-    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, info.flavor === 't4-medium'))   // only the inspected T4 may vouch for wall-clock rows
+    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, /^t4-(small|medium)$/.test(info.flavor)))   // only the inspected T4 may vouch for wall-clock rows
     .map(row => row.index).sort((a, b) => a - b);
 }
 

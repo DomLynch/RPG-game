@@ -1,0 +1,11 @@
+{
+  "rules": [
+    { "id": "tick", "value": 100, "unit": "ms", "note": "one fake presence packet per tick, like the server's 10 Hz" },
+    { "id": "walkSpeed", "value": 2.5, "unit": "m/s" },
+    { "id": "ringMin", "value": 1.5, "unit": "m", "note": "walkers circle a point; radius = ringMin + (i mod 3)" },
+    { "id": "nearM", "value": 4, "unit": "m", "note": "nearest row of the cone ahead of the hero" },
+    { "id": "spreadM", "value": 11, "unit": "m", "note": "depth of the cone" },
+    { "id": "windowMs", "value": 5000, "unit": "ms", "note": "the on-screen median covers this much of the latest frames" },
+    { "id": "maxCount", "value": 40, "unit": "players", "note": "presence nearCap" }
+  ]
+}

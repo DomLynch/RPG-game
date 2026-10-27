@@ -98,11 +98,12 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1", "giant": "warrior"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1", "giant": "warrior", "cave-troll": "warrior"}[family]
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 # The Knight's plate (metallicFactor 1, ~4.9k flipped normal corners) threw white glints mid-swing; the Dwarf's cap, a touch higher for plate.
-SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}, "knight": {"metallicFactor": 0.4}}
+# The Cave Troll's baked skin reads teal, not Dom's grey-green stone: the base colour factor multiplies the map (less blue and green, a touch more red).
+SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}, "knight": {"metallicFactor": 0.4}, "cave-troll": {"baseColorFactor": [1.1, 0.92, 0.7, 1.0]}}
 # Surface material extensions per family, same rule (maps untouched). A reconstruction ships no normal map, so its smooth
 # surface takes the full dielectric specular as a wet-plastic sheen on skin, cloth and leather alike; the Executioner uses
 # the skin-strength specular the hand-built heads use (build-warrior.mjs: Face 0.5, Photo 0.35).
@@ -251,6 +252,21 @@ for i, n in enumerate(d["nodes"]):
     if "mesh" in n and i not in keep:
         n.pop("mesh")
         n.pop("skin", None)
+# A bare-fisted brute (the Cave Troll) carries no sword: the rig keeps a mesh-less WeaponDrawn under hand_r (characters.ts throws without a
+# weapon node), the hero's sword meshes go (the compaction below drops their meshes, materials and buffers), and there is no sheath.
+NO_WEAPON_MESH = {"cave-troll"}
+if family in NO_WEAPON_MESH:
+    sheathed = {i for i, n in enumerate(d["nodes"]) if n.get("name") == "SwordSheathed"}
+    for n in d["nodes"]:
+        if n.get("name") == "SwordDrawn":
+            n["name"] = "WeaponDrawn"
+            n.pop("children", None)
+        if "children" in n:
+            n["children"] = [c for c in n["children"] if c not in sheathed]
+            if not n["children"]:
+                n.pop("children")
+    for i in keep:
+        d["nodes"][i].pop("mesh", None)
 b += b"\0" * (-len(b) % 4)
 bo = len(b)
 b += nb

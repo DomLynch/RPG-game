@@ -4,6 +4,7 @@
 // Chromium does not, so this check plays iOS: it makes innerWidth/innerHeight report a 2.5× zoomed visual viewport and fires resize,
 // then asserts the canvas still covers the layout viewport and its drawing buffer keeps the layout's aspect; then it zooms back out
 // and asserts the same. A phone context; no fight, the canvas is sized at boot. Stills land in the receipt directory.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
@@ -12,7 +13,7 @@ import assert from 'node:assert/strict';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`); url.searchParams.set('debug', '1');
 const out = process.env.VIEWPORT_RECEIPT_DIR || 'artifacts/viewport-check'; await fs.mkdir(out, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, errors: [], passed: false };
 try {
   const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

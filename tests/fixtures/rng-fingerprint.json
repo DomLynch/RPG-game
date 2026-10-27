@@ -1533,253 +1533,253 @@
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "d45d592410af0e0a"
+   "state": "cf04e70a32491d7e"
   },
   "wolf:1:731:walkin": {
-   "ticks": 600,
-   "draws": 412,
-   "rng": "1304998675ddce3c",
-   "state": "7f2c349e8f5c1de2"
+   "ticks": 377,
+   "draws": 293,
+   "rng": "ea524fb3c2eb52da",
+   "state": "435963bd5894c067"
   },
   "wolf:1:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "d45d592410af0e0a"
+   "state": "cf04e70a32491d7e"
   },
   "wolf:1:20260922:walkin": {
-   "ticks": 600,
-   "draws": 414,
-   "rng": "d6ee92d87eaffa01",
-   "state": "35e6ed922d846418"
+   "ticks": 377,
+   "draws": 294,
+   "rng": "a137f54809887e87",
+   "state": "fb0b4acd158b1273"
   },
   "wolf:1:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "d45d592410af0e0a"
+   "state": "cf04e70a32491d7e"
   },
   "wolf:1:4242424242:walkin": {
-   "ticks": 600,
-   "draws": 410,
-   "rng": "8be5ee7116796be0",
-   "state": "20ddc1ad10ebeb63"
+   "ticks": 377,
+   "draws": 292,
+   "rng": "db79b3b4349f2620",
+   "state": "fb0b4acd158b1273"
   },
   "wolf:6:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:6:731:walkin": {
-   "ticks": 600,
-   "draws": 365,
-   "rng": "20ef479074fd9669",
-   "state": "adbd3a7d5e14cf5f"
+   "ticks": 377,
+   "draws": 259,
+   "rng": "bf4abf837099992d",
+   "state": "6cb0eff716cbd343"
   },
   "wolf:6:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:6:20260922:walkin": {
    "ticks": 600,
    "draws": 403,
    "rng": "a2f4ccccec8cbe34",
-   "state": "c76208e4e99cfc9c"
+   "state": "6d2adc56ac1e227c"
   },
   "wolf:6:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:6:4242424242:walkin": {
-   "ticks": 600,
-   "draws": 433,
-   "rng": "0effcf43c0ac2a06",
-   "state": "8b422562aeb9b546"
+   "ticks": 561,
+   "draws": 417,
+   "rng": "b92e49e07a5be8c8",
+   "state": "59b37907a967589f"
   },
   "wolf:11:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:11:731:walkin": {
-   "ticks": 600,
-   "draws": 352,
-   "rng": "7db77f1f4959ed96",
-   "state": "f735394be2fbc38f"
+   "ticks": 377,
+   "draws": 258,
+   "rng": "a9430aeb3319ddec",
+   "state": "eae8c6aa055aa03c"
   },
   "wolf:11:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:11:20260922:walkin": {
    "ticks": 600,
    "draws": 343,
    "rng": "5fd5b3e6b8a14507",
-   "state": "32cd5de4438b51da"
+   "state": "dde177a6cc03a870"
   },
   "wolf:11:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:11:4242424242:walkin": {
    "ticks": 600,
    "draws": 331,
    "rng": "a2ce4b90cf68f962",
-   "state": "0f9d84ba2530f6e6"
+   "state": "1d01624720bf788f"
   },
   "wolf:12:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:12:731:walkin": {
-   "ticks": 600,
-   "draws": 352,
-   "rng": "7db77f1f4959ed96",
-   "state": "fca908d83a7d3df6"
+   "ticks": 377,
+   "draws": 258,
+   "rng": "a9430aeb3319ddec",
+   "state": "e7826b2e75dc132a"
   },
   "wolf:12:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:12:20260922:walkin": {
-   "ticks": 600,
-   "draws": 369,
-   "rng": "3a837a1d32e8978d",
-   "state": "db7a1c68af0c6886"
+   "ticks": 377,
+   "draws": 262,
+   "rng": "f7cf51f588450b00",
+   "state": "aac2e4ede61c5ee5"
   },
   "wolf:12:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:12:4242424242:walkin": {
    "ticks": 600,
    "draws": 331,
    "rng": "a2ce4b90cf68f962",
-   "state": "bb1d033d64ce904d"
+   "state": "7837304480eeade4"
   },
   "wolf:18:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:18:731:walkin": {
    "ticks": 600,
    "draws": 455,
    "rng": "66ccb5020bedfa4e",
-   "state": "5204a2705bbe6fd6"
+   "state": "27e5e6a8520f1ee6"
   },
   "wolf:18:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:18:20260922:walkin": {
-   "ticks": 600,
-   "draws": 400,
-   "rng": "6d39a13b3b4a7b75",
-   "state": "50d813517fb761af"
+   "ticks": 561,
+   "draws": 384,
+   "rng": "ee818bec1c032767",
+   "state": "f99d2fbe045ec17a"
   },
   "wolf:18:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:18:4242424242:walkin": {
    "ticks": 600,
    "draws": 454,
    "rng": "914f25c043bd36e3",
-   "state": "81c87a69f607aebb"
+   "state": "5aaf59fc4fc38ea2"
   },
   "wolf:30:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:30:731:walkin": {
-   "ticks": 600,
-   "draws": 392,
-   "rng": "b904e0c39d93c998",
-   "state": "ba56a7f21281dd5a"
+   "ticks": 561,
+   "draws": 376,
+   "rng": "930eb70c9db16820",
+   "state": "ff1d8a3031546464"
   },
   "wolf:30:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:30:20260922:walkin": {
    "ticks": 600,
    "draws": 377,
    "rng": "3b2925ed4854e398",
-   "state": "aeef5aef7bff31ed"
+   "state": "48fb429d1f223973"
   },
   "wolf:30:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:30:4242424242:walkin": {
    "ticks": 600,
    "draws": 369,
    "rng": "11d546c94560de3e",
-   "state": "ed432b7ca0459bf8"
+   "state": "e9a963a3eecc9cfd"
   },
   "wolf:46:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:46:731:walkin": {
    "ticks": 600,
    "draws": 404,
    "rng": "17214c817ba13061",
-   "state": "ab1d753886964812"
+   "state": "15d97b4abd10ec6c"
   },
   "wolf:46:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:46:20260922:walkin": {
    "ticks": 600,
    "draws": 372,
    "rng": "9d0b6632522aa5d6",
-   "state": "118854eb5a61e72b"
+   "state": "85b256f225e4556c"
   },
   "wolf:46:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "15888c985f864712"
+   "state": "5f575e98d452fe82"
   },
   "wolf:46:4242424242:walkin": {
    "ticks": 600,
    "draws": 480,
    "rng": "ef0d97d391e2c359",
-   "state": "459a5b2f9613cc71"
+   "state": "34a217abfd6e4bd9"
   },
   "boar:1:731:idle": {
    "ticks": 600,
@@ -2284,6 +2284,510 @@
    "draws": 485,
    "rng": "eed3789424f7adfd",
    "state": "b4e8bebd1ecd5f93"
+  },
+  "giant-salamander:1:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "cceb82fa927f54de"
+  },
+  "giant-salamander:1:731:walkin": {
+   "ticks": 291,
+   "draws": 229,
+   "rng": "9efb0b6878b49337",
+   "state": "73840f458f81b7ed"
+  },
+  "giant-salamander:1:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "cceb82fa927f54de"
+  },
+  "giant-salamander:1:20260922:walkin": {
+   "ticks": 291,
+   "draws": 230,
+   "rng": "2cc9caaa0310a26c",
+   "state": "ead1e20cfcc773b6"
+  },
+  "giant-salamander:1:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "cceb82fa927f54de"
+  },
+  "giant-salamander:1:4242424242:walkin": {
+   "ticks": 291,
+   "draws": 228,
+   "rng": "ed1fa0b2ac3a5255",
+   "state": "ead1e20cfcc773b6"
+  },
+  "giant-salamander:6:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:6:731:walkin": {
+   "ticks": 291,
+   "draws": 207,
+   "rng": "6818dba265142977",
+   "state": "561d696f174a2a83"
+  },
+  "giant-salamander:6:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:6:20260922:walkin": {
+   "ticks": 512,
+   "draws": 338,
+   "rng": "18a410e2b571095d",
+   "state": "126dc4d48c2dcd72"
+  },
+  "giant-salamander:6:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:6:4242424242:walkin": {
+   "ticks": 291,
+   "draws": 252,
+   "rng": "b76ea958a15988fd",
+   "state": "5d43906c415a61ee"
+  },
+  "giant-salamander:11:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:11:731:walkin": {
+   "ticks": 291,
+   "draws": 204,
+   "rng": "392bfe96a0ecac3f",
+   "state": "cae04ce282e71128"
+  },
+  "giant-salamander:11:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:11:20260922:walkin": {
+   "ticks": 379,
+   "draws": 246,
+   "rng": "51ca6001d6cbbe96",
+   "state": "e95c5c5227cd767c"
+  },
+  "giant-salamander:11:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:11:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 331,
+   "rng": "a2ce4b90cf68f962",
+   "state": "f80509f1499e09fd"
+  },
+  "giant-salamander:12:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:12:731:walkin": {
+   "ticks": 291,
+   "draws": 204,
+   "rng": "392bfe96a0ecac3f",
+   "state": "4f4ac0bb0f961043"
+  },
+  "giant-salamander:12:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:12:20260922:walkin": {
+   "ticks": 291,
+   "draws": 207,
+   "rng": "d58b529f7f90bde2",
+   "state": "c25c3284e8e13e0a"
+  },
+  "giant-salamander:12:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:12:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 331,
+   "rng": "a2ce4b90cf68f962",
+   "state": "3a1840be4c35a1ee"
+  },
+  "giant-salamander:18:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:18:731:walkin": {
+   "ticks": 600,
+   "draws": 455,
+   "rng": "66ccb5020bedfa4e",
+   "state": "ab8a91e60de351f2"
+  },
+  "giant-salamander:18:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:18:20260922:walkin": {
+   "ticks": 377,
+   "draws": 289,
+   "rng": "05b1336e1600e0b5",
+   "state": "996c3966cbb37fe2"
+  },
+  "giant-salamander:18:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:18:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 454,
+   "rng": "914f25c043bd36e3",
+   "state": "8fa7fc1cb91dbc4c"
+  },
+  "giant-salamander:30:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:30:731:walkin": {
+   "ticks": 377,
+   "draws": 281,
+   "rng": "c0968b4f4493e95c",
+   "state": "da99f55af93e04cc"
+  },
+  "giant-salamander:30:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:30:20260922:walkin": {
+   "ticks": 600,
+   "draws": 377,
+   "rng": "3b2925ed4854e398",
+   "state": "0ecfe8beb31ff71e"
+  },
+  "giant-salamander:30:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:30:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 369,
+   "rng": "11d546c94560de3e",
+   "state": "a0681aebad12ca1b"
+  },
+  "giant-salamander:46:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:46:731:walkin": {
+   "ticks": 600,
+   "draws": 404,
+   "rng": "17214c817ba13061",
+   "state": "c00081bb3f0e6b75"
+  },
+  "giant-salamander:46:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:46:20260922:walkin": {
+   "ticks": 600,
+   "draws": 372,
+   "rng": "9d0b6632522aa5d6",
+   "state": "893816988227bbcc"
+  },
+  "giant-salamander:46:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "1959e38a91287bce"
+  },
+  "giant-salamander:46:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 480,
+   "rng": "ef0d97d391e2c359",
+   "state": "86f29b62ac6ca6e2"
+  },
+  "cave-troll:1:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "d59d80ae9fbca65e"
+  },
+  "cave-troll:1:731:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "98e6db7529ed2287",
+   "state": "0af4769ba2bc89c1"
+  },
+  "cave-troll:1:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "d59d80ae9fbca65e"
+  },
+  "cave-troll:1:20260922:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "808701ead6f12288",
+   "state": "85c9e426319cc418"
+  },
+  "cave-troll:1:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "d59d80ae9fbca65e"
+  },
+  "cave-troll:1:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "44a14a552ece530a",
+   "state": "0af4769ba2bc89c1"
+  },
+  "cave-troll:6:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:6:731:walkin": {
+   "ticks": 600,
+   "draws": 338,
+   "rng": "01f45c70722e606b",
+   "state": "a42a89fb552149df"
+  },
+  "cave-troll:6:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:6:20260922:walkin": {
+   "ticks": 600,
+   "draws": 386,
+   "rng": "779f7e2fc6f941da",
+   "state": "163dcf77018d82cb"
+  },
+  "cave-troll:6:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:6:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 322,
+   "rng": "a2abffafd8655e06",
+   "state": "adc5c07a99f1b81a"
+  },
+  "cave-troll:11:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:11:731:walkin": {
+   "ticks": 600,
+   "draws": 408,
+   "rng": "759dfbb4412f4e0a",
+   "state": "58cfc15de3a0d88f"
+  },
+  "cave-troll:11:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:11:20260922:walkin": {
+   "ticks": 600,
+   "draws": 337,
+   "rng": "9222a970790ad8eb",
+   "state": "15cd5f99472f6f35"
+  },
+  "cave-troll:11:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:11:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 387,
+   "rng": "3914849776aa9bbf",
+   "state": "c48ac079f5e75ea7"
+  },
+  "cave-troll:12:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:12:731:walkin": {
+   "ticks": 600,
+   "draws": 363,
+   "rng": "355edaff988e4c5d",
+   "state": "6978f73276d82112"
+  },
+  "cave-troll:12:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:12:20260922:walkin": {
+   "ticks": 600,
+   "draws": 348,
+   "rng": "296eb156970c136c",
+   "state": "43f5c38703d7d443"
+  },
+  "cave-troll:12:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:12:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 357,
+   "rng": "fbccf2afdd24af85",
+   "state": "d43318a1bd1018c1"
+  },
+  "cave-troll:18:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:18:731:walkin": {
+   "ticks": 600,
+   "draws": 407,
+   "rng": "be874e2f9f52cce6",
+   "state": "25ebfb2fe6469c09"
+  },
+  "cave-troll:18:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:18:20260922:walkin": {
+   "ticks": 600,
+   "draws": 347,
+   "rng": "ffae79179b24e038",
+   "state": "9c6ae4e0950a860a"
+  },
+  "cave-troll:18:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:18:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 373,
+   "rng": "e314a6d2d04677ce",
+   "state": "b3a51bbafb17e0ec"
+  },
+  "cave-troll:30:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:30:731:walkin": {
+   "ticks": 600,
+   "draws": 387,
+   "rng": "f5dd8427b8abed3c",
+   "state": "c756d536d27a6ab0"
+  },
+  "cave-troll:30:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:30:20260922:walkin": {
+   "ticks": 490,
+   "draws": 245,
+   "rng": "33345ed6f96fb3e3",
+   "state": "6c3f3f2066f153f6"
+  },
+  "cave-troll:30:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:30:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 398,
+   "rng": "c4fb398ddbd91f52",
+   "state": "ae04fddc22ca1b00"
+  },
+  "cave-troll:46:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:46:731:walkin": {
+   "ticks": 600,
+   "draws": 406,
+   "rng": "2ecbc0a92e18e68e",
+   "state": "0e4f6d2da164da9d"
+  },
+  "cave-troll:46:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:46:20260922:walkin": {
+   "ticks": 600,
+   "draws": 413,
+   "rng": "5227d2df23a5b588",
+   "state": "4df018c6e91cc702"
+  },
+  "cave-troll:46:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "de2201f37138a685"
+  },
+  "cave-troll:46:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 344,
+   "rng": "b36843fd297f140c",
+   "state": "7771bdcc28b8a8b4"
   },
   "wraith:1:731:idle": {
    "ticks": 600,

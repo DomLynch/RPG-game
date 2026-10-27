@@ -1,5 +1,6 @@
 // The on-demand beast bodies (src/fight/beast-scale.ts ON_DEMAND_BEASTS) and the files under public/beasts/ are the same set (Characters' review of #1778/#1783): a beast listed without a file would 404 at the duel (an
 // invisible foe), and a stray file would ship in dist unaccounted by any row (check-budget counts the folder, not the list). Every listed beast is also a roster body.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';

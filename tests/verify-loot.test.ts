@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
@@ -114,11 +115,11 @@ test('the level a win was fought at must clear the dial floor under the SERVER r
   const record = await goblinKill('level');   // fought at level 6
   assert.equal(await refusal({ opponent: 'goblin', record }, { marks: 10, owned: [] }), null, 'rank 11, floor 6: level 6 is exactly the floor');
   assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 11, owned: [] })), /didn't count \(level 6; your rank is level 12, floor 7\)/);
-  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 19, owned: [] })), /your rank is level 20, floor 15/);
+  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 19, owned: [] })), /your rank is level 20, floor 10/);
   const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record }], { marks: 19, owned: [] });
   const receipt = await verifyClaims(db);
   assert.deepEqual([receipt.verified, receipt.refused.length], [0, 1], 'a low-level win is refused: no mark, no award');
-  assert.match(db.settled.get(1)!.note!, /floor 15/);
+  assert.match(db.settled.get(1)!.note!, /floor 10/);   // the beta cut caps the floor at the cut (career-ladder.ts BETA_MAX_LEVEL): the Pit client fights no higher
 });
 
 // HELD (Strategy/Lead 2026-09-29): an engine-bound record (v ≤ 19) whose replay diverges is held for a hand check in real browsers;
@@ -398,7 +399,8 @@ test('a won claim that casts a spell: unowned, inflated skill, unknown build, no
   const build = async (character: string, version: number) => (character === 'pc:one' && version === 1 ? stored : null);
   const load = (held: { grimoire: Record<string, unknown>; xp: Record<string, number> }, b = async (_a: string, c: string, v: number) => (c === 'pc:one' && v === 1 ? stored : null)) => ({ held: async () => held, build: b });
   const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };
-  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, ...(spellLoad ? { spellLoad } : {}) });
+  // the beta's spellsOff keeps the spell path inert (the code and rows stay): these cases test that path, so they run with the cut lifted; the cut itself is tested in tests/specials-cut.test.ts
+  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, cut: { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 }, ...(spellLoad ? { spellLoad } : {}) });
   assert.match(String(await gate(await make({ id: 'alvis', skill: 6 }), load(owns))), /casts at 6, past the 5/);
   assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load({ grimoire: {}, xp: owns.xp }))), /not in this account's grimoire/);
   assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns, async () => null))), /stored build is unknown/);

@@ -28,7 +28,24 @@ BODIES = {
         "hind": [(.72, .52), (.68, .34), (.75, .20), (.74, .03)],                      # hip, knee, hock, paw
         "legx": .55,
     },
+    # The giant salamander (Zone camp creature, FLUX seed 190926 side view, TRELLIS.2 -> herolook_bake 20k / 2048): a long low body with a tail
+    # that is 40% of its length and curls up at the tip; heavy splayed legs (wide stance); the dorsal spikes ride the spine bones, the head spikes
+    # stand in for the ears. Fractions read off the concept's side view (the mesh is the same proportions: 1.00 m long, 0.31 m tall, 0.28 m wide).
+    "giant-salamander": {
+        "spine": [(.57, .58), (.49, .62), (.39, .645), (.305, .645), (.225, .62)],
+        "neck": [(.14, .566)], "head": (.082, .51), "nose": (.02, .43), "jaw": (.04, .38),
+        "ear": ((.10, .74), .35),
+        "tail": [(.63, .52), (.74, .42), (.86, .38), (.97, .55)],
+        "front": [(.22, .58), (.243, .276), (.229, .079), (.211, .02)],
+        "hind": [(.52, .53), (.53, .276), (.523, .09), (.51, .02)],
+        "legx": .72,
+        # A squat body with short legs: the wolf's gait folds the hind leg into the belly and drags the flank (Lead's review of #2879: Walk/Run/Flee frames 1 and 3).
+        # `stride` scales every leg swing, `lift` scales the fold of a leg in the air on top of it, `wexp` sharpens the skin falloff so a leg owns less of the belly, `tint` is a glTF base colour factor
+        # (deeper red: less green and blue; the same device as the Cave Troll's moss green).
+        "stride": .45, "lift": .5, "wexp": 5.0, "tint": (.85, .62, .62),
+    },
 }[BODY]
+STRIDE, LIFT, WEXP, TINT = BODIES.get("stride", 1.0), BODIES.get("lift", 1.0), BODIES.get("wexp", 3.0), BODIES.get("tint")
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
@@ -120,7 +137,7 @@ def seg_dist(p, a, b):
 
 for v in mesh.data.vertices:
     d = sorted((seg_dist(v.co, a, b), n) for n, a, b in segs)[:3]
-    w = [1.0 / (x + .004 * H) ** 3 for x, _ in d]
+    w = [1.0 / (x + .004 * H) ** WEXP for x, _ in d]
     tot = sum(w)
     for (x, n), wi in zip(d, w):
         mesh.vertex_groups[n].add([v.index], wi / tot, "REPLACE")
@@ -198,6 +215,7 @@ def s(t, ph=0.0, k=1):
 
 def leg(pair, side, t, ph, swing, lift):
     """One leg: the upper swings about x (positive = forward), the lower folds when the foot is in the air."""
+    swing, lift = swing * STRIDE, lift * STRIDE * LIFT
     a = s(t, ph)
     fold = max(0.0, math.cos(TAU * (t + ph))) * lift
     sgn = 1 if pair == "front" else -1
@@ -323,9 +341,23 @@ weapon.rotation_euler = (-math.pi / 2, 0, 0)   # the exporter turns objects (not
 weapon["weapon"] = "bite"
 weapon["contact"] = {"from": 0.0, "to": 0.08}
 os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format="JPEG", export_animations=True,
+bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format=os.environ.get("QUAD_FMT", "JPEG"), export_animations=True,   # QUAD_FMT=WEBP: the salamander's engine body (the loader reads EXT_texture_webp, the troll's already ships it)
                           export_animation_mode="NLA_TRACKS", export_force_sampling=True, use_selection=False, export_extras=True)
 print("exported", DST, {n: (int(a.frame_range[0]), int(a.frame_range[1])) for n, a in actions.items()}, flush=True)
+
+if TINT:   # a glTF base colour factor on every material: it multiplies the baked map, so the exported file carries the deeper colour and the world body bakes it
+    import json
+    import struct
+    raw = open(DST, "rb").read()
+    jlen = struct.unpack_from("<I", raw, 12)[0]
+    doc = json.loads(raw[20:20 + jlen])
+    for m in doc["materials"]:
+        m.setdefault("pbrMetallicRoughness", {})["baseColorFactor"] = [*TINT, 1.0]
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    rest = raw[20 + jlen:]
+    open(DST, "wb").write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + len(rest)) + struct.pack("<II", len(js), 0x4E4F534A) + js + rest)
+    print("tinted", DST, TINT, flush=True)
 
 if SHEET:
     os.makedirs(SHEET, exist_ok=True)

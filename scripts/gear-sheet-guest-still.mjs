@@ -2,6 +2,7 @@
 // (src/core/account-entry.ts), which a local preview lacks, so it is shown by hand the way the live guest state reads. Checks the mannequin stays
 // whole when the block pushes the stage down (gear-room refits when the stage box moves) and that Continue with Google reads (text vs plate).
 //   node scripts/gear-sheet-guest-still.mjs  -> artifacts/gear-sheet/after-guest-block.png   (run `npm run build` first)
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -13,7 +14,7 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const KIT = { head: 'shieldmaiden.Helmet', chest: 'shieldmaiden.Body', arms: 'shieldmaiden.Arms', hands: 'shieldmaiden.Gloves', legs: 'shieldmaiden.Greaves', feet: 'shieldmaiden.Boots', off: 'shieldmaiden.Shield' };
 const loot = { owned: [...Object.values(KIT), 'veteran.Body'], equipped: KIT, pack: ['veteran.Body'], taken: { 'veteran.Body': { opponent: 'veteran', attempt: 1, healthLeft: 100, recordId: null, day: '2026-09-30', tier: 4 } } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 let passed = false;
 try {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

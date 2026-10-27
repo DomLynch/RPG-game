@@ -6,7 +6,9 @@
       "claimsCap": 50,
       "claimWaitMs": 3000,
       "keepaliveBytes": 60000,
-      "tapGuardMs": 300
+      "tapGuardMs": 300,
+      "packOpen": 2,
+      "packTotal": 5
     }
   ],
   "platformCap": [

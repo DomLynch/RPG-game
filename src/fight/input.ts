@@ -5,6 +5,9 @@
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
 import type { Direction } from './moves.ts';
 import { inputNum } from './input-rows.ts';
+import { SPELL_BUFFER_MS } from './sandbox-rules.ts';
+import { applyTouchLayout } from './touch-layout.ts';
+import { attachTapLog, tapLogOn } from './tap-log.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -42,6 +45,17 @@ export const cutAction = (lateral: number): Action => (lateral <= -CUT_PUSH ? 'l
 // it fires on a slide of SLASH_SLIDE_PX (that side, at once), on release, or after SLASH_DECIDE_MS (the alternating light), whichever comes first. A plain tap
 // therefore gets up to SLASH_DECIDE_MS later; change the one constant to trade it. Intent only: the sim already takes light_left / light_right.
 export const SLASH_SLIDE_PX = inputNum('input.slash-slide-px'), SLASH_DECIDE_MS = inputNum('input.slash-decide-ms');
+// oneButton (Combat sandbox CS31, touch layout A; off by default, `?onebutton=1` turns it on for a look): the STRIKE button decides its swing by the thumb. A release before HEAVY_HOLD_MS is the plain light, a slide of STAB_SLIDE_PX
+// straight up (within STAB_HALF_ANGLE degrees) is the thrust, a slide to a side is that cut, a hold past HEAVY_HOLD_MS is the heavy. Intent only: the fight already takes every one of those actions. Off = today's Light button.
+const ONE_BUTTON_QUERY = /[?&;]onebutton=1\b/.test(typeof location === 'undefined' ? '' : location.search);
+export const ONE_BUTTON = Boolean(inputNum('input.one-button')) || ONE_BUTTON_QUERY;
+const RAD = Math.PI / 180;   // degrees to radians
+// CS36b: inside a guard-counter / punish window (20 ticks after a block, duel.ts) a hold decides the heavy after HEAVY_HOLD_WINDOW_MS instead: at HEAVY_HOLD_MS (220) the reaction to a block plus the hold ran past the window, so the heavy riposte was unreachable under layout A.
+export const HEAVY_HOLD_MS = inputNum('input.heavy-hold-ms'), HEAVY_HOLD_WINDOW_MS = inputNum('input.heavy-hold-window-ms'), STAB_SLIDE_PX = inputNum('input.stab-slide-px'), STAB_HALF_ANGLE = inputNum('input.stab-half-angle');
+// A slide within STAB_HALF_ANGLE degrees of straight up is the stab. Screen y grows down, so up is dy < 0.
+/** How long a hold on STRIKE must last to be the heavy: the short window hold while the hero's counter / punish window is open, else the plain one. */
+export const heavyHoldMs = (counterOpen: boolean): number => (counterOpen ? HEAVY_HOLD_WINDOW_MS : HEAVY_HOLD_MS);
+export const stabSector = (dx: number, dy: number): boolean => dy < 0 && Math.abs(dx) <= -dy * Math.tan(STAB_HALF_ANGLE * RAD);
 export const slashSlide = (dx: number): 'left' | 'right' | null => (dx <= -SLASH_SLIDE_PX ? 'left' : dx >= SLASH_SLIDE_PX ? 'right' : null);
 export const cutSideOf = (action: Action): 'left' | 'right' | null => (action === 'light_left' ? 'left' : action === 'light_right' ? 'right' : null);   // the side a cut press goes to; neutral LIGHT is null (no flash)
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
@@ -68,7 +82,7 @@ export function createInput(env: InputEnv) {
   const attackButton = element<HTMLButtonElement>('attack-button');
   const kickButton = element<HTMLButtonElement>('kick-button');
   const heavyButton = element<HTMLButtonElement>('heavy-button');
-  const skillButton = element<HTMLButtonElement>('skill-button');
+  const skillButton = element<HTMLButtonElement>('skill-button'), skill2Button = element<HTMLButtonElement>('skill2-button');
   const dodgeButton = element<HTMLButtonElement>('dodge-button');
   const guardButton = element<HTMLButtonElement>('guard-button');
   const thrustButton = element<HTMLButtonElement>('thrust-button');
@@ -82,7 +96,7 @@ export function createInput(env: InputEnv) {
     guardDir: Direction | null = null,
     cancel = false;
   let dodgeHeld: { since: number; rolled: boolean } | null = null;
-  let slashWait: { since: number; x: number } | null = null;   // a SLASH press still deciding its side (see slashSlide)
+  let slashWait: { since: number; x: number; y: number } | null = null;   // a SLASH press still deciding its side (see slashSlide)
   const holders = new Set<Strike>();
   let dragGuard = false;
   // The held level the simulation sees: during a swing, whether the control that threw it is still down; otherwise whether any strike control is.
@@ -91,15 +105,20 @@ export function createInput(env: InputEnv) {
       owner = f.phase === 'attack' ? ownerOf(f.move) : null;
     return owner ? holders.has(owner) : holders.size > 0;
   };
+  // The hero's guard-counter (a block) or punish (a parry) window is open: the next heavy is the riposte / counter, so its hold is the short one (CS36b).
+  const counterOpen = (): boolean => { const f = env.practice().duel.fighters[0]; return f.counterWindow > 0 || f.punish > 0; };
   function hold(by: Strike) {
     holders.add(by);
   }
   function unhold(by: Strike) {
     holders.delete(by);
   }
+  // sandbox spellBuffer: a SPELL press the game cannot take yet (staggered, mid-recovery) waits SPELL_BUFFER_MS and fires the moment it can, so a tap is never silently lost. 0 (trunk) = off.
+  let pendingSpell: { action: Action; until: number } | null = null;
   function request(next: Action) {
     if (!paused() && env.ready()) env.press?.();
-    if (!paused() && env.ready() && accepts(env.practice(), next)) action = next;
+    if (!paused() && env.ready() && accepts(env.practice(), next)) { action = next; pendingSpell = null; }
+    else if (SPELL_BUFFER_MS && (next === 'skill' || next === 'skill2') && !paused() && env.ready()) pendingSpell = { action: next, until: env.now() + SPELL_BUFFER_MS };
   }
   // Directional-cut flash (Dom 2026-10-07: "an indicator which comes at the same time, not before, but faint"): restart the CSS animation on the chosen edge; it removes itself.
   function flashCut(next: Action) {
@@ -115,6 +134,9 @@ export function createInput(env: InputEnv) {
   // move equipped, while it cools or below its stamina, as it refuses any move the player cannot make.
   function requestSkill() {
     request('skill');
+  }
+  function requestSkill2() {   // slot b (spell-slot-defs.json): legal() refuses it with an empty slot, while it cools or below its stamina
+    request('skill2');
   }
   let run = false,
     stickRun = false,
@@ -157,6 +179,8 @@ export function createInput(env: InputEnv) {
     if (side) { attackButton.dataset.slide = side; take(side === 'left' ? 'light_left' : 'light_right'); }
     else requestStrike();
   }
+  function fireStab() { slashWait = null; hold('thrust'); request('thrust'); }   // oneButton: a slide up from STRIKE
+  function fireHeavy() { slashWait = null; hold('heavy'); requestStrike(true); }   // oneButton: a hold on STRIKE
   // Every strike press goes through here: when it is TAKEN, a brief edge flash on the cut side (a thumb slide fires through fireSlash, keys and sticks through requestStrike).
   function take(next: Action) {
     request(next);
@@ -251,12 +275,13 @@ export function createInput(env: InputEnv) {
       }
       hold(name);
       button.dataset.held = ''; // the button's side mark lights while held (see .side-marks in style.css)
-      if (deferred) slashWait = { since: env.now(), x: event.clientX };
+      if (deferred) slashWait = { since: env.now(), x: event.clientX, y: event.clientY };
       else start();
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== id || dragged) return;
-      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (side) { fireSlash(side); return; } }
+      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (ONE_BUTTON) { const dx = event.clientX - slashWait.x, dy = event.clientY - slashWait.y; if (Math.hypot(dx, dy) >= STAB_SLIDE_PX) { if (stabSector(dx, dy)) fireStab(); else fireSlash(dx < 0 ? 'left' : 'right'); return; } } else if (side) { fireSlash(side); return; } }
+      if (ONE_BUTTON && deferred && !slashWait) return;   // oneButton: the swipe has decided (stab, cut or heavy); sliding on out of the circle is not a guard press that overrides it
       const c = radius();
       if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
       dragged = true;
@@ -271,6 +296,7 @@ export function createInput(env: InputEnv) {
         id = null;
         if (deferred && slashWait) { if (type === 'pointerup' && !dragged) fireSlash(null); else slashWait = null; }   // a release decides the plain light
         unhold(name);
+        if (ONE_BUTTON && deferred) { unhold('heavy'); unhold('thrust'); }   // oneButton: the swing the swipe chose is released with the thumb
         delete button.dataset.held;
         if (deferred) delete button.dataset.slide;
         if (dragged) {
@@ -294,10 +320,25 @@ export function createInput(env: InputEnv) {
       });
   }
   strikeControl(attackButton, 'light', () => requestStrike(), true);
+  if (typeof document !== 'undefined' && tapLogOn(location.search)) attachTapLog(document, attackButton);   // `?taplog=1` only: a local STRIKE press-length meter (tap-log.ts); off by default, nothing leaves the page
+  if (ONE_BUTTON && typeof document !== 'undefined') applyTouchLayout(document, location.search);   // touch layout A goes with the one-button strike (touch-layout.ts); off by default
   skillButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();
       requestSkill();
+    }
+  });
+  skill2Button.addEventListener('pointerdown', (event) => {
+    if (event.button === 0) {
+      event.preventDefault();
+      requestSkill2();
+    }
+  });
+  skill2Button.addEventListener('pointercancel', () => withdraw('skill2'));
+  skill2Button.addEventListener('keydown', (event) => {
+    if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
+      event.preventDefault();
+      requestSkill2();
     }
   });
   skillButton.addEventListener('pointercancel', () => withdraw('skill'));
@@ -306,6 +347,10 @@ export function createInput(env: InputEnv) {
       event.preventDefault();
       requestSkill();
     }
+  });
+  // sandbox-mech spell slot 2: the sandbox's SPELL 2 button (#sbx-spell2, built by sandbox/entry.ts after the page boots) presses the second spell; delegated so the button may appear any time, and absent on every other build.
+  skillButton.ownerDocument?.addEventListener?.('pointerdown', (event) => {
+    if ((event as PointerEvent).button === 0 && (event.target as HTMLElement | null)?.closest?.('#sbx-spell2')) { event.preventDefault(); request('skill2'); }
   });
   kickButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
@@ -442,7 +487,8 @@ export function createInput(env: InputEnv) {
     },
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): ControlIntent {
-      if (slashWait && env.now() - slashWait.since >= SLASH_DECIDE_MS) fireSlash(null);
+      if (slashWait && env.now() - slashWait.since >= (ONE_BUTTON ? heavyHoldMs(counterOpen()) : SLASH_DECIDE_MS)) { if (ONE_BUTTON) fireHeavy(); else fireSlash(null); }   // oneButton: a hold past heavyHoldMs() (HEAVY_HOLD_MS, or HEAVY_HOLD_WINDOW_MS inside a counter window) is the heavy
+      if (pendingSpell) { if (env.now() > pendingSpell.until) pendingSpell = null; else if (!action && env.ready() && accepts(env.practice(), pendingSpell.action)) { action = pendingSpell.action; pendingSpell = null; } }
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.
@@ -479,7 +525,7 @@ export function createInput(env: InputEnv) {
     },
     // Every press, hold, key and stick released: the welcome/journal/rename/visibility paths, a rematch, a graphics loss.
     clear() {
-      action = null;
+      action = null; pendingSpell = null;
       cancel = true;
       dodgeHeld = null;
       holders.clear();

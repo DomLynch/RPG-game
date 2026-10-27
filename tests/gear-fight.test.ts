@@ -2,6 +2,7 @@
 // set worth 50 more (25 shape, 25 quality). The duel reads attack, armour, health, poise and recovery from the dial ROWS. These tests pin the bar: the naked fight is the fight it was (byte for byte), a
 // dial never moves a duration, ONE validator holds the build (no number past 100, no point past the level), a record cannot smuggle a sheet past the verifiers, a new dial / skill / set / school / piece
 // is a row, and a recorded sheet fight replays with its first differing tick named.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, withSheet, type Action, type Duel, type Intent } from '../src/fight/duel.ts';
@@ -11,7 +12,7 @@ import { DIALS, POINTS, SHEET_SKILLS, checkSheet, pointsAt, sheetOf, statDown, s
 import { GEAR, gearDeltas, loadGearDefs } from '../src/fight/gear-rows.ts';
 import { SCHOOLS, SCHOOL_IDS } from '../src/fight/schools.ts';
 import { createRecorder, encodeRecord, packRecord, unpackRecord, FIRST_SHEET_VERSION, RECORD_VERSION } from '../src/fight/record.ts';
-import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { sheetRefusal, verifyRecord } from '../src/fight/replay.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
@@ -133,7 +134,7 @@ test('the first differing tick of a sheet fight against the same intents without
 
 test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25 spread by weights); light / medium / heavy are three preset rows; a worn set resolves to dial deltas; the loader refuses a bad table', () => {
   assert.deepEqual(Object.values(GEAR.sets).map((t) => [t.id, t.shape]), [['plate', { armour: 25, magicResist: -25 }], ['robes', { magicResist: 25, armour: -25 }], ['leathers', { stamina: 25, armour: -25 }]]);
-  assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'leathers'], [true, null], [true, 'plate']]);
+  assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'robes'], [true, 'leathers'], [true, 'plate']]);   // RV79 (sandbox gear-defs, Dom-approved 2026-10-18): the light preset is robes and the medium preset leathers (were leathers and none)
   assert.equal(GEAR.owners.veteran, 'plate'); assert.equal(GEAR.owners.witch, 'robes');
   const quality = (d: Record<string, number>, set: string, c = 1) => Object.entries(d).reduce((n, [dial, v]) => n + v - Math.sign(GEAR.sets[set]!.shape[dial] ?? 0) * Math.round(Math.abs(GEAR.sets[set]!.shape[dial] ?? 0) * c), 0) + Math.round(GEAR.weights[GEAR.sets[set]!.weightClass]!.castPenalty * c);   // what is left of the deltas after the (scaled) shape, with the weight class's cast penalty added back
   assert.deepEqual(gearDeltas('plate', 1, 0), { armour: 25, magicResist: -25, spellPower: -20 }, 'a full COMMON set is all shape and no quality; heavy takes 20 off spellPower');
@@ -193,10 +194,10 @@ test('a sheet fight records no lower than the cast-penalty version with its dial
   const rec = createRecorder({ ...meta, sheet }), plain = createRecorder(meta);
   for (let i = 0; i < 30; i++) { rec.push(idle()); plain.push(idle()); }
   const a = rec.finish('abandoned'), b = plain.finish('abandoned');
-  assert.equal(a.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight carries the worn set\'s cast penalty from that version, so it is stamped no lower'); assert.notEqual(b.v, FIRST_CAST_PENALTY_VERSION, 'no sheet: the lowest version that can express the fight');
+  assert.equal(a.v, SHEET_ERA_VERSION, 'a sheet fight carries the worn set\'s cast penalty from that version, so it is stamped no lower'); assert.notEqual(b.v, SHEET_ERA_VERSION, 'no sheet: the lowest version that can express the fight');
   assert.deepEqual(unpackRecord(packRecord(a)), a);
   const bytes = packRecord(a);
-  assert.equal(bytes[2], FIRST_CAST_PENALTY_VERSION);
+  assert.equal(bytes[2], SHEET_ERA_VERSION);
   assert.equal(verifyRecord(a, undefined, { sheet: 'trust' }).ok, true);
   const at = bytes.length - 6 * 30 - (1 + 4 + 4 + 1) - (1 + 2 * 3 + 1 + 0 + 4);   // the sheet block: count, (code, value) x 3, an empty character id and a zero build version, just before level
   assert.equal(bytes[at], 3, 'three pairs');
@@ -266,7 +267,7 @@ test('the cast penalty is keyed on the record\'s version: an older heavy-armour 
   setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);
   const rec = createRecorder({ ...meta, sheet: newSheet, characterId: 'c1', buildVersion: 1 }); for (let i = 0; i < 10; i++) rec.push(idle());
   const fresh = rec.finish('abandoned');
-  assert.equal(fresh.v, FIRST_CAST_PENALTY_VERSION); assert.equal(newSheet.spellPower, 20, 'heavy takes 20 off a spellPower of 40');
+  assert.equal(fresh.v, SHEET_ERA_VERSION); assert.equal(newSheet.spellPower, 20, 'heavy takes 20 off a spellPower of 40');
   assert.deepEqual(await expectedSheet(fresh, load, gearDeltas('plate', 1, 0, fresh.v)), { ok: true, sheet: newSheet });
   assert.deepEqual(unpackRecord(packRecord({ ...fresh, v: FIRST_SHEET_VERSION as typeof fresh.v })).sheet, fresh.sheet, 'a v48 stamp still decodes: the version only picks the recomputation');
 });

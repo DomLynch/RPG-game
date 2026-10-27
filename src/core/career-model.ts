@@ -78,28 +78,25 @@ export const isType = (types: TypeTable, t: unknown): t is string => typeof t ==
 // Level-difference falloff, permille, by d = target level − your level. CAP-INDEPENDENT by construction: it reads only the
 // difference d, never an absolute level. The one ladder fact it uses is the title width (src/core/career-ladder.ts RANK_STEPS, five sub-ranks a
 // title): exactly one title below you pays a fifth, and anything more than a whole title below you is grey and pays nothing.
+const FALLOFF = [...CAREER_RULES.falloff].sort((a, b) => b.minDiff - a.minDiff);   // the falloff rows of career-rules.json, steepest gain first (tests/career-rules.test.ts pins every step)
 export function falloffPermille(d: number): number {
-  if (d >= 3) return 1250;
-  if (d >= 1) return 1100;
-  if (d === 0) return 1000;
-  if (d >= -2) return 900;
-  if (d >= -4) return 500;
-  if (d >= -RANK_STEPS) return 200;
-  return 0; // grey
+  return FALLOFF.find((r) => d >= r.minDiff)?.permille ?? 0; // below the last row: grey
 }
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
 // Party share for 'split' rows (EverQuest's group shape): pool = X·(1 + g/2), g = 1 + 0.2·(n−1); each member gets pool/n.
 export const MAX_PARTY = RULE.maxParty;
+export const PARTY_KEY_MAX = RULE.partyKeyMax;   // the longest party key a boss kill may carry (careerRule row; the 1..N characters rule in origins/boss/boss.ts)
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;
-  const g = 1000 + 200 * (n - 1);
+  const g = 1000 + RULE.partyStep * (n - 1);
   return Math.floor((1000 + g / 2) / n); // n=2 800, n=3 566, n=4 450
 }
 // A member is eligible for party credit only if within the level gap of the party's highest member: gap ≤ max(5, floor(L/2)).
+export const PARTY_GAP_FLOOR = RULE.partyGapFloor;   // the least level gap a party always allows (careerRule row)
 export const partyEligible = (memberLevel: number, highestLevel: number): boolean =>
-  highestLevel - memberLevel <= Math.max(5, Math.floor(memberLevel / 2));
+  highestLevel - memberLevel <= Math.max(PARTY_GAP_FLOOR, Math.floor(memberLevel / 2));
 // An 'each' row (a boss) pays a member only for a real share of the fight.
 export const MIN_CONTRIBUTION_PERMILLE = RULE.minContributionPermille; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
@@ -163,7 +160,8 @@ export function fillPermille(credit: number, cap: number = CAREER_MAX_LEVEL): nu
   return Math.floor(((Math.floor(credit) - cumulative(level)) * 1000) / requirement(level));
 }
 // The title tier (1..10) of a level: five sub-ranks a title, Origin (tier 10) from level 46 on.
-export const tierOf = (level: number): number => Math.min(10, Math.floor((wholeLevel(level) - 1) / RANK_STEPS) + 1);
+export const TOP_TIER = RULE.topTier;   // Origin (careerRule row)
+export const tierOf = (level: number): number => Math.min(TOP_TIER, Math.floor((wholeLevel(level) - 1) / RANK_STEPS) + 1);
 // The top level reopens every boss (Dom, 2026-10-06): reaching the cap clears the beaten flags, and while at the cap none is kept.
 export const allBossesOpen = (level: number, cap: number = CAREER_MAX_LEVEL): boolean => wholeLevel(level) >= cap;
 

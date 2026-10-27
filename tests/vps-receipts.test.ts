@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -73,6 +74,8 @@ test('a receipt is refused unless its HF job verifies (completed, allowed flavor
   const cpu: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade'), TREES);
   const t4: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-medium'), TREES);
   assert.ok(t4.length > cpu.length && cpu.every(i => t4.includes(i)));
+  const t4small: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-small'), TREES);
+  assert.deepEqual(t4small, t4, 'the default t4-small may vouch for exactly the rows t4-medium may');
   for (const name of ['double-tap-browser-check', 'next-fight-black-check']) assert.ok(!t4.includes(commands.findIndex((c: string[]) => c.join(' ').includes(name)) + 1), `${name}: WebKit stays on the Mac`);
 });
 
@@ -281,7 +284,8 @@ test('run-rows.sh prints the last 50 lines of every FAILED or CEILING row into t
 test('the job command caps every setup step at 300 s so a wedged apt or fetch fails the job fast (S attempt 1: 15+ min in apt-get)', () => {
   for (const kind of ['unit', 'rows']) {
     const text = jobCommand(kind, sha)[2];
-    for (const step of ['apt-get update', 'apt-get install', 'git fetch']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+    for (const step of ['apt-get update', 'apt-get install']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+    assert.match(text, /for i in 1 2 3; do timeout 120 git fetch -q origin /, `${kind}: git fetch is 3 attempts of at most 120 s (Strategy 2026-10-21: a GitHub outage must retry, not hang)`);
   }
 });
 

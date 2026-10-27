@@ -1,6 +1,7 @@
 // Post-publish rows (Lead + Strategy 2026-10-13): rows 9 and 46, the candidate CI's tail (854 s and 458 s), run right AFTER Published instead of gating it. CI leaves them out of a
 // candidate's matrix, deploy.sh defers them (RELEASE_CHECKS_DEFERRED) and runs them once the release is live (scripts/lib/post-publish.sh), and a failure there is a RED line,
 // exit 1 (the release train stops and keeps its hold) and a deploy_hold for the next publish, never a silent pass.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -261,4 +262,151 @@ test('post_publish_rows: POST_PUBLISH_LIVE_CMD must name the row\'s target revis
 
 test('deploy.sh: gives the post-publish rows the live-revision lookup', () => {
   assert.match(readFileSync(join(process.cwd(), 'scripts/deploy.sh'), 'utf8'), /POST_PUBLISH_LIVE_CMD=.*release\.json/);
+});
+
+// Lead 2026-10-17 (IF: 14 post-publish rows ran on a Mac at load ~27): the non-Mac group goes to the runners first. CI-trusted by tree, else one release-checks dispatch, the Mac keeps what CI could not prove.
+test('subtractRows: a without b, ascending, no duplicates', async () => {
+  const { subtractRows } = await import('../scripts/lib/row-placement.mjs');
+  assert.equal(subtractRows('9,46,3,15', '46,3'), '9,15');
+  assert.equal(subtractRows('9,46', '9,46'), '');
+  assert.equal(subtractRows('9,46', ''), '9,46');
+  assert.equal(subtractRows('', '9'), '');
+});
+
+const ciRows = (env: Record<string, string>) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; open=$(post_publish_ci_start abc123 "$ROWS"); echo "START:$open" >&2; post_publish_ci_collect abc123 "$ROWS" "$open"`], {
+  encoding: 'utf8', env: { ...process.env, ROWS: '9,46,3,15', POST_PUBLISH_CI_SETTLE_S: '0', POST_PUBLISH_RUNNING_CMD: 'echo 0', ...env },   // no run in progress unless a test says so (never ask GitHub from a test)
+});
+
+// The trust and dispatch commands are word-split (no quote parsing), so a test stands them in with small scripts.
+const stub = (root: string, name: string, body: string) => { const file = join(root, name); writeFileSync(file, `#!/bin/bash\n${body}\n`, { mode: 0o755 }); return file; };
+
+test('post_publish_ci_rows: rows already green on CI for the tree never reach the Mac and nothing is dispatched', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3,15'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+    assert.ok(!/DISPATCHED/.test(r.stderr));
+    assert.match(r.stderr, /Mac none, the rest CI-trusted/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a release-checks run for the revision that is still in progress is waited for, never dispatched over (all runs share one cancel-in-progress group; Auditor on #3462)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    // deploy.sh's dispatch-first run (or the PR's) is queued/in progress; the first look has not proved 3 and 15 yet, the wait does
+    const trust = stub(root, 'trust.sh', `n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3,15; fi`);
+    const dispatch = stub(root, 'dispatch.sh', `echo dispatched >> ${calls}`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: stub(root, 'running.sh', 'echo 1') });   // called with the revision as $1, like _pp_running_count
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!existsSync(calls), 'no second dispatch: it would cancel the run in progress');
+    assert.match(r.stderr, /a release-checks run for it is still in progress \(1\); not dispatching a second one/);
+    assert.equal(r.stdout, '', 'the wait found the rows CI proved: nothing left for the Mac');
+    // and with nothing in progress the dispatch still happens (the guard is only for a live run); the trust stub counts its calls, so start it over
+    rmSync(`${calls}.n`, { force: true });
+    const idle = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: stub(root, 'idle.sh', 'echo 0') });
+    assert.equal(idle.status, 0, idle.stderr);
+    assert.equal(readFileSync(calls, 'utf8').trim(), 'dispatched');
+    // a lookup that fails or prints nothing does not block the dispatch either (fail open to the old behaviour)
+    rmSync(calls); rmSync(`${calls}.n`, { force: true });
+    ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_RUNNING_CMD: 'false' });
+    assert.equal(readFileSync(calls, 'utf8').trim(), 'dispatched');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: rows CI has not proved start one release-checks dispatch on the trunk ref, then only the still-unproved rows are left for the Mac', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    // first look trusts 9,46; after the dispatch CI also proved 3 (15 stays red/missing)
+    const trust = stub(root, 'trust.sh', `n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3; fi`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: `${stub(root, 'dispatch.sh', `echo "$@" >> ${calls}`)} --ref trunk-ref`, POST_PUBLISH_CI_REF: 'trunk-ref' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '15');
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 1, 'exactly one dispatch');
+    assert.match(readFileSync(calls, 'utf8'), /trunk-ref/);
+    assert.match(r.stderr, /Mac 15, the rest CI-trusted/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// Strategy 2026-10-20 (K6d): the post-publish dispatch got an HTTP 500, nothing retried, the tail found no run and raised RED (10 min lost). The dispatch is tried three times, 30 s apart; only when
+// every try fails does it leave a dispatch-failed file for the tail.
+test('post_publish_ci_rows: a dispatch that fails twice and then works is retried (3 tries) and leaves no dispatch-failed file', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), n = join(root, 'n'), calls = join(root, 'calls');
+  try {
+    const dispatch = stub(root, 'dispatch.sh', `c=$(cat ${n} 2>/dev/null || echo 0); echo $((c+1)) > ${n}; echo x >> ${calls}; [ $c -ge 2 ]`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3'), POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 3, 'two failures then the success');
+    assert.match(r.stderr, /dispatch failed \(try 1 of 3\)/);
+    assert.match(r.stderr, /dispatch failed \(try 2 of 3\)/);
+    assert.ok(!existsSync(join(root, 'post-publish-dispatch-failed-abc123')), 'a late success leaves nothing for the tail');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a dispatch that fails every try is tried exactly 3 times and leaves the dispatch-failed file (rows, revision, ref) for the tail', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', `echo x >> ${calls}; exit 22`), POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 3);
+    assert.match(r.stderr, /dispatch failed every try; the Mac runs rows/);
+    assert.match(readFileSync(join(root, 'post-publish-dispatch-failed-abc123'), 'utf8'), /^rows 3,9,15,46 revision abc123 ref codex\/01a09a76\/task-1 at /);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a failed dispatch or POST_PUBLISH_CI=off leaves every row for the Mac, as before', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: 'false', POST_PUBLISH_DISPATCH_RETRY_S: '0', RELEASE_TRAIN_STATE: root });
+    assert.equal(down.stdout, '3,9,15,46');
+    assert.match(down.stderr, /dispatch failed/);
+    const off = ciRows({ POST_PUBLISH_CI: 'off', POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(off.stdout, '9,46,3,15');
+    assert.ok(!/DISPATCHED/.test(off.stderr));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_start returns without waiting: one trust look, one dispatch, no CI wait before the Mac group could run', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), log = join(root, 'log');
+  try {
+    const trust = stub(root, 'trust.sh', `echo "trust wait=\${CI_ROWS_WAIT_S:-0}" >> ${log}; echo 9`);
+    const r = spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_ci_start abc123 9,46`], {
+      encoding: 'utf8', env: { ...process.env, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', `echo dispatch >> ${log}`) },
+    });
+    assert.equal(r.stdout, '46');
+    assert.equal(readFileSync(log, 'utf8'), 'trust wait=0\ndispatch\n');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_*: fail closed. A subtract that fails leaves every row for the Mac', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), bin = join(root, 'bin');
+  try {
+    mkdirSync(bin);
+    stub(bin, 'node', 'exit 1');   // row-placement.mjs subtract cannot run
+    const r = ciRows({ PATH: `${bin}:${process.env.PATH}`, POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3,15'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'true') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '9,46,3,15');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: the non-Mac post-publish group is narrowed by post_publish_ci_rows before the Mac group runs; no workflow file is part of it', () => {
+  assert.match(deploy, /pp_open=\$\(post_publish_ci_start "\$revision" "\$post_publish"\)/);
+  assert.match(deploy, /post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/);
+  // the dispatch starts before the rollback-capable Mac group, the wait for CI comes after it: the Mac group never waits on CI
+  const start = deploy.indexOf('post_publish_ci_start'), mac = deploy.indexOf('post_publish_rows "$revision" "$mac_deferred"'), collect = deploy.indexOf('post_publish_ci_collect "$revision"');
+  assert.ok(start > 0 && start < mac && mac < collect);
+});
+
+test('deploy-hf.sh: "no wall rows to run" is nothing to launch, any other launch error is still "launch failed"', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hf-launch-'));
+  try {
+    mkdirSync(join(root, 'scripts'));
+    const run = (stderr: string) => {
+      writeFileSync(join(root, 'scripts', 'hf-wall-rows.mjs'), `process.stderr.write(${JSON.stringify(stderr)}); process.exit(1);`);
+      return spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/deploy-hf.sh')}; command() { return 0; }; hf_wall_rows_prelaunched() { return 1; }; revision=abc; hf_wall_rows_launch`], { encoding: 'utf8', cwd: root });
+    };
+    const none = run('Error: no wall rows to run');
+    assert.match(none.stdout, /no wall rows to launch/);
+    assert.ok(!/launch failed/.test(none.stdout));
+    assert.match(run('Error: boom').stdout, /launch failed; every row runs on the Mac/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

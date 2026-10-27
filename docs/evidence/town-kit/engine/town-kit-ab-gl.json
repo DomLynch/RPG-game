@@ -1,0 +1,80 @@
+[
+ {
+  "arm": "greybox",
+  "stop": 5,
+  "glTrisPerFrame": 142369,
+  "glDrawsPerFrame": 105,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 98,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 18.6,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "arm": "greybox",
+  "stop": 8,
+  "glTrisPerFrame": 136144,
+  "glDrawsPerFrame": 102,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 99,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 18.5,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "arm": "greybox",
+  "stop": 11,
+  "glTrisPerFrame": 136144,
+  "glDrawsPerFrame": 102,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 99,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 18.3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "arm": "kit",
+  "stop": 5,
+  "glTrisPerFrame": 457271,
+  "glDrawsPerFrame": 104,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 99,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 17.9,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "arm": "kit",
+  "stop": 8,
+  "glTrisPerFrame": 496828,
+  "glDrawsPerFrame": 101,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 101,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 18.2,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "arm": "kit",
+  "stop": 11,
+  "glTrisPerFrame": 530552,
+  "glDrawsPerFrame": 101,
+  "triangles": 1,
+  "calls": 1,
+  "programs": 101,
+  "frames": 240,
+  "p50": 16.7,
+  "p95": 18.3,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ }
+]

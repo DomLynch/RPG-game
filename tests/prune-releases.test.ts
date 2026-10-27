@@ -1,4 +1,5 @@
 // scripts/lib/prune-releases.sh: keep KEEP releases in total, current and previous always among them; --dry-run removes nothing.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -85,7 +86,34 @@ test('refuses a KEEP below 2 and a current outside releases/', () => {
   rmSync(root, { recursive: true });
 });
 
-// The writer's install layout: /opt/frankendom-origins/<8 hex>, `current` beside them, no `previous`.
+// The writer's install layout since 2026-10-20: /opt/frankendom-origins/<40 hex> (the full sha), `current` and `previous` beside them. The origins match was 8 hex only, so it matched none of these
+// and the installer's keep-5 prune never removed a tree (55 dirs, 20 GB by 2026-10-21). 8 hex (old names) and exactly 40 both prune; 9..39 or 41 hex, upper case and non-hex names are never touched.
+test('origins layout: 40-hex and 8-hex installs are pruned, current/previous are kept even when oldest, other names are never touched', () => {
+  const root = mkdtempSync(join(tmpdir(), 'prune-origins40-'));
+  const t0 = Date.now() / 1000 - 3600;
+  const full = (i: number) => sha(i);                 // 40 hex
+  const short = (i: number) => sha(i).slice(-8);      // 8 hex
+  const mk = (name: string, age: number) => { const d = join(root, name); mkdirSync(d); writeFileSync(join(d, 'f'), name); utimesSync(d, t0 + age * 60, t0 + age * 60); };
+  for (let i = 1; i <= 10; i++) mk(full(i), i);         // 10 full-sha installs, 1 oldest
+  for (let i = 11; i <= 13; i++) mk(short(i), i);       // 3 old 8-hex installs, newer than the full ones
+  const odd = ['abcdef012', sha(5).slice(-39), sha(5) + '0', 'ABCDEF01', 'keep-me', 'zzzzzzzz'];   // 9 hex, 39 hex, 41 hex, upper case, words, 8 non-hex
+  for (const name of odd) mkdir(name);
+  symlinkSync(join(root, short(13)), join(root, 'current'));
+  symlinkSync(join(root, full(1)), join(root, 'previous'));   // the rollback target is the OLDEST install
+  const dry = run(root, '5', '--dry-run', 'origins');
+  assert.equal(dry.status, 0, dry.stdout + dry.stderr);
+  assert.match(dry.stdout, /5 kept .* 8 to remove/);
+  const before = readdirSync(root).sort();
+  const real = run(root, '5', '', 'origins');
+  assert.equal(real.status, 0, real.stdout + real.stderr);
+  // kept: current (13), previous (the oldest full, 1), then the 3 newest others (12, 11, 10); everything else hex is gone; odd names and both symlinks stay.
+  assert.deepEqual(readdirSync(root).sort(), [short(13), full(1), short(12), short(11), full(10), 'current', 'previous', ...odd].sort());
+  assert.ok(before.length > readdirSync(root).length);
+  rmSync(root, { recursive: true });
+  function mkdir(name: string) { mkdirSync(join(root, name)); }
+});
+
+// Older layout: /opt/frankendom-origins/<8 hex>, `current` beside them, no `previous`.
 test('origins layout: KEEP=5 keeps current and the 4 newest others, leaves other names alone, --dry-run removes nothing', () => {
   const root = mkdtempSync(join(tmpdir(), 'prune-origins-'));
   const t0 = Date.now() / 1000 - 3600;

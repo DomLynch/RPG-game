@@ -3,6 +3,12 @@
   "allow": [
     {"file": "src/fight/sound/creature.ts", "literal": "bite", "reason": "the 'bite' creature sound cue name, not the bite weapon"},
     {"file": "src/fight/characters.ts", "literal": "pommel", "reason": "the pommel attack-clip name (an Attack key), not the Pommel Strike skill id"},
+    {"file": "src/fight/ai.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/characters.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/open-fight.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names (RV83: the open world's bow hero carries the special share, heroSheeted)"},
+    {"file": "src/fight/missile-fx.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/sandbox-rules.ts", "literal": "bow", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the bow weapon id the same word now also names"},
+    {"file": "src/fight/sandbox-rules.ts", "literal": "staff", "reason": "the missile row's `kind` column (bow | staff): the ranged-mechanism vocabulary read from the missile rows via missileOf(), a category of how the shot flies, not the staff weapon id the same word now also names"},
     {"file": "src/fight/miasma-mark.ts", "literal": "miasma", "reason": "fx handler verb (miasma-mark.ts:13): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"},
     {"file": "src/fight/scorch.ts", "literal": "witchfire", "reason": "fx handler verb (scorch.ts:64): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"},
     {"file": "src/fight/charge-timing.ts", "literal": "charge", "reason": "fx handler verb (charge-timing.ts:19): the skill row's fx field names this module as its only handler, so the literal is the verb, not the skill id"}
@@ -11,6 +17,20 @@
     {"file": "origins/region1/load.ts", "name": "LOCAL_NAMESPACES", "dispatch": "localId", "sunset": "deleted when the region1 tables move onto the shared loader (the namespace becomes the manifest's table key)"},
     {"file": "origins/world/town.ts", "name": "TOWN_NODES", "dispatch": "building()", "sunset": null},
     {"file": "origins/zones/from-row.ts", "name": "ROW_KEYS", "dispatch": "zoneFromRow", "sunset": "becomes the zone manifest's field list when zones adopt the shared loader"},
-    {"file": "origins/inventory/inventory.ts", "name": "GRIDS", "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)", "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"}
+    {"file": "src/core/items/inventory.ts", "name": "GRIDS", "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)", "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"}
+  ],
+  "branchIds": [
+    {"file": "origins/preview/prop-kit.ts", "literal": "rim", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the kit placer switches on, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "ring", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the kit placer switches on, not a content id"},
+    {"file": "origins/preview/prop-kit.ts", "literal": "fire", "reason": "what a prop `emits` ('fire' puts a smoke column and light on it): a closed effect vocabulary of the prop rows, not a content id"},
+    {"file": "origins/world/building-skins-rules.ts", "literal": "default", "reason": "the fallback parts-list name every skin must carry (a schema convention: a kind with no parts of its own takes it), not a content row id"},
+    {"file": "origins/world/props-rules.ts", "literal": "default", "reason": "the fallback dress-set name (all multipliers 1, the base clutter as it was): a schema convention, not a content row id"},
+    {"file": "origins/world/props-rules.ts", "literal": "rim", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the recipe reader switches on, not a content id"},
+    {"file": "origins/world/props-rules.ts", "literal": "ring", "reason": "a recipe kind (scatter | ring | cluster | rim): the closed placement vocabulary the recipe reader switches on, not a content id"},
+    {"file": "origins/gear/wear-repair.ts", "literal": "kill", "reason": "a wear event kind (kill | hit): the closed event vocabulary of the wear rules (tier.killWear / hitWear are the rows), not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "wake", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "damage", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "gathering", "reason": "a Stage of the boss state machine (dormant, gathering, boss, defeated): a closed mechanism state, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "boss", "reason": "a Stage of the boss state machine (dormant, gathering, boss, defeated): a closed mechanism state, not a content id"}
   ]
 }

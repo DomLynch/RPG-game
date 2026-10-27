@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -25,7 +26,7 @@ const materialsOf = (root: { traverse(cb: (o: unknown) => void): void }) => { co
 
 // Strategy's ruling C (#705, 2026-09-25): nothing is graded. A worn piece keeps its source opponent's material, at every rung, on every wearer.
 test('ruling C: the player\'s worn pieces are never graded: each wears its own material or his same-named one, and his own draws are untouched', async () => {
-  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('hero-classic.glb'));
   const own = materialsOf(player.anchor), ownLook = own.map(finish), mine = new Map(own.map(m => [m.name, m]));
   player.wear(pieces.filter(p => ['veteran.Helmet', 'veteran.Body', 'knight.Body'].includes(lootId(p))));
   const worn = player.worn() as SkinnedMesh[];
@@ -93,7 +94,7 @@ test('grade: every opponent that offers armour is dressed in all of it from his 
 });
 
 test('grade: loot.glb is skinned on the hero\'s own bind pose, so binding a piece with its own inverse binds changes nothing on the player', async () => {
-  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('hero-classic.glb'));
   let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.userData.slot === 'Body' && !body) body = o; });
   for (const piece of pieces) assert.ok(piece.skeleton.boneInverses.every((m, i) => m.equals(body!.skeleton.boneInverses[i])), `${piece.name}: the hero's inverse binds`);
 });
@@ -154,7 +155,7 @@ test('ruling C: SOURCE_DYE is the source opponent\'s own dye, and the Executione
     assert.ok(!SOURCE_MAPPED[id as OpponentId]?.includes(name), `${id}: a mapped ${name} would take the wearer's map instead`);
     assert.equal(dye, warriorAppearance(id).heraldry, `${id}: the dye is his appearance's heraldry`);
   }
-  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('hero-classic.glb'));
   const hood = pieces.find(p => lootId(p) === 'executioner.Crest')!, red = hex(new MeshStandardMaterial({ color: warriorAppearance('hero').heraldry }));
   const own = materialsOf(player.anchor).map(finish);
   player.wear([hood]);
@@ -166,7 +167,7 @@ test('ruling C: SOURCE_DYE is the source opponent\'s own dye, and the Executione
   assert.deepEqual(materialsOf(player.anchor).map(finish), own, 'his own draws keep their look');
 });
 test('ruling C: the Knight\'s iron worn on the hero is the very material the opponent Knight wears; a Goblin piece takes the mapped Steel, ungraded', async () => {
-  const pieces = lootPiecesOf((await parse('loot.glb')).scene), warrior = await parse('warrior.glb'), heroSteel = new Texture();
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), warrior = await parse('hero-classic.glb'), heroSteel = new Texture();
   warrior.scene.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && o.material.name === 'Steel') o.material.map = heroSteel; });   // parse() drops images
   const { player, opponent } = buildWarriors(warrior, await parse(`${ROSTER.knight.body}.glb`), ['longsword', OPPONENTS.knight.weapon]);
   const knight = pieces.filter(p => lootId(p).startsWith('knight.') && p.userData.slot !== 'Shield' && mat(p).name === 'KnightIron'), goblin = pieces.find(p => lootId(p) === 'goblin.Body' && mat(p).name === 'Steel')!;

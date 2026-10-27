@@ -5,28 +5,33 @@ export const DOWN = 1;     // server -> client: [type u8, tick u16, count u8] th
 export const UP_BYTES = 8;
 export const ENTITY_BYTES = 11;   // id u16, x u16, z u16, heading u8, anim u8, flags u8, entity tick u16
 export const HEAD_BYTES = 4;
+export const MAX_ENTITIES = 255;   // the packet's count is one byte
+// Where each field sits in a packet: the layout itself (the byte positions the two sides agree on), each a named exempt entry in scripts/as-data/allow/origins-presence.json. An up packet is
+// [type 0, x 1, z 3, heading 5, anim 6, flags 7]; an entity is [id 0, x 2, z 4, heading 6, anim 7, flags 8, tick 9] from its start in a down packet.
+const UP_Z = 3;
+const ENTITY_X = 2, ENTITY_Z = 4, ENTITY_HEADING = 6, ENTITY_ANIM = 7, ENTITY_FLAGS = 8, ENTITY_TICK = 9;
 
 export type Pose = { x: number; z: number; heading: number; anim: number; flags: number };
 export type Entity = Pose & { id: number; tick: number };
 
 export function encodeUp(p: Pose): Uint8Array {
   const b = new Uint8Array(UP_BYTES), v = new DataView(b.buffer);
-  b[0] = UP; v.setUint16(1, p.x, true); v.setUint16(3, p.z, true); b[5] = p.heading; b[6] = p.anim; b[7] = p.flags;
+  b[0] = UP; v.setUint16(1, p.x, true); v.setUint16(UP_Z, p.z, true); b[5] = p.heading; b[6] = p.anim; b[7] = p.flags;
   return b;
 }
 export function decodeUp(b: Uint8Array): Pose | null {
   if (b.length !== UP_BYTES || b[0] !== UP) return null;
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  return { x: v.getUint16(1, true), z: v.getUint16(3, true), heading: b[5], anim: b[6], flags: b[7] };
+  return { x: v.getUint16(1, true), z: v.getUint16(UP_Z, true), heading: b[5], anim: b[6], flags: b[7] };
 }
 
 export function encodeDown(tick: number, entities: readonly Entity[]): Uint8Array {
-  const n = Math.min(entities.length, 255), b = new Uint8Array(HEAD_BYTES + n * ENTITY_BYTES), v = new DataView(b.buffer);
+  const n = Math.min(entities.length, MAX_ENTITIES), b = new Uint8Array(HEAD_BYTES + n * ENTITY_BYTES), v = new DataView(b.buffer);
   b[0] = DOWN; v.setUint16(1, tick & 0xffff, true); b[3] = n;
   for (let i = 0; i < n; i++) {
     const e = entities[i], at = HEAD_BYTES + i * ENTITY_BYTES;
-    v.setUint16(at, e.id, true); v.setUint16(at + 2, e.x, true); v.setUint16(at + 4, e.z, true);
-    b[at + 6] = e.heading; b[at + 7] = e.anim; b[at + 8] = e.flags; v.setUint16(at + 9, e.tick & 0xffff, true);
+    v.setUint16(at, e.id, true); v.setUint16(at + ENTITY_X, e.x, true); v.setUint16(at + ENTITY_Z, e.z, true);
+    b[at + ENTITY_HEADING] = e.heading; b[at + ENTITY_ANIM] = e.anim; b[at + ENTITY_FLAGS] = e.flags; v.setUint16(at + ENTITY_TICK, e.tick & 0xffff, true);
   }
   return b;
 }
@@ -37,7 +42,7 @@ export function decodeDown(b: Uint8Array): { tick: number; entities: Entity[] } 
   const entities: Entity[] = [];
   for (let i = 0; i < n; i++) {
     const at = HEAD_BYTES + i * ENTITY_BYTES;
-    entities.push({ id: v.getUint16(at, true), x: v.getUint16(at + 2, true), z: v.getUint16(at + 4, true), heading: b[at + 6], anim: b[at + 7], flags: b[at + 8], tick: v.getUint16(at + 9, true) });
+    entities.push({ id: v.getUint16(at, true), x: v.getUint16(at + ENTITY_X, true), z: v.getUint16(at + ENTITY_Z, true), heading: b[at + ENTITY_HEADING], anim: b[at + ENTITY_ANIM], flags: b[at + ENTITY_FLAGS], tick: v.getUint16(at + ENTITY_TICK, true) });
   }
   return { tick: v.getUint16(1, true), entities };
 }

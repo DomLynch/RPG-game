@@ -1,9 +1,10 @@
 // The CI unit receipt (scripts/lib/ci-unit.mjs): eight green shards make one receipt; anything short of that is refused, and deploy trust re-checks tree and run.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { NODE_PIN } from '../scripts/lib/vps-unit.mjs';
-import { buildReceipt, ciUnitReceiptOk, parseShard, SHARDS, type Shard } from '../scripts/lib/ci-unit.mjs';
+import { buildReceipt, ciUnitReceiptOk, latestShardFiles, parseShard, SHARDS, type Shard } from '../scripts/lib/ci-unit.mjs';
 
 const sha = 'a'.repeat(40), tree = 'b'.repeat(40);
 const shard = (n: number, over: Partial<Shard> = {}): Shard => ({ shard: n, of: SHARDS, pass: 100 + n, fail: 0, exit: 0, seconds: 60 + n, node: NODE_PIN.version, ...over });
@@ -75,4 +76,20 @@ test('unit-ci: a stalled shard is cut at 10 minutes and can only fail the receip
   assert.match(receiptJob, /^      - if: needs\.delta\.outputs\.unchanged != 'true'\n        run: '\[ "\$STATIC" != failure \] && \[ "\$STATIC" != cancelled \] \|\| \{[^\n]*exit 1; \}; \[ "\$SHARDS" = success \] \|\| \{[^\n]*exit 1; \}'$/m, 'the first step fails the job when static failed or any shard did not succeed: a red static or a failed shard is a RED receipt, never a skipped one');
   assert.ok(receiptJob.indexOf('SHARDS') < receiptJob.indexOf('actions/checkout') && receiptJob.indexOf('actions/checkout') < receiptJob.indexOf('upload-artifact'), 'the guard comes before the checkout and the receipt upload');
   assert.doesNotMatch(receiptJob, /always\(\)|failure\(\)/, 'nothing lets a cancelled run through to a receipt');
+});
+
+// K6q14 2026-10-21: after `gh run rerun --failed`, the run held attempt 1's red shard-2 artifact AND attempt 2's green one; merged into one dir the two
+// shard-2.json files collided and the receipt read the stale red one ("shard 2: exit 1, 1 failed, pass 757") although shard (2) was 758/0 on attempt 2.
+test('the receipt reads each shard\'s LATEST attempt only, so a rerun\'s green shard replaces the attempt it reran', () => {
+  const files = ['unit-shard-1-a1/shard-1.json', 'unit-shard-2-a1/shard-2.json', 'unit-shard-2-a2/shard-2.json', 'unit-shard-3-a3/shard-3.json', 'unit-shard-3-a10/shard-3.json'];
+  assert.deepEqual(latestShardFiles(files), ['unit-shard-1-a1/shard-1.json', 'unit-shard-2-a2/shard-2.json', 'unit-shard-3-a10/shard-3.json'], 'max attempt per shard, compared as numbers (a10 beats a3); a shard that was not rerun keeps its only attempt');
+  assert.deepEqual(latestShardFiles(['shard-2.json', 'shard-1.json']), ['shard-1.json', 'shard-2.json'], 'flat files (attempt 0) still work');
+  assert.deepEqual(latestShardFiles(['unit-shard-1-a2/shard-4.json', 'unit-shard-1-a1/notes.txt', 'unit-receipt/unit-receipt.json']), [], 'a dir whose shard number does not match its file, and anything that is not a shard file, is ignored');
+});
+
+test('unit-ci: each shard artifact is named by run attempt and downloaded un-merged, so attempts cannot collide', () => {
+  const wf = readFileSync('.github/workflows/unit-ci.yml', 'utf8');
+  assert.match(wf, /^          name: unit-shard-\$\{\{ matrix\.shard \}\}-a\$\{\{ github\.run_attempt \}\}/m, 'the upload name carries the run attempt');
+  assert.doesNotMatch(wf, /merge-multiple: true/, 'no merged download: merged, the same shard-<n>.json from two attempts overwrote each other in arbitrary order');
+  assert.match(readFileSync('scripts/ci-unit-receipt.mjs', 'utf8'), /latestShardFiles\(/, 'the receipt script picks the files through latestShardFiles');
 });

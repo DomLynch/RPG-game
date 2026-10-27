@@ -10,8 +10,16 @@ import { mobLayer } from '../../src/core/server.ts';
 import { isOpponentId } from '../../src/fight/server.ts';
 import type { MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
-import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
+import { liveSpecials, MAX_FIGHT_TICKS, tallyHeroEvents, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 import { kitBuild } from '../../src/core/server.ts';
+import { forceSandbox, rows80For, setRows79, setRows80, setSandbox } from '../../src/fight/sandbox-era.ts';
+
+// The run is under tests/origins-encounter.test.ts, which forces the era off (legacy rules: specials from the Veteran rung, 16). RV80's rule (specials from level 1) is the live era's, so a test of it lifts the force for its own body and puts the run's regime back.
+const withEra = <T>(on: boolean, fn: () => T): T => {
+  const wasOff = !rows80For(80);
+  if (on) { forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(true); } else { forceSandbox(false); setSandbox(false); setRows79(false); setRows80(false); }
+  try { return fn(); } finally { if (wasOff) { forceSandbox(false); setSandbox(false); setRows79(false); setRows80(false); } else { forceSandbox(undefined); setSandbox(true); setRows79(true); setRows80(true); } }
+};
 import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
@@ -74,6 +82,30 @@ test('a forged record is refused: a flipped outcome, a cut or padded intent list
   assert.ok(diverged > 0, 'a tampered intent changes the replay and is caught (at least once over the whole fight)');
 });
 
+test('the record\'s weapon is the character\'s held one (the ledger\'s main hand) or the default, never its own say-so', () => {
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec);   // played with the default longsword
+  const reason = (r: FightRecord, p: EncounterParams) => { const v = verifyEncounter(r, p); return v.ok ? 'ok' : v.reason; };
+  assert.equal(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'longsword' })), 'weapon', 'a bow the ledger does not hold');
+  assert.equal(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'staff' })), 'weapon', 'a bow where the main hand is another weapon');
+  assert.equal(reason(record, params(spec, { weapon: 'bow' })), 'ok', 'the default weapon is always allowed, whatever is held');
+  assert.notEqual(reason({ ...record, weapon: 'bow' }, params(spec, { weapon: 'bow' })), 'weapon', 'the held weapon passes this check (the replay judges the rest)');
+  assert.equal(reason(record, params(spec)), 'ok', 'no held weapon given (an older caller): the check is skipped, as before');
+});
+
+test('a picked duel that pressed SPECIAL 2 verifies through the encounter verifier (the real prod wins), and not without its pick', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { decodeRecord } = await import('../../src/fight/server.ts');
+  const fixture = JSON.parse(readFileSync(new URL('../../tests/fixtures/skill2-picked-duel-records.json', import.meta.url), 'utf8')) as { records: { id: number; record: string }[] };
+  for (const f of fixture.records) {   // the records are RV85: judged under the live era
+    const rec = await decodeRecord(f.record);
+    const params: EncounterParams = { seed: rec.seed, enemy: rec.opponent, level: rec.level, bar: null, flags: [], layer: null };
+    const v = withEra(true, () => verifyEncounter(rec, params));
+    assert.equal(v.ok, true, `claim ${f.id}: ${v.ok ? '' : v.reason}`);
+    const { skill2, ...rest } = rec; void skill2;
+    assert.equal(withEra(true, () => verifyEncounter(rest as FightRecord, params)).ok, false, `claim ${f.id} without its SPECIAL 2 pick`);
+  }
+});
+
 test('the one-health-bar pool is the server\'s: a record played on the pool verifies with it and not without', () => {
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731, bar: 20, flags: [{ kind: 'one-health-bar' }] }, { record } = finished(spec);   // a tiny pool: the foe falls on the first hit, so the pool decides the result
   assert.equal(verifyEncounter(record, params(spec)).ok, true);
@@ -104,11 +136,23 @@ test('a mob layer is the server\'s: a record played under the layer verifies wit
   const v = verifyEncounter(record, params(spec, { layer: 'wolf-pack' })); assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /mob layer/);
 });
 
-test('the special-move phase rule covers every level and agrees with the Veteran rung', () => {
+test('the special-move phase rule covers every level and agrees with the Veteran rung (legacy era)', () => withEra(false, () => {
   const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
   assert.equal(on[0], false); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
   assert.equal(on.indexOf(true), 15, 'level 16 is the first with specials (tests/match-specials-boundary.test.ts)');
-});
+}));
+
+test('RV80: specials start at level 1 for a record at v80 or later, and a v79 record keeps the Veteran rung', () => withEra(true, () => {
+  const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
+  assert.equal(on[0], true); assert.equal(on.indexOf(true), 0, 'level 1 is the first with specials at RV80'); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
+  const old = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1, 79));
+  assert.equal(old[0], false); assert.equal(old[LEVELS - 1], true); assert.equal(old.indexOf(true), 15, 'a v79 record keeps the Veteran rung: level 16 is the first with specials');
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec);   // played in this era: a level-6 fight has specials
+  assert.equal(record.specials, true);
+  const bare: Partial<FightRecord> = { ...record }; delete bare.specials;
+  assert.equal(verifyEncounter(bare as FightRecord, params(spec)).ok, false, 'a v80 record that omits specials at level 6 is refused');
+  assert.equal(verifyEncounter({ ...record, v: 79, specials: true }, params(spec)).ok, false, 'a v79 record that claims specials at level 6 is refused (the Veteran rung is 16)');
+}));
 
 test('kit mismatch: a record played on another mob kit is refused as a kit mismatch (not judged, not a loss); no layer, no check', () => {
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731, layer: 'brute' }, { record } = finished(spec);
@@ -152,4 +196,14 @@ test('the verifier reports, per event type, what was aimed at the hero, counted 
     aimed += Object.values(v.heroHits).reduce((a, b) => a + b, 0);
   }
   assert.ok(aimed > 0, 'at least one of the fixtures has something aimed at the hero');
+});
+
+test('a cone breath is one bite: only pulse 0 of a breath counts toward the hero hits, a plain special still counts once', () => {
+  const into: Record<string, number> = {};
+  tallyHeroEvents(into, [
+    { type: 'SpecialLanded', target: 0, pulse: 0 }, { type: 'SpecialLanded', target: 0, pulse: 1 }, { type: 'SpecialLanded', target: 0, pulse: 2 },   // one breath, three pulses
+    { type: 'SpecialLanded', target: 0 },   // a one-strike special: no pulse field
+    { type: 'Hit', target: 0 }, { type: 'Hit', target: 1 }, { type: 'SpecialLanded', target: 1, pulse: 0 },   // aimed at the foe: never the hero's
+  ]);
+  assert.deepEqual(into, { SpecialLanded: 2, Hit: 1 });
 });

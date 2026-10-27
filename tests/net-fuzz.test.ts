@@ -1,6 +1,7 @@
 // Hostile packets at a live duel (GPT recheck 2026-09-29 at 5f2f622; Lead: Duel writes the receive() guard in src/net, Code Quality writes
 // this test). Everything a page receives came from another machine through JSON.parse: a message that is not a well-formed, in-range
 // duel message is rejected — no throw, no change to the duel or the session, and the fight carries on in step with the honest peer.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { idleIntent, type Intent, type Side } from '../src/fight/duel.ts';

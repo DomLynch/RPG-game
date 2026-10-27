@@ -40,7 +40,7 @@ export function prepareWeaponDrop(root:Object3D,anchor:Group) {
    const shown=elapsed>=0 && group.children.length>0;
    if(held){if(shown && !active)previous=held.visible;if(shown)held.visible=false;else if(active)held.visible=previous;}
    active=shown;group.visible=shown;if(!shown)return;
-   const t=Math.min(1,elapsed/.72),ease=t*t*(3-2*t),at=t*120,i=Math.min(119,Math.floor(at)),floor=floors[i]+(floors[i+1]-floors[i])*(at-i);
+   const t=Math.min(1,elapsed/.72),ease=t*t*(3-2*t),at=t*120,i=Math.min(floors.length-2,Math.floor(at)),floor=floors[i]+(floors[i+1]-floors[i])*(at-i);
    group.quaternion.identity().slerp(rest,ease);group.position.copy(pivot);group.position.x+=.18*ease;group.position.z-=.1*ease;
    group.position.y=Math.max(floor,pivot.y+.35*elapsed-6*elapsed*elapsed);
   },

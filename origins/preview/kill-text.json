@@ -1,0 +1,19 @@
+{
+  "toast": {
+    "guestNoLoot": "Sign in to earn loot you keep.",
+    "guestLoot": "{paid} (this session only).",
+    "notSaved": "Not saved: the server did not answer.",
+    "sandboxKill": "{creature} is down. Not saved in the Test Zone.",
+    "ladderPending": "Ladder win pending.",
+    "receiptPaid": "An earlier kill was already paid: {paid}.",
+    "receiptPaidNothing": "An earlier kill was already paid.",
+    "receiptClosed": "An earlier kill report was not recorded.",
+    "receiptCp": "+{n} CP",
+    "receiptBronze": "+{n} bronze",
+    "receiptItemOne": "{n} item",
+    "receiptItemMany": "{n} items"
+  },
+  "guest": {
+    "signInLoss": "Signing in starts fresh: loot you hold as a guest is not kept."
+  }
+}

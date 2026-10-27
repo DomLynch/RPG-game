@@ -1,9 +1,10 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { MAX_LEVEL, OLD_MAX_LEVEL, DIAL_TRAIL } from '../src/core/career-ladder.ts';
+import { MAX_LEVEL, OLD_MAX_LEVEL, DIAL_TRAIL, RANK_STEPS } from '../src/core/career-ladder.ts';
 import { FREE_RESPREAD_LEVEL, RANK_LEVELS } from '../src/core/build-model.ts';
-import { LEVEL_CURVE, TYPE_WEIGHTS, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, HEAT_UNIT_S, FREE_REPEATS, RESTED_PER_DAY_CP, RESTED_CAP_CP } from '../src/core/career-model.ts';
+import { falloffPermille, partySharePermille, LEVEL_CURVE, TYPE_WEIGHTS, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, HEAT_UNIT_S, FREE_REPEATS, RESTED_PER_DAY_CP, RESTED_CAP_CP } from '../src/core/career-model.ts';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';
 import careerRules from '../src/core/career-rules.json' with { type: 'json' };
 import careerManifest from '../src/core/career-rules.manifest.json' with { type: 'json' };
@@ -13,6 +14,14 @@ import practiceManifest from '../origins/server/practice-rules.manifest.json' wi
 test('career pacing rows: the exports keep the numbers they had in code', () => {
   assert.deepEqual([MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, HEAT_UNIT_S, FREE_REPEATS, RESTED_PER_DAY_CP, RESTED_CAP_CP], [4, 100, 360, 3, 1500, 3000]);
   assert.deepEqual(practiceRules.practiceRule, [{ id: 'practice', practiceUnit: 10, xpPerPoint: 100 }]);
+});
+
+test('the falloff rows and the party step rebuild the if-chain and the 200 they replaced, for every level gap', () => {
+  const old = (d: number): number => (d >= 3 ? 1250 : d >= 1 ? 1100 : d === 0 ? 1000 : d >= -2 ? 900 : d >= -4 ? 500 : d >= -RANK_STEPS ? 200 : 0);
+  for (let d = -30; d <= 30; d++) assert.equal(falloffPermille(d), old(d), `d=${d}`);
+  assert.equal(Math.min(...careerRules.falloff.map((r) => r.minDiff)), -RANK_STEPS);   // the grey line is one title below
+  assert.equal(careerRules.careerRule[0]!.partyStep, 200);
+  assert.deepEqual([2, 3, 4].map(partySharePermille), [800, 566, 450]);
 });
 
 test('career and practice rule files load through the registry, one row each', () => {

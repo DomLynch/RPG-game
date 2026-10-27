@@ -1,5 +1,6 @@
 // The T4 leg is gpu-only (Dom/Lead 2026-10-12, the 40-runner work): GPU_ONLY is exactly the T4 rows whose measured CPU (SwiftShader) time misses
 // the 600 s row ceiling; every other row is CI's. hf-wall-rows' own launch test (tests/hf-wall-rows.test.ts) pins that only these rows are launched.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

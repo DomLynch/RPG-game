@@ -7,14 +7,71 @@ export const PLAYER = 'player';
 /** Everything a zone must have linked and uploaded before it is ready: the player's actor first, then the zone's creature kinds. */
 export const warmList = (kinds: readonly string[]): string[] => [PLAYER, ...kinds.filter((k) => k !== PLAYER)];
 /** Ready when every entry is warmed or failed (a failed one is logged and skipped, never waited for forever). */
+// A zone whose row lists no spawns (the town) never makes a creature view, so it has no body kinds to wait for: only the hero gates it. The count comes from the zone row, never a zone id.
+export const noMobZone = (spawnRows: number): boolean => spawnRows === 0;
+export const emptyWarmState = (): { kinds: string[]; warmed: string[]; failed: string[] } => ({ kinds: [], warmed: [], failed: [] });
 export const warmDone = (list: readonly string[], warmed: readonly string[], failed: readonly string[]): boolean => list.every((k) => warmed.includes(k) || failed.includes(k));
 
 /** Link the programs, upload the textures of `root` (the player's actor), off-frame: a clone with EVERY part visible (a drawn sword, a tabard, the eyes: three compiles only visible objects, and a part hidden until the first cut compiled at engage). */
-export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>): Promise<void> {
+export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>, trace?: { step: string; ms: number }[]): Promise<void> {
   probe.traverse((o) => { o.visible = true; });
   const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
-  await renderer.compileAsync(holder, camera, scene);
+  const c0 = performance.now(), compiling = renderer.compileAsync(holder, camera, scene);
+  trace?.push({ step: 'compile-head', ms: Math.round(performance.now() - c0) });   // the synchronous part of the call: the program parameters and the first shader work
+  await compiling;
   const textures = new Set<THREE.Texture>();
   probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
-  for (const t of textures) { renderer.initTexture(t); await frame(); }
+  for (const t of textures) {
+    const u0 = performance.now(); renderer.initTexture(t); const ms = Math.round(performance.now() - u0);
+    if (trace && ms >= 5) trace.push({ step: `texture ${(t.image as { width?: number } | undefined)?.width ?? '?'}px`, ms });   // only the uploads that cost a visible slice
+    await frame();
+  }
+}
+
+/** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
+export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { const m = medianGap(gapsMs); return m !== undefined && m > limitMs; };
+/** The median of the sampled frame gaps (ms), the figure the verdict compares to the limit; undefined for an empty sample. */
+export const medianGap = (gapsMs: readonly number[]): number | undefined => (gapsMs.length ? [...gapsMs].sort((a, b) => a - b)[gapsMs.length >> 1] : undefined);
+/** The `?probe=1` readout (Strategy 2026-10-19: a real-phone number for the 100 ms limit): the measured median against the limit, the verdict it gives, and the release the verdict is keyed to. Pure text, so the page only draws it. */
+export const probeReadout = (medianMs: number | undefined, limitMs: number, release: string | undefined): string => (
+  `probe ${medianMs === undefined ? 'no sample' : `${Math.round(medianMs)} ms median`} (limit ${limitMs} ms): ${medianMs !== undefined && medianMs > limitMs ? 'slow' : 'ok'} | release ${release ? release.slice(0, 9) : 'unread'}`);
+
+/** The slow-device verdict is STICKY for the device: one measure on one load gave a different answer from the next load of the same machine, so a phone near the threshold got a different game each load. A stored record is `<1|0>@<epoch ms>`;
+ *  it is trusted for `ttlMs` (a row: slowVerdictMs) and then re-measured, so a device that changed (a new browser, a cooler phone) is not stuck for ever. `undefined` = no usable record (absent, malformed, from the future or past its ttl): measure. Pure. */
+export const slowVerdict = (stored: string | null | undefined, nowMs: number, ttlMs: number, release?: string): boolean | undefined => {
+  const m = /^([01])@([0-9a-f]{40}|\d{1,15})$/.exec(stored ?? '');
+  if (!m) return undefined;
+  if (release !== undefined) return m[2] === release ? m[1] === '1' : undefined;   // keyed to the RELEASE (Strategy 2026-10-19): a new live sha re-measures, so a phone that measured slow once is not stuck without armoured remote heroes
+  if (m[2]!.length === 40) return undefined;   // a release record and the release cannot be read now (offline, dev server): its age is unknown, measure
+  const at = Number(m[2]);
+  return at <= nowMs && nowMs - at < ttlMs ? m[1] === '1' : undefined;   // release unreadable: the time limit, so nothing sticks for ever
+};
+/** `release` = the id the verdict is keyed to; absent (unreadable) = the epoch ms, the time limit applies. */
+export const slowVerdictRecord = (slow: boolean, nowMs: number, release?: string): string => `${slow ? 1 : 0}@${release ?? Math.round(nowMs)}`;
+/** The page's release id from the same-origin /release.json ({"revision":"<40 hex>"}, written by deploy.sh), or undefined when it cannot be read in `timeoutMs` (a dev server answers its index page, an offline phone nothing). Pure but for the injected fetch. */
+export async function readReleaseId(fetchJson: (signal: AbortSignal) => Promise<unknown>, timeoutMs: number): Promise<string | undefined> {
+  const ctl = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((r) => { timer = setTimeout(() => { ctl.abort(); r(null); }, timeoutMs); });   // raced, so a fetch that ignores the abort cannot hold the probe
+  try {
+    const rev = (await Promise.race([fetchJson(ctl.signal), late]) as { revision?: unknown } | null)?.revision;
+    return typeof rev === 'string' && /^[0-9a-f]{40}$/.test(rev) ? rev : undefined;
+  } catch { return undefined; } finally { clearTimeout(timer); }
+}
+/** Keep (store) a measured verdict only when the page was visible for the WHOLE probe: a hidden or backgrounded tab throttles or suspends rAF, measures as slow and would stick for the ttl. `hiddenSeen` = a visibilitychange to hidden fired during the probe. The verdict still serves this load either way. Pure. */
+export const keepVerdict = (visibleAtStart: boolean, visibleAtEnd: boolean, hiddenSeen: boolean): boolean => visibleAtStart && visibleAtEnd && !hiddenSeen;
+
+/**
+ * Warm `kits` one after another within `boundMs` (the kit warm-up's own cap, `kitWarmMs`). `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit and the result is `failed: true`, so the page keeps remotes
+ * on the base figure. A compile cannot be taken back, so the ONE kit already in flight is waited for (at most `hardMs`, a compile that never settles must not hold the zone): when this returns nothing is compiling and nothing will, so nothing compiles after ready.
+ * A kit that throws stops the loop the same way. `done` runs once when the loop has really ended (clean up what it set up). `ended` resolves at that same moment: a kit that outlasts `hardMs` (a slow runner) is still compiling when this returns,
+ * so whoever must not read the programs mid-compile (the page's `remoteKitsWarm`, the row's `before` snapshot) waits for `ended`.
+ */
+export async function warmKitsWithin<K>(kits: readonly K[], warmOne: (kit: K) => Promise<void>, boundMs: number, settle: (label: string, work: Promise<unknown>, boundMs: number) => Promise<boolean>, done: () => void = () => {}, hardMs = boundMs * 6): Promise<{ failed: boolean; warmed: number; ended: Promise<void> }> {
+  let stop = false, broke = false, warmed = 0;
+  const loop = (async () => {
+    try { for (const kit of kits) { if (stop) return; await warmOne(kit); warmed++; } } catch { broke = true; } finally { done(); }
+  })();
+  const settled = await settle('remote-kits', loop, boundMs);
+  if (!settled) { stop = true; await settle('remote-kits in flight', loop, hardMs); }
+  return { failed: !settled || broke, warmed, ended: loop };
 }

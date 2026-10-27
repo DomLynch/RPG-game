@@ -34,3 +34,30 @@ test('a guest keeps no loot and is told to sign in; a signed-in page the server 
   assert.equal(killToast({ offline: 'timeout' }, name, 'Wolf'), `Wolf is down. ${NOT_SAVED}`);
   assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', true), `Wolf is down. ${SIGN_IN_TO_KEEP} Bounty done.`);
 });
+
+import { reportsKills } from './kill-apply.ts';
+import { killCopy } from './legend-copy.ts';
+import { allZoneIds, loadZone } from '../zones/loader.ts';
+test('an UNLISTED zone (the Test Zone) sends no kill_report and its kill line says nothing was saved; a listed zone reports as before', () => {
+  assert.equal(reportsKills(loadZone('1')), true, 'Zone 1 reports its kills');
+  const unlisted = allZoneIds().filter((id) => loadZone(id, true).unlisted);
+  assert.ok(unlisted.length > 0, 'the registry has an unlisted zone');
+  for (const id of unlisted) assert.equal(reportsKills(loadZone(id, true)), false, `zone ${id} is unlisted: no kill_report`);
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Wolf', false, null, true), 'Wolf is down. Not saved in the Test Zone.');
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Wolf', true, null, true), 'Wolf is down. Not saved in the Test Zone. Bounty done.');
+  assert.equal(killToast(withLoot, name, 'Wolf', false, null, false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'sandbox false changes nothing for a listed zone');
+});
+
+// A ladder roster kill (the spawn row says `roster`, Dungeon 1) is a ladder win the writer settles within a minute (#3587): the toast says so, in words that are a row (kill-text.json), only for a kill the server took.
+test('a ladder roster kill adds the pending line after what the server paid; a guest, an unsaved or a sandbox kill never does', async () => {
+  const { default: TEXT } = await import('./kill-text.json', { with: { type: 'json' } });
+  assert.equal(TEXT.toast.ladderPending, 'Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Bone Knight', false, null, false, null, true), 'Bone Knight is down. +20 CP · +3 bronze · Wolf pelt ×2. Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Bone Knight', true, null, false, null, true), 'Bone Knight is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done. Ladder win pending.');
+  assert.equal(killToast({ ...killed(0), bronze: 0 }, name, 'Bone Knight', false, null, false, null, true), 'Bone Knight is down. Nothing paid. Ladder win pending.');
+  assert.equal(killToast(withLoot, name, 'Wolf', false, null, false, null, false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'a plain creature says nothing about the ladder');
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Bone Knight', false, null, false, null, true), `Bone Knight is down. ${SIGN_IN_TO_KEEP}`, 'a guest has no ladder');
+  assert.equal(killToast({ offline: 'timeout' }, name, 'Bone Knight', false, null, false, null, true), `Bone Knight is down. ${NOT_SAVED}`, 'an unanswered kill is not pending');
+  assert.equal(killToast({ offline: 'unlisted' }, name, 'Bone Knight', false, null, true, null, true), 'Bone Knight is down. Not saved in the Test Zone.', 'an unlisted zone has no ladder');
+  assert.equal(killToast(withLoot, name, 'Crixus', false, null, false, killCopy(), true), 'Crixus is defeated.\nReward: +20 CP · +3 bronze · Wolf pelt ×2. Ladder win pending.', 'a Pit legend (Dungeon 1) is defeated with a Reward line, then the pending line');
+});

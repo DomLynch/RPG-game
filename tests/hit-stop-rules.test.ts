@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';
@@ -10,9 +11,9 @@ import { stopFor } from '../src/hit-stop.ts';
 import { KICK, impactStopMs } from '../src/fight/hit-impact.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
-test('hit-stop rules: the table and the heavy pair are exactly the numbers main.ts held in code (ms)', () => {
-  assert.deepEqual(HIT_STOP, { SpecialLanded: 50, Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, Killed: 220 });
-  assert.deepEqual([HEAVY_HIT, HEAVY_BLOCK], [90, 50]);
+test('hit-stop rules: every stop is 0 ms (RV80, Dom 2026-10-19: the sandbox\'s "no time change", now the Pit\'s too)', () => {
+  assert.deepEqual(HIT_STOP, { SpecialLanded: 0, Blocked: 0, Hit: 0, Parried: 0, GuardBroken: 0, PostureBroken: 0, Killed: 0 });
+  assert.deepEqual([HEAVY_HIT, HEAVY_BLOCK], [0, 0]);
 });
 
 test('hit-stop rules: the file loads through the registry under its manifest', () => {
@@ -33,9 +34,9 @@ test('stopFor: the rows plus the impact tier, heavy contacts stop longer, a land
   assert.equal(stopFor(heavy), HEAVY_HIT + impactStopMs(heavy));
   assert.equal(stopFor(blocked), HEAVY_BLOCK + impactStopMs(blocked));
   assert.equal(stopFor([ev({ type: 'Hit', move: 'light_left', charged: true })]), HEAVY_HIT + impactStopMs([ev({ type: 'Hit', move: 'light_left', charged: true })]));
-  assert.equal(stopFor([ev({ type: 'SpecialLanded' })]), HIT_STOP.SpecialLanded!);
+  assert.equal(stopFor([ev({ type: 'SpecialLanded' })]), HIT_STOP.SpecialLanded! + impactStopMs([ev({ type: 'SpecialLanded' })]));
   assert.equal(stopFor([ev({ type: 'Hit', move: 'kick' })]), KICK.stopMs);
-  assert.ok(stopFor(heavy) > stopFor(hit));
+  assert.ok(stopFor(heavy) >= stopFor(hit), 'a heavy never stops shorter than a light (RV80: both 0)');
 });
 
 test('impact-preview freezes with the game\'s own stopFor, not a copy of the table', () => {

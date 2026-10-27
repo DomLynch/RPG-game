@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "region1-npc", "file": "npcs-defs.json", "at": "npcs", "key": "npc", "required": { "roles": "array", "zone": "string", "at": "string", "hours": "any" }, "optional": { "shop": "string", "outfit": "object" } }
+  ]
+}

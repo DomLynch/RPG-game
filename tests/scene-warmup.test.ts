@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,9 @@ test('scene.ts compiles every shader before it reports ready, in the rig load ca
   assert.ok(ready > compiles[0]!, 'the compile precedes the ready status');
   const between = scene.slice(compiles[0]! + 'renderer.compile(scene, camera);'.length, ready);
   // The only thing between them is the first-frame warm-up behind the card (first-frame.ts: maps by slices, one draw, capped), awaited so the card never lifts before it ends.
-  const code = between.split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  // And, exactly, the lift's own compile (`gfx?.compile();`, #3436): a program is keyed on the render target, so the composer's HalfFloat target needs its own warm-up compile or its programs link at the first frame. It is a no-op without the lift (?gfx=0, a world mount).
+  assert.equal(between.split('\n').filter((line) => /^\s*gfx\?\.compile\(\);\s*$/.test(line)).length, 1, 'the lift compiles for its own target once, between the compile and the first-frame warm-up');
+  const code = between.split('\n').filter((line) => !/^\s*\/\//.test(line) && !/^\s*gfx\?\.compile\(\);\s*$/.test(line)).join('\n');
   assert.match(code, /^\s*if \(typeof document === 'undefined' \|\| !document\.hidden\) \{[\s\S]*await warmFirstFrame\([\s\S]*\}\s*$/, 'only the awaited first-frame warm-up runs between the compile and the ready status');
   const before = scene.slice(0, compiles[0]!);
   assert.ok(before.lastIndexOf('dress();') > before.lastIndexOf('function dress'), 'the compile runs after the rigs are dressed');

@@ -5,18 +5,19 @@
 // record lists the fought opponent first with no autopsy sub-row; a rematch clears the rank line. Mirrors tests/graphics.test.ts
 // "fight end: …" through the live DOM.
 // Never overrides combat state; the fight is the real one, on harness time, so it lands on the same tick on any machine.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
+import { AUTOPSY_CAUSE as CAUSE } from './lib/autopsy-cause.mjs';   // plain moves and a special's name (RV80)
 import { ROSTER } from '../src/roster.ts';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
-const CAUSE = /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/;
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, physicalPhone: false, errors: [] };
 const out = 'artifacts/autopsy-check'; await fs.mkdir(out, { recursive: true });
 try {

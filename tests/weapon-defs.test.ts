@@ -1,4 +1,5 @@
 // Weapons as data (RV44): the resolved table is byte-identical to the code tables it replaced, a weapon is one row, and the loader refuses a broken table at load.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -13,17 +14,18 @@ const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon) : v && ty
 const digest = (weapons: unknown, order: unknown, player: unknown, offered: unknown) => createHash('sha256').update(JSON.stringify(canon({ weapons, order, player, offered }))).digest('hex');
 
 // The sha256 of the fully resolved table as the CODE built it before slice 4 (the 11 Weapon objects, their order, and both player lists), computed on trunk before any of this moved.
-const BEFORE = 'b45aecd8b6e6cb3843e0e63b9a82ee259457829e4be1caa4b290f9d2600a58b9';
+// RV81 content (bow extends knife, staff extends trident; both player weapons) moved the pin: the 11-weapon table was b45aecd8b6e6cb3843e0e63b9a82ee259457829e4be1caa4b290f9d2600a58b9.
+const BEFORE = 'edf66b3e38376bc744b5f264d6e3b90066cf10b11aefbd004fcf2fd63ab5eb21';
 
 test('the loaded weapons are byte-identical to the code tables they replaced (sha256 of the resolved table, order and both player lists)', () => {
   assert.equal(digest(WEAPONS, Object.keys(WEAPONS), PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED), BEFORE);
-  assert.deepEqual(Object.keys(WEAPONS), ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', 'scythe', 'maul', 'reaper', 'warhammer', 'bite']);
-  assert.deepEqual([...PLAYER_WEAPONS], ['longsword', 'cleaver', 'knife', 'estoc', 'gladius', 'warhammer', 'trident', 'scythe', 'maul']);
+  assert.deepEqual(Object.keys(WEAPONS), ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', 'scythe', 'maul', 'reaper', 'warhammer', 'bow', 'staff', 'bite']);
+  assert.deepEqual([...PLAYER_WEAPONS], ['longsword', 'cleaver', 'knife', 'estoc', 'gladius', 'warhammer', 'trident', 'scythe', 'maul', 'bow', 'staff']);
 });
-test('a 12th weapon is ONE row extending an existing one, through the real loader, with no code edit', () => {
+test('a 14th weapon is ONE row extending an existing one, through the real loader, with no code edit', () => {
   const row = { id: 'club', extends: 'cleaver', material: 'wood', reach: 1.6, moves: { heavy_overhead: { damage: 19 } } };
   const t = loadWeaponDefs({ weapons: [...raw.weapons, row] }, base, enums);
-  assert.equal(Object.keys(t.weapons).length, 12);
+  assert.equal(Object.keys(t.weapons).length, 14);
   assert.equal(t.weapons.club!.material, 'wood');
   assert.equal(t.weapons.club!.moves.heavy_overhead.damage, 19);
   assert.equal(t.weapons.club!.moves.heavy_overhead.reach, WEAPONS.cleaver!.moves.heavy_overhead.reach, 'the fields it does not name come from the weapon it extends');
@@ -56,7 +58,7 @@ test('the row markers (default, natural, look) are read as data, never inherited
   assert.equal(DEFAULT_WEAPON, 'longsword');
   assert.deepEqual([...NATURAL_WEAPONS], ['bite']);
   const pommel = Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.pommelBash);
-  assert.deepEqual(pommel.sort(), ['cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'trident', 'warhammer']);
+  assert.deepEqual(pommel.sort(), ['bow', 'cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'staff', 'trident', 'warhammer']);   // bow and staff (2026-10-19) carry the knife's and the trident's look, as the sandbox's stand-ins did
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.baked), ['longsword']);
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.stabs), ['estoc']);
   assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.lowerArm === false), ['reaper']);

@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "dungeon-theme", "file": "dungeon-themes.json", "at": "themes", "key": "id", "required": { "look": "object", "pieces": "object" } }
+  ]
+}

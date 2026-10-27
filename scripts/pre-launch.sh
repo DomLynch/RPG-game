@@ -7,6 +7,7 @@
 # otherwise launches as before. Nothing here decides trust: a row is trusted only from a receipt bound to the deployed TREE (hf-wall-rows collect,
 # vps-receipt-trust), so a pre-launch planned for a different scope can only cost a few cents or leave a row to the Mac.
 set -euo pipefail
+source "$(dirname "$0")/lib/hf-submit-path.sh"   # submit=vps in scripts/lib/hf-submit.json: the T4/CPU jobs below are submitted from the VPS (default mac: no change)
 sha="${1:-}"; live="${2:-}"; superseded="${3:-}"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "pre-launch: needs a full 40-hex candidate sha" >&2; exit 2; }
 dir="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}"; mkdir -p "$dir"
@@ -19,6 +20,8 @@ fi
 echo "pre-launch: $sha, rows out of scope vs ${live:-none}: ${skip:-none}" >&2
 # A re-cut names the candidate it replaces (third argument) and cancels THAT sha's HF jobs (T4, CPU, unit) before launching its own: none left running for a sha that will never ship. Never another candidate: two can be in flight.
 [[ "$superseded" =~ ^[0-9a-f]{40}$ ]] && { node scripts/lib/prelaunch-jobs.mjs cancel-superseded "$superseded" "$sha" || true; }
+# A cancel skipped under deploy_hold left a marker: retry those now that this cut is running (no-op while the hold is still up).
+node scripts/lib/prelaunch-jobs.mjs retry-superseded || true
 rm -f "$dir/$sha.wall" "$dir/$sha.wall.json" "$dir/$sha.cpu"
 # The public client keys the job builds with live in the deploy checkout's env file; the worktree has none.
 export HF_WALL_ROWS_ENV_FILE="${HF_WALL_ROWS_ENV_FILE:-$HOME/Developer/frankendom-deploy/.env.production.local}"

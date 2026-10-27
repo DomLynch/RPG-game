@@ -9,17 +9,21 @@
     /* Theme tokens: the one source of every colour, font, size, spacing and radius below. A look pass changes these, not the rules. */
     :root {
       --c-sand: #c9a47a; --c-ink: #f3e6d2; --c-ink-2: #d8c29c; --c-brass: #ad9365; --c-line: #5a4632; --c-panel: #241a12; --c-well: #1a120c;
-      --c-btn: #3a2c1f; --c-glass: rgba(28, 20, 14, 0.82); --c-shade: rgba(0, 0, 0, 0.45); --c-ring: rgba(243, 230, 210, 0.45); --c-shadow: #000;
+      --c-btn: #3a2c1f; --c-glass: rgba(28, 20, 14, 0.82); --c-shade: rgba(0, 0, 0, 0.45); --c-scrim: rgba(18, 12, 8, 0.62); --hud-scrim-h: 132px; --c-ring: rgba(243, 230, 210, 0.45); --c-shadow: #000;
       --f-serif: Georgia, serif; --fs-xs: 11px; --fs-s: 12px; --fs-m: 14px; --fs-l: 15px; --fs-xl: 18px; --fs-x: 24px;
       --gap-xs: 6px; --gap-s: 10px; --gap-m: 16px; --gap-l: 22px; --r-s: 6px; --r-m: 10px; --r-pill: 24px;
       --tap: 44px; --tap-l: 48px; --panel-w: 360px; --stick: 96px;
+      --c-plate: rgba(18, 12, 8, 0.62); --plate-r: 6px; --plate-pad: 2px 8px; --c-plate-hud: rgba(18, 12, 8, 0.74); --hud-pad: 8px 12px; --toast-bottom: max(30%, 248px); --hud-bars-w: 210px;   /* the foe's name plate and the toast's rest height (clear of the SPECIAL buttons, whose top sits ~224 px up) */
     }
     html, body { margin: 0; height: 100%; background: var(--c-sand); overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
     canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; }
     button { font-family: var(--f-serif); color: var(--c-ink); }
     [hidden] { display: none !important; }   /* #shade / #prompt set display, which would override the hidden attribute */
     .glass { border: 1px solid var(--c-brass); background: var(--c-glass); color: var(--c-ink); }
+    #cover { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--c-well); color: var(--c-ink-2); font: 600 var(--fs-xl)/1.3 var(--f-serif); letter-spacing: 0.08em; transition: opacity 0ms linear; }   /* the load cover (load-cover.ts): up from the first paint, lifted at the first styled frame */
+    #cover.lifted { opacity: 0; pointer-events: none; }
     #hud { position: fixed; z-index: 1; left: 0; right: calc(var(--tap) * 2 + var(--gap-m)); top: env(safe-area-inset-top); padding: var(--gap-s) var(--gap-m); font: 600 var(--fs-m)/1.3 var(--f-serif); color: var(--c-ink); text-shadow: 0 1px 3px var(--c-shadow); pointer-events: none; }
+    #hud::before { content: ''; position: absolute; z-index: -1; left: 0; right: calc(var(--gap-m) * -2); top: calc(env(safe-area-inset-top) * -1); height: var(--hud-scrim-h); background: linear-gradient(to bottom, var(--c-scrim), transparent); pointer-events: none; }   /* a soft top scrim: the zone name and the sign-in line stay readable over a bright painted sky */
     #hud small { display: block; width: fit-content; max-width: 100%; font-weight: 400; opacity: 0.8; }
     #hud > span { width: fit-content; max-width: 100%; }
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
@@ -52,6 +56,15 @@
     .shop-dialog .shop-row { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--gap-s); align-items: center; padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
     .shop-dialog .shop-name { font-size: var(--fs-l); overflow-wrap: anywhere; } .shop-dialog .shop-price { color: var(--c-brass); font-size: var(--fs-m); text-align: right; } .shop-dialog .shop-note, .shop-dialog .shop-restock { grid-column: 1; color: var(--c-ink-2); font-size: var(--fs-s); } .shop-dialog .shop-restock:empty { display: none; }
     .shop-dialog .shop-buy { grid-column: 2; grid-row: 2 / span 2; align-self: center; min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border: 1px solid var(--c-brass); border-radius: var(--r-pill); background: none; color: var(--c-ink); font: 600 var(--fs-m) var(--f-serif); } .shop-dialog .shop-buy:disabled { opacity: .45; }
+    .special-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }   /* the SPECIAL 1 / 2 picker (src/core/special-screen.ts) in the zone's dialog look */
+    .special-dialog::backdrop { background: var(--c-shade); }
+    .special-dialog .grimoire-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--c-ink); font-size: var(--fs-x); }
+    .special-dialog .grimoire-head { padding-right: var(--tap); } .special-dialog h3 { margin: 0; font-size: var(--fs-xl); } .special-dialog .grimoire-count { margin: var(--gap-xs) 0 0; color: var(--c-ink-2); font-size: var(--fs-s); }
+    .special-dialog .grimoire-list { list-style: none; margin: var(--gap-s) 0 0; padding: 0; }
+    .special-dialog .grimoire-entry { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-xs) var(--gap-s); padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
+    .special-dialog .grimoire-entry.equipped { border-color: var(--c-brass); }
+    .special-dialog .grimoire-name { grid-column: 1 / -1; font-size: var(--fs-l); } .special-dialog .grimoire-sub { grid-column: 1 / -1; color: var(--c-ink-2); font-size: var(--fs-s); }
+    .special-dialog .grimoire-equip { min-height: var(--tap); padding: 0 var(--gap-s); border: 1px solid var(--c-brass); border-radius: var(--r-pill); background: none; color: var(--c-ink); font: 600 var(--fs-s) var(--f-serif); } .special-dialog .grimoire-equip[aria-pressed='true'] { background: var(--c-btn); }
     #walk-board { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     body.kit #walk-board { display: none; }   /* the daily board is a ☰ Settings entry in the kit, like the Journal (main.ts menu-board) */
     #allegiance:not([hidden]) ~ #walk-board { top: calc(env(safe-area-inset-top) + var(--gap-s) + 2 * (var(--tap) + var(--gap-xs))); }   /* the Allegiance button holds the second slot while it is up */
@@ -67,7 +80,8 @@
     .stick.on { opacity: 1; bottom: auto; }
     .stick i { position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%; border-radius: 50%; background: var(--c-ring); }
     @media (pointer: coarse), (max-width: 900px) { .stick { opacity: 0.55; } .stick.on { opacity: 1; } }
-    #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
+    #prompt { position: fixed; z-index: 6; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
+    #prompt[data-slot] { bottom: calc(env(safe-area-inset-bottom) + 320px); }   /* every prompt (Talk, Bank, Fight in the Pit, the ore, the way back, ground loot) and the ground result lines sit above the fight cluster (SKILL's top is 304 px up at 320 and 375), clear of every fight button and the move pad */
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
     #creature-card { margin-top: var(--gap-s); padding: var(--gap-xs) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-shadow: none; pointer-events: none; }   /* in the HUD's flow, under the hint; an overlay, never a pause */
     #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
@@ -93,13 +107,26 @@
     #duel #nav-note, #duel #mobile-camera, #duel #camera-button, #duel #recenter-button, #duel:not(.gearing) .tab-profile, #duel:not(.gearing) .pane-profile, #duel:not(.gearing) #nav-gear, #duel.gearing #nav-arena, #duel.gearing #nav-arena-page { display: none !important; }   /* the gear screen (gear-mount.ts) shows the Profile pane while the layer is `gearing` */
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
-    #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
-    #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
-    #duel.world .combat-hud { display: none !important; }   /* Zone 1 shows ONE set of bars, the shared meters (src/fight/hud.ts createMeters, meters.css), placed under the HUD stack by --hud-bottom; the Pit's own bars stay Pit-only (Lead 2026-10-10) */
+    #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal, #duel.world #build-dialog { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
+    #duel.world #target-posture, #duel.world #posture, #duel.world #fight-rank, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
+    body:not(.zone-bars) #duel.world .combat-hud { display: none !important; }   /* Zone 1 shows ONE set of bars: the Pit's own (Dom 2026-10-14: "the original ones look better"). Hidden until createZoneBars (src/fight/hud.ts) sets body.zone-bars, i.e. a foe is in reach or the hero is hurt; then nothing hides it and the Pit's own style.css draws it (grid on a phone): the foe's name over its bar, HEALTH and STAMINA beside each other. Only its offset is the zone's: under the HUD stack (--hud-bottom). The Pit's posture bars, rank line and status line stay Pit-only. */
+    body.zone-bars #duel.world .combat-hud { top: max(calc(env(safe-area-inset-top) + 12px), calc(var(--hud-bottom, 0px) + 8px)); }
+    /* Tablet landscape (Dom plays on an iPad; Lead 2026-10-20, World's #3458 still at 1180x820): the foe's bars and the HEALTH / STAMINA labels sat bare over the bright sky dome. One backing under the whole block, from the plate variables, on tall landscape only (a phone on its side is the max-height 440 query below this, #3470); portrait is not matched. */
+    @media (orientation: landscape) and (min-height: 441px) {
+      body.zone-bars #duel.world .combat-hud { background: var(--c-plate-hud); border-radius: var(--plate-r); padding: var(--hud-pad); }
+      body.zone-bars #duel.world .combat-hud > span:first-child { background: none; padding: 0; }
+    }
     #duel.world #mobile-camera { display: revert !important; }
+    /* Phone-layout audit (Web, 2026-10-20, live /zone1/ at 375): the menu strip sat on the nav (the fighter header it normally rides beside is hidden here), the menu controls were 40 px, the toast covered SPECIAL 1, the foe's name had no backing. */
+    #duel #journal .tab-strip { position: static; justify-content: flex-end; padding: 0 var(--gap-xs); }
+    #duel #journal .chips button, #duel #journal .references a { min-height: var(--tap); }
+    #duel #journal .references a { display: inline-flex; align-items: center; }
+    #world-toast { bottom: var(--toast-bottom) !important; }
+    #duel.world .combat-hud > span:first-child { background: var(--c-plate); border-radius: var(--plate-r); padding: var(--plate-pad); }
     #duel.world header .brand { visibility: hidden; }   /* the FRANKENDOM / ORIGINS wordmark drew over the status lines in a field duel at desktop width; visibility, not display, so the ☰ stays put (Web, #1732) */
     #duel.world.infight #opponent-name, #duel.world.infight #target-health, #duel.world.infight #target-posture, #duel.world.infight #combat-status { display: revert !important; }   /* no #leave: a world fight ends on its own banner, nothing to tap (seamless S1) */   /* ?worldfight: the duel's own bars over the world */
     body.infight #hud { visibility: hidden; }   /* the foe card (name + bars) draws at the top-left of a world fight, over the zone header: hide the header's text; visibility keeps its height, so --hud-bottom and the player's bars stay where they were (Deploy's live Metal stills, 2026-10-08) */
+    #creature-card.slim { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 54px); left: 50%; transform: translateX(-50%); margin: 0; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; white-space: nowrap; font: 600 var(--fs-s)/1.2 var(--f-serif); letter-spacing: 0.04em; text-shadow: 0 1px 3px rgba(0,0,0,0.85); z-index: 5; }   /* zones with look.creatures.card = target: one slim line, top centre, only for the creature you target */
     body.infight #hint, body.infight #creature-card { display: none; }   /* ?worldfight: at fight-camera distance they covered the foe from head to waist; the duel's own name line stays */
     body.kit #move-stick, body.kit #look-stick { display: none; }
     body.kit #walk-journal, body.kit #allegiance { display: none; }   /* the main screen is the combat HUD and the ☰ only: Journal is a button in the ☰'s Settings */
@@ -114,12 +141,15 @@
       #hud #hint, #hud .walk-only { display: none; }
       #creature-card { margin-top: 3px; padding: 2px var(--gap-s); font-size: var(--fs-s); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #duel.world header { right: calc(max(14px, env(safe-area-inset-right)) + 100px); }
-      .fm-meters { left: max(12px, env(safe-area-inset-left)); }
     }
+    /* Zone 1 on its side (Dom 2026-10-20, iPhone Safari landscape): the foe's bars were 270 px (a third of the width) over the scenery and the ☰ floated 100 px in from the corner. The bars narrow to a quarter of the width; the ☰ goes back to the corner once the SPECIAL column no longer rises to the top (it does only at 360 px high and under, below). */
+    @media (orientation: landscape) and (max-height: 520px) { body.zone-bars #duel.world .combat-hud { width: min(var(--hud-bars-w), 26vw); } }
+    @media (orientation: landscape) and (min-height: 361px) and (max-height: 520px) { #duel.world header { right: max(14px, env(safe-area-inset-right)); } }
     @media (min-width: 901px) { #hud { right: 220px; } }   /* the header's Sound and Journal text buttons own the top right on a wide screen */
   </style>
 </head>
 <body>
+  <div id="cover" role="status" aria-live="polite">Frankendom</div>
   <canvas id="view"></canvas>
   <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox preview · not the game</small>
     <div id="hint" class="glass">Left thumb walks. Push to the edge to run. Right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
@@ -133,6 +163,7 @@
   <dialog id="shop-dialog"></dialog>
   <button id="walk-board" class="glass"></button>
   <dialog id="board-dialog"></dialog>
+  <dialog id="special-dialog" aria-label="Specials"></dialog>
   <div id="shade" hidden><div id="panel" role="dialog"><button id="shut" aria-label="Close">×</button><div id="card"></div></div></div>
   <!-- The Pit duel (pit-duel.ts, its own chunk): the live game's own fight kit — its controls, HUD bars and ☰ menu — is cut from the game's
        index.html at build time (live-kit.mjs) and lands at the marker; src/style.css comes with the duel's chunk and is on only while it is

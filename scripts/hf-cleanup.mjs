@@ -8,7 +8,7 @@ import { existsSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 
 export const LEDGER_DIR = process.env.HF_LEDGER_DIR || 'artifacts/hf-jobs';
 const ledgerFiles = () => (existsSync(LEDGER_DIR) ? readdirSync(LEDGER_DIR).filter(f => f.endsWith('.ledger')).map(f => `${LEDGER_DIR}/${f}`) : []);
-export const USD_PER_HOUR = { 'cpu-upgrade': 0.03, 'cpu-basic': 0.01, 't4-medium': 0.6 };
+export const USD_PER_HOUR = { 'cpu-upgrade': 0.03, 'cpu-basic': 0.01, 't4-small': 0.4, 't4-medium': 0.6 };   // an unknown flavor is priced at t4-medium below: the dearer, the safe side of a money stop
 const LIVE = /^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/;
 const hf = args => { try { return execFileSync(process.env.HF_BIN || 'hf', args, { encoding: 'utf8', timeout: 60_000 }); } catch { return ''; } };
 const inspect = id => { try { const parsed = JSON.parse(hf(['jobs', 'inspect', id])); return [].concat(parsed)[0] || null; } catch { return null; } };

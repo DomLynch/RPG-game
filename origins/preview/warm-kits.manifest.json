@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "warmKit",
+      "file": "warm-kits.json",
+      "at": "warmKits",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

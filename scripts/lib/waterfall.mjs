@@ -4,6 +4,7 @@
 // tests/waterfall.test.ts pins every branch and fails when a script starts a heavy job without going through here (shrink-only KNOWN list).
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
+import { T4_DEFAULT_FLAVOR } from './hf-wall-rows.mjs';
 
 export const VPS_MAX_LOAD1 = 12;
 // The remote command vpsStatus runs: loadavg, MemAvailable (kB), and the live release run dirs. A run dir is the release lock; one older than 90 minutes is a crashed run and stops counting.
@@ -49,7 +50,7 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
 };
 
 // `launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <argv…>`: a lane's job at a sha on HF (work waterfall, Hooks Dev's submit path).
-// hf-cpu (cpu-upgrade) by default; --gfx = hf-t4 (t4-medium), graphics only: a job without --gfx never gets a T4. Exit 0 started, 75 no slot in --max-wait-s (the caller
+// hf-cpu (cpu-upgrade) by default; --gfx = hf-t4 (t4-small, Dom 2026-10-21), graphics only: a job without --gfx never gets a T4. Exit 0 started, 75 no slot in --max-wait-s (the caller
 // requeues to the VPS), 2 refused. Lane jobs use their own ledger (artifacts/hf-lane-jobs), never the release ledger deploy.sh's exit cleanup reads.
 export function genericJobArgs(argv) {
   const dd = argv.indexOf('--');
@@ -74,7 +75,7 @@ export function genericJobArgs(argv) {
   if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
   if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
   if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
-  const flavor = opts.gfx ? 't4-medium' : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
+  const flavor = opts.gfx ? T4_DEFAULT_FLAVOR : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
   const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
   return { args, flavor, opts, sha };
 }

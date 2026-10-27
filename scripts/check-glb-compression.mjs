@@ -1,4 +1,5 @@
 // Emitted-byte provenance plus actual Chromium/WebKit decoding under the deployment CSP.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
@@ -36,7 +37,7 @@ if (process.argv.includes('--hosted-csp')) {
     const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
     try {
       for (const engine of [chromium, webkit]) {
-        const browser = await engine.launch({ headless: true, ...(engine === chromium ? { executablePath: chromium.executablePath() } : {}) });
+        const browser = await launchBrowser(engine, { headless: true, ...(engine === chromium ? { executablePath: chromium.executablePath() } : {}) });
         try {
           const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
           page.on('pageerror', e => receipt.errors.push(String(e)));

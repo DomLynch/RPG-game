@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,7 +19,7 @@ const BOARD_RADIUS = .28;   // build-warrior.mjs's RADIUS for #478's round
 
 // A fighter with this weapon, optionally wearing #478's shield, plus probes for where the board is and whether the blade passes through it.
 // `carry`: the rig opts in to the carry as the grafted Centurion does (characters.ts withShieldCarry); `rig` and `piece`: whose body and shield.
-async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 'warrior.glb', piece = 'veteran.Shield' } = {}) {
+async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 'hero-classic.glb', piece = 'veteran.Shield' } = {}) {
   const asset = await parse(rig), pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(carry ? withShieldCarry(asset) : asset, undefined, [weapon, weapon]);
   if (shield) player.wear(pieces.filter(p => lootWorn(p, [piece])));
   const node = (name: string) => { let found: Object3D | undefined; player.anchor.traverse(o => { if (o.name === name) found ??= o; }); return found; };
@@ -105,7 +106,7 @@ test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), a
 
 test('an UNFLAGGED rig keeps the clips\' arm, as on trunk (a hero with a taken shield; the Shieldmaiden\'s asset until loadWarriors opts her in); the opted-in rig carries', async () => {
   // Trunk has no shield-dependent arm: a shielded one-hander's left arm is his bare arm, at every pose. Pinned for both unflagged cases.
-  const cases = [['the Shieldmaiden (gladius + her own shield)', 'shieldmaiden.glb', 'gladius', 'shieldmaiden.Shield'], ['a hero with a taken shield (cleaver)', 'warrior.glb', 'cleaver', 'veteran.Shield']] as const;
+  const cases = [['the Shieldmaiden (gladius + her own shield)', 'shieldmaiden.glb', 'gladius', 'shieldmaiden.Shield'], ['a hero with a taken shield (cleaver)', 'hero-classic.glb', 'cleaver', 'veteran.Shield']] as const;
   for (const [who, rig, weapon, piece] of cases) {
     const shielded = await fighter(weapon, true, { carry: false, rig, piece }), bare = await fighter(weapon, false, { carry: false, rig, piece });
     assert.ok(shielded.player.worn().length > 0, `${who}: the shield is worn`);
@@ -127,7 +128,7 @@ test('the Shieldmaiden carries (Strategy 2026-09-30): loadWarriors opts her in, 
   assert.ok(SHIELD_CARRIERS.has('veteran'), 'the Centurion\'s painted set replaces his scutum (Strategy 2026-10-01): he opts in here too, beside his grafted kit (armOpponent)');
   const rig = { rig: 'shieldmaiden.glb', piece: 'shieldmaiden.Shield' };
   // The wiring: armWarriors(…, carry) flags the opponent's asset, and only then.
-  const flag = async (carry: boolean) => { const enemy = await parse('shieldmaiden.glb'); armWarriors(await parse('warrior.glb'), enemy, ['longsword', 'gladius'], undefined, () => {}, carry); return enemy.scene.userData.shieldCarry === true; };
+  const flag = async (carry: boolean) => { const enemy = await parse('shieldmaiden.glb'); armWarriors(await parse('hero-classic.glb'), enemy, ['longsword', 'gladius'], undefined, () => {}, carry); return enemy.scene.userData.shieldCarry === true; };
   assert.equal(await flag(true), true, 'carry: the opponent asset opts in');
   assert.equal(await flag(false), false, 'no carry: it stays on the clips\' arm');
   // The behaviour, on her rig and her own board: the clips' arm (the defect) against the carry.

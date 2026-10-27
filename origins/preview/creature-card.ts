@@ -3,11 +3,14 @@
 import { BANDS, creatureInfo, type CreatureInfo } from '../../src/core/index.ts';
 import type { MobRow } from '../../src/core/index.ts';
 import type { MobSpec } from './mobs.ts';
+import { legendCardLines, legendIdOf } from './legend-copy.ts';
 
 type Seen = { id: string; x: number; z: number; mode: string };
-// Pure pick: the nearest creature in `aggro` mode, or null. `seen` is what mobs-view.debug() reports. `focus` (a tapped legend, which stands still and never
-// notices) wins while it is in the list.
-export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null): Seen | null {
+// Pure pick: the creature the hero is fighting now (`engaged`, the world fight's target: a nearer creature that has only noticed him must not take the card
+// mid-bout), else `focus` (a tapped legend, which stands still and never notices), each while it is in the list, else the nearest creature in `aggro` mode, or null.
+// `seen` is what mobs-view.seen() reports (the cheap list: debug() is the browser checks' diagnostic and costs a skinned box per creature).
+export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null, engaged?: string | null): Seen | null {
+  const e = engaged ? seen.find((m) => m.id === engaged) : undefined; if (e) return e;
   const f = focus ? seen.find((m) => m.id === focus) : undefined; if (f) return f;
   let best: Seen | null = null, bd = Infinity;
   for (const m of seen) if (m.mode === 'aggro') { const d = Math.hypot(m.x - hero.x, m.z - hero.z); if (d < bd) { bd = d; best = m; } }
@@ -16,18 +19,20 @@ export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: num
 // The card's lines: name and level; the con marks (dash count = band index, so colour is never the only cue) with the danger word; commonness and group.
 export const cardLines = (i: CreatureInfo): [string, string, string] => [`${i.name} · Lv ${i.level}`, `${'▰'.repeat(i.band)}${'▱'.repeat(BANDS.length - 1 - i.band)} ${i.danger}`, `${i.common} · ${i.group}`];
 
-export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], rows: readonly MobRow[], heroLevel: () => number) {
-  const byId = new Map(specs.map((s) => [s.id, s])), l1 = document.createElement('b'), l2 = document.createElement('span'), l3 = document.createElement('small');
-  el.replaceChildren(l1, l2, l3); for (const n of [l1, l2, l3]) n.style.display = 'block';
+/** style 'full' = the card as it was (three lines, the nearest creature that noticed you); 'target' = one slim line, name and level, only for the creature passed as `focus` (the one you are targeting): the "slim" class restyles it (origins/preview/index.html). */
+export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], rows: readonly MobRow[], heroLevel: () => number, style: 'full' | 'target' = 'full') {
+  const byId = new Map(specs.map((s) => [s.id, s])), l1 = document.createElement('b'), l2 = document.createElement('span'), l3 = document.createElement('small'), slim = style === 'target';
+  el.classList.toggle('slim', slim); el.replaceChildren(...(slim ? [l1] : [l1, l2, l3])); for (const n of [l1, l2, l3]) n.style.display = 'block';
   let shown = '';
   return {
-    // Called a few times a second, not every frame (debug() builds a list).
-    update(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null): string | null {
-      const m = nearestNoticing(seen, hero, focus), spec = m && byId.get(m.id);
+    // Called a few times a second, not every frame (seen() builds a list).
+    update(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null, engaged?: string | null): string | null {
+      const m = slim ? (focus ? seen.find((s) => s.id === focus) ?? null : null) : nearestNoticing(seen, hero, focus, engaged), spec = m && byId.get(m.id);
       if (!spec) { if (shown) { el.hidden = true; shown = ''; } return null; }
       if (shown !== spec.id) {
-        const info = creatureInfo(spec, rows.find((r) => r.id === spec.character), heroLevel(), rows), [a, b, c] = cardLines(info);
-        l1.textContent = a; l2.textContent = b; l2.style.color = info.color; l3.textContent = c; el.hidden = false; shown = spec.id;
+        const row = rows.find((r) => r.id === spec.character), info = creatureInfo(spec, row, heroLevel(), rows);
+        const [a, b, c] = legendIdOf(row) ? legendCardLines(cardLines(info), spec.level, spec.body) : cardLines(info);   // a Pit legend reads as name, rank and title like the ladder, not as a creature (legend-copy.ts)
+        l1.textContent = a; l2.textContent = b; l2.style.color = info.color; l3.textContent = c; if (slim) l1.style.color = info.color; el.hidden = false; shown = spec.id;
       }
       return spec.id;   // main.ts hides this creature's own name label while the card is up
     },

@@ -1,0 +1,29 @@
+{
+  "about": "Dungeon 1 (the bowl, zone 7, /dungeon1/) is the Gladiator Pit (Dom 2026-10-22): the roster is the Pit ladder's own legends, 10 per rank (src/fight/legend-rows.json), each a Region 1 character derived from the legend tables (origins/region1/legend-foes.ts, id character:pit.<legend>) whose world level is its rank. One row per ring, keyed by its id: the ring's landmark in the bowl's zone row, its level band (a legend's rank must sit in it), and the legends that stand in it, one camp each. The ring's edges are NOT here: aggro, spread, roam and leash are shares of the ring's width, read from the bowl layout's own paving pieces (bowl-roster.ts, ringEdges); aggroShare + spreadShare stay within half the ring so standing in one ring never pulls another. FIXED POOL for the first release: a few legends per ring covering the band; rotating the pool on respawn is a follow-up. For Dom to review: which legend stands where.",
+  "rings": {
+    "outer": {
+      "order": 1, "zone": "7", "landmark": "ring-outer", "levels": [1, 3], "respawnSeconds": 40, "aggroShare": 0.375, "spreadShare": 0.125, "roamShare": 0.2, "leashShare": 0.75,
+      "groups": [
+        { "id": "pit-thrall", "character": "character:pit.pit-thrall", "camps": 1, "campSize": [1, 1] },
+        { "id": "cacus", "character": "character:pit.cacus", "camps": 1, "campSize": [1, 1] },
+        { "id": "gawain", "character": "character:pit.gawain", "camps": 1, "campSize": [1, 1] }
+      ]
+    },
+    "middle": {
+      "order": 2, "zone": "7", "landmark": "ring-middle", "levels": [4, 6], "respawnSeconds": 50, "aggroShare": 0.3, "spreadShare": 0.2, "roamShare": 0.2, "leashShare": 0.75,
+      "groups": [
+        { "id": "roland", "character": "character:pit.roland", "camps": 1, "campSize": [1, 1] },
+        { "id": "grendel", "character": "character:pit.grendel", "camps": 1, "campSize": [1, 1] },
+        { "id": "lancelot", "character": "character:pit.lancelot", "camps": 1, "campSize": [1, 1] }
+      ]
+    },
+    "floor": {
+      "order": 3, "zone": "7", "landmark": "floor", "levels": [7, 10], "respawnSeconds": 60, "aggroShare": 0.31, "spreadShare": 0.19, "roamShare": 0.2, "leashShare": 0.75,
+      "groups": [
+        { "id": "siegfried", "character": "character:pit.siegfried", "camps": 1, "campSize": [1, 1] },
+        { "id": "achilles", "character": "character:pit.achilles", "camps": 1, "campSize": [1, 1] },
+        { "id": "typhon", "character": "character:pit.typhon", "camps": 1, "campSize": [1, 1] }
+      ]
+    }
+  }
+}

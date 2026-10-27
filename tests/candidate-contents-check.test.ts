@@ -1,4 +1,5 @@
 // scripts/candidate-contents-check.mjs: a deterministic read of a candidate's contents. Fixture repos are built with the cutter's own mergeAll, so the check verifies exactly what a cut produces.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

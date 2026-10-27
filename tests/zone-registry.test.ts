@@ -1,16 +1,17 @@
 // Plug and play (Dom 2026-10-09; the row IS the zone, 2026-10-11): a zone is one row file, nothing else. The registry is generated from origins/zone-rows/zone<N>.row.json; a fixture zone 99 row in a scratch
 // folder loads with ZERO edits to any file outside it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ROWS_DIR, ZONES_DIR, zoneRows } from '../scripts/gen-zones.mjs';
-import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { allZoneIds, DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 
 test('the committed registry is what the zone rows generate (npm run zones writes it)', () => {
   assert.equal(readFileSync(`${ZONES_DIR}registry.ts`, 'utf8'), registrySource(), 'stale registry: run `npm run zones`');
-  assert.deepEqual(zoneIds(), (zoneRows() as { id: string }[]).map((z) => z.id));
+  assert.deepEqual(allZoneIds(), (zoneRows() as { id: string }[]).map((z) => z.id));   // every row (zoneIds() is the listed ones: an unlisted row is off the list, still in the registry)
 });
 
 test('every zone names itself and its world zones (the tab title and the HUD read them)', () => {
@@ -32,6 +33,16 @@ test('a throwaway zone99 row loads with zero edits outside it', async () => {
     assert.ok(!zoneProblems(REGISTRY['99']!).some((p) => /name|world zone/.test(p)), 'a row alone gives a zone with its names');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
   assert.ok(!zoneIds().includes('99'), 'the real registry never saw it');
+});
+
+test('zone0.row.json is a zone row name (the town); a file with a leading zero is still not', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/zones-zero-`);
+  try {
+    writeFileSync(`${scratch}/zone0.row.json`, '{}'); writeFileSync(`${scratch}/zone2.row.json`, '{}'); writeFileSync(`${scratch}/zone10.row.json`, '{}');
+    assert.deepEqual(zoneRows(`${scratch}/`).map((r) => [r.id, r.n]), [['0', 0], ['2', 2], ['10', 10]], 'zone 0 sorts first, and its id stays the string "0"');
+    writeFileSync(`${scratch}/zone00.row.json`, '{}');
+    assert.throws(() => zoneRows(`${scratch}/`), /zone00.row.json is not a zone row name/);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
 test('a file in origins/zone-rows that is not a zone row name is an error, never skipped', () => {

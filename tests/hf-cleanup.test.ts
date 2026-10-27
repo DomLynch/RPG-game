@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,6 +46,8 @@ test('a job that survives the cancel is a RED LINE and exit 1 (nothing is left r
 test('cost is an upper bound: price x min(age, the job\'s own timeout); the ledger parser keeps only 24-hex ids', () => {
   const now = Date.parse('2026-10-09T12:00:00Z');
   assert.equal(costOf({ flavor: 't4-medium', created_at: '2026-10-09 11:00:00+00:00' }, 1200, now).toFixed(2), '0.20');   // capped at 20 min
+  assert.equal(costOf({ flavor: 't4-small', created_at: '2026-10-09 11:00:00+00:00' }, 1200, now).toFixed(4), '0.1333', 't4-small: $0.40/h x 20 min');
+  assert.equal(costOf({ flavor: 'a-new-gpu', created_at: '2026-10-09 11:00:00+00:00' }, 1200, now).toFixed(2), '0.20', 'an unknown flavor is priced at the dearer t4-medium');
   assert.equal(costOf({ flavor: 'cpu-upgrade', created_at: '2026-10-09 11:50:00+00:00' }, 0, now).toFixed(4), '0.0050');
   assert.deepEqual(ledgerJobs(`${A} 1200\nnot-an-id 5\n\n`), [{ id: A, timeoutS: 1200 }]);
 });

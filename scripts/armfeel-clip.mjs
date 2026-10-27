@@ -6,6 +6,7 @@
 // the page replays it from its first tick: the ready idle, then the first exchanges) and the KILL (the whole record, replayed from the page's tail window).
 // Writes <out>/<take>-<feel>.mp4, <take>-<feel>-idle.jpg, <take>-<feel>-hit.jpg (3 frames after the first blow on the opponent), <take>-compare.mp4 (feels side by side).
 /* global process, console, document, URL, window */
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -49,7 +50,7 @@ async function serveDist(dir) {   // scripts/special-clip.mjs's static server: g
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const server = await serveDist(DIST), browser = await launchBrowser(chromium, { headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
 // One replay of `text` with `feel`: frames every EVERY steps until the replay ends (page data-replay) or `frames` steps. Returns the shots and the frame of the first blow on the opponent.
 async function take(text, feel, name, frames) {

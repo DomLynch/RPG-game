@@ -1,9 +1,10 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { cancelSuperseded, orphanedT4, recordUnitJob } from '../scripts/lib/prelaunch-jobs.mjs';
+import { cancelSuperseded, orphanedT4, recordUnitJob, retrySuperseded, runningOrphanT4 } from '../scripts/lib/prelaunch-jobs.mjs';
 import { actualPlacement, summaryLine } from '../scripts/lib/published-summary.mjs';
 
 const head = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();   // on "trunk" (the tests pass trunk = HEAD)
@@ -36,6 +37,43 @@ test('orphaned T4 jobs counts the T4 jobs of candidates that never reached trunk
   run(dir, A, B);
   assert.equal(orphanedT4(B, { dir, trunk: 'HEAD' }), 3, 'cancelling does not hide them: they were launched for nothing');
   assert.equal(orphanedT4(B, { dir, trunk: 'HEAD', now: Date.now() + 13 * 3600e3 }), 0, 'older than 12 h is yesterday\'s count');
+});
+
+// 2026-10-18: "orphaned T4 jobs: 8" was 4 of a superseded IV cut plus 4 of JG, a candidate still in flight with an open release PR.
+test('orphaned T4 jobs skips a candidate whose release PR is open: it is in flight, not an orphan', () => {
+  const dir = mkdtempSync(`${tmpdir()}/prelaunch-`);
+  wall(dir, A, [1, 2, 3, 4]); wall(dir, B, [5, 6]); wall(dir, C, [7]);
+  assert.equal(orphanedT4(C, { dir, trunk: 'HEAD' }), 6, 'with no PR lookup, A and B both count (the unit-test default stays offline)');
+  assert.equal(orphanedT4(C, { dir, trunk: 'HEAD', isOpen: (sha: string) => sha === B }), 4, 'B has an open release PR: only A is an orphan');
+  assert.equal(orphanedT4(C, { dir, trunk: 'HEAD', isOpen: () => true }), 0);
+});
+
+test('a re-cut during a publish leaves a marker and the cancel runs once deploy_hold is gone', () => {
+  const dir = mkdtempSync(`${tmpdir()}/prelaunch-`);
+  wall(dir, A, [1, 2]); wall(dir, C, [6]);
+  const got: string[] = [], cancel = (i: string) => { got.push(i); return true; };
+  assert.deepEqual(run(dir, A, C, true).got, [], 'nothing cancelled under the hold');
+  assert.equal(readFileSync(`${dir}/${A}.supersede`, 'utf8').trim(), C, 'the skipped cancel is remembered with the new sha');
+  assert.deepEqual(retrySuperseded({ dir, trunk: 'HEAD', hold: true, cancel }), [], 'still held: the marker stays');
+  assert.ok(existsSync(`${dir}/${A}.supersede`) && got.length === 0);
+  const done = retrySuperseded({ dir, trunk: 'HEAD', hold: false, cancel });
+  assert.deepEqual(got.sort(), [id(1), id(2)], 'the hold is gone: A\'s T4 jobs are cancelled');
+  assert.equal(done.length, 1);
+  assert.ok(!existsSync(`${dir}/${A}.supersede`) && existsSync(`${dir}/${A}.wall.cancelled`), 'marker removed, files renamed');
+  assert.deepEqual(retrySuperseded({ dir, trunk: 'HEAD', hold: false, cancel }), [], 'nothing left to retry');
+  wall(dir, B, [3]); assert.equal(run(dir, head, C, true).got.length, 0); assert.ok(!existsSync(`${dir}/${head}.supersede`), 'a sha on trunk or without files leaves no marker');
+});
+
+test('running T4 jobs lists the orphans\' jobs that are still live on Hugging Face (unreadable counts as live) and the Published line carries it', () => {
+  const dir = mkdtempSync(`${tmpdir()}/prelaunch-`);
+  wall(dir, A, [1, 2, 3]); wall(dir, B, [4]); wall(dir, C, [9]);
+  const stage = (jid: string) => ({ [id(1)]: 'COMPLETED', [id(2)]: 'RUNNING', [id(3)]: '', [id(4)]: 'RUNNING' } as Record<string, string>)[jid] ?? 'COMPLETED';
+  const r = runningOrphanT4(C, { dir, trunk: 'HEAD', isOpen: (sha: string) => sha === B }, stage);
+  assert.deepEqual(r.ids.sort(), [id(2), id(3)], 'B is in flight (open PR) and C is the published sha: neither is listed');
+  assert.equal(r.text, `2 (${id(2)},${id(3)})`);
+  assert.equal(runningOrphanT4(C, { dir, trunk: 'HEAD' }, () => 'COMPLETED').text, '0', 'nothing live: just 0');
+  assert.match(src('scripts/deploy.sh'), /orphans "\$revision" 2>\/dev\/null \|\| echo '\?'\) \(open release PRs excluded\); running T4 jobs: \$\(node scripts\/lib\/prelaunch-jobs\.mjs running "\$revision"/);
+  assert.match(src('scripts/pre-launch.sh'), /prelaunch-jobs\.mjs retry-superseded/);
 });
 
 test('the wiring: launch.mjs records the HF unit job in the .wall, pre-launch.sh cancels the named superseded sha, deploy.sh passes the orphan count to the Published summary', () => {

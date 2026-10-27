@@ -1,0 +1,3 @@
+// Which gap the upload plan waits before it looks at the scene again (main.ts warmUpload). Pure.
+// Between the plan's looks the usual gap applies. Only while [zone ready] is still being decided and its last look found something streamed in (#3412) does the confirming plan follow the drain at once; once the zone is ready the usual gap is back, so the full scene walk never runs every few frames for the rest of the session.
+export const replanGapRow = (lateLookAt: number, zoneReadyAt: number): 'replanGap' | 'lateReplanGap' => (lateLookAt >= 0 && zoneReadyAt < 0 ? 'lateReplanGap' : 'replanGap');

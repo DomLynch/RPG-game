@@ -1,4 +1,5 @@
 // The world-combat rules are rows (src/fight/world-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table, and a new row is one entry.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { WORLD_RULES, loadWorldRules, worldRule } from '../src/fight/world-rules.ts';
@@ -29,7 +30,8 @@ test('every world rule equals the literal it replaced', () => {
   assert.equal(MAX_ATTACKERS, 3);   // the attacker cap reads its row
   assert.equal(worldRule('farM'), 1000);   // the far-off dummy foe's distance reads its row
   
-  assert.equal(WORLD_RULES.length, 56);
+  assert.equal(worldRule('joinWait'), 1.5);   // a hunting creature waits at most this long outside the loop for the hero to be clean enough to open a record window (WSV54, P0-b)
+  assert.equal(WORLD_RULES.length, 63);   // 62 + joinWait (WSV54); 56 + retargetCone, retargetGap (many-on-one, WSV49) + evadeWhiffs, evadeHealToFull (evade, WSV50) + leaveWait, turnGate (creature pacing from src/core/world-sim.ts, the sim batch)
 });
 test('the loader refuses a missing named rule, a non-positive value, a duplicate id, an engageOut below engage, a holdFactor above 1; a new row is one entry', () => {
   const rows = DEFS.rules;
@@ -38,7 +40,7 @@ test('the loader refuses a missing named rule, a non-positive value, a duplicate
   assert.throws(() => loadWorldRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'engageOut' ? { ...r, value: 3 } : r)) }), /hysteresis/);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'holdFactor' ? { ...r, value: 1.2 } : r)) }), /holdFactor/);
-  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 57);
+  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 64);
   assert.equal(worldRule('engage'), 4);
 });
 test('the Pit sim keeps its own run literal (a Pit sim file: editing it would force a RECORD_VERSION bump); it must equal the playerRun row', () => {

@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "sandboxLines",
+      "file": "sandbox-lines.json",
+      "at": "sandboxLines",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

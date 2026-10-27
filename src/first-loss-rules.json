@@ -5,6 +5,7 @@
     { "id": "reach", "value": 2.1, "unit": "m" },
     { "id": "finale-limit", "value": 240, "unit": "ticks" },
     { "id": "floor", "value": 0.5, "unit": "share of a bar" },
-    { "id": "afk-cap-s", "value": 300, "unit": "s" }
+    { "id": "afk-cap-s", "value": 300, "unit": "s" },
+    { "id": "frame-dt-max-s", "value": 0.1, "unit": "s" }
   ]
 }

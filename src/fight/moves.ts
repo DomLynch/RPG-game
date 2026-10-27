@@ -4,14 +4,19 @@ import SKILL_DEFS from './skill-defs.json' with { type: 'json' };
 import { loadSkillDefs } from './skills.ts';
 import { loadWeaponDefs, type WeaponLook } from './weapons.ts';
 import { DAMAGE_KIND_IDS } from './damage-kinds.ts';
+import { ROWS86_ON } from './sandbox-era.ts';
 import { RULES } from './rules.ts';
-import { SPECIAL_SETS, SPECIAL_RANK_LEVELS } from './special-set-rows.ts';
+import { SPECIAL_SETS, SPECIAL_RANK_LEVELS, specialStartOf } from './special-set-rows.ts';
+import type { Sheet } from './sheet-rows.ts';
 import { LEVEL_ANCHORS } from './level-anchor-rows.ts';
+import { worldLevelHealth, worldProfileLevel } from './world-level-rows.ts';   // rows: world-level-defs.json (RV89, Zone 2)
 import type { PoolValues } from './pools.ts';
 import { ROSTER, type OpponentId, type RigId } from '../roster.ts';
 import { LEVELS, LATE_NOTICE_FROM } from './moves-dials-rows.ts';   // the dials are rows (moves-dials-defs.json)
 import { PROFILES_ROWS, OWN_KNOBS_ROWS, ABSENT_ROWS, POISE_FULL_AT_ROWS } from './moves-tables-rows.ts';   // rows: moves-tables-defs.json
 import { buildArchetypes } from './archetype-rows.ts';   // rows: archetype-defs.json
+import { simBound } from './sim-bounds-rows.ts';   // rows: sim-bounds-defs.json
+const NOVICE_REACTION_ADD = simBound('novice.reactionAdd'), TAIL_REACTION_FLOOR = simBound('tail.reactionFloor'), TAIL_ACCURACY_CAP = simBound('tail.accuracyCap'), TAIL_PARRY_CAP = simBound('tail.parryCap');
 export { LEVELS };
 export type { OpponentId, RigId } from '../roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
@@ -75,6 +80,7 @@ export type AiProfile = {
   discipline: number;  // stamina floor below which it retreats and recovers
   lapse: number;       // 0..1 chance a noticed swing gets no answer at all (a human does not react to every cut they see; the AI would)
   // Fight-identity knobs (slice X, for the goblin; absent = the warden as it always was):
+  tactic?: string;     // a tactic-defs.json row id: weights the warden's answer to a noticed swing by situation (ai.ts, spec gothic-tactic-table); absent = the warden as it always was
   read?: number;       // 0..1 chance the warden reads an incoming attack's side and guards/parries on it; otherwise a random other side. Absent = reads perfectly (the pre-directional guard)
   feint?: number;      // 0..1 base share of cuts and heavies that are feints against anyone (the read-parrier's 1/6 still applies on top)
   guard?: number;      // 0..1 share of the guard in its game: the standing guard, the bait guard, the block plan and the guard-walk (0 = never guards: evades or steps back instead)
@@ -128,7 +134,8 @@ export const WEAPONS: Record<WeaponId, Weapon> = LOADED.weapons;
 export const DEFAULT_WEAPON: WeaponId = LOADED.defaultId;   // the row marked `default`: the weapon a fighter gets when none is named
 export const WEAPON_LOOK: Readonly<Record<WeaponId, WeaponLook>> = LOADED.looks;   // the rows' presentation flags (baked, pommelBash, lowerArm, stabs); not on the Weapon, so they move no fight
 export const NATURAL_WEAPONS: ReadonlySet<WeaponId> = new Set(LOADED.natural);   // a creature's own weapon (the bite), not a player item
-export const weaponOf = (id: WeaponId): Weapon => { const w = WEAPONS[id]; if (!w) throw Error(`unknown weapon "${id}"`); return w; };
+export const WEAPONS86: Record<WeaponId, Weapon> = LOADED.weapons86;   // RV86 (Elden Ring timings, weapon-defs.json `rv86` overlays): the table a live fight and a record at 86 or later fight with
+export const weaponOf = (id: WeaponId): Weapon => { const w = (ROWS86_ON ? WEAPONS86 : WEAPONS)[id]; if (!w) throw Error(`unknown weapon "${id}"`); return w; };
 export const isWeaponId = (id: unknown): id is WeaponId => typeof id === 'string' && Object.hasOwn(WEAPONS, id);
 export const LONGSWORD = WEAPONS.longsword!, TRIDENT = WEAPONS.trident!, CLEAVER = WEAPONS.cleaver!, KNIFE = WEAPONS.knife!, ESTOC = WEAPONS.estoc!, GLADIUS = WEAPONS.gladius!, SCYTHE = WEAPONS.scythe!;
 export const TRIDENT_PATHS = TRIDENT.paths, CLEAVER_PATHS = CLEAVER.paths, KNIFE_PATHS = KNIFE.paths, ESTOC_PATHS = ESTOC.paths, SCYTHE_PATHS = SCYTHE.paths, SCYTHE_MOVES = SCYTHE.moves;
@@ -153,7 +160,7 @@ export type Level = keyof typeof PROFILES;
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
-export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number; pools?: PoolValues };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
+export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number; pools?: PoolValues; sheet?: Sheet };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
 export const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = buildArchetypes(PROFILES, RULES.health) as unknown as Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>>;
 
 // Knobs one opponent carries on top of an archetype he shares (the Skeleton is the Centurion's archetype and stays as he was).
@@ -183,23 +190,23 @@ export const SPECIAL_ROWS: Partial<Record<SpecialName, { interruptible?: boolean
 export const isInterruptible = (name: SpecialName | undefined): boolean => name === undefined || SPECIAL_ROWS[name]?.interruptible !== false;
 export const specialOf = (opponent: OpponentId, level: number): SpecialName | null => {
   const set = Object.hasOwn(SPECIAL_SETS, opponent) ? SPECIAL_SETS[opponent] : undefined;
-  return set && level >= SPECIAL_RANK_LEVELS[0]! ? set[SPECIAL_RANK_LEVELS.filter((from) => level >= from).length - 1]! : null;
+  return set && level >= specialStartOf(opponent) ? set[Math.max(0, SPECIAL_RANK_LEVELS.filter((from) => level >= from).length - 1)]! : null;
 };
 export { LEVEL_ANCHORS };   // the profile tiers' anchor levels are rows (level-anchor-defs.json, built by level-anchor-rows.ts)
 // The novice (Combat's L1 screen, 2026-09-27: tap-attack wins /48 at 48 seeds): slow to notice, rarely answers, swings a quarter as often.
-const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, ...(easy.tellReaction === undefined ? {} : { tellReaction: easy.tellReaction + 30 }), accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
+const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + NOVICE_REACTION_ADD, ...(easy.tellReaction === undefined ? {} : { tellReaction: easy.tellReaction + NOVICE_REACTION_ADD }), accuracy: simBound('novice.accuracy'), parry: 0, dodge: 0, aggression: easy.aggression * simBound('novice.aggressionShare'), lapse: simBound('novice.lapse'), read: simBound('novice.read') });
 // The novice BODY (option C, Strategy yes 2026-09-27 09:5x): no skill rule alone clears the level-1 gate, because a player's light never
 // staggers a poise-16 fighter (the Pitborn, the Shieldmaiden trade and win on 190 health) — a body stat, not an AI knob. At level 1 poise is 0
 // and health 70 %, blending linearly back to the opponent's own body at level 6 (easy), so from level 6 up he is exactly the man he was.
 // L1–5 body scaling protects the new player; it isn't a balance layer, and nothing on the PLAYER's numbers moves (Strategy).
-export const NOVICE_BODY = { poise: 0, health: .7 } as const;
+export const NOVICE_BODY = { poise: 0, health: simBound('novice.bodyHealth') } as const;
 // From L6 he is today's man, except poise for those two, full at L18 (Strategy 10:1x, 2026-09-27): a player's light (14) never staggers
 // poise 16, so at L6 the tap-attacker went 45 -> 0 / 48 v the Pitborn and the Shieldmaiden. Their poise ramps 0 -> 16 over L1–18 instead
 // (L6 poise 5); health and AI as everyone's. Set a value to LEVEL_ANCHORS.easy to put the old wall back.
 export const POISE_FULL_AT: Partial<Record<OpponentId, number>> = POISE_FULL_AT_ROWS as unknown as Partial<Record<OpponentId, number>>;
 // The scutum (SCOPE: guard profile only, 2026-09-27): two sides, stops heavies, a cheaper hold, posture drains faster. No damage
 // reduction, no attack penalty. Starting numbers (Combat); the Centurion battery (L1/6/10/18/30/46) tunes them.
-export const SCUTUM: Partial<GuardProfile> = { wide: true, stopsHeavy: true, heavyBreaks: false, costScale: .75, postureDecay: 1.5 };
+export const SCUTUM: Partial<GuardProfile> = { wide: true, stopsHeavy: true, heavyBreaks: false, costScale: simBound('scutum.costScale'), postureDecay: simBound('scutum.postureDecay') };
 // A loadout that changes with the ladder level (SCOPE: "Centurion carries gladius + scutum from Legionary"): below `from` he fights
 // with his roster weapon (the Recruit's trident), from `from` on with this one.
 export const LOADOUT_FROM: Partial<Record<OpponentId, { from: number; weapon: WeaponId; guard: Partial<GuardProfile> }>> = { veteran: { from: LEVEL_ANCHORS.easy, weapon: 'gladius', guard: SCUTUM } };
@@ -215,17 +222,30 @@ export function opponentAt(o: Opponent, level: number): Opponent {
   bodyCache.set(key, body);
   return body;
 }
+/** The body an open-world creature has at `level` (RV89): opponentAt, except where a world level row (world-level-defs.json) names its archetype health at that level. The Pit never calls this (it keeps opponentAt),
+ *  so a Pit fighter is byte for byte what it was; with no row the Pit's own body object comes back unchanged. A row scales the body's health by row / archetype health, so the novice blend (health at L1-5) applies to the row. */
+export function worldOpponentAt(o: Opponent, level: number): Opponent {
+  const body = opponentAt(o, level), l = Math.min(LEVELS, Math.max(1, Math.round(level))), row = worldLevelHealth(o.id, l);
+  return row === undefined ? body : { ...body, health: Math.max(1, Math.round(body.health * row / o.health)) };
+}
+/** The AI profile an open-world creature fights with at `level` (Zone 2): profileAt at the level a world row names as its `profileLevel` (world-level-defs.json), else at `level` itself, i.e. the Pit's own profile (the same
+ *  object profileAt returns). Its displayed level, loot and XP stay the mob's own; the Pit never calls this. Only who reads and answers moves: the move rows (windups, windows, recoveries) are the opponent's, whatever the profile. */
+export function worldProfileAt(o: Opponent, level: number): AiProfile {
+  const l = Math.min(LEVELS, Math.max(1, Math.round(level))), at = worldProfileLevel(o.id, l);
+  return profileAt(o, at === undefined ? level : at);
+}
 // An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
 // sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
 const ABSENT: Partial<AiProfile> = ABSENT_ROWS as unknown as Partial<AiProfile>;   // anticipate: ai.ts READ.anticipate (tests pin it)
-const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline', 'tellReaction', 'spamRun']);
+const ROUNDED = new Set<Exclude<keyof AiProfile, 'tactic'>>(['reaction', 'anticipate', 'discipline', 'tellReaction', 'spamRun']);
 const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
   const out: Record<string, number> = {};
-  for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AiProfile>) {
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)].filter((k) => k !== 'tactic')) as Set<Exclude<keyof AiProfile, 'tactic'>>) {
     const x = a[key] ?? ABSENT[key]!, y = b[key] ?? ABSENT[key]!, v = x + (y - x) * t;
     out[key] = ROUNDED.has(key) ? Math.round(v) : Math.round(v * 1000) / 1000;
   }
-  return out as AiProfile;
+  // a tactic row is a name, not a number: it carries across a blend only where both rungs name the same one (otherwise absent, the warden as he always was)
+  return (a.tactic !== undefined && a.tactic === b.tactic ? { ...out, tactic: a.tactic } : out) as unknown as AiProfile;
 };
 const levelCache = new Map<string, AiProfile>();
 // The tail past hard (Origin II–V, levels 47–50; Dom via Strategy 2026-10-05, Lead GO 2026-10-06 option B): L46 stays the hard table, byte for byte, and
@@ -234,11 +254,11 @@ const levelCache = new Map<string, AiProfile>();
 // against the fairness caps at L47–50 (tests/ladder-tail.test.ts); a rung that broke one would fall back to flat hard.
 const tailApex = (h: AiProfile): AiProfile => ({
   ...h,
-  reaction: Math.min(h.reaction, Math.max(5, h.reaction - 2)),
-  lapse: Math.round(h.lapse * 500) / 1000,
-  accuracy: Math.max(h.accuracy, Math.min(.98, h.accuracy + .03)),
-  ...(h.parry > 0 ? { parry: Math.max(h.parry, Math.min(.9, h.parry + .1)) } : {}),
-  ...(h.read === undefined ? {} : { read: Math.max(h.read, Math.min(.98, h.read + .03)) }),
+  reaction: Math.min(h.reaction, Math.max(TAIL_REACTION_FLOOR, h.reaction - 2)),
+  lapse: Math.round(h.lapse * simBound('tail.lapseMul')) / simBound('tail.lapseDiv'),
+  accuracy: Math.max(h.accuracy, Math.min(TAIL_ACCURACY_CAP, h.accuracy + simBound('tail.accuracyStep'))),
+  ...(h.parry > 0 ? { parry: Math.max(h.parry, Math.min(TAIL_PARRY_CAP, h.parry + simBound('tail.parryStep'))) } : {}),
+  ...(h.read === undefined ? {} : { read: Math.max(h.read, Math.min(TAIL_ACCURACY_CAP, h.read + simBound('tail.readStep'))) }),
 });
 /** The first ladder level whose in-between profile uses late notice (ai.ts): the L11→L12 step is the first cliff, and L1–11 stay byte for byte (Lead, 2026-10-06). */
 export function profileAt(o: Opponent, level: number): AiProfile {

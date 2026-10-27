@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIT_STOP } from '../src/hit-stop-rules.ts';
@@ -5,8 +6,8 @@ import { cuesFor } from '../src/fight/sound/cues.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
 // Strategy's ruling 2026-10-07 (Dom delegated): the posture-break beat ships as ?look=breakbeat150 did, flag removed. Re-pinned from 120 ms and no thud.
-test('a PostureBroken holds the frame 150 ms (was 120)', () => {
-  assert.equal(HIT_STOP.PostureBroken, 150);   // the row in src/hit-stop-rules.json (main.ts stopFor reads it)
+test('a PostureBroken holds no frame (RV80, Dom 2026-10-19: the sandbox\'s no-time-change rows; was 150 ms, 120 before)', () => {
+  assert.equal(HIT_STOP.PostureBroken, 0);   // the row in src/hit-stop-rules.json (main.ts stopFor reads it)
 });
 
 test('the break always has the dry thud: the existing bone_crack, a short room send', () => {

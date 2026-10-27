@@ -1,0 +1,56 @@
+{
+  "note": "Data for the cut's two pre-launch hard stops (scripts/cut-release.mjs, Strategy 2026-10-15 after the four unreviewed commits on trunk). Gate 1: every commit in <live>..<candidate base> must belong to a PR (GitHub commits/<sha>/pulls non-empty) unless it is listed in noPrExempt. Gate 2: the cut may not change any path under watchedPaths. watchedAllow lists { path, blob, pr, note }: a changed watched file passes gate 2 only at that exact reviewed blob. It starts empty; an entry goes in only through its own PR with Lead's written OK.",
+  "watchedPaths": [
+    ".github/workflows",
+    ".vscode",
+    "public/fonts"
+  ],
+  "watchedAllow": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "6e8ea0fb9eef82df1a6f0442372ec8e94268d06e",
+      "pr": 2929,
+      "note": "Lead OK 2026-10-16: GAME_RE adds scripts/lib/json-dup-keys, scripts/lib/origins-preview-harness and scripts/origins-remote-heroes-check; one optional browser matrix row remote-heroes. No new actions, secrets, permissions or triggers."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "ed5dc83ea358592d0e7393617d3e37527689c96e",
+      "pr": 3418,
+      "note": "Hooks Dev reviewed 2026-10-20 (the whole diff is two hunks; Lead's written OK is on this PR before it merges): GAME_RE adds scripts/origins-late-stream-check; one optional browser matrix row late-stream (required: false, #3412's check, the script is on trunk). No new actions, secrets, permissions or triggers."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "1f592bcafee3343623b4c9f48f368dbf6fd34adc",
+      "pr": 3468,
+      "note": "Lead's written OK 2026-10-20 on #3468 (re-OK after the one-step jpegtran fix; it was 62bbc4cd2), on condition #3468 merges after #3467: a separate load-time-zone1 job (scripts/load-time-check.mjs --page zone1, base and head on one runner) whose result feeds browser-rows (status); the two pin tests gain its name. No new actions, secrets, permissions or triggers."
+    },
+    { "path": ".github/workflows/data-only.yml", "blob": "68e5e9772e79f910ce0b7d79a13a51cbb92089fd", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), all 8 workflow blobs at head 0530f2a36: CI-only dedupe, proved by A/A x2 + trunk control (runs 39612486544, 39612504465, 39612512354)." },
+    { "path": ".github/workflows/gpu-checks.yml", "blob": "b399ea98d6d86fbd7324964a07fcacf9f5cd74f6", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/pr-wording.yml", "blob": "e79e076ac0f4ed44de74e5fc3309b66fde997074", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/quality.yml", "blob": "af284ef400962ea4ba4ac440f6e9284ab34a9ada", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/release-checks.yml", "blob": "6deb1ebbd104a3d713582ab5e71fb764f138cfc5", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/release-train.yml", "blob": "4abd3f5a82d02c6fed2787474529655740c5d381", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/special-battery.yml", "blob": "a17c8d35054574627aa74eb223f1b57488364625", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/unit-ci.yml", "blob": "4b284bea8728359a1152bd42d37aca02d5429a30", "pr": 3547, "note": "Lead's written OK on #3547 (2026-10-21), blob at head 0530f2a36." },
+    { "path": ".github/workflows/unit-ci.yml", "blob": "6ba201328047c9bce83152c745d456bb886defc1", "pr": 3566, "note": "Lead's written OK on #3566 (2026-10-21 19:17Z @7d945f458), re-confirmed @645bc3052 (2026-10-22): the receipt reads each shard's latest attempt only; this blob is unchanged since." },
+    { "path": ".github/workflows/release-checks.yml", "blob": "afed6f2e9a2a6649c6215f460304cbc670fa0dbd", "pr": 3625, "note": "Lead's written OK 2026-10-22 (after the K6q26 apt stall): bound every apt fetch (20 s, 3 retries) before the first apt call, jpegtran under timeout 300 in every group, ffmpeg only for the arena-audio group (matrix.group.rows; supersedes #2613's dead matrix.check). No new actions, secrets, permissions or triggers." }
+  ],
+  "noPrExempt": [
+    {
+      "sha": "d531a0f1d",
+      "note": "2026-10-15 malicious commit 'Add repo health workflow', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "7f19a0842",
+      "note": "2026-10-15 malicious commit 'Add cache cleanup', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "e5410d2c4",
+      "note": "2026-10-15 malicious commit 'Add font assets', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "e35b9b16d",
+      "note": "2026-10-15 malicious commit 'Add editor task', neutralised by revert PR #2779"
+    }
+  ]
+}

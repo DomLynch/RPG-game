@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bossSpecialFor, bossSpecialId } from '../src/fight/special-identity.ts';
@@ -44,8 +45,11 @@ test('each of the 30 named boss identities resolves to its own registered oppone
 test('unmapped names, opponents and invalid levels never fall back to another boss', () => {
   for (const name of [null, 'unknown', 'constructor', 'toString']) assert.equal(bossSpecialId(name as SpecialName | null), null);
   for (const opponent of Object.keys(ROSTER) as OpponentId[]) {
-    if (!Object.hasOwn(EXPECTED, opponent)) for (const level of [1, 16, 36, 41, 46]) assert.equal(bossSpecialFor(opponent, level), null);
+    if (!Object.hasOwn(EXPECTED, opponent) && opponent !== 'cave-troll') for (const level of [1, 16, 36, 41, 46]) assert.equal(bossSpecialFor(opponent, level), null);
   }
+  // The Cave Troll's set row says `from: 2` (a creature boss below the ladder's rank 8): no boss special at level 1, the Pitborn's crackingground (antaeus) from level 2.
+  assert.equal(bossSpecialFor('cave-troll', 1), null);
+  for (const level of [2, 3, 16, 36, 46]) assert.equal(bossSpecialFor('cave-troll', level), 'antaeus');
   for (const level of [0, -1, 35.5, 36.5, 51, NaN, Infinity]) assert.equal(bossSpecialFor('veteran', level), null);
 });
 

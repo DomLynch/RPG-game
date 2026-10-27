@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -18,7 +19,7 @@ const worst:Record<string,number>={};
 test('Hamstrung is optional per rig, and where installed its low cut and held back thrust meet each victim',async()=>{
  const legacy=buildWarriors(await load('veteran'));legacy.player.update(0,.1,'ready');
  assert.throws(()=>legacy.player.update(0,0,'hamstrungStrike',0),/not installed/);assert.throws(()=>legacy.opponent.update(0,0,'hamstrung',0),/not installed/);
- const hero=await load('warrior');
+ const hero=await load('hero-classic');
  assert.ok(!hero.animations.some(c=>c.name==='Fin_Hamstrung'),'warrior.glb carries no Hamstrung clip');
  // The creatures carry their own Death_Hamstrung (adoptClip leaves it); every other body wears the one clip built from warrior.glb, its pelvis path scaled to its own.
  // The goblin is not a victim in the game (its rig is its own) but is measured: the smallest body, shortest legs.
@@ -44,7 +45,7 @@ test('Hamstrung is optional per rig, and where installed its low cut and held ba
 });
 
 test('Hamstrung drops each real weapon onto the floor and restores it on rematch; the Wraith ghost holds through the embedded ending',async()=>{
- const hero=await load('warrior');
+ const hero=await load('hero-classic');
  assert.ok(!hero.animations.some(c=>c.name==='Fin_Hamstrung'),'warrior.glb carries no Hamstrung clip');
  for(const [id,weapon] of [['minotaur','maul'],['wraith','reaper']] as const){
   const victim=await load(id);
@@ -74,7 +75,7 @@ test('Hamstrung drops each real weapon onto the floor and restores it on rematch
 
 // The one clip is built on warrior.glb's proportions; the size extremes must still end on the floor, neither sunk nor hovering (goblin: smallest, shortest legs; pitborn: largest hero body).
 test('the hero-rig victim clip keeps the goblin and the Pitborn on the floor through the kneel and the held ending',async()=>{
- const hero=await load('warrior'),pelvis=hero.scene.getObjectByName('pelvis')!.position.length();
+ const hero=await load('hero-classic'),pelvis=hero.scene.getObjectByName('pelvis')!.position.length();
  assert.ok(Math.abs(pelvis-HAMSTRUNG_SOURCE_PELVIS)<.001,'the pelvis constant is warrior.glb\'s');
  for(const [id,weapon] of [['pitborn','cleaver'],['goblin','knife']] as const){
   const {opponent}=buildWarriors(hero,await load(id),['longsword',weapon]);opponent.adoptClip('Death_Hamstrung',victimClip(),HAMSTRUNG_SOURCE_PELVIS);

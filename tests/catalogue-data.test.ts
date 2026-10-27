@@ -1,5 +1,6 @@
 // src/fight/catalogue-data.ts is PURE DATA so the data-only path can carry a catalogue row without an Auditor review: only `import type` lines and ONE exported const built from literals
 // (no calls, spreads, template strings, identifiers or computed keys). catalogue-rows.ts, the code, reads it and must hand back the same rows.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PC, paperdollOf, slotOf } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { WEAR_SLOTS, wearKindOf, wornSlot, type Piece } from '../gear/wear-repair.ts';
+import { WEAR_HIT_TYPES, WEAR_SLOTS, hitsTaken, wearKindOf, wornSlot, type Piece } from '../gear/wear-repair.ts';
 import { DbError, type Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { killWearLines, rollsOf, settleWithWear, wearMaxOf } from './wear-settle.ts';
@@ -116,3 +116,35 @@ test('two kills settling close together on the SAME piece: both are paid, the pi
   assert.equal(reads, 2);
 });
 type store_Json = unknown;
+
+test('hit wear: hitsTaken sums only the event types the wearHitTypes rows name (a block, parry or dodge is not a hit taken)', () => {
+  assert.deepEqual(WEAR_HIT_TYPES.map((t) => t.id), ['Hit', 'GuardBroken', 'SpecialLanded']);
+  assert.equal(hitsTaken({ Hit: 4, GuardBroken: 1, SpecialLanded: 2, Blocked: 9, Parried: 3 }), 7);
+  assert.equal(hitsTaken({}), 0);
+});
+
+test('hit wear: each blow taken bites once more; ONE line per piece however many bites it took, the same token and hits give the same lines, and no hits is the kill alone', async () => {
+  const token = tokenFor((s) => SLOTS.includes(s));
+  const { db, inventory } = await inv(SLOTS);
+  const alone = await killWearLines(db, kill(token), inventory), none = await killWearLines(db, { ...kill(token), hits: 0 }, inventory);
+  assert.deepEqual(none, alone);
+  const many = await killWearLines(db, { ...kill(token), hits: 200 }, inventory) as { event_id: string; payload: { wear: Piece & { instance: string; seq: number } } }[];
+  assert.deepEqual(await killWearLines(db, { ...kill(token), hits: 200 }, inventory), many);
+  assert.equal(new Set(many.map((l) => l.payload.wear.instance)).size, many.length);                   // one line per piece
+  assert.ok(many.every((l) => l.event_id === `wear:${l.payload.wear.instance}:1` && l.payload.wear.seq === 1));
+  assert.ok(many.length > alone.length, '200 blows reach pieces the kill alone did not');
+  for (const l of many) {
+    const kind = wearKindOf(`item:loot.goblin.${SLOTS.find((sl) => idOf(sl) === l.payload.wear.instance)}`)!;
+    assert.ok(l.payload.wear.worn > 0 && l.payload.wear.worn <= l.payload.wear.max && l.payload.wear.max === wearMaxOf(kind.tier));
+  }
+});
+
+test('hit wear: blows continue a piece\'s stored wear (seq + 1) and never push it past its max; a database without the ledger still wears nothing', async () => {
+  const token = tokenFor((s) => SLOTS.includes(s)), id = idOf(bitten(token));
+  const a = await inv(SLOTS, { [id]: { instance: id, seq: 7, worn: 3, max: 50, baseMax: 60 } });
+  const lines = await killWearLines(a.db, { ...kill(token), hits: 500 }, a.inventory) as { event_id: string; payload: { wear: Piece & { seq: number } } }[];
+  const mine = lines.find((l) => l.event_id.startsWith(`wear:${id}:`))!;
+  assert.deepEqual([mine.event_id, mine.payload.wear.seq, mine.payload.wear.worn, mine.payload.wear.max], [`wear:${id}:8`, 8, 50, 50]);
+  const noLedger = await inv(SLOTS, 'absent');
+  assert.deepEqual(await killWearLines(noLedger.db, { ...kill(token), hits: 50 }, noLedger.inventory), []);
+});

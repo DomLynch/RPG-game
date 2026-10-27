@@ -3,6 +3,7 @@
 import { getSkills, skillsOffline, type SkillValues } from './skills-net.ts';
 import { storedToken, writerBase } from './writer-call.ts';
 import { openCharacter } from './open.ts';
+import { CLIENT } from './client-rules.ts';
 
 type Deps = { storage: { getItem(key: string): string | null } | null; search: string; now: () => number; fetch?: typeof fetch };
 const NONE: SkillValues = {};
@@ -15,7 +16,7 @@ export function createServerSkills(d: Deps) {
       const token = storedToken(d.storage, d.now()); if (!token) { values = NONE; return values; }
       character ??= await openCharacter({ storage: d.storage, search: d.search, now: d.now, ...(d.fetch ? { fetch: d.fetch } : {}) });
       if (!character) return values;
-      const got = await getSkills(token, character, { base: writerBase(d.search), timeoutMs: 8000, ...(d.fetch ? { fetch: d.fetch } : {}) });
+      const got = await getSkills(token, character, { base: writerBase(d.search), timeoutMs: CLIENT.writerTimeoutMs, ...(d.fetch ? { fetch: d.fetch } : {}) });
       if (!skillsOffline(got)) values = got;
       return values;
     },

@@ -19,6 +19,19 @@ trap 'rm -rf "$stage"' EXIT
 git -C "$repo" show "$sha:scripts/lanejob/lanejob.sh" > "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: scripts/lanejob/lanejob.sh is not in $sha" >&2; exit 1; }
 git -C "$repo" show "$sha:scripts/lib/waterfall.mjs" > "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: scripts/lib/waterfall.mjs is not in $sha" >&2; exit 1; }
 chmod 755 "$stage/scripts/lanejob/lanejob.sh"; chmod 644 "$stage/scripts/lib/waterfall.mjs"
+# hfjob (Strategy + Dom 2026-10-27): the repo-agnostic HF CPU command ships in the same release copy and gets its own shim next to lanejob's. A commit without it still installs lanejob.
+hfjob=0
+if git -C "$repo" cat-file -e "$sha:scripts/hfjob/hfjob.sh" 2>/dev/null; then
+  install -d -m 755 "$stage/scripts/hfjob"
+  git -C "$repo" show "$sha:scripts/hfjob/hfjob.sh" > "$stage/scripts/hfjob/hfjob.sh" && chmod 755 "$stage/scripts/hfjob/hfjob.sh" && bash -n "$stage/scripts/hfjob/hfjob.sh" || { echo "install-vps: staged hfjob.sh does not parse" >&2; exit 1; }
+  hfjob=1
+  # the standing-box files (inner.sh, boxes.py, box/*) and the data row they read ride along: hfjob finds them next to itself and in ../../data
+  for f in $(git -C "$repo" ls-tree -r --name-only "$sha" -- scripts/hfjob data/hf-boxes.json); do
+    install -d -m 755 "$stage/$(dirname "$f")"; git -C "$repo" show "$sha:$f" > "$stage/$f"; chmod 755 "$stage/$f"
+  done
+  [ ! -f "$stage/scripts/hfjob/boxes.py" ] || python3 -m py_compile "$stage/scripts/hfjob/boxes.py" || { echo "install-vps: staged boxes.py does not compile" >&2; exit 1; }
+  rm -rf "$stage/scripts/hfjob/__pycache__"
+fi
 bash -n "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: staged lanejob.sh does not parse" >&2; exit 1; }
 grep -Eq '^export const VPS_MAX_LOAD1 = [0-9]+(\.[0-9]+)?;' "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: waterfall.mjs has no VPS_MAX_LOAD1 line" >&2; exit 1; }
 mkdir "$stage/.no-locks" "$stage/.no-slots"   # empty: no marker, four free slots (the slot files are created by the probe's open)
@@ -36,5 +49,22 @@ printf '#!/bin/sh\n# lanejob shim: the real script is the current release copy (
 chmod 755 "$tmp"
 if [ -e "$shim" ] && ! cmp -s "$tmp" "$shim"; then cp -p "$shim" "$shim.bak-$stamp"; fi
 mv "$tmp" "$shim"
-echo "$(date -u +%FT%TZ) lanejob installed $sha" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
+if [ "$hfjob" = 1 ]; then   # /usr/local/bin/hfjob (beside the lanejob shim), same shim shape, same backup rule
+  hshim="$(dirname "$shim")/hfjob"
+  tmp=$(mktemp "$(dirname "$shim")/.hfjob-shim.XXXXXX")
+  printf '#!/bin/sh\n# hfjob shim: the real script is the current release copy (scripts/lanejob/install-vps.sh)\nexec %s/current/scripts/hfjob/hfjob.sh "$@"\n' "$root" > "$tmp"
+  chmod 755 "$tmp"
+  if [ -e "$hshim" ] && ! cmp -s "$tmp" "$hshim"; then cp -p "$hshim" "$hshim.bak-$stamp"; fi
+  mv "$tmp" "$hshim"
+  echo "hfjob installed -> $hshim"
+  # the box job record's poller: a cron entry (path and open-jobs file are data rows) so a dead terminal or reboot never loses a box job. Only when the row exists and we are root.
+  cronf=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("cronFile",""))' "$root/$sha/data/hf-boxes.json" 2>/dev/null || true)
+  openf=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("openJobsFile",""))' "$root/$sha/data/hf-boxes.json" 2>/dev/null || true)
+  if [ -n "$cronf" ] && [ -n "$openf" ] && [ "$(id -u)" = 0 ] && [ "$root" = /opt/frankendom/lanejob ] && [ -d "$(dirname "$cronf")" ]; then
+    install -d -m 1777 "$(dirname "$openf")"
+    printf '# hfjob box job record poller (scripts/lanejob/install-vps.sh): every minute, polls recorded box jobs and ledgers their end\n* * * * * root %s box-tick >/dev/null 2>&1\n' "$hshim" > "$cronf.tmp" && chmod 644 "$cronf.tmp" && mv "$cronf.tmp" "$cronf"
+    echo "hfjob box-tick cron -> $cronf"
+  fi
+fi
+echo "$(date -u +%FT%TZ) lanejob installed $sha" >>"${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
 echo "lanejob installed $sha -> $shim"

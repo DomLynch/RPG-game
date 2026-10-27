@@ -1,5 +1,6 @@
 // The duel's RULES are rows (src/fight/rules-defs.json, built by src/fight/rules.ts; recce #2554 group B, slice 1). The move is byte-identical: the canonical JSON of the object,
 // key order included, hashes to what the hand-written literal in moves.ts hashed to on trunk 63d909374 before it went (the receipt), and no object literal named RULES is kept in code.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';

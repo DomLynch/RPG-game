@@ -5,10 +5,15 @@ export * from './open.ts';
 export * from './build-ref.ts';
 export * from './build-screen.ts';   // "Place your point" (the dialog) and its server copy, for the Pit page
 export * from './build-server.ts';
-export { ROWS as SHEET_ROWS, spent as pointsSpent, pointsBudget, type Row as SheetRow } from './build-model.ts';   // the stats screen's rows (names are rows, row-names.json) and the spend, read from the same model Place your point uses
+export * from './build-guest.ts';   // a guest's session-only build (in memory, nothing stored or sent)
+export { ROWS as SHEET_ROWS, spent as pointsSpent, pointsBudget, unspent as pointsUnspent, type Row as SheetRow } from './build-model.ts';   // the stats screen's rows (names are rows, row-names.json) and the spend, read from the same model Place your point uses
 export * from './grimoire-screen.ts';   // the spell book dialog and its op, for the Pit page
 export * from './grimoire-net.ts';
 export * from './spell-equip.ts';
+export * from './special-equip.ts';
+export * from './special-screen.ts';   // the SPECIAL 1 / 2 picker dialog, for the Pit page
+export { followAccountSlots, pullSpecialSlots, pushSpecialSlotsOnPick } from './special-sync.ts';   // the special slots follow the account (special_slots_get / _set, Backend #3422)
+export * from './spell-slot-view.ts';
 export * from './skills-net.ts';   // skills_get: the skill values a cast is claimed at (Match's spell port)
 export * from './skills-server.ts';   // the equipped spell and the owned ids, read by the Match's spell port
 export * from './session.ts';
@@ -54,3 +59,4 @@ export type { UpgradeReceipt } from './gear-net.ts';
 export type { UpgradeReceipt as EconomyUpgradeReceipt } from './contracts/economy.ts';
 export { tierOf } from './career-model.ts';
 export { tierOf as standingTierOf } from './contracts/world.ts';
+export { fetchReleaseJson } from './release-read.ts';

@@ -1,0 +1,9 @@
+{
+  "landmarks": [
+    { "id": "square-arch", "region": "region:concord-exchange", "name": "The Exchange Arch", "at": "square-arch" },
+    { "id": "quarter", "region": "region:concord-exchange", "name": "The Exchange Quarter", "at": "quarter-centre" },
+    { "id": "cinder-hold", "region": "region:ash-frontier", "name": "Cinder Hold", "at": "hold-centre" },
+    { "id": "mere-end", "region": "region:ash-frontier", "name": "Mere End", "at": "end-centre" },
+    { "id": "grey-ferry", "region": "region:ash-frontier", "name": "The Grey Ferry", "at": "dock" }
+  ]
+}

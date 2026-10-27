@@ -1,10 +1,16 @@
-# as-data check (c): a label map keyed by content ids: an object-literal pair whose KEY is what is, by its spelling, a content id (__IDS__, filled in by the runner) and whose VALUE is a string.
-# `{ fire: 'Fire', frost: 'Frost' }` is content (a display name, a colour, a blurb) kept in code; the string belongs in the id's data row. One site per pair, so the count is the number of labels still in code.
+# as-data check (c): a label map keyed by content ids: an object-literal pair whose KEY is what is, by its spelling, a content id (__IDS__, filled in by the runner) and whose VALUE is a string
+# or an array holding strings. `{ fire: 'Fire', frost: 'Frost' }` and `{ witch: ['hex', 'curse'] }` are content (a display name, a colour, a blurb, a part or special list) kept in code;
+# it belongs in the id's data row. One site per pair, so the count is the number of labels still in code. Widened to arrays on 2026-10-15 (CLASS_SPECIALS slipped past the string-only
+# shape); check.ts holds it to a ratchet (map-baseline.json).
 id: as-data-map
 language: typescript
 rule:
   kind: pair
   all:
     - has: { field: key, regex: "^['\"]?(__IDS__)['\"]?$" }
-    - has: { field: value, kind: string }
+    - has:
+        field: value
+        any:
+          - kind: string
+          - { kind: array, has: { kind: string } }
   inside: { kind: object, stopBy: neighbor }

@@ -5,6 +5,8 @@
 # under deploy.sh's Mac-rows lock (scripts/lib/deploy-lock.sh), so it never overlaps a deploy's local rows. Writes the tree-bound receipt
 # scripts/lib/mac-rows-early.mjs reads; deploy.sh trusts the rows that passed, by tree. Env: PRELAUNCH_DIR, MAC_ROWS_DIR, MAC_ROWS_INSTALL, MAC_ROWS_RUN (tests).
 set -uo pipefail
+# Playwright browsers live in ~/Developer/.ms-playwright, not ~/Library/Caches (macOS emptied ms-playwright on 10-16 and 10-21 and every Mac row died at launch); an explicit PLAYWRIGHT_BROWSERS_PATH wins, and a Mac without the folder keeps Playwright's default.
+if [[ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "$HOME/Developer/.ms-playwright" ]]; then export PLAYWRIGHT_BROWSERS_PATH="$HOME/Developer/.ms-playwright"; fi
 sha="${1:-}"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "mac-rows-early: needs a full 40-hex candidate sha" >&2; exit 2; }
 here=$(cd "$(dirname "$0")/.." && pwd)
@@ -21,6 +23,7 @@ running="$state/$sha.macrows.running"
 source "$here/scripts/lib/deploy-lock.sh"
 trap 'deploy_lock_release_held 2>/dev/null; rm -rf "$lock" "$running"' EXIT
 deploy_lock_release_held() { local d; for d in $DEPLOY_LOCKS_HELD; do deploy_lock_drop "$d"; done; }
+if live_deploy=$(deploy_runs_live); then echo "mac-rows-early: deploy.sh pid $live_deploy owns the Mac; ${sha:0:9} starts after it"; exit 0; fi   # the current deploy owns the Mac (Strategy 2026-10-20)
 dir="${MAC_ROWS_DIR:-$HOME/Developer/frankendom-macrows}"
 git -C "$here" cat-file -e "$sha^{commit}" 2>/dev/null || git -C "$here" fetch -q origin || true
 git -C "$here" cat-file -e "$sha^{commit}" 2>/dev/null || { echo "mac-rows-early: $sha not in this repo" >&2; exit 1; }
@@ -46,5 +49,8 @@ echo "mac-rows-early: ${sha:0:9} rows $rows in $dir, started $started"
 ( cd "$dir" && export RELEASE_CHECKS_ONLY="$rows" RELEASE_CHECKS_RECEIPT="$checks" RELEASE_CHECKS_LOG_DIR="$state/$sha.macrows-logs" RELEASE_CHECK_CONCURRENCY=1 \
   && bash -c "${MAC_ROWS_RUN:-npm run build >/dev/null && node scripts/release-checks.mjs}" )
 rc=$?
+# A run stopped by a signal (143 TERM, 130 INT, 137 KILL; deploy_lock_yield_early stops it when a deploy needs the Mac) vouches for nothing and leaves NO receipt:
+# the train's next tick starts the rows again, and the candidate does not carry an exit-143 receipt (Auditor on #3461).
+if (( rc >= 128 )); then echo "mac-rows-early: ${sha:0:9} rows stopped by a signal (exit $rc); no receipt, they restart on a later tick"; exit 0; fi
 (cd "$dir" && node scripts/lib/mac-rows-early.mjs record "$sha" "$tree" "$checks" "$started" "$rc")
 exit 0

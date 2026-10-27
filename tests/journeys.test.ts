@@ -1,6 +1,7 @@
 // User journeys across modules (GPT audit 2026-09-22, the safety net for the main.ts split): each one crosses the seams the newer
 // features introduced — loot → account → cloud → another device; fight → store → link → loader (the daily journey was removed with the Daily, Dom 2026-09-29). No browser:
 // the Supabase client is a tiny in-memory fake with the tables these paths touch, and REST reads are a fake fetch over the same rows.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';

@@ -1,5 +1,6 @@
 // The Zone 1 goblin camp's data (Characters, 2026-10-09): the creature wears the engine goblin's level-1 armour on the generated world body (no new art), its camp size is a data field, and
 // the armour it drops is the six pieces the file wears. The world body is public/world/goblin.glb, generated from src/assets/goblin.glb by scripts/character/world_body.py.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,7 +20,7 @@ const ID = 'character:pit-goblin';
 test('the camp goblin\'s look is the engine goblin undyed at native height, on the generated world body', () => {
   const look = mobLook(ID)!;
   assert.equal(look.opponent, 'goblin'); assert.ok(ROSTER.goblin.body === 'goblin', 'the roster body the engine fights');
-  assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1, { soot: 0, burnt: 0 }]);
+  assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1.25, { soot: 0, burnt: 0 }]);   // 1.25: the Test Zone's goblin (Zone 1 = Test Zone look, Dom-approved 2026-10-18)
 });
 
 test('the world body is phone-safe: the engine goblin\'s 65-joint rig at ~8k tris, one texture, under 2.2 MB (scripts/character/world_body.py, receipt: artifacts/character/pit-goblin/)', () => {

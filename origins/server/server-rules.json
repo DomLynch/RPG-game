@@ -5,7 +5,9 @@
       "minGap": 2,
       "markGap": 6.5,
       "edge": 0.01,
-      "note": "a posed fight start: the least gap the hero and foe may start at (m), the pit marks' own gap that caps it (m, times the foe's spawn scale), and how far inside the wall they stay so float32 rounding never pushes one onto it (m)"
+      "scaleFloor": 0.5,
+      "maxCoordM": 1000,
+      "note": "a posed fight start: the least gap the hero and foe may start at (m), the pit marks' own gap that caps it (m, times the foe's spawn scale), how far inside the wall they stay so float32 rounding never pushes one onto it (m), the smallest foe spawn scale the widest start gap shrinks to (a multiplier), and the largest coordinate a proposed pose may name (m, either axis, arena-local)"
     }
   ],
   "encounterToken": [
@@ -23,7 +25,46 @@
       "slack": 0.5,
       "reachSlack": 4,
       "poseAgeMs": 5000,
-      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
+      "maxHits": 10000,
+      "engageTokenBytes": 24,
+      "windowSlackTicks": 120,
+      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, the oldest presence pose (ms) that still counts, the most landed hits a kill report may claim, the random bytes in a spawn-engage token, and the ticks (two seconds) a record may run past the engagement's age for the window that opened just before the token"
+    }
+  ],
+  "pace": [
+    {
+      "id": "killTiming",
+      "slowRatio": 3,
+      "minTickS": 3,
+      "startsKept": 5000,
+      "decimals": 2,
+      "note": "the slow-motion flag on a verified kill (flag only, nothing is refused): a kill is flagged slow when its wall time was at least this many times its sim time (a client under about a third of its speed), a fight under this many seconds of sim time is never flagged (too short to tell), the decimals the event keeps, and the writer remembers this many encounter start times in memory (oldest dropped; a restart forgets them and those settles carry no flag)"
+    }
+  ],
+  "fightLimit": [
+    {
+      "id": "fight",
+      "maxFightSec": 900,
+      "note": "the longest fight the encounter verifier accepts, in seconds (15 minutes); a longer record is not a fight (ticks = this / STEP)"
+    }
+  ],
+  "gearImport": [
+    {
+      "id": "cutoff",
+      "closesAt": "2026-10-30T00:00:00Z",
+      "note": "PROVISIONAL (Strategy ruling 2026-10-16, relayed by Lead): gear_import, the one-time migration of the old local loot ledger, closes at this instant and refuses everything after it. 2026-10-30 stands until Dom names the beta-open date and may move it; change this one row, nothing else."
+    }
+  ],
+  "wornPoke": [
+    { "id": "gear_equip", "note": "a successful op in this list tells presence the account's worn set may have changed, so other players see the new gear at once instead of at the next refresh (one row per op; presence-rules wornPokeGapMs spaces the reads)" },
+    { "id": "gear_unequip", "note": "takes a piece off: same poke" },
+    { "id": "gear_import", "note": "the one-time legacy import can equip pieces: same poke" }
+  ],
+  "mobPayout": [
+    {
+      "id": "caps",
+      "capReached": 9007199254740991,
+      "note": "a verified creature kill passes the Bounty 'wins today' and the weekly-boss 'rolls this week' counts to the loot roll. No events read is built yet, so both are passed as this value (a count already at its cap): nothing is paid past a cap it cannot see, so it can never overpay. Lower it only when the events read exists"
     }
   ],
   "serverLimits": [
@@ -34,6 +75,98 @@
       "queueMax": 16,
       "presenceFreshMs": 5000,
       "note": "gear import: most LootIds a body may list (it only bounds a hostile body); an open settles at most this many Pit claims, the rest wait for the next open; requests that may wait behind one account's queue before 'busy' (503); how old (ms) a presence pose may be for the Exchange bank to count the player as there"
+    }
+  ],
+  "inputLimits": [
+    {
+      "id": "input",
+      "characterIdChars": 80,
+      "pieceIdChars": 80,
+      "instanceIdChars": 120,
+      "lootIdChars": 40,
+      "questIdChars": 120,
+      "npcIdChars": 120,
+      "stageIdChars": 64,
+      "choiceIdChars": 64,
+      "lineIdChars": 64,
+      "note": "the longest string (characters) each request field may be before the writer refuses it with a 400: a character id, a worn piece id, an item instance id, a legacy LootId in a gear import, a quest id, an npc id, a quest stage id, a quest choice id and a dialogue line id. They only bound a hostile body; every real id is far shorter"
+    }
+  ],
+  "callTimeouts": [
+    {
+      "id": "calls",
+      "authFetchMs": 5000,
+      "psqlMs": 30000,
+      "verifyQueueMax": 16,
+      "verifyJobMs": 3000,
+      "note": "how long the sign-in check waits for Supabase before the token counts as bad (ms); how long one database script may run before it is killed (ms); how many world-record replays may wait for the verifier thread before 'busy', and how long one replay may take (ms)"
+    }
+  ],
+  "recordLimits": [
+    {
+      "id": "record",
+      "maxTicks": 1000000000,
+      "minRecordChars": 8,
+      "maxRecordChars": 60000,
+      "seedBound": 2147483648,
+      "reasonChars": 200,
+      "psqlErrorChars": 200,
+      "psqlStderrKeepChars": 4000,
+      "nonceBytes": 12,
+      "note": "encounter request bounds and error text widths: the largest whole tick count a request may carry; the shortest and longest packed duel record (characters) the writer will replay; the exclusive upper bound of a duel seed; how much of a verifier's refusal reason is sent back; how much of a failed database script's error text is kept in the error message, and how much of its stderr is kept; how many random bytes make the per-process end-of-result marker. They only bound a hostile body or a log line"
+    }
+  ],
+  "strictFlip": [
+    {
+      "id": "flip",
+      "minKills": 50,
+      "minRate": 0.95,
+      "note": "when the world-reward strict flags may go on (audit 2026-10-18, Strategy: a beta-opening gate): ORIGINS_SPAWN_REFUSE_UNCHECKED once at least minKills kills since the writer started were reach-checked at minRate or better; ORIGINS_WORLD_RECORD_SCORECARD_ONLY once at least minKills kills carried a record that verified at minRate or better. Read by the writer's /internal/world-records readout; the flags themselves are set by Deploy on Lead's word"
+    }
+  ],
+  "worldShare": [
+    {
+      "id": "share",
+      "qualifyOfTop": 0.25,
+      "tagExpiryS": 120,
+      "joinWindowS": 120,
+      "replaysPerAccount": 2,
+      "note": "kill credit is split by damage dealt (Dom 2026-10-19, rules from Lead's donor research): a contributor qualifies at this share of the TOP contributor's damage; a hit counts for tagExpiryS seconds after the contributor's last hit (the replay drops older damage); a report may join an already-killed spawn for joinWindowS seconds after the kill, only with a token engaged before the kill; at most replaysPerAccount replays of one account queued at once (the rest pay as an unreplayed kill). No solo-kill exception: two contributors who each dealt a full bar split it (Dom 2026-10-26; each page still plays its own copy until a shared server health bar). No first-hit and no last-hit bonus."
+    }
+  ],
+  "worldMarks": [
+    {
+      "id": "marks",
+      "ofTop": 0.5,
+      "graceS": 5,
+      "everyS": 60,
+      "batch": 50,
+      "perHour": 6,
+      "note": "killing a ladder ROSTER fighter (a spawn row flagged roster) is one ladder mark, like a Pit duel win (migration 20261022100000, Dom 2026-10-22, Lead ruling): once the kill's join window (worldShare.joinWindowS) plus graceS seconds have passed, the whole damage ledger decides, and every account whose damage is at least ofTop of the TOP damager's earns one mark (ModernUO's qualify-at-death rule, relative to the top; credit uses the looser worldShare.qualifyOfTop). The writer settles up to batch kills every everyS seconds. Total marks stay under the beta cut (career-ladder.ts betaMarks), and an account earns at most perHour world marks an hour (Dom can tune it: the brake on farming a respawning roster)."
+    }
+  ],
+  "spawnLayers": [
+    {
+      "id": "layers",
+      "janitorEveryS": 60,
+      "note": "per-layer spawn clocks (docs/specs/origins/per-layer-spawns.md, migration 20261019170000, flag ORIGINS_SPAWN_LAYERS): once every janitorEveryS seconds the writer asks presence which layers exist and deletes the spawn rows of every layer that does not (presence closes a layer after it has been empty for emptyLayerMs). A presence that cannot be asked deletes nothing."
+    }
+  ],
+  "dynamicRespawn": [
+    {
+      "id": "respawn",
+      "playersFull": 10,
+      "floorS": 15,
+      "note": "dynamic respawn inside a layer (Dom's ruling 2026-10-19 via Strategy, Trinity-style: respawn x min(1, 10 / players), floor 10-15 s; about 30 kills an hour per hunter, per-layer copies; flag ORIGINS_DYNAMIC_RESPAWN): a layer holding more than playersFull players respawns its creatures in base x playersFull / players seconds, never below floorS (about one fight, the first fight measured 13.5 s) and never above the creature's own row, so a crowded layer does not starve. Players, not hunters, are what presence can count, so this is the conservative reading: it assumes everyone present hunts. Only the clock of the spawn changes; the one-paid-kill-per-account window across layers stays the row's own respawn."
+    }
+  ],
+  "strictRevert": [
+    {
+      "id": "revert",
+      "firstKills": 50,
+      "minRate": 0.95,
+      "maxUncheckedRun": 10,
+      "note": "when the strict flags come back OFF after the flip (Strategy 2026-10-18): judged on ORGANIC kills only (the QA account's kills are their own cohort), from the reach tally since the writer started (so, after the flip-restart, under the flags). Revert when the first firstKills organic kills are complete and fewer than minRate of them were reach-checked, or as soon as maxUncheckedRun organic kills in a row were unchecked. Read by the writer's /internal/world-records readout (`revert`); Deploy flips both flags off with a readout line on the thread and Lead reopens the item. The gate closes when the first firstKills organic kills are at minRate or better"
     }
   ]
 }

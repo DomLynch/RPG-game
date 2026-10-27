@@ -1,4 +1,5 @@
 // The power-word gain and the boss-telegraph roll window are rows (src/fight/scene-rows.json), and each default is the literal the code held before (Dom's data-layer rule, 2026-10-13).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -8,6 +9,8 @@ import { POWER_WORD_GAIN } from '../src/fight/power-words.ts';
 test('the rows hold the numbers the files held before', () => {
   assert.equal(sceneNum('power-words.gain'), 0);
   assert.equal(sceneNum('boss-telegraph.roll-ticks'), 24);
+  assert.equal(sceneNum('boss-telegraph.world-windup'), 1);
+  assert.equal(sceneNum('boss-telegraph.world-color'), 0x7fd4ff);
   assert.equal(POWER_WORD_GAIN, 0);
 });
 

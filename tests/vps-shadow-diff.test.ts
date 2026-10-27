@@ -1,5 +1,6 @@
 // scripts/vps-shadow/rows-lib.mjs + scripts/vps-shadow-diff.mjs: the VPS shadow of the release rows reads the Mac's deploy log and the
 // VPS rows.json and prints one line per row (result, seconds, pins) with a same/differs verdict; row 49 is flagged Linux WebKit ≠ Mac Safari.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

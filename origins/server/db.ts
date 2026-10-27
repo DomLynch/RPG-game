@@ -4,6 +4,11 @@
 // (ON_ERROR_STOP on a pipe exits), so the next op gets a fresh session and a half-run script never leaks state into the next op.
 import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { pgConn } from './pg-service.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const RECORD_RULE = SERVER_RULES.recordLimits[0]!;   // error text widths and the end-of-result marker size: a row of the recordLimits table
+const PSQL_MS = SERVER_RULES.callTimeouts[0]!.psqlMs;   // how long one database script may run before it is killed: a row of the callTimeouts table
 
 export type Db = { run(sql: string, vars?: Readonly<Record<string, string>>): Promise<string> };
 
@@ -15,13 +20,13 @@ export class DbError extends Error {
 
 const CODE = /ERROR:\s+(O\d{4}|[0-9A-Z]{5}):\s*(.*)/;
 
-export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0): Db {
+export function psqlDb(url: string, bin = 'psql', timeoutMs = PSQL_MS, pool = 0): Db {
   if (pool > 0) return pooledDb(url, bin, timeoutMs, pool);
   return {
     run: (sql, vars = {}) => new Promise((resolve, reject) => {
-      const args = [url, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose'];
+      const args = ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose'];   // no connection argument: the secret rides a 0600 service file (pg-service.ts), never argv
       for (const [k, v] of Object.entries(vars)) args.push('-v', `${k}=${v}`);
-      const child = spawn(bin, [...args, '-f', '-'], { env: { ...process.env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
+      const child = spawn(bin, [...args, '-f', '-'], { env: { ...process.env, ...pgConn(url).env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
       let out = '', err = '';
       const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
       child.stdout.on('data', d => { out += d; });
@@ -31,7 +36,7 @@ export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0):
         clearTimeout(timer);
         if (status === 0) return resolve(out.trim());
         const m = CODE.exec(err);
-        reject(new DbError(m?.[1] ?? 'psql', m?.[2] ?? (err.trim().slice(0, 200) || `psql exit ${status}`)));
+        reject(new DbError(m?.[1] ?? 'psql', m?.[2] ?? (err.trim().slice(0, RECORD_RULE.psqlErrorChars) || `psql exit ${status}`)));
       });
       child.stdin.end(sql);
     }),
@@ -39,7 +44,7 @@ export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0):
 }
 
 const quote = (v: string) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
-const nonce = randomBytes(12).toString('hex');   // per process: data a client stored cannot spell the end-of-result line
+const nonce = randomBytes(RECORD_RULE.nonceBytes).toString('hex');   // per process: data a client stored cannot spell the end-of-result line
 // What follows the script. Each statement psql sends is a round trip to the database (about 130 ms from the VPS to Supabase), so nothing is sent that the script does not need: a closing `;` only
 // when the script ends without one (or without a meta-command), and a rollback only when the script opens a transaction (one that stopped half-way on a refusal exits its psql; this covers the rest).
 const tail = (sql: string): string => `${/(;|\\\w+)\s*$/.test(sql) ? '' : ';\n'}${/\b(begin|start\s+transaction)\b/i.test(sql) && !/commit;\s*$/i.test(sql) ? 'rollback;\n' : ''}`;
@@ -66,21 +71,21 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
   };
 
   const start = (): Worker => {
-    const child = spawn(bin, [url, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-f', '-'], { env: { ...process.env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(bin, ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-f', '-'], { env: { ...process.env, ...pgConn(url).env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
     const w: Worker = { child, job: null, id: 0, out: '', err: '', dead: false };
     child.stdout.on('data', d => {
       w.out += d;
       const at = w.job ? w.out.indexOf(`\n${done(w.id)}\n`) : -1;
       if (at >= 0) { w.out = w.out.slice(0, at); finish(w); }
     });
-    child.stderr.on('data', d => { w.err = (w.err + d).slice(-4000); });
+    child.stderr.on('data', d => { w.err = (w.err + d).slice(-RECORD_RULE.psqlStderrKeepChars); });
     child.on('error', e => { if (w.job) finish(w, e); else { w.dead = true; all.delete(w); } });
     child.on('close', status => {
       w.dead = true; all.delete(w);
       const at = idle.indexOf(w); if (at >= 0) idle.splice(at, 1);
       if (!w.job) return pump();
       const m = CODE.exec(w.err);
-      finish(w, new DbError(m?.[1] ?? 'psql', m?.[2] ?? (w.err.trim().slice(0, 200) || `psql exit ${status}`)));
+      finish(w, new DbError(m?.[1] ?? 'psql', m?.[2] ?? (w.err.trim().slice(0, RECORD_RULE.psqlErrorChars) || `psql exit ${status}`)));
     });
     child.stdin.on('error', () => { /* the close handler reports it */ });
     hold(w, false);

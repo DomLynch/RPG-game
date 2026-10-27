@@ -7,7 +7,12 @@
       "heatUnitSeconds": 360,
       "freeRepeats": 3,
       "restedPerDayCp": 1500,
-      "restedCapCp": 3000
+      "restedCapCp": 3000,
+      "partyGapFloor": 5,
+      "topTier": 10,
+      "boardMax": 50,
+      "partyStep": 200,
+      "partyKeyMax": 64
     }
   ],
   "typeWeight": [
@@ -77,6 +82,17 @@
   ],
   "ladderRule": [
     { "id": "ladder", "maxLevel": 50, "oldMaxLevel": 46, "dialTrail": 5 }
+  ],
+  "betaCut": [
+    { "id": "beta", "titles": 2, "maxLootRung": 4, "spellsOff": 1, "specialsFromVersion": 75, "specialSlots": 2, "utilitySpells": [], "specialPick": ["cleave", "reaping", "stomp", "lunge"], "slot1Default": "cleave", "slot1Alt": "reaping", "slot2Default": "reaping", "slot2Alt": "cleave", "specialRoles": { "cleave": "heavy", "reaping": "sweep", "stomp": "posture break", "lunge": "opener" }, "spells": ["brokkr", "scylla-pup", "baobhan-sith", "rubezahl", "eitri", "goibniu", "andvari", "kobold", "calydonian-boar", "nemean-cub", "tatzelwurm", "barghest", "cu-sith", "banshee", "black-annis", "dullahan", "puck", "puca", "kelpie", "melusine"] }
+  ],
+  "falloff": [
+    { "id": "far-above", "minDiff": 3, "permille": 1250 },
+    { "id": "above", "minDiff": 1, "permille": 1100 },
+    { "id": "even", "minDiff": 0, "permille": 1000 },
+    { "id": "slightly-below", "minDiff": -2, "permille": 900 },
+    { "id": "below", "minDiff": -4, "permille": 500 },
+    { "id": "title-below", "minDiff": -5, "permille": 200 }
   ],
   "respecRule": [
     { "id": "respec", "freeRespreadLevel": 10 }

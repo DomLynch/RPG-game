@@ -7,21 +7,25 @@
 // The issued pose rides in the token (encounter.ts tokenFor): the database holds the token, so settle reads the server's own pose back and a client cannot change it.
 import { roundPose, type DuelPose, FIRST_POSE_VERSION, BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/server.ts';
 import { BadRequest } from './errors.ts';
+import { DIAMETER_PER_RADIUS, HALF } from './units.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const POSE = SERVER_RULES.encounterPose[0]!;
 export const MIN_GAP = POSE.minGap, MARK_GAP = POSE.markGap, POSE_BYTES = 20;
 const EDGE = POSE.edge;   // stay this far inside the wall so float32 rounding can never push a fighter onto it
+const MAX_COORD = POSE.maxCoordM;   // a proposed pose names nothing farther than this from the arena centre (m)
+const EPS = 1e-6;   // two fighters closer than this are "on top of each other" (float tolerance, not a rule)
+const FLOAT32_BYTES = 4;   // the width of one float32 in the packed pose
 
 // The circle and the widest start gap for this foe, as a posed (v38) record of it replays (detmath.ts underRecord -> play-radius.ts underPlayScale).
 export function poseBounds(enemy: string): { radius: number; maxGap: number } {
   const k = playScaleFor(enemy, FIRST_POSE_VERSION);
-  return { radius: k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS, maxGap: MARK_GAP * Math.max(k, 0.5) };
+  return { radius: k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS, maxGap: MARK_GAP * Math.max(k, POSE.scaleFloor) };
 }
 
 const point = (v: unknown, name: string): { x: number; z: number } => {
   const p = v as { x?: unknown; z?: unknown } | null;
-  if (typeof p !== 'object' || p === null || typeof p.x !== 'number' || typeof p.z !== 'number' || !Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > 1e3 || Math.abs(p.z) > 1e3) throw new BadRequest(`pose.${name}: {x, z} in metres`);
+  if (typeof p !== 'object' || p === null || typeof p.x !== 'number' || typeof p.z !== 'number' || !Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > MAX_COORD || Math.abs(p.z) > MAX_COORD) throw new BadRequest(`pose.${name}: {x, z} in metres`);
   return { x: p.x, z: p.z };
 };
 
@@ -32,23 +36,23 @@ export function issuePose(enemy: string, proposal: unknown): DuelPose | undefine
   const hero = point((proposal as { hero?: unknown }).hero, 'hero'), foe = point((proposal as { foe?: unknown }).foe, 'foe');
   const { radius, maxGap } = poseBounds(enemy), r = radius - EDGE;
   const dx = foe.x - hero.x, dz = foe.z - hero.z, len = Math.hypot(dx, dz);
-  const [ux, uz] = len > 1e-6 ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
-  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, 2 * r);
-  let mx = (hero.x + foe.x) / 2, mz = (hero.z + foe.z) / 2;
-  const room = r - gap / 2, m = Math.hypot(mx, mz);
+  const [ux, uz] = len > EPS ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
+  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, DIAMETER_PER_RADIUS * r);
+  let mx = (hero.x + foe.x) * HALF, mz = (hero.z + foe.z) * HALF;
+  const room = r - gap * HALF, m = Math.hypot(mx, mz);
   if (m > room) { mx *= room / m; mz *= room / m; }   // pull the pair in toward the centre until both ends are inside
-  const h = { x: mx - ux * gap / 2, z: mz - uz * gap / 2 }, f = { x: mx + ux * gap / 2, z: mz + uz * gap / 2 };
+  const h = { x: mx - ux * gap * HALF, z: mz - uz * gap * HALF }, f = { x: mx + ux * gap * HALF, z: mz + uz * gap * HALF };
   return roundPose({ hero: h, foe: f, heroFacing: Math.atan2(f.x - h.x, f.z - h.z) });
 }
 
 // Five float32 LE, the record's own order (record.ts v38): hero x, z, foe x, z, heroFacing.
 export function packPose(pose: DuelPose): Buffer {
   const b = Buffer.alloc(POSE_BYTES);
-  [pose.hero.x, pose.hero.z, pose.foe.x, pose.foe.z, pose.heroFacing].forEach((v, i) => b.writeFloatLE(v, i * 4));
+  [pose.hero.x, pose.hero.z, pose.foe.x, pose.foe.z, pose.heroFacing].forEach((v, i) => b.writeFloatLE(v, i * FLOAT32_BYTES));
   return b;
 }
 export function unpackPose(b: Buffer): DuelPose | null {
   if (b.length !== POSE_BYTES) return null;
-  const v = [0, 1, 2, 3, 4].map((i) => b.readFloatLE(i * 4));
+  const v = [0, 1, 2, 3, 4].map((i) => b.readFloatLE(i * FLOAT32_BYTES));
   return v.every(Number.isFinite) ? { hero: { x: v[0]!, z: v[1]! }, foe: { x: v[2]!, z: v[3]! }, heroFacing: v[4]! } : null;
 }

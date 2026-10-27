@@ -1,5 +1,6 @@
 // O1 registry: a whole content bundle loads with every cross-reference resolved; every dangling id, duplicate and stray kind fails
 // explicitly; lookups never return undefined.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

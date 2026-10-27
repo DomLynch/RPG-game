@@ -4,7 +4,7 @@
 // Valuables are ONE transaction (Dom 2026-10-08): the `repair:<character>:<op>` event (carrying the receipt and the piece's wear after), the bronze spend (versioned: a stale
 // balance aborts the batch) and the burned iron commit in ONE origins_apply batch. The op id is the one-time token: an identical retry is answered from the stored receipt
 // (replayed: true), a different request under the same op id is a 409, and a racing retry (O0001) answers from what committed. The player must stand at the Exchange smith.
-import { find } from '../inventory/inventory.ts';
+import { find } from '../../src/core/server.ts';
 import { repairCost, repairedPiece, wearKindOf, type Piece } from '../gear/wear-repair.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';
@@ -12,6 +12,9 @@ import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
 import { exchangePlace } from './upgrade.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
 
 export type RepairReceipt = { instance: string; points: number; cost: { bronze: number; metal: { item: string; qty: number } }; piece: Piece };
 const OP = /^[a-z0-9][a-z0-9:._-]{7,119}$/;
@@ -20,8 +23,8 @@ export function gearRepairHandler(content: Content): Handler {
   return async ({ db, account, where }, body) => {
     const { character, op, instance, points } = body;
     if (typeof op !== 'string' || !OP.test(op)) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');
-    if (typeof character !== 'string' || character.length > 80) throw new BadRequest('character: a character id');
-    if (typeof instance !== 'string' || instance.length > 120) throw new BadRequest('instance: an item instance id');
+    if (typeof character !== 'string' || character.length > INPUT.characterIdChars) throw new BadRequest('character: a character id');
+    if (typeof instance !== 'string' || instance.length > INPUT.instanceIdChars) throw new BadRequest('instance: an item instance id');
     if (points !== undefined && !(Number.isInteger(points) && (points as number) >= 1)) throw new BadRequest('points: a whole number from 1, or leave it out to repair all the wear');
     if (!(await exchangePlace(where, account))) throw new Refused(422, 'stand at the smith in the Exchange to repair', 'away');
     const eventId = `repair:${character}:${op}`;

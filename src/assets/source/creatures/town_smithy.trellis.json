@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/town/smithy-source-v1.png",
+  "preprocess_s": 16.4,
+  "image_to_3d_s": 144.0,
+  "extract_glb_s": 53.4,
+  "glb": "src/assets/source/creatures/town_smithy.glb",
+  "bytes": 6108700,
+  "sha256": "4240d07114fcae9bc09377e0c3401bdf32bbd4f312906c7430c69be2cca8b7f0",
+  "attempts": 1
+}

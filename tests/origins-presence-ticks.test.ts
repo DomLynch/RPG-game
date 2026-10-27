@@ -1,5 +1,6 @@
 // S1 build item (docs/specs/origins/s1-load-test.md §4): the presence load test reports the p99 tick next to the longest one. The rank rule is pinned here, and the health route
 // hands out the recorded tick durations the script computes it from.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { percentile, tickStats } from '../origins/presence/ticks.ts';

@@ -1,6 +1,7 @@
 // The tail past hard: Origin II–V, levels 47–50 (Dom via Strategy 2026-10-05; Lead GO, option B, 2026-10-06). Levels 1–46 are the old ladder BYTE FOR BYTE
 // (the hard anchor stays at 46); each level past it blends a quarter further toward moves.ts tailApex — skill knobs only, capped. The fairness of every
 // rung up there is judged against the hard caps (no strategy over a third of its fights, none untouched), like the 46 beneath it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -10,7 +11,7 @@ import { battery } from './strategies.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 
 const ladder = LADDER.map(o => OPPONENTS[o.id]);
-const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash', 'discipline', 'aggression', 'dodge', 'stab', 'anticipate', 'tellReaction', 'regen', 'braceHeavy'];
+const IDENTITY: Exclude<keyof AiProfile, 'tactic'>[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash', 'discipline', 'aggression', 'dodge', 'stab', 'anticipate', 'tellReaction', 'regen', 'braceHeavy'];
 
 // Levels 1–46 of every rung (profile and body) hashed on trunk 4e88c8d7, before the tail existed: the 50-level ladder must not move one of them.
 // Re-pinned 2026-10-07 (RV29, deliberately): the Nightborn's normal row moved (lapse .3 -> .25, aggression .55 -> .52: moves.ts), the one profile change in the batch; everything else on L1-46 is as before.

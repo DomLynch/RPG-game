@@ -1,11 +1,12 @@
 // Lead's launch gate: the Origins writer derives a player's place from server presence, never from the request body. This is the presence side: GET /internal/where, the
 // fail-closed client (origins/presence/where.ts) and the fixture the writer's tests inject (origins/presence/fixtures.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { fakeWhere, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
 import { CENTRE_CM } from '../origins/presence/zones.ts';
-import { inZone, parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
+import { inZone, parseWhere, presenceWhere, reachOf, standsWithin } from '../origins/presence/where.ts';
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const KEY = 'test-internal-key-0123456789';
@@ -95,6 +96,22 @@ test('inZone: X1\'s test is zone === the named zone AND fresh; the wrong zone, a
   assert.equal(inZone(standingAt(100, 100, 0), 'exchange', fresh), false, 'a null zone (open ground) is not the Exchange');
   assert.equal(inZone(unplaced(), 'exchange', fresh), false);
   assert.equal(inZone(offline(), 'exchange', fresh), false);
+});
+
+test('reachOf: the pose only when inZone holds, otherwise null and WHY (no presence, presence error, offline, unplaced, other zone, stale), never a throw', async () => {
+  const fresh = 8000, ex = (ageMs = 0) => standingAt(CENTRE_CM, CENTRE_CM - 4000, ageMs);   // the Exchange
+  const table = { [acct(1)]: ex(), [acct(2)]: unplaced(), [acct(3)]: standingAt(CENTRE_CM, CENTRE_CM, 0), [acct(4)]: ex(fresh + 1), [acct(5)]: standingAt(100, 100, 0) };
+  const where = fakeWhere(table), why = async (a: string) => (await reachOf(where, a, 'exchange', fresh)).why;
+  const ok = await reachOf(where, acct(1), 'exchange', fresh);
+  assert.deepEqual([ok.why, ok.pose], ['checked', ex()]);
+  assert.deepEqual(await reachOf(undefined, acct(1), 'exchange', fresh), { pose: null, why: 'no-presence' });
+  assert.deepEqual(await reachOf(fakeWhere({}, true), acct(1), 'exchange', fresh), { pose: null, why: 'presence-error: presence: unreachable' });
+  assert.equal(await why(acct(9)), 'offline');
+  assert.equal(await why(acct(2)), 'unplaced');
+  assert.equal(await why(acct(3)), 'other-zone: pit-yard not exchange');
+  assert.equal(await why(acct(5)), 'other-zone: none not exchange', 'open ground has no zone');
+  assert.equal(await why(acct(4)), `stale: ${fresh + 1} ms`);
+  for (const a of [1, 2, 3, 4, 5, 9]) assert.equal((await reachOf(where, acct(a), 'exchange', fresh)).pose !== null, inZone(table[acct(a)] ?? offline(), 'exchange', fresh), 'the same verdict as inZone');
 });
 
 test('fixtures: fakeWhere answers from a table, an unknown account is offline, and a broken one throws like a down service', async () => {

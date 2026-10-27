@@ -1,20 +1,21 @@
-// When a signed-in character opens the engine's gear screen it shows the SERVER's ledger (origins/inventory through gear_open), and every wear / stow goes to the server (gear_equip /
+// When a signed-in character opens the engine's gear screen it shows the SERVER's ledger (src/core/items through gear_open), and every wear / stow goes to the server (gear_equip /
 // gear_unequip); a guest, a failed sign-in or a writer that does not answer keeps the local ledger exactly as before. No DOM here: the page hands in storage, the clock and two callbacks.
 import { emptyLoot, type Loot } from './loot.ts';
 import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
 import { importBodyOf, importGear, isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
 import { storedToken, writerBase } from './writer-call.ts';
 import { openCharacter } from './open.ts';
+import { CLIENT } from './client-rules.ts';
 
 export const IMPORT_KEY = 'frankendom.gear-import.v1';
 type Deps = { storage: { getItem(key: string): string | null; setItem?(key: string, value: string): void } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
 export function createServerGear(d: Deps) {
   let character: string | null = null, view: GearView | null = null, busy = false, loading = false, shadow: { loot: Loot } | null = null;
   // 8 s, not the 4 s default: the sheet opens while the page is busy drawing the mannequin, and a late answer is better than the device's ledger shown in its place (one browser run missed 4 s under load).
-  const opts = () => ({ base: writerBase(d.search), timeoutMs: 8000, ...(d.fetch ? { fetch: d.fetch } : {}) });
+  const opts = () => ({ base: writerBase(d.search), timeoutMs: CLIENT.writerTimeoutMs, ...(d.fetch ? { fetch: d.fetch } : {}) });
   // The server owns owned / worn / pack / tiers; the move, declines and skull wall stay the local profile's.
   // The server's view is SHOWN from a shadow of the profile, never written into it: the Pit's other persist paths (a decline, a take) keep saving the device's own ledger untouched.
-  const apply = (v: GearView) => { view = v; const s = lootOfView(v), loot = { ...(d.getLoot() ?? emptyLoot()), owned: s.owned, equipped: s.equipped, pack: s.pack, taken: s.taken }; shadow = { loot }; d.show(loot); };
+  const apply = (v: GearView) => { view = v; const s = lootOfView(v), loot = { ...(d.getLoot() ?? emptyLoot()), owned: s.owned, equipped: s.equipped, pack: s.pack, packInfo: s.packInfo, taken: s.taken }; shadow = { loot }; d.show(loot); };
   async function who(): Promise<string | null> {
     if (character) return character;
     const token = storedToken(d.storage, d.now()); if (!token) return null;

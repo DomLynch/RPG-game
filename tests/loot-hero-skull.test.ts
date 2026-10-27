@@ -1,6 +1,7 @@
 // The loot pieces shelled from a skull must be shelled from the PLAYER's (parts.py --loot): the Executioner's mask + hood and the
 // Nightborn's crown were first cut on their own fighters' heads and sat wrong on the hero — the crown floated 3 cm above his skull,
 // his nose came through the mask. Measured in the rig's rest space (raw positions, both files), against the hero's scanned head.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -18,7 +19,7 @@ function glb(path: string) {
   };
   return { json, positions };
 }
-const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+const hero = glb('../src/assets/hero-classic.glb'), loot = glb('../src/assets/loot.glb');
 const head = hero.positions('Photo');
 const apex = Math.max(...head.map(p => p[1]));
 const skull = head.filter(p => p[1] > apex - 0.07), axisZ = (Math.min(...skull.map(p => p[2])) + Math.max(...skull.map(p => p[2]))) / 2;   // the head turns about this vertical axis

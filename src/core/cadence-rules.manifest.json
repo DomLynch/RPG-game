@@ -1,0 +1,8 @@
+{
+  "tables": [
+    { "table": "liveOps", "file": "cadence-rules.json", "at": "liveOps", "key": "id", "required": { "maxEventMinutes": "integer", "note": "string" } },
+    { "table": "zone1Hop", "file": "cadence-rules.json", "at": "zone1Hop", "key": "id", "required": { "nextTtlMs": "integer", "note": "string" } },
+    { "table": "tradeLock", "file": "cadence-rules.json", "at": "tradeLock", "key": "id", "required": { "firstTradeDelayS": "integer", "note": "string" } },
+    { "table": "tradeCooldownStep", "file": "cadence-rules.json", "at": "tradeCooldownStep", "key": "id", "required": { "hops": "integer", "seconds": "integer", "note": "string" } }
+  ]
+}

@@ -1,6 +1,7 @@
 // The verifier install (deploy.sh "verifier" step) is the computed import closure of the two verifiers, JSON included, and a dry import on the
 // box gates the flip. Regression: CI2 (96a71d70, 2026-10-12) shipped src/**/*.ts only, so src/fight/pool-defs.json (imported `with { type: 'json' }`)
 // was missing and verify-daily / verify-loot died ERR_MODULE_NOT_FOUND from 14:05:24. Everything here runs in tmp dirs with this machine's node.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -82,4 +83,15 @@ test('deploy.sh installs the verifier from the closure and gates the flip on the
   assert.ok(at('verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)') < at('rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"'));
   assert.ok(at('(cd "$1" && find src') < at('ln -sfn "$1" /opt/frankendom-verifier/current'), 'the dry import runs before the flip');
   assert.doesNotMatch(deploy.slice(at('(cd "$1" && find src'), at('ln -sfn "$1" /opt/frankendom-verifier/current')), /NODE_PIN/, 'the box\'s own node');
+});
+
+// Auditor 2026-10-18: the verifier used to install after the switch, so verify-daily ran JD's rules against JE for two minutes. It flips with the site, like the writer.
+test('deploy.sh flips the verifier before the site switch and puts it back while the site has not moved', () => {
+  const at = (needle: string) => { const i = deploy.indexOf(needle); assert.ok(i >= 0, `missing: ${needle}`); return i; };
+  const flip = at('ln -sfn "$1" /opt/frankendom-verifier/current'), sw = at('mv -Tf next current');
+  assert.ok(at('deploy_step "verifier install"') < flip && flip < sw, 'the verifier flips before the switch');
+  assert.ok(at('deploy_step "verifier"\n') > sw, 'the timers step stays after the switch and the previews');
+  assert.equal(deploy.split('ln -sfn "$1" /opt/frankendom-verifier/current').length, 2, 'one flip only');
+  assert.match(deploy.slice(flip, sw), /\|\| \{ writer_back; presence_back; verifier_back; exit 1; \}/, 'a failed switch puts the verifier back');
+  assert.match(deploy, /verifier_back\(\) \{[\s\S]{0,400}?readlink -f \/var\/www\/frankendom\/current[\s\S]{0,120}?\|\| ln -sfn '\$verifier_prev'/, 'only while the site has not moved');
 });

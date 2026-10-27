@@ -1,9 +1,11 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { readFileSync } from 'node:fs';
+import { setSandbox } from '../src/fight/sandbox-era.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/fight/hud.ts';
 import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
-import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
+import { idleIntent, inBufferWindow, stepDuel, withSpell, type Intent } from '../src/fight/duel.ts';
 import { recordSpecials } from '../src/fight/replay.ts';
 import { SPELL_IDS, resolveSpell } from '../src/fight/spell-cast.ts';
 
@@ -89,6 +91,20 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next figh
   assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight): Rematch');
 });
 
+test('floatDamage: a refused special press (SpecialRefused, cue far) floats the specialCue text over the HERO only, and survives the damage-numbers setting being off', () => {
+  const { element, get } = dom(3), hud = createHud(element as never);
+  const fighters = [{ body: { x: 1, z: 2 }, scale: 1 }, { body: { x: -1, z: -2 }, scale: 1.13 }];
+  const project = (p: [number, number, number]): [number, number] | null => [p[0] * 100, p[2] * 10];
+  const refused = (actor: 0 | 1) => ({ type: 'SpecialRefused', actor, cue: 'far' }) as CombatEvent;
+  hud.floatDamage([refused(1), { type: 'Hit', actor: 1, target: 0, damage: 24 } as CombatEvent], fighters, project, false);
+  const spans = [...get('dmg-pool').children];
+  assert.deepEqual(spans.map((s) => s.textContent), ['', '', ''], 'the foe\'s refusal floats nothing, and with damage numbers off the hit floats nothing');
+  setSandbox(true);   // RV78: the cue text is a sandbox row, read only under the ON era (this file runs era OFF)
+  try { hud.floatDamage([refused(0)], fighters, project, false); } finally { setSandbox(false); }
+  assert.equal(spans[0]!.textContent, 'too far', 'the cue text is the specialCue row');
+  assert.equal(spans[0]!.className, 'dmg taken heavy'); assert.equal(spans[0]!.style.left, '100px'); assert.ok(!spans[0]!.hidden);
+});
+
 test('floatDamage: pooled spans round-robin at the projected victim, classed by side and heavy class; no pool or projection floats nothing', () => {
   const { element, get } = dom(2), hud = createHud(element as never);
   const fighters = [{ body: { x: 1, z: 2 }, scale: 1 }, { body: { x: -1, z: -2 }, scale: 1.13 }];
@@ -148,6 +164,42 @@ test('update: SKILL lights for an equipped spell with no skill, and stays dim wi
   };
   assert.equal(lit(true), 'false', 'a spell lights SKILL');
   assert.equal(lit(false), 'true', 'no skill and no spell: dim');
+});
+
+// Spell slots (Strategy's ruling on #2834): SPELL 2 must not show anywhere skill2 is refused, and an empty slot b shows no button. The Pit never fills slot b, so it never shows; a fighter that carries a slot-b
+// spell shows it and lights it from the simulation's own test (legal(skill2)).
+test('update: SPELL 2 is absent in the Pit and with slot b empty, present and lit with a slot-b spell, dim while it cools', () => {
+  const ids = SPELL_IDS.filter((id) => resolveSpell(id, 0)!.cost > 0), a = resolveSpell(ids[0]!, 100)!, b = resolveSpell(ids[1]!, 100)!;
+  const readyDuel = (slotB: boolean, cooling = false) => {
+    const start = initialPractice(731, OPPONENTS.veteran, 'longsword', null, recordSpecials({ specials: true, level: 20, opponent: 'veteran' }), undefined, undefined, undefined, undefined, a);
+    let duel = slotB ? withSpell(start.duel, 0, b, 731, 1) : start.duel;
+    duel = stepDuel(duel, [{ ...idleIntent(), action: 'light' }, idleIntent()]);
+    while (duel.fighters[0].phase !== 'ready') duel = stepDuel(duel, [idleIntent(), idleIntent()]);
+    const me = { ...duel.fighters[0], skillCooldown: 0, stamina: 100, ...(slotB ? { skillCooldown2: cooling ? 600 : 0 } : {}) };
+    return { start, duel: { ...duel, fighters: [me, duel.fighters[1]] as typeof duel.fighters } };
+  };
+  const show = (slotB: boolean, cooling = false) => { const { element, get } = dom(), hud = createHud(element as never), { start, duel } = readyDuel(slotB, cooling); hud.update(project(duel, start.ai), view()); const button = get('skill2-button'); return { hidden: button.hidden, disabled: button.attributes.get('aria-disabled') }; };
+  const pit = initialPractice(731, OPPONENTS.veteran), pitDom = dom(), pitHud = createHud(pitDom.element as never);
+  pitHud.update(project(pit.duel, pit.ai), view()); assert.equal(pitDom.get('skill2-button').hidden, true, 'the Pit (no slot b ever): no button');
+  assert.equal(show(false).hidden, true, 'slot a filled, slot b empty: no button');
+  const worldDom = dom(), worldHud = createHud(worldDom.element as never);
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: true }); assert.deepEqual({ hidden: worldDom.get('skill2-button').hidden, disabled: worldDom.get('skill2-button').attributes.get('aria-disabled') }, { hidden: false, disabled: 'false' }, 'the open world (an idle practice with no spells) shows SPELL 2 when the page says slot b is filled');
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: false }); assert.equal(worldDom.get('skill2-button').hidden, true, 'and hides it again when slot b is emptied (the page tells the HUD, not the element)');
+  assert.deepEqual(show(true), { hidden: false, disabled: 'false' }, 'a slot-b spell: the button is there and lit');
+  assert.deepEqual(show(true, true), { hidden: false, disabled: 'true' }, 'slot b cooling: the button stays, dim');
+});
+
+// Lead's ruling (2026-10-16): SPELL 2 names its spell from the catalogue row; an empty or unknown slot keeps "Spell 2"; the full name is in aria-label and the tooltip.
+test('update: SPELL 2 carries the name the page hands over, and falls back to the markup\'s "Spell 2"', () => {
+  const pit = initialPractice(731, OPPONENTS.veteran), { element, get } = dom(), button = () => get('skill2-button');
+  element<FakeElement>('skill2-button').dataset.mobile = 'Spell 2';   // the page's markup
+  const hud = createHud(element as never), name = 'Wound That Will Not Close';
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBName: name });
+  assert.deepEqual([button().dataset.mobile, button().attributes.get('aria-label'), button().textContent], [name, name, name], 'the name, in the cluster label, the accessible name and the text');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBName: '' });
+  assert.equal(button().attributes.get('aria-label'), 'Spell 2', 'a name not read yet (or unknown): the generic words');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true });
+  assert.equal(button().dataset.mobile, 'Spell 2', 'no name given: the generic words');
 });
 
 // Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone
@@ -227,4 +279,17 @@ test('?look=kick52: the KICK button is 52 px about the same centre, flag off it 
     const o = rect(rule(`\\.actions\\[data-gestures=cluster\\] ${sel}`));
     assert.ok(look.r <= o.l || o.r <= look.l || look.b <= o.t || o.b <= look.t, `the 52 px KICK box overlaps ${sel}`);
   }
+});
+
+// The specials PR: SPECIAL 1 and SPECIAL 2 are class skills and each button wears its skill row's own name (SKILL_ROWS); no pick keeps the markup's generic words.
+test('update: SPECIAL 1 and SPECIAL 2 wear their skill rows\' names, and no pick keeps "Skill" / "Spell 2"', () => {
+  const pit = initialPractice(731, OPPONENTS.veteran), { element, get } = dom();
+  element<FakeElement>('skill-button').dataset.mobile = 'Skill'; element<FakeElement>('skill2-button').dataset.mobile = 'Spell 2';   // the page's markup
+  const hud = createHud(element as never), me = pit.duel.fighters[0];
+  const picked = { ...pit.duel, fighters: [{ ...me, skill: 'lunge', skill2: 'stomp' }, pit.duel.fighters[1]] as typeof pit.duel.fighters };
+  hud.update(project(picked, pit.ai), view());
+  assert.deepEqual([get('skill-button').dataset.mobile, get('skill-button').attributes.get('aria-label'), get('skill-button').textContent], ['Estoc Lunge', 'Estoc Lunge', 'Estoc Lunge'], 'SPECIAL 1: the skill row\'s name in the label, the accessible name and the text');
+  assert.deepEqual([get('skill2-button').dataset.mobile, get('skill2-button').textContent], ['Anvil Stomp', 'Anvil Stomp'], 'SPECIAL 2 likewise');
+  hud.update(project(pit.duel, pit.ai), view());
+  assert.equal(get('skill-button').attributes.get('aria-label'), 'Skill', 'the pick cleared: the generic word comes back');
 });

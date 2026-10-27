@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body character concept art of a cave troll, front view, standing in an A-pose with arms slightly away from the body and empty open hands. A hulking hunched brute about two and a half times human height, skin like mossy grey stone plates with lichen and hanging moss, very long thick arms, huge fists, short bowed legs with heavy clawed toes, a tusked underbite and small deep-set eyes, a ragged dark leather loincloth, a rusted iron chain collar with a broken chain hanging from it and iron shackle cuffs on both wrists, faint green glow in the cracks of the stone. Painterly dark-fantasy game concept art, even soft light, plain neutral grey background, no weapon.",
+  "seed": 190927,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 47.1,
+  "sha256": "1d7596172d8be7422f342e668e903da557d1bb3b4c0c83bb5eb6dce71dbd1beb"
+}

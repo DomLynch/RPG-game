@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -106,6 +107,18 @@ test('a Refused answers its status, with its code in the body only when it has o
   try {
     assert.deepEqual([(await call('smith', { body: '{}' })).status, (await call('smith', { body: '{}' })).text], [501, '{"ok":false,"error":"coin costs need the metals ledger, not built yet","code":"not-implemented"}']);
     assert.deepEqual([(await call('story', { body: '{}' })).status, (await call('story', { body: '{}' })).text], [503, '{"ok":false,"error":"the story content is not loaded: the writer is not ready for this op"}']);
+  } finally { close(); }
+});
+
+test('a Refused with detail adds its fields to the body (the V5 kill receipt) and can never override ok, error or code', async () => {
+  const { db } = script({ open: () => [snap(row())] });
+  const { call, close } = await serve(db, {
+    smith: async () => { throw new Refused(409, 'engage token unknown, used or expired', 'used', { kind: 'paid', receipt: { cp: 12 }, ok: true, code: 'forged', error: 'forged' }); },
+  });
+  try {
+    const res = await call('smith', { body: '{}' });
+    assert.equal(res.status, 409);
+    assert.deepEqual(JSON.parse(res.text), { kind: 'paid', receipt: { cp: 12 }, ok: false, error: 'engage token unknown, used or expired', code: 'used' });
   } finally { close(); }
 });
 

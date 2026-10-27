@@ -2,6 +2,7 @@
 // tests/fixtures/v40-pit-records.json was written by scripts/record-replay-check.mjs --write on trunk 28a7cea6 (RECORD_VERSION 40), before the ladder existed: five reference fights against the Veteran.
 // The gate is the check script itself (record-replay-check.mjs): same final tick, outcome and Killed tick for every record; on Linux x64 (where the fixture was written and CI runs) the fighters' final-state digest too,
 // which is the byte-for-byte promise (the digest drifts by a float ulp on arm64, see the script's header).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +15,7 @@ const repo = process.cwd(), file = join(repo, 'tests', 'fixtures', 'v40-pit-reco
 const fixture = JSON.parse(readFileSync(file, 'utf8')) as { records: { name: string; encoded: string; expect: { digest: string } }[] };
 
 test('RV41 reads every record the RV40 build wrote (the stamped versions are all still readable)', async () => {
-  assert.equal(RECORD_VERSION, 62); assert.ok(fixture.records.length >= 5);
+  assert.equal(RECORD_VERSION, 91); assert.ok(fixture.records.length >= 5);   // 91 (2026-10-22, RV91: rows for the brain's literals, no Pit record reached); 90 (2026-10-21, RV90: world rows only, no Pit record reached); 89 (2026-10-21, RV89: world rows only, no Pit record reached); 88 (2026-10-21, RV88: salamander reached, no fixture record names it); 87 (2026-10-21, RV87: troll and salamander reached, no fixture record names either); 86 (2026-10-21, RV86: era-keyed, no old record reached); 85 (2026-10-20, RV85: era-keyed, no old record moves); 84 (2026-10-20, RV84: era-keyed, no old record moves); 83 (2026-10-19, RV83 the open world's bow hero: no Pit fight moves); 82 (2026-10-19, RV82 bow and staff rows: digest only); 81 (2026-10-19, RV81); 80 (2026-10-19, RV80); 77 (2026-10-18, melee-special rules, shipped off: digest only); 76 (2026-10-17, balance RV76, Strategy targets: the number moves with every bump); 75 (2026-10-17, the sim batch: rows with identical values, so every old record still replays to the same fight); 74 (2026-10-17, leathers set era): READABLE_VERSIONS only widens, so every version the RV40 build stamped is still readable
   for (const r of fixture.records) { const rec = await decodeRecord(r.encoded); assert.ok((READABLE_VERSIONS as readonly number[]).includes(rec.v) && rec.v <= 40, `${r.name} is a v${rec.v} record`); }
 });
 

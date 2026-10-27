@@ -11,7 +11,22 @@
         "heatUnitSeconds": "integer",
         "freeRepeats": "integer",
         "restedPerDayCp": "integer",
-        "restedCapCp": "integer"
+        "restedCapCp": "integer",
+        "partyGapFloor": "integer",
+        "topTier": "integer",
+        "boardMax": "integer",
+        "partyStep": "integer",
+        "partyKeyMax": "integer"
+      }
+    },
+    {
+      "table": "falloff",
+      "file": "career-rules.json",
+      "at": "falloff",
+      "key": "id",
+      "required": {
+        "minDiff": "integer",
+        "permille": "integer"
       }
     },
     {
@@ -61,6 +76,27 @@
         "maxLevel": "integer",
         "oldMaxLevel": "integer",
         "dialTrail": "integer"
+      }
+    },
+    {
+      "table": "betaCut",
+      "file": "career-rules.json",
+      "at": "betaCut",
+      "key": "id",
+      "required": {
+        "titles": "integer",
+        "maxLootRung": "integer",
+        "spellsOff": "integer",
+        "specialSlots": "integer",
+        "specialsFromVersion": "integer",
+        "utilitySpells": "array",
+        "specialPick": "array",
+        "specialRoles": "object",
+        "slot1Default": "string",
+        "slot1Alt": "string",
+        "slot2Default": "string",
+        "slot2Alt": "string",
+        "spells": "array"
       }
     },
     {

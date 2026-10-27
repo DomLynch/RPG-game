@@ -4,7 +4,7 @@
 //   git config merge.as-data-allow.driver 'node scripts/as-data/merge-allow.mjs %O %A %B %P'
 // In a worktree setup that line lands in the shared git dir, so every worktree of the clone uses the checked-out tree's copy. The cut and the contents check do not rely
 // on it: cut-release.mjs driverArgs passes --attr-source + -c per call, which overrides the config.
-// Rules, per list entry (identity = file + literal for `allow`, file + name for `verbs` and `tunables`):
+// Rules, per list entry (identity = file + literal for `allow`, file + name for `verbs` and `tunables`, file + id for `idTables`, file + literal for `branchIds`):
 //   kept by both sides -> kept (one side changed it -> that change; both changed it the same way -> kept; both changed it differently -> CLASH)
 //   retired by either side -> dropped (the other side's edit of it is reported, not kept: a debt paid in code has no row left to edit) -- unless the retiring side added the same
 //     name under another file (a move or rename): then the edit would be lost with the old entry, so it is a CLASH
@@ -16,7 +16,7 @@ import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const NAME = { allow: 'literal' };   // the field that names an entry apart from its file (default: name)
-const IDENT = { allow: ['file', 'literal'], verbs: ['file', 'name'], tunables: ['file', 'name'] };
+const IDENT = { allow: ['file', 'literal'], verbs: ['file', 'name'], tunables: ['file', 'name'], idTables: ['file', 'id'], branchIds: ['file', 'literal'] };
 const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
 const same = (a, b) => canon(a) === canon(b);
 const idOf = (section, e) => (IDENT[section] ?? ['file', 'name']).map((k) => e[k]).join(' | ');

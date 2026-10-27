@@ -1,5 +1,6 @@
 // Brief 5 loot file (scripts/build-warrior.mjs WARRIOR_LOOT=1): the contract the runtime attach relies on, and the fit of the one
 // piece that was cut from a re-proportioned body and unscaled back (the Dwarf's greaves) against the hero's skin.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -47,7 +48,7 @@ function glb(path: string) {
 const SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'];
 
 test('every loot draw is skinned to the hero bone order and names its opponent, slot and layer', () => {
-  const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+  const hero = glb('../src/assets/hero-classic.glb'), loot = glb('../src/assets/loot.glb');
   const heroJoints = hero.jointNames(hero.draws[0].skin!);
   assert.ok(loot.draws.length >= 10, `expected the opponents' kits, got ${loot.draws.length} draws`);
   assert.ok(!('animations' in loot.json), 'loot carries no clips: it binds to the player');
@@ -72,7 +73,7 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
 });
 
 test('the Dwarf\'s greaves sit on the hero\'s shins', () => {   // built shells fitted to his shins since the #614 fix (build-warrior.mjs), no longer cut and unscaled
-  const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+  const hero = glb('../src/assets/hero-classic.glb'), loot = glb('../src/assets/loot.glb');
   const skin = hero.positions('Skin'), cell = 0.03, grid = new Map<string, number[][]>();
   const key = (p: number[]) => p.map(v => Math.floor(v / cell)).join(',');
   for (const p of skin) (grid.get(key(p)) ?? grid.set(key(p), []).get(key(p))!).push(p);
@@ -100,7 +101,7 @@ test('the Dwarf\'s greaves sit on the hero\'s shins', () => {   // built shells 
 // Pitborn's Body was a 0.36 m² rag sash against his 1.36 m² tunic (26 %), which is the bug, not the "skin draw" it was taken for.
 // The floor is 80 %: every piece that belongs shipped at 103–159 %, so this separates them without being tuned to squeak past.
 test('loot: no `replace` piece undresses the player — each covers at least 80 % of the draws it hides', () => {
-  const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+  const hero = glb('../src/assets/hero-classic.glb'), loot = glb('../src/assets/loot.glb');
   const SLOT_OF_HERO: Record<string, RegExp> = {   // the player's own draws in each slot the loot can replace
     Body: /^(?:Gambeson|Leather\.Body|Steel\.Body|Antique brass\.Body)$/,
     Boots: /^(?:Leather\.Boots|Wrap\.Boots)$/,

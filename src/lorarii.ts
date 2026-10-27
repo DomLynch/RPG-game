@@ -21,8 +21,9 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent } from './fight/duel.ts';
 import type { SimView } from './arena.ts';
 import { retryTransient } from './fight/characters.ts';
+import { STEP } from './fight/sim.ts';
 
-const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
+const TICK = STEP;   // the sim's fixed step (src/fight/sim.ts STEP, 60 Hz)
 
 // Every number is a row (present-rows.json, `lorarii.*`); only the sixth is derived. Notes from the old literal:
 // radius: mid-walkway: LAYOUT.wall.inner 11.7 .. outer 12.5 (arena.ts); CAMERA_CLAMP is 11.5, so never in the fight camera's clear zone
@@ -37,7 +38,7 @@ const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
 // turn: yaw lerp rate toward the nearest fighter (per second)
 // raise: seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
 // lead: default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
-type LorariiKey = 'count' | 'radius' | 'top' | 'sixth' | 'reach' | 'speed' | 'raiseClip' | 'turn' | 'raise' | 'lash' | 'recover' | 'lead';
+type LorariiKey = 'count' | 'radius' | 'top' | 'sixth' | 'reach' | 'speed' | 'raiseClip' | 'turn' | 'raise' | 'lash' | 'recover' | 'lead' | 'raiseScaleMax' | 'raiseScaleMin' | 'leadFloor';
 export const LORARII = { ...presentGroup('lorarii'), sixth: Math.PI / 3 } as Readonly<Record<LorariiKey, number>>;
 
 // Where guard `i` stands at sim tick `tick`: his post is the centre of his sixth, offset by half a sixth so no post sits on the
@@ -151,7 +152,7 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
         // Raise is 0.5 s of clip; play it at clip/lead so the arm is up exactly as the lash lands. Clamped: past ~2.5x the
         // wind-up stops reading as a wind-up (Multi Chars), and the sim's own leads (60 ticks, then 30) land at 0.5x and 1x.
         g.phase = 'raise'; g.since = 0; g.held = Math.max(0, lead - LORARII.raise);
-        g.raiseScale = Math.min(2.5, Math.max(0.4, LORARII.raiseClip / Math.max(0.05, lead)));
+        g.raiseScale = Math.min(LORARII.raiseScaleMax, Math.max(LORARII.raiseScaleMin, LORARII.raiseClip / Math.max(LORARII.leadFloor, lead)));
       }
       else if (g.phase === 'hold' || g.phase === 'raise') { g.phase = 'lash'; g.since = 0; }                             // the promised lash
       else { g.phase = 'raise'; g.since = 0; g.held = 0; }                                                              // no warning: a fast raise straight into the lash

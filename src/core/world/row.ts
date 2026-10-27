@@ -5,6 +5,7 @@
 // Pure: no DOM, no clock, no storage. Not built yet (they need data this branch does not have): tint-contrast, loot-tier, habitat (spec 7.5).
 // To extend: add the field to MobRow or Behaviour, one range line in RANGES, and one case in validateMobRow; nothing else reads a row by position.
 import { styleOpponent, type MobStyle } from './styles.ts';
+import { wildlifeRule, WILDLIFE_RARITIES } from './wildlife-rules.ts';
 import { worldRule } from '../../fight/server.ts';   // the camp numbers are rows (src/fight/world-rules-defs.json)
 
 export type Source = { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'chronicle'; work: string; author?: string; year?: number; authorDied?: number; locator?: string; scripture?: boolean };
@@ -19,7 +20,7 @@ export type Behaviour = {
   pull?: number;                 // m: the camp's centre is pulled this far toward the zone's middle first (a gate landmark sits on the edge)
   campSize?: readonly [number, number];   // members in one camp, min..max (equal = a fixed group)
 };
-export type Rarity = 'common' | 'uncommon' | 'rare';
+export type Rarity = string;   // a tier id of the wildlife-rarity table (wildlife-rules-defs.json), checked by the row validator
 export type MobRow = {
   id: string;                    // a character id: the key into the look table and the character record
   source: SourceRef;
@@ -36,6 +37,7 @@ export type MobRow = {
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
   respawnSeconds?: number;       // seconds until a killed member of this kind stands again (Dom's animal rule: 60-90 s); the server writer reads it per row
+  roster?: boolean;              // a ladder roster fighter (Dom 2026-10-22): killing it is a ladder win, settled by the writer's world marks (origins/server/world-marks.ts); absent or anything but `true` = an ordinary creature
   later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
@@ -51,14 +53,16 @@ export type RowContext = {
 export const DEFAULTS = { aggro: worldRule('defaultAggro'), leash: worldRule('defaultLeash'), roam: worldRule('defaultRoam'), campSize: [worldRule('campSizeMin'), worldRule('campSizeMax')] as const, weight: worldRule('defaultWeight') };
 /** A camp's size from a draw `u` in [0,1): a whole number in the row's campSize range (both bounds inclusive). The ONE rule: populate.ts and the preview's mobs.ts both call it. */
 export const campCount = (campSize: readonly [number, number] | undefined, u: number): number => { const [lo, hi] = campSize ?? DEFAULTS.campSize; return lo + Math.floor(u * (hi - lo + 1)); };
-export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
-export const RARE_CHANCE: readonly [number, number] = [0.01, 0.25];
+export const RARITY_WEIGHT: Record<Rarity, number> = Object.fromEntries(WILDLIFE_RARITIES.map((t) => [t.id, t.weight]));   // x the row's own weight in a zone's draw (the wildlife-rarity table, wildlife-rules-defs.json)
+export const DEFAULT_RARITY: Rarity = WILDLIFE_RARITIES.find((t) => t.default)!.id;   // the tier of a row that names none
+const isReplacer = (tier: Rarity): boolean => WILDLIFE_RARITIES.find((t) => t.id === tier)?.replaces === true;   // a replacer tier is never drawn: its row names the placeholder it stands in for
+export const RARE_CHANCE: readonly [number, number] = [wildlifeRule('rareChanceMin'), wildlifeRule('rareChanceMax')];
 export const RARE_DEFAULT = worldRule('rareDefault');
-export const RESPAWN_RANGE: readonly [number, number] = [30, 300];   // s: wide enough for the animal rule (60-90) and a slow boss-ish kind; outside is a typo
+export const RESPAWN_RANGE: readonly [number, number] = [wildlifeRule('respawnMin'), wildlifeRule('respawnMax')];   // s: wide enough for the animal rule (60-90) and a slow boss-ish kind; outside is a typo
 export const CAMP_MAX = worldRule('campMax');       // Strategy 2026-10-07: an ordinary camp is a leader and three followers
 export const BOSS_CAMP_MAX = worldRule('bossCampMax');  // ... and only a row flagged `bossCamp` may go to six
 // Each number a behaviour field may take (spec sections 2 and 3, widened to the shipped data): [min, max].
-export const RANGES: Record<string, readonly [number, number]> = { aggro: [2, 20], leash: [5, 80], roam: [0, 30], spread: [0, 40], pull: [0, 30] };
+export const RANGES: Record<string, readonly [number, number]> = { aggro: [wildlifeRule('aggroMin'), wildlifeRule('aggroMax')], leash: [wildlifeRule('leashMin'), wildlifeRule('leashMax')], roam: [wildlifeRule('roamMin'), wildlifeRule('roamMax')], spread: [wildlifeRule('spreadMin'), wildlifeRule('spreadMax')], pull: [wildlifeRule('pullMin'), wildlifeRule('pullMax')] };
 
 const KINDS = ['myth', 'folklore', 'history', 'literature', 'chronicle'];
 // What a machine can check of a citation (legends-rule); a human reviews every new row. A literature source must be published by 1928 or its
@@ -95,9 +99,9 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   const [cmin, cmax] = b.campSize ?? DEFAULTS.campSize;
   if (!Number.isInteger(cmin) || !Number.isInteger(cmax) || cmin < 1 || cmax > (row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX) || cmin > cmax) add('camp-size', 'behaviour.campSize', `a camp is 1..${row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX} members${row.bossCamp ? '' : ' (6 only on a boss camp)'}, min not above max`);
   if ((row.ladder === undefined) !== (row.rung === undefined) || (row.rung !== undefined && (!Number.isInteger(row.rung) || row.rung < 1))) add('rung-ladder', 'rung', 'ladder and rung come together: a ladder id and a whole rung, 1 or more');
-  const rarity = row.rarity ?? 'common';
+  const rarity = row.rarity ?? DEFAULT_RARITY;
   if (!(rarity in RARITY_WEIGHT)) add('rarity-field', 'rarity', `rarity "${String(row.rarity)}" is not one of ${Object.keys(RARITY_WEIGHT).join(', ')}`);
-  else if ((rarity === 'rare') !== (row.replaces !== undefined) || (row.chance !== undefined && (rarity !== 'rare' || !(row.chance >= RARE_CHANCE[0] && row.chance <= RARE_CHANCE[1])))) add('rarity-field', 'replaces', `a rare names the row it replaces (and only a rare does), with a chance in ${RARE_CHANCE[0]}..${RARE_CHANCE[1]}`);
+  else if (isReplacer(rarity) !== (row.replaces !== undefined) || (row.chance !== undefined && (!isReplacer(rarity) ||!(row.chance >= RARE_CHANCE[0] && row.chance <= RARE_CHANCE[1])))) add('rarity-field', 'replaces', `a rare names the row it replaces (and only a rare does), with a chance in ${RARE_CHANCE[0]}..${RARE_CHANCE[1]}`);
   if (row.respawnSeconds !== undefined && !(row.respawnSeconds >= RESPAWN_RANGE[0] && row.respawnSeconds <= RESPAWN_RANGE[1])) add('respawn-range', 'respawnSeconds', `respawn is ${RESPAWN_RANGE[0]}..${RESPAWN_RANGE[1]} s`);
   if (ctx.generated && row.named) add('named-generated', 'named', 'named creatures stay on their encounter and are not generated');
   return out;
@@ -107,7 +111,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
 // whose band sits in it (a rung wholly outside is 0). A row with no ladder keeps its own weight, so a zone with no ladders draws exactly as before.
 export function rungWeights(rows: readonly MobRow[], window: { levelMin: number; levelMax: number }): number[] {
   return rows.map((r) => {
-    const w = (r.weight ?? DEFAULTS.weight) * (RARITY_WEIGHT[r.rarity ?? 'common'] ?? 1);
+    const w = (r.weight ?? DEFAULTS.weight) * (RARITY_WEIGHT[r.rarity ?? DEFAULT_RARITY] ?? 1);
     if (r.ladder === undefined) return w;
     const [lo, hi] = r.level, over = Math.min(hi, window.levelMax) - Math.max(lo, window.levelMin) + 1;
     return over > 0 ? (w * over) / (hi - lo + 1) : 0;
@@ -122,7 +126,7 @@ export function validateRows(rows: readonly MobRow[], ctx: RowContext): RowIssue
   });
   // A rare stands in a placeholder's camp: that row exists, is not itself a rare, and is not the rare.
   rows.forEach((r, i) => { if (r.replaces === undefined) return; const ph = rows.find((x) => x.id === r.replaces);
-    if (!ph || ph === r || ph.rarity === 'rare') out.push({ code: 'rare-placeholder', path: `[${i}].replaces`, message: `${r.id} replaces ${r.replaces}, which is not a common or uncommon row in this set` }); });
+    if (!ph || ph === r || isReplacer(ph.rarity ?? DEFAULT_RARITY)) out.push({ code: 'rare-placeholder', path: `[${i}].replaces`, message: `${r.id} replaces ${r.replaces}, which is not a common or uncommon row in this set` }); });
   // Ladders: one body, each rung once, bands climbing with the rung.
   const ladders = new Map<string, { r: MobRow; i: number }[]>();
   rows.forEach((r, i) => { if (r.ladder !== undefined && r.rung !== undefined) ladders.set(r.ladder, [...(ladders.get(r.ladder) ?? []), { r, i }]); });

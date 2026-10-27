@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A tall ornate bronze fire brazier: a wide gilded bowl with glowing orange flames and embers, set on a carved white marble square pedestal with gold relief panels and a crimson hanging banner pennant. Isolated single game prop, centered, full object in frame, 3/4 front view, plain flat neutral grey background, soft even studio lighting, no ground shadow, no text, no people, stylised high-fantasy painted realism, weathered white-grey marble with aged bronze and gold trim, crimson cloth accents, ornate classical detail, the Concord Exchange.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 55.3,
+  "sha256": "39106869c4a88b76d384a87406dae054aaba4f376e2ecb926e07067a91209cd2"
+}

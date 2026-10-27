@@ -22,7 +22,7 @@ jobs:
           sparse-checkout: scripts
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - run: node scripts/pr-wording.mjs
         env:
           GH_TOKEN: ${{ github.token }}

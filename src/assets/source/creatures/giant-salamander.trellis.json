@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1536",
+  "faces": 500000,
+  "texture": 4096,
+  "image": "docs/character-references/giant-salamander-seed-190926.png",
+  "preprocess_s": 9.7,
+  "image_to_3d_s": 27.7,
+  "extract_glb_s": 96.1,
+  "glb": "src/assets/source/creatures/giant-salamander.glb",
+  "bytes": 19321384,
+  "sha256": "1d34825db0c457b77aea1984b4e774d0aa2443796cc9858f84a6da1fceabd6f0",
+  "attempts": 1
+}

@@ -9,6 +9,7 @@ import { hasBlood } from '../roster.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor, type Shove } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
+import { CONTACTS } from './hit-stop-rows.ts';
 import { FLINCH_GAIN, isFleshHit, type Flinch, type armfeelFrom } from './armfeel.ts';
 import type { createBurstPool } from './armfeel-fx.ts';
 import type { createFootDust } from './foot-dust.ts';
@@ -18,6 +19,9 @@ import type { FinisherId } from './finishers.ts';
 import { isTemplate } from './finisher-look.ts';
 import type { CombatEvent, Practice } from './combat.ts';
 import type { State } from './sim.ts';
+import { fxNum } from './fx-rows.ts';
+const TRAIL_ENTRY_MIN = fxNum('fx.fx.trailEntryMin');
+const TRAIL_TAIL_MAX = fxNum('fx.fx.trailTailMax');
 
 /** The camera-kick hints the effects emit: the host decides which camera takes them (the Pit's rig, a zone's walk camera). */
 export type CameraKick = { shove(heading: number, shove: Shove): void; tilt(angle: number, seconds: number, right?: number, drop?: number): void };
@@ -188,8 +192,11 @@ export function createFightFx(host: { scene: THREE.Scene; dropTexture: THREE.Tex
           enemyHurt ? OPPONENTS[opponentId].scale : 1);
       // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
       // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
-      const clashEvent = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const strength = clashEvent ? clashStrength(clashEvent, weaponOf(practice.duel.fighters[clashEvent.actor].weapon)) : 0;
+      // sandbox-mech impact: a guard break may throw the same clash sparks when its hit-stop-defs row carries a `sparks` strength (no column: nothing, as on trunk).
+      // GuardBroken names the attacker `actor`; a clash names the DEFENDER `actor`, so the event is swapped to the clash's sides.
+      const breakSparks = (CONTACTS.guardBreak as { sparks?: number }).sparks ?? 0, broken = breakSparks > 0 ? events.find((e) => e.type === 'GuardBroken' && e.target !== undefined) : undefined;
+      const clashEvent = broken ? { ...broken, actor: broken.target!, target: broken.actor } : blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
+      const strength = broken ? breakSparks : clashEvent ? clashStrength(clashEvent, weaponOf(practice.duel.fighters[clashEvent.actor].weapon)) : 0;
       if (clashEvent && strength > 0 && clashEvent.target !== undefined) {
         const attacker = clashEvent.target,
           rig = attacker ? warriors?.opponent : warriors?.player,
@@ -205,7 +212,7 @@ export function createFightFx(host: { scene: THREE.Scene; dropTexture: THREE.Tex
           const hand = weapon.localToWorld(new THREE.Vector3(0, 0, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)), length = hand.distanceTo(tip) || 1;   // the grip to the tip: the whole visible length
           let entry = 1;
           for (let t = 0; t <= 1; t += 0.05) { const q = hand.clone().lerp(tip, t); if (Math.hypot(q.x - guard.x, q.z - guard.z) < 0.3) { entry = t; break; } }
-          b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
+          b = hand.clone().lerp(tip, Math.max(TRAIL_ENTRY_MIN, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(TRAIL_TAIL_MAX, length * 0.35) / length));
         } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
         clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
         impact = 0; // the dedicated sparks replace the generic dots for this contact

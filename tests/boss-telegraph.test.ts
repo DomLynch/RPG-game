@@ -1,4 +1,5 @@
 // The boss ground telegraph (boss-telegraph.ts, ?telegraph=1): a pure read of the sim's windup, boss specials only, never written back.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
@@ -26,6 +27,17 @@ test('nothing is drawn for a class special, outside a windup, or for a dead cast
   assert.equal(telegraphLook({ health: 100, special: 60 }), null);
 });
 
+
+test('the open-world view (world = true) draws the ring under a hero special windup, nowhere else', () => {
+  const hero = { specialShare: RULES.special.damage, health: 100, special: RULES.special.windup / 2 };
+  const look = telegraphLook(hero, false, true);
+  assert.equal(look?.fill, 0.5, 'a world hero special fills the ring');
+  assert.equal(look?.color, 0x7fd4ff, 'in the world row tint, never the boss orange');
+  assert.equal(telegraphLook({ ...hero, specialShare: RULES.special.bossDamage }, true, true)?.color, undefined, 'a boss special keeps its orange');
+  assert.equal(telegraphLook(hero, false, false), null, 'the Pit keeps its no-ring hero special');
+  assert.equal(telegraphLook({ ...hero, special: 0 }, false, true), null, 'outside a windup');
+  assert.equal(telegraphLook({ ...hero, health: 0 }, false, true), null, 'a dead caster');
+});
 
 // Caster tell (Combat #7a): any fighter mid-cast of a spell shows the ring, tinted with the spell's school; a boss special alone needs the flag.
 import { spellColor, spellLook } from '../src/fight/boss-telegraph.ts';

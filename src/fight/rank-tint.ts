@@ -6,7 +6,12 @@
 // and takes the grade's hue at a mean brightness moved toward the grade's, rgb = chroma(grade) · L · gain, gain = luma(grade) / luma(source),
 // clamped so no rung blows a piece to white or crushes it to black. One program for every rung (the grade rides uniforms).
 import { Color, MeshStandardMaterial, type Texture } from 'three';
-import { GRADES, classOf, gradeFor, levelOf, type Tier } from '../core/grades.ts';
+import { GRADES, classOf, gradeFor, levelOf, type DrawClass, type Finish, type Tier } from '../core/grades.ts';
+import { finishRow } from '../core/finish-rows.ts';
+import { fxNum } from './fx-rows.ts';
+const LUMA_MIN = fxNum('fx.rankTint.lumaMin');
+const METAL_RATIO_MIN = fxNum('fx.rankTint.metalRatioMin');
+const ROUGH_RATIO_MAX = fxNum('fx.rankTint.roughRatioMax');
 
 // How far toward the grade; the gain's bounds. Tuned on the Centurion's ten-rank sheet (375, local preview).
 // leatherAsTrim: GRADES' leather ladder is ten near-identical dark browns, so on the first sheet only the helmet carried the rung. Leather
@@ -39,16 +44,26 @@ function mapMean(map: Texture | null): number {
   means.set(map, mean); return mean;
 }
 
-const cache = new WeakMap<MeshStandardMaterial, Map<Tier, MeshStandardMaterial>>();
+const cache = new WeakMap<MeshStandardMaterial, Map<string, MeshStandardMaterial>>();
 // The material a piece wears at `tier`: the source itself when the grade leaves it alone, else one shared clone per (source, tier).
 export function tinted(source: MeshStandardMaterial, tier: Tier): MeshStandardMaterial {
   const kind = classOf(source.name), stone = kind === 'stone';
   const finish = stone || (TINT.leatherAsTrim && kind === 'leather') ? GRADES[tier].trim : gradeFor(tier, source.name);
-  if (!finish) return source;
+  return finish ? finishWith(source, finish, kind, tier) : source;
+}
+// A named finish row (finish-rows.json, e.g. `rust`) on a piece's metal and trim; leather, cloth, bone and stone keep their own look. Same tint as a rung.
+// The cache key carries a `finish:` prefix, so a finish id equal to a rung title (Recruit, Master...) can never answer with the rung's material.
+export const finishedAs = (source: MeshStandardMaterial, id: string): MeshStandardMaterial => finishedBy(source, id, () => finishRow(id));
+export function finishedBy(source: MeshStandardMaterial, id: string, finish: () => Finish): MeshStandardMaterial {
+  const kind = classOf(source.name);
+  return kind === 'metal' || kind === 'trim' ? finishWith(source, finish(), kind, `finish:${id}`) : source;
+}
+function finishWith(source: MeshStandardMaterial, finish: Finish, kind: DrawClass | null | undefined, tier: string): MeshStandardMaterial {
+  const stone = kind === 'stone';
   let byTier = cache.get(source); if (!byTier) cache.set(source, (byTier = new Map()));
   const known = byTier.get(tier); if (known) return known;
-  const material = source.clone(), grade = new Color(finish.color), gradeLuma = Math.max(luma(grade), 1e-4);
-  const sourceLuma = Math.max(luma(source.color) * mapMean(source.map), 1e-4);
+  const material = source.clone(), grade = new Color(finish.color), gradeLuma = Math.max(luma(grade), LUMA_MIN);
+  const sourceLuma = Math.max(luma(source.color) * mapMean(source.map), LUMA_MIN);
   const metal = kind === 'metal', strength = metal ? TINT.metal.strength : stone ? TINT.stone.strength : TINT.strength;
   const chroma = grade.clone().multiplyScalar(1 / gradeLuma), gain = Math.min(metal ? TINT.metal.maxGain : TINT.maxGain, Math.max(TINT.minGain, gradeLuma / sourceLuma));
   material.onBeforeCompile = (shader) => {
@@ -66,13 +81,13 @@ export function tinted(source: MeshStandardMaterial, tier: Tier): MeshStandardMa
   // The finish: a map-less material takes the grade's factors; a mapped one keeps its map's pattern, scaled toward the grade.
   const toward = (from: number, to: number) => from + (to - from) * strength;
   if (stone) {
-    if (source.emissive.getHex()) { material.emissive = source.emissive.clone().lerp(grade, strength); material.emissiveIntensity = source.emissiveIntensity * (TINT.stone.glowMin + (TINT.stone.glowMax - TINT.stone.glowMin) * (levelOf(tier) - 1) / 9); }
+    if (source.emissive.getHex()) { material.emissive = source.emissive.clone().lerp(grade, strength); material.emissiveIntensity = source.emissiveIntensity * (TINT.stone.glowMin + (TINT.stone.glowMax - TINT.stone.glowMin) * (levelOf(tier as Tier) - 1) / 9); }
     material.userData = { ...source.userData, rankTier: tier, rankTint: [chroma.r, chroma.g, chroma.b, gain, strength] };
     byTier.set(tier, material); return material;
   }
-  if (source.metalnessMap) material.metalness = Math.min(1, source.metalness * Math.min(metal ? TINT.metal.metalCap : 1.7, Math.max(0.2, finish.metalness / TINT.mapMetal)));
+  if (source.metalnessMap) material.metalness = Math.min(1, source.metalness * Math.min(metal ? TINT.metal.metalCap : 1.7, Math.max(METAL_RATIO_MIN, finish.metalness / TINT.mapMetal)));
   else material.metalness = toward(source.metalness, finish.metalness);
-  if (source.roughnessMap) material.roughness = Math.min(1, source.roughness * Math.min(1.5, Math.max(metal ? TINT.metal.roughFloor : 0.3, finish.roughness / TINT.mapRough)));
+  if (source.roughnessMap) material.roughness = Math.min(1, source.roughness * Math.min(ROUGH_RATIO_MAX, Math.max(metal ? TINT.metal.roughFloor : 0.3, finish.roughness / TINT.mapRough)));
   else material.roughness = toward(source.roughness, finish.roughness);
   material.userData = { ...source.userData, rankTier: tier, rankTint: [chroma.r, chroma.g, chroma.b, gain, strength] };
   byTier.set(tier, material); return material;

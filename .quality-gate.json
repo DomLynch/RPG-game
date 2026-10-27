@@ -357,9 +357,79 @@
       "scripts/pit-landscape-webkit.mjs",
       "--engine",
       "webkit"
+    ],
+    [
+      "node",
+      "scripts/end-overlap-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/spell-slots-zone-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/ground-prompt-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/zone-pages-check.mjs"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "origins/preview/ground-*",
+        "origins/preview/main.ts",
+        "origins/preview/index.html",
+        "origins/preview/zone-sound.ts",
+        "origins/world/ground-point.ts"
+      ],
+      "rows": [
+        "origins-writer-boot-check",
+        "spell-slots-zone-check",
+        "ground-prompt-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/ground-prompt-check.mjs"
+      ],
+      "rows": [
+        "ground-prompt-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/lib/origins-preview-harness.mjs"
+      ],
+      "rows": [
+        "ground-prompt-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "origins/zone-rows/**",
+        "origins/zones/**",
+        "origins/preview/**",
+        "origins/world/**",
+        "scripts/gen-zones.mjs"
+      ],
+      "rows": [
+        "origins-writer-boot-check",
+        "zone-pages-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/zone-pages-check.mjs",
+        "scripts/lib/zone-pages.mjs"
+      ],
+      "rows": [
+        "zone-pages-check"
+      ]
+    },
     {
       "paths": [
         "scripts/origins-writer.mjs",
@@ -472,7 +542,8 @@
         "desktop-intro-check",
         "clip-send-tour-check",
         "first-loss-browser-check",
-        "next-fight-black-check"
+        "next-fight-black-check",
+        "end-overlap-check"
       ]
     },
     {
@@ -508,6 +579,7 @@
         "desktop-intro-check",
         "clip-send-tour-check",
         "next-fight-black-check",
+        "end-overlap-check",
         "pit-landscape-webkit"
       ]
     },
@@ -526,6 +598,25 @@
         "double-tap-browser-check",
         "clip-send-tour-check",
         "first-loss-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/fight/hud.ts",
+        "src/fight/input.ts",
+        "src/core/spell-equip.ts",
+        "src/core/spell-slot-view.ts"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "double-tap-browser-check",
+        "clip-send-tour-check",
+        "spell-slots-zone-check"
       ]
     },
     {
@@ -623,11 +714,27 @@
     },
     {
       "paths": [
+        "scripts/end-overlap-check.mjs"
+      ],
+      "rows": [
+        "end-overlap-check"
+      ]
+    },
+    {
+      "paths": [
         "scripts/pit-landscape-check.mjs",
         "scripts/pit-landscape-webkit.mjs"
       ],
       "rows": [
         "pit-landscape-webkit"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/spell-slots-zone-check.mjs"
+      ],
+      "rows": [
+        "spell-slots-zone-check"
       ]
     }
   ],

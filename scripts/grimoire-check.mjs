@@ -1,7 +1,8 @@
 // The spell book at a phone (Web, programme 2b), against a STUB writer on loopback that answers grimoire_get the way Backend's #2504 does ({ spells: [{ legend, bricks }] } sorted by legend; nothing else is read or written).
 // The stored session is a stub token; nothing reaches Supabase or the live writer. Walks: a guest opens the book and is told to sign in; a signed-in account with an empty book sees "Beat a legend to take their spell";
-// a book of five (real catalogue legends, three with the most bricks, one the catalogue does not know) lists each by legend name, family, spell and brick chips, sorted; no control under 44 px, off screen,
+// a book of five (real catalogue legends, one the catalogue does not know) lists NOTHING while the beta cut has spells off (the listing, sort, chip and Equip walks are node tests); no control under 44 px, off screen,
 // clipped text or horizontal scroll. Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/grimoire-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS). Stills: <OUT>/book-*.png.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import { chromium, webkit } from 'playwright';
@@ -36,7 +37,7 @@ const writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
 const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = ENGINE === 'webkit' ? await launchBrowser(webkit, { headless: true }) : await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const fails = [], check = (ok, what) => { if (!ok) fails.push(what); };
 async function open(w, h, { signedIn = true } = {}) {
   const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
@@ -72,26 +73,14 @@ try {
       check(/Beat a legend to take their spell/.test(await text(page)) && /0 spells/.test(await text(page)), `${name}: an empty book says what to do (${(await text(page)).slice(0, 80)})`);
       await page.screenshot({ path: `${out}/book-${name}-empty.png` }); await context.close(); }
     state.book = BOOK;
-    { const { context, page } = await open(w, h); await settle(page, /5 spells/);
-      const t = await text(page), names = await page.locator('#grimoire-dialog .grimoire-name').allTextContents();
-      check(/5 spells/.test(t), `${name}: five spells counted (${t.slice(0, 60)})`);
-      check(names.length === 5 && names.join('|') === [...names].sort((a, b) => a.localeCompare(b)).join('|'), `${name}: five entries sorted by name (${names})`);
-      check(names.includes('Alvis') && /Dwarf family/.test(t) && /Long Shadow/.test(t), `${name}: Alvis shows his family and brick`);
-      check(names.includes('Zed The New'), `${name}: a legend the catalogue does not know still lists`);
-      const chips = await page.locator('#grimoire-dialog .grimoire-brick').count(); check(chips >= 5, `${name}: brick chips drawn (${chips})`);
-      await page.screenshot({ path: `${out}/book-${name}-spells.png` });
-      // equip: one button per spell, the colour a row's, the pick kept for the fight's spell port (core/spell-equip.ts)
-      check(await page.locator('#grimoire-dialog .grimoire-equip').count() === 5, `${name}: an Equip button on each entry`);
-      const colours = await page.locator('#grimoire-dialog .grimoire-entry').evaluateAll((es) => es.map((e) => [e.dataset.legend, e.style.getPropertyValue('--school')]));
-      check(colours.filter(([id, c]) => id !== 'zed-the-new' && /^#[0-9a-f]{6}$/i.test(c)).length === 4 && !colours.find(([id]) => id === 'zed-the-new')[1], `${name}: catalogue spells carry their school colour, the unknown one none (${JSON.stringify(colours)})`);
-      const alvis = page.locator('#grimoire-dialog .grimoire-entry[data-legend="alvis"] .grimoire-equip');
-      await alvis.click({ force: true });
-      check(await alvis.getAttribute('aria-pressed') === 'true' && /Equipped/.test(await alvis.textContent()), `${name}: Equip marks Alvis equipped`);
-      check(await page.evaluate(() => localStorage.getItem('frankendom.spell.equipped.v1')) === 'alvis', `${name}: the pick is kept`);
-      await page.screenshot({ path: `${out}/book-${name}-equipped.png` });
-      await alvis.click({ force: true });
-      check(await alvis.getAttribute('aria-pressed') === 'false' && await page.evaluate(() => localStorage.getItem('frankendom.spell.equipped.v1')) === null, `${name}: a second press unequips`);
-      await alvis.click({ force: true });
+    { const { context, page } = await open(w, h); await settle(page, /Beat a legend/);
+      // the beta cut (career-rules.json betaCut: spellsOff, utilitySpells []) filters the writer's book of five, so nothing lists and nothing can be equipped. The page has no URL hook that lifts the cut (a row read at load),
+      // so the listing, sort, chip and Equip walks live at node level and the spellsOff=0 path is the row.
+      const t = await text(page);
+      check(/0 spells/.test(t) && /Beat a legend to take their spell/.test(t), `${name}: with spells off a book of five lists nothing (${t.slice(0, 80)})`);
+      check(await page.locator('#grimoire-dialog .grimoire-entry').count() === 0 && await page.locator('#grimoire-dialog .grimoire-equip').count() === 0, `${name}: no entry and no Equip button is drawn`);
+      check(await page.evaluate(() => localStorage.getItem('frankendom.spell.slots.v1')) === null, `${name}: no spell slot is stored`);
+      await page.screenshot({ path: `${out}/book-${name}-cut.png` });
       const m = await layout(page, name); for (const b of m.bad) check(false, `control too small or off screen: ${b}`); check(!m.clipped.length, `${name}: text clipped: ${m.clipped}`); check(!m.hscroll, `${name}: horizontal scroll`);
       await page.locator('#grimoire-dialog .grimoire-close').click({ force: true }); check(!(await page.locator('#grimoire-dialog').evaluate((d) => d.open)), `${name}: the close button closes it`);
       await context.close(); }

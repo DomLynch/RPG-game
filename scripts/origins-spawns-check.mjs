@@ -137,6 +137,25 @@ try {
   eq(await code(V, KILL(B, tok(22), 0, 75, EV(tok(22), B, pcB))), 'O0009', 'kill: an expired token is refused');
   eq(await code(V, `select public.origins_spawn_touch('${B}', '${tok(22)}');`), 'O0009', 'touch: an expired token is refused');
 
+  // ---- 20261018081137 the V5 kill receipt (the stamp apply assigned in production; the file was first named 20261018090000): what became of a token that is no longer open, from the stored rows, this account only ---------------------------------
+  const RECEIPT = '20261018081137_origins_spawn_receipt.sql', receipt = (acct, t) => val(O, `select coalesce(public.origins_spawn_receipt('${acct}', '${t}'), 'null'::jsonb)::text;`);
+  const RFN = 'origins_spawn_receipt(uuid,text)';
+  eq(psql(`select has_function_privilege('${O}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${RFN}'::regprocedure, 'execute')::int::text`), '1100', 'receipt: both writer roles (frankendom_origins and frankendom_verifier, the writer\'s real login) and no one else (not anon, not authenticated)');
+  const r12 = await receipt(A, tok(12));
+  eq([r12.kind, r12.instance, typeof r12.killedAt, r12.cp, r12.bronze, r12.loot], ['paid', psql(`select instance from public.origins_spawn_engages where token = '${tok(12)}'`), 'string', 30, 7, 1], 'receipt: a paid kill reads back from the stored ledger row (cp 30, bronze 7, one item), not recomputed');
+  const r1 = await receipt(A, tok(1));
+  eq([r1.kind, r1.cp, r1.bronze, r1.loot], ['paid', 0, 0, 0], 'receipt: a paid kill whose batch booked nothing reads back as paid with zeros');
+  eq(await receipt(B, tok(1)), null, 'receipt: another account\'s token is unknown, nothing leaks');
+  eq(await receipt(A, tok(404)), null, 'receipt: a token that never existed is unknown');
+  eq(await receipt(B, tok(20)), { kind: 'expired' }, 'receipt: a token closed dead (lost the kill) is expired');
+  eq(await receipt(B, tok(22)), { kind: 'expired' }, 'receipt: an open token past its expiry is expired');
+  eq(await receipt(A, tok(1)).then(r => JSON.stringify(Object.keys(r).sort())), JSON.stringify(['bronze', 'cp', 'instance', 'killedAt', 'kind', 'loot']), 'receipt: only the receipt fields');
+  eq(await val(V, `select coalesce(public.origins_spawn_receipt('${A}', '${tok(1)}'), 'null'::jsonb)::text;`).then(r => r.kind), 'paid', 'receipt: the writer\'s real login role (frankendom_verifier) can call it and reads the same receipt');
+  eq(await code('anon', `select public.origins_spawn_receipt('${A}', '${tok(1)}');`), '42501', 'receipt: anon cannot call it');
+  eq([used(tok(1)), events(tok(1)), ledger(tok(1))], ['killed', '1', 'unchecked/0/0/0'], 'receipt: reading it twice changes and pays nothing');
+  psql(readFileSync(join(dir, '..', 'down', RECEIPT.replace('.sql', '_down.sql')), 'utf8'));
+  eq(psql(`select count(*) from pg_proc where proname = 'origins_spawn_receipt'`), '0', 'receipt down: the function is gone');
+
   // ---- 0015 the beta wipe: exactly the ledger's rewards, everything else byte-identical ---------------------------------------------------------------
   const keep = `{"op":"mint","item":{"id":"it-keep-1","item":"item:ash-pelt","quantity":2,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":1},"bound_to":null,"mint_key":"loot:keep0001:0","provenance":{"mintKey":"loot:keep0001:0"},"history":[],"single_copy":false}}`;
   psql(`select public.origins_apply('[${keep}]'::jsonb, array['${A}'::uuid]);`);   // a NON-beta item of the same account: must survive
@@ -189,7 +208,7 @@ try {
   // ---- 202610090017: the zone has no ceiling and no leading zero; a key that does not match stays Zone 1 in the table (the writer refuses such a key before it is stored) ----------------------
   eq(psql(`begin; insert into public.origins_spawns(instance, kind) values ('z1000:wolves-1', 'character:ash-wolf'), ('z700:wolves-1', 'character:ash-wolf'), ('z123456:wolves-1', 'character:ash-wolf'), ('z01:wolves-1', 'character:ash-wolf'), ('z0:wolves-1', 'character:ash-wolf');
     select string_agg(instance || '=' || zone, ',' order by instance) from public.origins_spawns where instance in ('z1000:wolves-1', 'z700:wolves-1', 'z123456:wolves-1', 'z01:wolves-1', 'z0:wolves-1'); rollback;`.replace('order by instance', 'order by instance collate "C"')),
-    'z01:wolves-1=1,z0:wolves-1=1,z1000:wolves-1=1000,z123456:wolves-1=123456,z700:wolves-1=700', 'zones: 700, 1000 and 123456 read as their own zone; z01 and z0 do not parse and stay 1 (the writer refuses them)');
+    'z01:wolves-1=1,z0:wolves-1=0,z1000:wolves-1=1000,z123456:wolves-1=123456,z700:wolves-1=700', 'zones: 700, 1000 and 123456 read as their own zone, z0 (the town, migration 20261022110000) as zone 0; z01 does not parse and stays 1 (the writer refuses it)');
   eq(psql(`select count(*) from public.origins_spawns where instance like 'z1000:%'`), '0', 'zones: the probe rows were rolled back');
   const ZONE17 = '202610090017_origins_spawn_zone_unbounded.sql', probe = `begin; insert into public.origins_spawns(instance, kind) values ('z1000:wolves-1', 'character:ash-wolf'), ('z2:wolves-1', 'character:ash-wolf'); select string_agg(instance || '=' || zone, ',' order by instance collate "C") from public.origins_spawns where instance in ('z1000:wolves-1', 'z2:wolves-1'); rollback;`;
   psql(readFileSync(join(dir, '..', 'down', ZONE17.replace('.sql', '_down.sql')), 'utf8'));
@@ -198,8 +217,85 @@ try {
   psql(readFileSync(join(dir, ZONE17), 'utf8'));
   eq(psql(probe), 'z1000:wolves-1=1000,z2:wolves-1=2', '0017 up again after down');
 
+  // ---- 20261019170000 per-layer spawns: every layer keeps its own clocks; a kill reads the TOKEN's layer; one paid kill per account per spawn id per respawn window across layers; the janitor ------------------------
+  const LAYERS = '20261019141740_origins_spawn_layers.sql';   // the version prod recorded (the file was first 20261019170000)
+  const [D, E] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
+  let pcD, pcE;   // set inside the layers section, read again by the rollback checks below it
+  if (readdirSync(dir).includes(LAYERS)) {
+    psql(`insert into auth.users values ('${D}'), ('${E}'); insert into public.origins_access(account) values ('${D}'), ('${E}');`);
+    [pcD, pcE] = [mk(D, 'Dara'), mk(E, 'Edda')];
+    const ENGAGE_L = (layer, acct, pc, t, inst) => `select public.origins_spawn_engage_layer(${layer}, '${acct}', '${pc}', '${t}', '${inst}', 'character:ash-wolf')::text;`;
+    const STATE_L = (layer, inst) => `select public.origins_spawn_state_layer(${layer}, array['${inst}'])::text;`;
+    const alive = async (layer, inst) => (await val(V, STATE_L(layer, inst))).spawns.map(s => [s.alive, s.generation]);
+    const FNS_L = ['origins_spawn_state_layer(int,text[])', 'origins_spawn_engage_layer(int,uuid,text,text,text,text)', 'origins_spawn_check_layer(uuid,text,int,int,int)', 'origins_spawn_damage_read_layer(int,text,int)', 'origins_spawn_layers_sweep(int[])'];
+    for (const fn of FNS_L) eq(psql(`select has_function_privilege('${V}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('${O}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${fn}'::regprocedure, 'execute')::int::text`), '1100', `layers grants: ${fn} is the two writer roles only`);
+    eq(psql(`select count(*) from public.origins_spawns where layer <> 1`), '0', 'layers: every row that existed before is layer 1');
+    const [t60, t61, t62, t64, t65] = [60, 61, 62, 64, 65].map(tok);
+    eq((await val(V, ENGAGE_L(1, D, pcD, t60, 'lay-1'))).layer, 1, 'layers: engage in layer 1');
+    eq((await val(V, ENGAGE_L(2, E, pcE, t61, 'lay-1'))).layer, 2, 'layers: the SAME spawn id in layer 2 is its own row');
+    eq(psql(`select string_agg(layer::text, ',' order by layer) from public.origins_spawns where instance = 'lay-1'`), '1,2', 'layers: two rows for one id, one per layer');
+    eq(await val(V, KILL(D, t60, 0, 100, EV(t60, D, pcD))).then(k => k.result), 'killed', 'layers: a kill in layer 1');
+    eq([await alive(1, 'lay-1'), await alive(2, 'lay-1')], [[[false, 0]], [[true, 0]]], 'layers: layer 1\'s clock runs and layer 2\'s creature is still alive');
+    eq(await val(V, `select public.origins_spawn_state(array['lay-1'])::text;`).then(s => s.spawns.map(x => x.alive)), [false], 'layers: the layer-less state is layer 1');
+    eq((await val(V, ENGAGE_L(2, D, pcD, t62, 'lay-1'))).layer, 2, 'layers: D engages the same creature in layer 2 (it is alive there)');
+    eq(await val(V, KILL(D, t62, 0, 100, EV(t62, D, pcD))), { refused: 'cooldown' }, 'layers: ONE PAID KILL PER ACCOUNT PER SPAWN ID PER RESPAWN WINDOW ACROSS LAYERS: D killed lay-1 in layer 1 a moment ago');
+    eq([used(t62), events(t62)], ['open', '0'], 'layers: the cooldown refusal writes nothing and leaves the token open');
+    eq(await val(V, `select public.origins_spawn_check_layer('${D}', '${t62}', 0, 120, 100)::text;`), { refused: 'cooldown' }, 'layers: the read-only check says the same, before any replay');
+    psql(`update public.origins_spawn_engages set used_at = used_at - interval '200 seconds' where token = '${t60}'`);
+    eq(await val(V, `select public.origins_spawn_check_layer('${D}', '${t62}', 0, 120, 100)::text;`).then(c => [c.ok, c.mode, c.layer]), [true, 'first', 2], 'layers: past the window the check passes and names the token\'s layer');
+    eq(await val(V, KILL(D, t62, 0, 100, EV(t62, D, pcD))).then(k => k.result), 'killed', 'layers: past the respawn window D may kill it in layer 2');
+    eq(await val(V, KILL(E, t61, 0, 100, EV(t61, E, pcE))).then(k => k.refused), 'dead', 'layers: E\'s token in layer 2 finds the creature dead there (D killed it first IN layer 2)');
+    eq((await val(V, ENGAGE_L(1, E, pcE, t64, 'lay-3'))).token, t64, 'layers: E engages lay-3 in layer 1');
+    eq((await val(V, ENGAGE_L(2, E, pcE, t65, 'lay-3'))).layer, 2, 'layers: ... then in layer 2');
+    eq([used(t64), used(t65)], ['dead', 'open'], 'layers: moving layers closes the old layer\'s token (no token crosses copies)');
+    eq(await val(V, `select coalesce(public.origins_spawn_engage_get('${E}', '${t65}'), 'null'::jsonb)::text;`).then(g => g.layer), 2, 'layers: engage_get carries the token\'s layer');
+    eq(await val(V, KILL(E, t65, 0, 100, EV(t65, E, pcE))).then(k => k.result), 'killed', 'layers: the kill is on the TOKEN\'s layer');
+    eq(psql(`select string_agg(layer || ':' || alive, ',' order by layer) from public.origins_spawns where instance = 'lay-3'`), '1:true,2:false', 'layers: layer 1\'s lay-3 is untouched by a kill in layer 2');
+    eq((await val(V, ENGAGE(E, pcE, tok(66), 'lay-4'))).instance, 'lay-4', 'layers: the old engage name still works');
+    eq(psql(`select layer from public.origins_spawns where instance = 'lay-4'`), '1', 'layers: ... on layer 1');
+    eq(await code(V, ENGAGE_L(0, E, pcE, tok(67), 'lay-5')), 'O0002', 'layers: a layer is a positive number');
+    eq(await val(V, ENGAGE_L(3, E, pcE, tok(68), 'lay-6')).then(e => e.layer), 3, 'layers: layer 3 opens on its first engage');
+    // the janitor: delete every layer not live; a null list is refused; no writer can read or delete a row any other way
+    eq(await code('anon', `select public.origins_spawn_layers_sweep(array[1]);`), '42501', 'sweep: anon cannot call it');
+    eq(await code(V, `select public.origins_spawn_layers_sweep(null);`), 'O0002', 'sweep: a null list (presence did not answer) is refused, never read as "no layer is live"');
+    const before2 = psql(`select count(*) from public.origins_spawns where layer in (2, 3)`);
+    eq(await val(V, `select public.origins_spawn_layers_sweep(array[1])::text;`), Number(before2), 'sweep: every row of layers presence no longer holds is deleted');
+    eq(psql(`select count(*) from public.origins_spawns where layer <> 1`), '0', 'sweep: layer 1 survives');
+    eq(psql(`select count(*) from public.origins_spawn_engages where layer <> 1`) > '0', true, 'sweep: engages are never touched (receipts stay readable)');
+    eq(await val(V, `select public.origins_spawn_layers_sweep(array[1])::text;`), 0, 'sweep: a second sweep deletes nothing');
+    await val(V, ENGAGE_L(2, E, pcE, tok(69), 'lay-7'));   // a layer-2 row and an OPEN layer-2 token left for the rollback
+    // the Auditor's blocker (#3315): a kill whose spawn row is gone (the janitor swept a closed layer) is REFUSED, never paid with a NULL spawn (v1 and v2 both)
+    const [t71, t72, t73] = [71, 72, 73].map(tok), KILL_V2 = (acct, t, batch) => `select public.origins_spawn_kill_v2('${acct}', '${t}', 0, 100, '${batch}'::jsonb, '{"reach":"unchecked"}'::jsonb, 5, 120)::text;`;
+    await val(V, ENGAGE_L(3, E, pcE, t71, 'lay-10')); await val(V, ENGAGE_L(3, D, pcD, t72, 'lay-11'));   // two accounts: max_open is 4 per account
+    eq(await val(V, `select public.origins_spawn_layers_sweep(array[1, 2])::text;`), 2, 'blocker: the sweep deletes the two layer-3 spawn rows (their tokens stay open)');
+    const ledgerBefore = psql(`select count(*) from public.origins_beta_ledger`), eventsNow = psql(`select count(*) from public.origins_events`);
+    eq(await val(V, KILL(E, t71, 0, 100, EV(t71, E, pcE))).then(k => k.refused), 'dead', 'blocker: the v1 kill of a token whose spawn row is gone is refused dead');
+    eq(await val(V, KILL_V2(D, t72, EV(t72, D, pcD))).then(k => k.refused), 'dead', 'blocker: the v2 kill is refused dead too');
+    eq([psql(`select count(*) from public.origins_beta_ledger`), psql(`select count(*) from public.origins_events`), used(t71), used(t72)], [ledgerBefore, eventsNow, 'dead', 'dead'], 'blocker: nothing was paid or written, and both tokens are closed');
+    // a layer-2 damage row for the rollback's archive: a layer-2 engage killed through the share function
+    await val(V, ENGAGE_L(2, D, pcD, t73, 'lay-9'));
+    eq(await val(V, KILL_V2(D, t73, EV(t73, D, pcD))).then(k => k.result), 'killed', 'layers: a kill through the share function writes a layer-2 damage row');
+    eq(psql(`select count(*) from public.origins_spawn_damage where layer = 2`), '1', 'layers: ... one layer-2 damage row');
+  }
+
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
+  const LAYERS_DOWN = '20261019141740_origins_spawn_layers_down.sql';   // rollbacks run newest first: the layers restore the pre-layer bodies (damage-share's included), so they go before the damage-share down
+  if (readdirSync(join(dir, '..', 'down')).includes(LAYERS_DOWN)) {
+    psql(readFileSync(join(dir, '..', 'down', LAYERS_DOWN), 'utf8'));
+    eq(psql(`select count(*) from information_schema.columns where table_name in ('origins_spawns', 'origins_spawn_engages', 'origins_spawn_damage') and column_name = 'layer'`), '0', 'layers down: the layer columns are gone');
+    eq(psql(`select count(*) from public.origins_spawns where instance in ('lay-7', 'lay-9')`), '0', 'layers down: the rows of layers above 1 are deleted');
+    eq([psql(`select count(*) from origins_rollback_archive.spawn_layers where kind = 'damage'`), psql(`select count(*) from origins_rollback_archive.spawn_layers where kind = 'spawn'`) > '0', psql(`select count(*) from origins_rollback_archive.spawn_layers where kind = 'engage' and data ->> 'token' = '${tok(69)}' and data ->> 'layer' = '2'`)], ['1', true, '1'], 'layers down: the damage row, the spawn rows and the engage tokens with their layers are ARCHIVED before the deletes');
+    eq(used(tok(69)), 'dead', 'layers down: the OPEN layer-2 token is closed, so a pre-layer kill cannot pay a spawn row that is gone');
+    eq(await code(V, KILL(E, tok(69), 0, 100, EV(tok(69), E, pcE))), 'O0009', 'layers down: ... a kill on it is the plain used-token error (O0009), never a paid kill');
+    eq(psql(`select convalidated::text from pg_constraint where conname = 'origins_spawn_engages_instance_fkey'`), 'false', 'layers down: engages of layers above 1 name instances that no longer have a row, so the foreign key stays NOT VALID (the PR carries the validate command)');
+    eq(psql(`select has_table_privilege('${V}', 'origins_rollback_archive.spawn_layers', 'select')::text || has_schema_privilege('${V}', 'origins_rollback_archive', 'usage')::text || has_table_privilege('anon', 'origins_rollback_archive.spawn_layers', 'select')::text || has_schema_privilege('authenticated', 'origins_rollback_archive', 'usage')::text`), 'falsefalsefalsefalse', 'layers down: no writer role and no client role can read the archive (it is outside public)');
+    eq(psql(`select count(*) from information_schema.tables where table_schema = 'public' and table_name like '%rollback_archive%'`), '0', 'layers down: nothing of the archive is in the public schema');
+    eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%\\_layer%'`), '0', 'layers down: the layer functions are gone');
+    eq(await val(V, ENGAGE(B, pcB, tok(70), 'lay-8')).then(e => e.generation), 0, 'layers down: the old engage works on the single-column key');
+  }
+  const LATER_DOWN = '20261019113226_origins_damage_share_down.sql';   // rollbacks run newest first: the damage-share objects (origins_spawn_check / _damage_read / _kill_v2) go before the spawn tables they sit beside
+  if (readdirSync(join(dir, '..', 'down')).includes(LATER_DOWN)) psql(readFileSync(join(dir, '..', 'down', LATER_DOWN), 'utf8'));
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%'`), '0', 'down: the functions are gone');
   eq(psql(`select count(*) from pg_class where relname in ('origins_world_config', 'origins_spawns', 'origins_spawn_engages', 'origins_beta_ledger')`), '0', 'down: the tables are gone');

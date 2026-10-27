@@ -13,12 +13,13 @@ import { powerOf, loadRegistry, tableFromFile, type Manifest } from '../../src/c
 import LOOT_TIER_ROWS from './loot-tier.json' with { type: 'json' };
 import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' };
 import { sha256, shortHash } from '../boss/hash.ts';
-import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
-import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
+import { HAZARDS, TWISTS, loadRegion1, span, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
-import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
-import { TIERS, type Tier } from '../../src/core/server.ts';
+import { OPPONENTS, worldOpponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
+import { BETA_MAX_LOOT_RUNG, TIERS, type Tier } from '../../src/core/server.ts';
+import { rungOf as legendRung } from '../../src/fight/server.ts';
 
 // ---- the twist flags Combat reads: imported from src/fight/twist.ts (PR #1626, on trunk), not mirrored ------------------------------------
 export { oneBarHealth };
@@ -36,11 +37,22 @@ export function loadEncounterContent(): Result<EncounterContent> {
 }
 export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => content.region.registry.items.get(id);
 
-// Gear won in Region 1 records this tier. PROPOSED (region1 §5 "Tier", open question 5): the zone's difficulty.lootTier 3 read as
-// the third rank title, Gladiator. The test pins it to the Frontier zones' lootTier.
+// The rung a drop, a ground pickup or a shop item is minted at (Strategy + Lead, 2026-10-17; every number is a row): the rung of the LEVEL it is minted at (src/legends.ts rungOf, the one
+// level-to-rung mapping) + the base offset (mintRule) + the item's rarity shift (rarityShift; the row marked `fallback` serves an item with no rarity or an unknown one), kept within the first rung and
+// the beta cap (betaCut.maxLootRung in career-rules.json, which lifts with the cut). The level is the creature's for a drop, the zone band's midpoint for a mint with no creature (origins/zones/band.ts).
+// There is NO default rung: a mint with neither a creature nor a zone level is refused.
+// Item rarity (common, fine, rare, relic: a rung shift) is NOT the wildlife spawn rarity (common, uncommon, rare: a spawn weight, src/core/world/wildlife-rules.ts): same word, different table and scale, kept apart on purpose.
 loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
-export const REGION1_LOOT_TIER = LOOT_TIER_ROWS.lootTierRule[0]!.tier as Tier;   // a row (loot-tier.json), read by name
-export const tierOfLootTier = (lootTier: number): Tier | undefined => TIERS[lootTier - 1];
+export type RungRules = { readonly shifts: ReadonlyMap<string, number>; readonly fallback: number; readonly base: number; readonly cap: number };
+const SHIFT_ROWS = LOOT_TIER_ROWS.rarityShift as readonly { id: string; shift: number; fallback?: boolean }[];
+export const RUNG_RULES: RungRules = { shifts: new Map(SHIFT_ROWS.map((r) => [r.id, r.shift])), fallback: SHIFT_ROWS.find((r) => r.fallback)!.shift, base: LOOT_TIER_ROWS.mintRule[0]!.baseRungOffset, cap: BETA_MAX_LOOT_RUNG };
+export type Rung = { readonly tier: Tier; readonly wanted: number; readonly clamped: boolean };
+export const mintRung = (rarity: string | undefined, level: number, rules: RungRules = RUNG_RULES): Rung => {
+  const wanted = legendRung(level) + rules.base + ((rarity === undefined ? undefined : rules.shifts.get(rarity)) ?? rules.fallback);
+  const rung = Math.min(rules.cap, TIERS.length, Math.max(1, wanted));
+  return { tier: TIERS[rung - 1]!, wanted, clamped: rung !== wanted };
+};
+export const tierOfLootTier =(lootTier: number): Tier | undefined => TIERS[lootTier - 1];
 
 // ---- 1. fight setup -------------------------------------------------------------------------------------------------------------
 
@@ -65,7 +77,7 @@ export type SetupOptions = { overlay?: readonly unknown[]; level?: number };
 
 const bodyHealth = (body: OpponentId, level: number): number | undefined => {
   const o = OPPONENTS[body];
-  return o ? opponentAt(o, level).health : undefined;
+  return o ? worldOpponentAt(o, level).health : undefined;
 };
 
 export function fightSetup(id: unknown, content: EncounterContent, opts: SetupOptions = {}): Result<FightSetup> {
@@ -136,8 +148,8 @@ function readOverlay(issues: Issues, raw: readonly unknown[], base: readonly Twi
       if (!Object.hasOwn(o, k)) { if (required) issues.add('missing-field', `${p}.${k}`, `${kind} needs ${k}`); return; }
       if (!Number.isInteger(o[k]) || (o[k] as number) < lo || (o[k] as number) > hi) issues.add('out-of-range', `${p}.${k}`, `${k} is a whole number in ${lo}..${hi}`);
     };
-    if (kind === 'flee-at') { int('percent', 1, 99, true); int('catchSeconds', 1, 120, false); }
-    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', 1, 30, true); }
+    if (kind === 'flee-at') { int('percent', ...span('flee-at.percent'), true); int('catchSeconds', ...span('flee-at.catchSeconds'), false); }
+    if (kind === 'hazard') { if (!(HAZARDS as readonly unknown[]).includes(o.hazard)) issues.add('out-of-range', `${p}.hazard`, `a hazard is one of ${HAZARDS.join(', ')}`); int('stillSeconds', ...span('hazard.stillSeconds'), true); }
     if ([...base, ...out].some((b) => b.kind === kind)) issues.add('duplicate-id', p, `a ${kind} twist is set twice on one fight`);
     out.push(o as Twist);
   });
@@ -282,21 +294,28 @@ function rollTable(table: LootTable, draw: () => number, level: number | undefin
 
 // Who won the drops and for which kill. `killId` is the kill's own unique key (the boss module's LootRequest.mintKey, or the server's
 // kill id), so each drop's mint key `loot:<killId>:<n>` is unique and a retried settlement cannot mint twice. `at` is the server time.
-export type LootMint = { wonBy: CharacterInstanceId; killId: string; encounter: EncounterId | null; at: string };
-export type Delivered = { inventory: Inventory; metal: number; received: ItemInstanceId[] };
+export type LootMint = { wonBy: CharacterInstanceId; killId: string; encounter: EncounterId | null; at: string; level?: number };   // level: the creature's, or the zone band's midpoint when no creature made the drop; a tiered item minted with neither is REFUSED (no default rung)
+export type Delivered = { inventory: Inventory; metal: number; received: ItemInstanceId[]; clamped: string[] };   // clamped: one line per drop whose wanted rung the beta cap lowered, for the receipt
 
 // Mint each drop as a `loot` item instance (contracts' shape, parsed) and hand it to the inventory's own `receive`, which owns capacity,
 // stacking and one-of-each. All or nothing: any refusal returns that refusal and the inventory unchanged. Metal is a balance, not an item.
-export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: LootMint, content: EncounterContent): Result<Delivered> {
+export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: LootMint, content: EncounterContent, rungRules: RungRules = RUNG_RULES): Result<Delivered> {
   const lookup = lookupOf(content);
   let inv = inventory;
-  const received: ItemInstanceId[] = [], hash = shortHash(`${mint.killId}|${drops.table}`);
+  const received: ItemInstanceId[] = [], clamped: string[] = [], hash = shortHash(`${mint.killId}|${drops.table}`);
   for (const [n, d] of drops.items.entries()) {
     const def = lookup(d.item);
     if (!def) return fail('unknown-id', `drops.items[${n}].item`, `${d.item} is not a Region 1 item`);
+    let tier: Tier | null = null;
+    if (powerOf(def.power).tiered) {
+      if (mint.level === undefined) return fail('content-rule',`drops.items[${n}]`, `${d.item} is minted with neither a creature nor a zone level: there is no default rung`);
+      const rung = mintRung(def.rarity, mint.level, rungRules);
+      tier = rung.tier;
+      if (rung.clamped) clamped.push(`${d.item} (${def.rarity}) at level ${mint.level} wanted rung ${rung.wanted}, minted at ${rung.tier} by the cap`);
+    }
     const parsed = parseItemInstance({
       kind: 'item-instance', schemaVersion: 1, id: `inst:loot-${hash}-${n}`, item: d.item, version: 0, quantity: d.quantity,
-      tier: powerOf(def.power).tiered ? REGION1_LOOT_TIER : null,
+      tier,
       location: { kind: 'trade-escrow', container: 'container:loot-mint', from: mint.wonBy },   // where a fresh drop sits until `receive` places it
       boundTo: null,
       provenance: { kind: 'loot', mintKey: `loot:${mint.killId}:${n}`, at: mint.at, wonBy: mint.wonBy, table: drops.table, encounter: mint.encounter },
@@ -308,6 +327,6 @@ export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: Loot
     inv = next.value;
     received.push(parsed.value.id);
   }
-  return ok({ inventory: inv, metal: drops.metal, received });
+  return ok({ inventory: inv, metal: drops.metal, received, clamped });
 }
 

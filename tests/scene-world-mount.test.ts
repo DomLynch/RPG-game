@@ -1,6 +1,7 @@
 // The Pit path is unchanged without a world mount (?worldfight, origins/preview/pit-duel.ts). createScene's `world` argument is optional and last, and every place that reads it
 // is one of the guarded forms below: the page's renderer in place of a new one, the world's background and fog, no arena and no arena lights, the holder mounted, no resize of the
 // page's renderer. A new use of `world` in scene.ts is a new difference between the Pit and a mounted fight: review it, then add it here.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -10,7 +11,7 @@ const lines = source.split('\n').map((l) => l.replace(/\s*\/\/.*$/, '')).filter(
 const reads = lines.filter((l) => /\bworld\b/.test(l) && !/const world = new THREE\.Vector3|take = \(world: THREE\.Vector3\)|v\.copy\(world\)|take\(o\.getWorldPosition\(world\)\)|take\(world\.set|, world\)/.test(l));
 
 test('createScene takes the world mount last and optional', () => {
-  assert.match(source, /peerKit\?: Promise<[^\n]*\n {2}world\?: WorldMount,\n\) \{/);
+  assert.match(source, /peerKit\?: Promise<[^\n]*\n {2}world\?: WorldMount,\n {2}post\?: \(\) => Promise<GfxPost>,[^\n]*\n\) \{/);   // the lift's `post` (the Pit page only) comes after it and is ignored with a mount
 });
 
 test('every read of the world mount is a guarded form, so no mount means the Pit exactly', () => {
@@ -23,6 +24,7 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
     "      scene.environmentIntensity = world ? 0.15 : environment ? 0.45 : 1.0;",
     "  if (!world) scene.add(hemisphere);",
     "  if (!world) scene.add(sun);",
+    "  const gfxReady: Promise<unknown> = post && !world ? post().then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(width, height); }).catch(captureException) : Promise.resolve();",
     "  const arena = world ? worldArena() : buildArena(scene, theme),",
     "  if (world) scene.add(world.holder);",
     "    if (!world) renderer.setSize(width, height, false);",

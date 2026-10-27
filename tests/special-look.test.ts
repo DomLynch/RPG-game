@@ -1,5 +1,6 @@
 // The Hades pilot's page (special-look.ts, ?special=hades): its link, its presentation stages, and Lead's two conditions: the page writes
 // nothing (a sparring fight: no record, reward or stored row), and presentation never changes the fight it draws.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';

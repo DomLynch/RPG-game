@@ -1,4 +1,5 @@
 // Variant eligibility (row 22, catalogue half): only wild creatures roll scarred/alpha/ancient. A ranked Pit opponent never does, because its look and name come from its rung legend.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { VARIANTS, eligibleFor } from '../origins/world/variants.ts';

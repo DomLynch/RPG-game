@@ -1,5 +1,6 @@
 // The ash-frontier spell rows (region 1 of the 700: src/fight/spells-ash-frontier.json + manifest): one row per boss spell, through the shared loader (src/core/registry.ts).
 // The checks: the table loads against the school table, every rank is 1-10, each story is one line, and a legend nested in a catalogue row is checked as a PAIR (the row exists AND names that legend).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';

@@ -1,12 +1,13 @@
 // What a verified world creature kill pays (mob-rewards.ts): the kill's CP through award(), the loot rolled on the server's seed into the pack as mints,
 // and nothing for a token without a fight id, a run the fight does not describe, a loss-shaped twist, a full pack or a capped Bounty.
+import './zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
-import { openInventory, type Inventory } from '../inventory/inventory.ts';
+import { openInventory, type Inventory } from '../../src/core/server.ts';
 import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, respawnRows, type Kill } from './mob-rewards.ts';
 import { cumulative } from '../../src/core/career-model.ts';
 import type { Db } from './db.ts';
@@ -131,8 +132,9 @@ test('respawn window from the database: a paid kill of the same fight inside the
 
 test('respawn window: a row with respawnSeconds binds that (the bear: 75 s), a row without keeps 300 s; the migration absent pays nothing (fail closed)', async () => {
   const [a, b] = creatures as [string, string];
-  assert.equal(respawnMsOf(a, content, new Map([[a, 75_000]])), 75_000);
-  assert.equal(respawnMsOf(b, content, new Map([[a, 75_000]])), RESPAWN_MS);
+  assert.equal(respawnMsOf(a, content, new Map([[`1:${a}`, 75_000]])), 75_000);
+  assert.equal(respawnMsOf(a, content, new Map([[`1:${a}`, 75_000]]), '1'), 75_000);
+  assert.equal(respawnMsOf(b, content, new Map([[`1:${a}`, 75_000]])), RESPAWN_MS);
   assert.equal(respawnMsOf('character:nobody', content), RESPAWN_MS);
   const logs: string[] = [], hook = mobRewards(content, () => new Date(AT), (l) => logs.push(l));
   assert.deepEqual(await hook(kill(a, droppingSeed(a)), fakeOpen('absent')), []);
@@ -154,16 +156,72 @@ test('a zone kill leaves the Pit rank alone: it writes only events, the zone car
 
 test('respawn window covers every zone: a Zone 2/3 creature (the ember wolf) keeps its own respawnSeconds, not the 300 s fallback', () => {
   const rows = respawnRows();
-  assert.equal(rows.get('character:ember-wolf'), 75_000);
-  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(r.id), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
+  assert.ok([...rows].some(([k, v]) => k.endsWith(':character:ember-wolf') && v === 75_000));
+  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(`${id}:${r.id}`), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
 });
 
 test('respawn window: a Zone 2 row with respawnSeconds=45 gives 45 000 ms, not the 300 000 fallback', () => {
-  const rows = respawnRows(() => [{ id: 'character:zone2-test', respawnSeconds: 45 }, { id: 'character:plain' }]);
-  assert.equal(rows.get('character:zone2-test'), 45_000);
-  assert.equal(rows.get('character:plain') ?? RESPAWN_MS, RESPAWN_MS);
+  const rows = respawnRows(() => [{ zone: '2', rows: [{ id: 'character:zone2-test', respawnSeconds: 45 }, { id: 'character:plain' }] }]);
+  assert.equal(rows.get('2:character:zone2-test'), 45_000);
+  assert.equal(rows.get('2:character:plain') ?? RESPAWN_MS, RESPAWN_MS);
+});
+
+test('respawn rows are keyed (zone, id): a row in one zone never sets the respawn of the same creature id in another (the Zone 1 starters of 40-60 s must not drag Zone 2)', () => {
+  const rows = respawnRows(() => [{ zone: '1', rows: [{ id: 'character:wolf', respawnSeconds: 40 }] }, { zone: '2', rows: [{ id: 'character:wolf' }] }]);
+  assert.equal(rows.get('1:character:wolf'), 40_000);
+  assert.equal(rows.get('2:character:wolf'), undefined, 'Zone 2 has no row of its own: it falls to the default, never to Zone 1\'s');
+});
+
+test('zone-keyed respawn rows lose nothing: a creature that sets respawnSeconds in one listed zone sets it in EVERY listed zone where it spawns (the old id-only key made every zone inherit it), so Dom\'s 30-60 s rule holds in Zones 2 and 5 too', () => {
+  const rowsOf = (id: string) => loadZone(id).spawns.rows as unknown as { id: string; respawnSeconds?: number }[];
+  const set = new Map<string, [string, number][]>();
+  for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds !== undefined) set.set(r.id, [...(set.get(r.id) ?? []), [z, r.respawnSeconds]]);
+  const missing: string[] = [];
+  for (const z of zoneIds()) for (const r of rowsOf(z)) if (r.respawnSeconds === undefined && set.has(r.id)) missing.push(`zone ${z} ${r.id} (set in zone ${set.get(r.id)!.map(([zz, s]) => `${zz}: ${s} s`).join(', ')})`);
+  assert.deepEqual(missing, []);
+  const rows = respawnRows();   // the 12 cinder-scavengers of Zones 2 and 5 keep the 40 s they inherited from Zone 1's starter row
+  for (const z of ['1', '2']) assert.equal(rows.get(`${z}:character:cinder-scavenger`), 40_000, `zone ${z}`);   // was ['1', '2', '5']: zone 5 (the Bone Hollow) is unlisted for the beta (Dom 10-22), so it has no respawn rows
+});
+
+test('respawnMsOf by zone: a creature with a row in Zone 1 only reads that row in Zone 1 and the default in Zone 2; with no zone (the Pit path) it reads the row as before', () => {
+  const rows = respawnRows(() => [{ zone: '1', rows: [{ id: 'character:ember-wolf', respawnSeconds: 40 }] }, { zone: '2', rows: [{ id: 'character:ember-wolf' }] }]);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows, '1'), 40_000);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows, '2'), RESPAWN_MS);
+  assert.equal(respawnMsOf('character:ember-wolf', content, rows), 40_000);
 });
 
 test('respawnMsOf with its default ROW_RESPAWN: the ember wolf (rows in Zones 2 and 3 only) gets its 75 s, so a Zone-1-only map fails', () => {
   assert.equal(respawnMsOf('character:ember-wolf', content), 75_000);
+});
+
+// ---- the spawn row's own loot table (zone 90's tz-cave-troll): WHICH table is rolled, nothing else ----
+
+test('Zone 1 and every other listed zone: each spawn row names the character\'s own table, so passing the row\'s loot changes nothing (same table ids, same lines for the same seeds)', () => {
+  let rows = 0;
+  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) {
+    if (!(r.id in content.local.creatureLoot) || !fightSetup(r.id, content).ok) continue;
+    rows++;
+    assert.equal(r.loot, content.local.creatureLoot[r.id], `zone ${id} ${r.id}: the row's table is the character's table`);
+    const level = (fightSetup(r.id, content) as { ok: true; value: { opponent: { level: number } } }).value.opponent.level;
+    for (let seed = 1; seed <= 40; seed++) {
+      const k = kill(r.id, seed), state = () => ({ career: row(), inventory: pack() });
+      assert.deepEqual(mobBatch(k, state(), content, AT, { level, loot: r.loot }), mobBatch(k, state(), content, AT, { level }), `zone ${id} ${r.id} seed ${seed}`);
+    }
+  }
+  assert.ok(rows >= 5, 'the listed zones have creature rows');
+});
+
+test('a spawn row that names its own table rolls THAT table (zone 90 troll drops the pitborn pieces); CP, bronze and who is paid are the character\'s, and an unknown table fails closed', () => {
+  const fight = 'character:cave-troll', own = 'loottable:tz-cave-troll', s = fightSetup(fight, content); if (!s.ok) throw new Error(fight);
+  const level = s.value.opponent.level;
+  let seed = 0;
+  for (let n = 1; n < 5000 && !seed; n++) { const r = rollLoot(own, n, content, { foeLevel: level }); if (r.ok && r.value.items.some((d) => d.item.startsWith('item:loot.pitborn.'))) seed = n; }
+  assert.ok(seed, 'some seed drops a pitborn piece from the zone table');
+  const k = kill(fight, seed), state = () => ({ career: row(), inventory: pack() });
+  const base = mobBatch(k, state(), content, AT, { level }), mine = mobBatch(k, state(), content, AT, { level, loot: own });
+  const rolled = rollLoot(own, seed, content, { foeLevel: level }); assert.ok(rolled.ok);
+  assert.deepEqual(mine.batch.filter((l) => l.op === 'mint').map((m) => (m.item as { item: string }).item), rolled.value.items.map((d) => d.item), 'the mints are the zone table\'s roll');
+  assert.deepEqual([mine.summary.cp, mine.summary.cpReason, mine.batch.filter((l) => l.op === 'career_set')], [base.summary.cp, base.summary.cpReason, base.batch.filter((l) => l.op === 'career_set')], 'the CP line is the character\'s, untouched');
+  const none = mobBatch(k, state(), content, AT, { level, loot: 'loottable:no-such-table' });
+  assert.equal(none.batch.filter((l) => l.op === 'mint').length, 0); assert.ok(none.summary.lootRefused, 'an unknown table pays no loot and says why');
 });

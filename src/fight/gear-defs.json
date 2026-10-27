@@ -11,7 +11,17 @@
         "armour": 2,
         "health": 2,
         "poise": 1
-      }
+      },
+      "eras": [
+        {
+          "fromRecordVersion": 79,
+          "shape": {
+            "armour": 25,
+            "magicResist": -15,
+            "stamina": -10
+          }
+        }
+      ]
     },
     {
       "id": "robes",
@@ -37,7 +47,24 @@
         "stamina": 2,
         "recovery": 2,
         "luck": 1
-      }
+      },
+      "eras": [
+        {
+          "fromRecordVersion": 74,
+          "shape": {
+            "armour": 20,
+            "stamina": 5,
+            "magicResist": -25
+          }
+        },
+        {
+          "fromRecordVersion": 80,
+          "shape": {
+            "stamina": 25,
+            "armour": -25
+          }
+        }
+      ]
     }
   ],
   "owners": [
@@ -99,7 +126,7 @@
       "id": "light",
       "weightClass": "light",
       "preset": true,
-      "set": "leathers",
+      "set": "robes",
       "weight": 4,
       "wearMax": 60,
       "resist": {}
@@ -108,6 +135,7 @@
       "id": "medium",
       "weightClass": "medium",
       "preset": true,
+      "set": "leathers",
       "weight": 9,
       "wearMax": 90,
       "resist": {}

@@ -1,0 +1,7 @@
+{
+  "tables": [
+    { "table": "height-tier", "file": "height-ladder.json", "at": "ladder", "key": "id", "required": { "fromZone": "number", "capM": "number" } },
+    { "table": "body-height", "file": "height-ladder.json", "at": "bodies", "key": "id", "required": { "heightM": "number", "lengthM": "number", "glb": "string", "sha256": "string" } },
+    { "table": "height-exception", "file": "height-ladder.json", "at": "exceptions", "key": "id", "required": { "zone": "string", "character": "string", "reason": "string" } }
+  ]
+}

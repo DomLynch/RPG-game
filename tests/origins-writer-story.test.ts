@@ -1,6 +1,7 @@
 // The Origins writer's story ops (quest_advance, talk_pick) on a fake database that keeps the migration's commit rules in memory: event ids are
 // unique (O0001), versioned rows refuse a stale write (O0002), a row for a character outside the batch's account is refused (O0010), a batch is
 // all or nothing. No Postgres; the real cluster runs in scripts/origins-writer-check.mjs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -40,7 +41,7 @@ const MARKS = 10;   // level 11 (Gladiator I): the Concord Commission's outer ga
 const SEED = cumulative(1 + MARKS);
 
 // One account's rows (A, owning PA; PB is B's) and the migration's commit rules over them.
-function fakeDb(o: { items?: Row[] } = {}) {
+function fakeDb(o: { items?: Row[]; qa?: boolean | 'blind' } = {}) {
   let w: World = {
     career: { seed_credit: SEED, world_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 1 },
     quests: [], journal: [], talk: [], events: new Map(), items: o.items ?? [],
@@ -83,8 +84,12 @@ function fakeDb(o: { items?: Row[] } = {}) {
       // A statement pair (store.ts openWithPending / commitThenOpen) is answered in order, joined by a newline, like psql: a refusal in the
       // first throws before the second runs.
       const answers: string[] = [];
+      let qaAsked = false;
       for (const fn of [...sql.matchAll(/public\.(origins_\w+)\(/g)].map(m => m[1])) {
-        if (fn === 'origins_open') {
+        if (fn === 'origins_account_is_test') {   // the QA mark (fighter_profiles.is_test); the probe and the call name it twice, one answer
+          if (o.qa === 'blind') throw new DbError('XX000', 'db down');
+          if (!qaAsked) { qaAsked = true; answers.push(String(o.qa === true)); }
+        } else if (fn === 'origins_open') {
           answers.push(JSON.stringify({
             marks: MARKS, career: { ...w.career, total_credit: SEED + Number(w.career.world_credit) },
             characters: [{ id: PA, account: A, name: 'Aldren' }], items: w.items, quests: w.quests, journal: w.journal, talk: w.talk,
@@ -122,6 +127,33 @@ test('quest_advance: taking a quest writes the state, its journal line, the ques
   assert.equal(next.stage, 'fetch');
   assert.equal(f.commits[1].batch[0].expected_version, 1, 'a later stage updates at the stored version');
   assert.deepEqual(f.world().journal.map(j => j.seq), [0, 1]);
+});
+
+test('the QA account (fighter_profiles.is_test): quest_advance and talk_pick advance the quest and record the step but book NO CP; a blind lookup pays as normal', async () => {
+  const q = fakeDb({ qa: true });
+  const res = await step(q, 'smith');
+  assert.deepEqual(res, { quest: CQ, stage: 'smith', status: 'active', cp: 0, replay: false }, 'the quest moves, the answer pays 0');
+  assert.deepEqual(q.commits[0].batch.map(o => `${o.op}${o.kind ? `:${o.kind}` : ''}`), ['quest_set', 'event:quest-stage', 'event:story-step'], 'no career_set: no credit is booked');
+  assert.deepEqual((q.commits[0].batch[2].payload as Row), { cp: 0, step: `${CQ}:smith`, type: 'story-step', reason: 'qa', qa: true });
+  assert.deepEqual([q.world().quests[0].stage, q.world().career.world_credit, q.world().career.version], ['smith', 0, 1], 'the journal moved; the career row is untouched');
+  assert.equal((await step(q, 'fetch')).cp, 0, 'a later stage pays nothing either');
+  // talk_pick: a line whose effect takes a quest step books no CP for the QA account; the quest still moves
+  const t = fakeDb({ qa: true });
+  const offer = await talkOp(t.ctx, { character: PA, npc: NPC, line: 'offer' });
+  assert.equal(offer.cp, 0);
+  assert.deepEqual(t.commits.at(-1)!.batch.map(o => `${o.op}${o.kind ? `:${o.kind}` : ''}`), ['talk_set', 'event:talk', 'quest_set', 'event:quest-stage', 'event:story-step']);
+  assert.deepEqual([t.world().quests[0].stage, t.world().career.world_credit], ['smith', 0]);
+  // anyone else, and a blind lookup, are paid exactly as before
+  for (const qa of [false, 'blind'] as const) {
+    const n = fakeDb({ qa });
+    assert.equal((await step(n, 'smith')).cp, STEP_CP, `qa=${qa}: paid as normal`);
+    assert.deepEqual(n.commits[0].batch.map(o => `${o.op}${o.kind ? `:${o.kind}` : ''}`), ['quest_set', 'event:quest-stage', 'event:story-step', 'career_set']);
+    assert.equal(n.world().career.world_credit, STEP_CP);
+    // talk_pick takes the same quest step: a blind lookup never aborts the pick and pays as normal
+    const p = fakeDb({ qa });
+    assert.equal((await talkOp(p.ctx, { character: PA, npc: NPC, line: 'offer' })).cp, STEP_CP, `qa=${qa}: talk_pick paid as normal`);
+    assert.equal(p.world().career.world_credit, STEP_CP);
+  }
 });
 
 test('quest_advance: a retry pays nothing, a racing double commits once, the ledger refuses a forged second payment', async () => {
@@ -302,7 +334,7 @@ test('the registry: with no content loaded both ops answer 503; with the bundle 
 test('importing the registry reads no env and no file: ORIGINS_CONTENT naming a missing bundle neither throws nor loads', () => {
   const probe = `const h = await import(${JSON.stringify(new URL('../origins/server/handlers.ts', import.meta.url).href)}); console.log(JSON.stringify([Object.keys(h).includes('content'), Object.keys(h.handlers).sort()]));`;
   const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { env: { ...process.env, ORIGINS_CONTENT: join(tmpdir(), 'origins-no-such-bundle', 'missing.json') }, encoding: 'utf8' });
-  assert.deepEqual(JSON.parse(out), [false, ['build_get', 'build_set', 'create_character', 'open', 'quest_advance', 'skill_focus', 'skills_get', 'talk_pick', 'title_get']]);
+  assert.deepEqual(JSON.parse(out), [false, ['build_get', 'build_set', 'create_character', 'open', 'quest_advance', 'skill_focus', 'skills_get', 'special_slots_get', 'special_slots_set', 'talk_pick', 'title_get']]);
 });
 
 test('content: a bundle that does not load stops the writer', () => {

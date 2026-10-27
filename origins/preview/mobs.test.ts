@@ -9,7 +9,7 @@ import { signedIn } from './save.ts';
 import { campCount } from '../../src/core/index.ts';
 import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
-const ZONE_LEVEL = loadZone().level;
+const ZONE_LEVEL = loadZone().level, FRONTIER_ROWS_NAMED = new Set(loadZone().spawns.rows.filter((r) => r.named).map((r) => r.id));
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 import { catalogueRow, fieldOf } from '../../src/fight/catalogue-rows.ts';
 
@@ -19,14 +19,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 8, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp at the hold road: two now, since the camp size is drawn in 2..3 and no longer always the upper bound (re-pinned on purpose, Lead 10-10)');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 10, '(+ the pool-edge salamander, 2026-10-21: Dom asked for a few salamanders along the route and one in sight in the first third) a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp at the hold road: two now, since the camp size is drawn in 2..3 and no longer always the upper bound (re-pinned on purpose, Lead 10-10)');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
-  assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
-  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
-  assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09)');
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cave-troll', 'character:cinder-scavenger', 'character:giant-salamander', 'character:hrungnir']);   // + the Cave Troll, Zone 1's camp boss (a `named` row, level 3, appended after the openers)
+  assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:cave-troll', 'character:giant-salamander', 'character:giant-salamander', 'character:giant-salamander', 'character:giant-salamander', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);   // brood-4 rolls the Giant Salamander (weighted entry); + the sedge-flat salamander and the pier-rock Cave Troll (2026-10-21, Dom: a few trolls and salamanders scattered, not only at the cave and the shrine)
+  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear', 'character:giant-salamander'], 'the ghouls, then the one Cinder Bear at the ruin jetty, then the ruin-gate salamander');
+  assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:cave-troll', 'character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09), and the fell-stones Cave Troll 17 m off the road (2026-10-21: seen, not met, its ring stops short of the road)');
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 23, '22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead)');
+  assert.equal(SPECS.length, 32, '(+ 2026-10-21, World, Lead: two salamanders pool-edge and sedge-flat, two Cave Trolls fell-stones and pier-rock, appended after every existing group so no creature moved) (+ the four single-salamander camps: shrine, mere-hollow, causeway-foot, ruin-gate, 2026-10-20, Lead) 22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead); + the Cave Troll camp boss (10-16), appended after the openers so the other 23 are exactly as they were');
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -38,7 +38,7 @@ test('each creature carries the body, level and encounter its character record n
   assert.equal(row('character:mere-mother').level, ZONE_LEVEL + 3, 'the public world boss is the zone level + 3 (4,000 health, the 1,000-a-level rule; boss-battery tunable); the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
-  assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
+  assert.ok(SPECS.every((s) => s.named === (s.encounter !== null || FRONTIER_ROWS_NAMED.has(s.character))), 'named = an encounter\'s boss, or a row flagged `named` (the camp boss)');
   assert.ok(SPECS.filter((s) => !s.named).every((s) => s.level === ZONE_LEVEL || s.level === ZONE_LEVEL + 1), 'Zone 1 creatures are level 1 near the spawn and 2 at the edge (was the flat 11-14 bands)');
   assert.ok(SPECS.filter((s) => s.named && s.character !== 'character:mere-mother').every((s) => s.level === NAMED_LEVEL), 'the bounty bosses (the named rares) are the zone level + 2');
 });
@@ -177,6 +177,12 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
 });
 
+test('an unlisted zone drops the hero clear of every creature (clearM): no creature closer than the clearance, no "among them" ring required, deterministic; unset is today\'s rule', () => {
+  const CLEAR = 30, at = spawnAmong(F, B, SPECS, CLEAR)!, home = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z);   // 30 m: a probe value, the real one is the start.clear-m row
+  assert.ok(at, 'a spawn exists'); assert.ok(SPECS.every((s) => home(s) >= CLEAR), `the nearest creature is ${Math.min(...SPECS.map(home)).toFixed(1)} m off, at least ${CLEAR}`);
+  assert.deepEqual(spawnAmong(F, B, SPECS, CLEAR), at, 'deterministic'); assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS, undefined), 'unset = the ruled 25-35 m start');
+});
+
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
@@ -221,7 +227,8 @@ test('the world keeps living during a fight: Zone 1\'s fight is the engine loop 
   assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
   assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
   assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
-  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
+  assert.match(view, /v\.group\.visible = !hiddenInFight\(s\.id, engaged\) && !\(opts\.phone && !v\.model && !body && urlOfKey\(keyOf\(s\)\) && !\(driven\.has\(i\) \|\| m\.mode === 'aggro' \|\| s\.id === engaged\)\);/, 'the engaged foe is hidden from the walk (the duel draws it); #3520 adds only "a phone does not draw a creature whose body was deferred", and never for one that fights, hunts or is engaged');
+  assert.match(view, /v\.ring\.visible = v\.group\.visible && /, 'the ring follows the group');
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
@@ -240,7 +247,9 @@ test('levelAt: the band\'s low level within LEVEL_NEAR_M of the spawn, its high 
 test('near the spawn the common creatures are the zone level; at the far edge one more', () => {
   const origin = spawnAmong(F, B, SPECS)!, d = (s: MobSpec) => Math.hypot(s.home.x - origin.x, s.home.z - origin.z), common = SPECS.filter((s) => !s.named);
   assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= ZONE_LEVEL + 1) && common.some((s) => s.level === ZONE_LEVEL), 'the camps by the spawn are the zone level');
-  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
+  const ramps = (s: MobSpec) => { const row = loadZone().spawns.rows.find((r) => r.id === s.character); return !!row && row.level[1] > row.level[0]; };   // a row with a flat band stays at its level at any distance: the giant salamander is [1, 1] since RV87 (2026-10-21: 70% hero wins at L1, 17% at L2)
+  assert.ok(common.some((s) => d(s) >= LEVEL_FAR_M && ramps(s)), 'the far-edge case has creatures to check: some ramping row sits at the far edge (an empty set would pass the next line for nothing)');
+  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M && ramps(s)).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
 });
 
 test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {

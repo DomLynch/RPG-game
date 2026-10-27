@@ -1,4 +1,5 @@
 // The core modules live in src/fight (C1: duel, ai, sim, moves, combat, play-radius; C2: record, replay, gear-stats, gambit, stance, twist). The old flat paths stay gone: no src/<name>.ts, and no source, test, script or origins file names one as a module specifier.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';

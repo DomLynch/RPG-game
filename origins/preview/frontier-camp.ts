@@ -4,6 +4,7 @@
 // Placement is the dressing's own rule (frontier-plan.ts onRoad / inZone / inFirstView / the buildings' solids): placeCamp nudges the point outward until the whole camp fits, or
 // returns null. Deterministic per seed; no hand-placed camps.
 import { toWorld } from '../world/derive.ts';
+import CAMP_KIT_ROWS from './camp-kit.json' with { type: 'json' };
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { footprintOf, rng } from './frontier-dress.ts';
 import { frontierZoneAt, inFirstView, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
@@ -11,14 +12,16 @@ import { frontierZoneAt, inFirstView, onRoad, type Build, type Frontier, type So
 export type Spot = { x: number; z: number; facing: number; pose: 'sit' | 'stand' };   // where a member of the camp is; facing in radians (0 = +z), toward the fire for a sitter, out for a lookout
 export type Camp = { at: { x: number; z: number }; pieces: Piece[]; solids: Solid[]; spots: Spot[]; glow: { x: number; z: number; radius: number; color: string; opacity: number } };
 
-// The kit as data: every dimension and count the camp is built from.
-export const CAMP_KIT = {
-  radius: 6,                                          // the clear circle the whole camp needs (metres)
-  fire: { stones: 9, ring: 1.0, stone: [0.32, 0.3, 0.42], coal: [0.8, 0.16], logs: 4 },   // stone [w, h, d]; coal [radius, height]
-  seat: { ring: 2.9, log: [1.9, 0.5, 0.55], standOut: 4.6 },
-  bedroll: [1.0, 0.2, 2.3], crate: [1.0, 0.9, 1.0], barrel: [0.48, 1.1],
-  glow: { radius: 6.5, color: '#ff8a3a', opacity: 0.65 },
-} as const;
+// The kit as data: every dimension and count the camp is built from is the `campKit` row in camp-kit.json (radius = the clear circle the whole camp needs, metres; stone [w, h, d]; coal [radius, height]).
+type Box3 = readonly [number, number, number];
+export type CampKit = {
+  readonly radius: number;
+  readonly fire: { readonly stones: number; readonly ring: number; readonly stone: Box3; readonly coal: readonly [number, number]; readonly logs: number };
+  readonly seat: { readonly ring: number; readonly log: Box3; readonly standOut: number };
+  readonly bedroll: Box3; readonly crate: Box3; readonly barrel: readonly [number, number];
+  readonly glow: { readonly radius: number; readonly color: string; readonly opacity: number };
+};
+export const CAMP_KIT = (CAMP_KIT_ROWS.campKit[0] as unknown) as CampKit;
 // Warmer and lighter than the ruin rubble (cool grey-brown, 0.55-0.9), so a camp's seats, bedrolls and crate read as a camp at 375.
 const WOOD: Tint = [1.15, 0.78, 0.48], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[1.0, 0.32, 0.22], [0.42, 0.62, 0.95], [0.95, 0.8, 0.4]], ROCK: Tint = [1.25, 1.1, 0.95];
 

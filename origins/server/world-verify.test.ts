@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
+import { encodeWorldRecord, replayWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+import { SPELL_IDS } from '../../src/fight/spell-cast.ts';
+import type { SpecialsCut } from '../../src/core/server.ts';
+// The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
+const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
+import { Worker } from 'node:worker_threads';
+import { sandboxFor } from '../../src/fight/sandbox-era.ts';
+import { RECORD_VERSION } from '../../src/fight/record.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
-import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
-import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
+import { verifyWorldRecord, createVerdictTally, flipReadiness, strictRevert, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
+import { worldSpawnOps, defaultZoneSpawns, dropOf, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { openInventory } from '../inventory/inventory.ts';
+import { openInventory } from '../../src/core/server.ts';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { Refused } from './errors.ts';
@@ -40,18 +48,32 @@ async function honest(): Promise<{ rec: WorldRecord; text: string }> {
   const spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
-  const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  const hero = { x: at.x, z: at.z - 1.4, facing: 0 };   // 1.4 m (was 1.2, RV75/WSV52): a world creature now stops at 0.85 of its reach and stands, so the bot stands outside that band and swings from there; at 1.2 it traded blow for blow and died on some timings
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
+/** The same honest kill, with the equipped spell on the hero and a cast every four seconds between the cuts. */
+async function honestCast(spell: { id: string; skill: number }, spell2?: { id: string; skill: number }): Promise<{ rec: WorldRecord; text: string }> {
+  const fell: string[] = []; let rec: WorldRecord | null = null;
+  const at = { x: wolf.spec.home.x, z: wolf.spec.home.z };
+  const spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
+  const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
+  const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell, ...(spell2 ? { spell2 } : {}) }) });
+  const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  // RV75/WSV52 re-timing: the wolf now stops at 0.85 of its reach and trades from where it stands, so a fixed-script caster kills it only on some timings (a seeded script: the result is stable until the next sim change). Measured: at 1.2 m a cast every 10 presses (one slot, was 8) or every 16 (two slots) kills; the hero's health is untouched.
+  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 10; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
+  assert.ok(rec, 'the scripted caster kills the wolf');
+  return { rec: rec!, text: await encodeWorldRecord(rec!) };
+}
+const damageOf = (rec: WorldRecord): number => { const r = replayWorldRecord(rec, { tagExpiryTicks: SERVER_RULES.worldShare[0]!.tagExpiryS * 60 }); return r.ok ? r.dealt[wolf.spec.id]?.damage ?? 0 : -1; };   // the verdict now carries the hero's damage to the spawn's creature (kill credit by damage)
 const ctx = (db: Db) => ({ db, account: UID });
 const mk = (extra: object = {}) => worldSpawnOps({ content, verifyRecord: (job) => verifyWorldRecord(job.text, job.spawn, job.kind, job.limit, job.maxTicks), spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {}, ...extra });
 const paidOps = (b: Json[]) => b.filter((o) => o.op !== 'event').map((o) => o.op).concat((b[0]!.payload as { cp: number }).cp > 0 ? ['cp'] : []);
 
 test('verifyWorldRecord: an honest record verifies; wrong creature, no kill, forged hero and junk do not', async () => {
   const { rec, text } = await honest();
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
   const no = async (t: string, s: Spawn, kind: string, why: string, limit?: { level: number }) => { const v = await verifyWorldRecord(t, s, kind, limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   await no(text, wolf, 'boar', 'wrong creature');
   await no(text, { ...wolf, spec: { ...wolf.spec, level: 5 } }, 'wolf', 'wrong creature');
@@ -80,7 +102,28 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   await new Promise((r) => setTimeout(r, 200));
   assert.ok(logs.some((l) => /world record verified/.test(l)), 'the verdict is logged');
   assert.ok(logs.some((l) => /world record not verified \(undecodable\)/.test(l)), 'the reason is logged');
-  assert.deepEqual(tally.snapshot(), { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
+  const { cohorts, ...top } = tally.snapshot();
+  assert.deepEqual(top, { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
+  assert.deepEqual([cohorts.organic.total, cohorts.qa.total], [3, 0], 'a caller that names no cohort counts as organic');
+});
+
+test('the page\'s `drop` (#3151: why it sent no record) is counted apart from plain "no record", logged, never trusted, ignored beside a record; an unlisted or malformed label is "other"', async () => {
+  const { text } = await honest(), tally = createVerdictTally(), logs: string[] = [], ops = mk({ tally, log: (l: string) => logs.push(l) });
+  const send = async (body: Record<string, unknown>) => { const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, ...body }); return s; };
+  const plain = await send({}), gear = await send({ drop: 'gear-change' }), unclean = await send({ drop: 'hero-unclean' });
+  for (let i = 0; i < 50; i++) await send({ drop: `forged-${i}` });   // unlisted labels: ONE 'other' key however many values (the in-memory tally stays bounded)
+  await send({ drop: 'Not A Reason!' }); await send({ drop: 7 }); await send({ drop: 'x'.repeat(41) });   // malformed: 'other' too
+  await send({ record: text, drop: 'gear-change' });   // beside a record: the record decides, the drop is ignored
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 1, 'dropped: gear-change': 1, 'dropped: hero-unclean': 1, 'dropped: other': 53, verified: 1 });
+  assert.ok(!logs.some((l) => /forged-/.test(l)), 'the log names the bucket, never the raw label');
+  assert.ok(logs.some((l) => /record=none \(dropped: gear-change\)/.test(l)), logs.join(' | '));
+  assert.deepEqual(paidOps(gear.kills[0]!.b), paidOps(plain.kills[0]!.b), 'flag off: a drop label changes no payout');
+  assert.deepEqual(paidOps(unclean.kills[0]!.b), paidOps(plain.kills[0]!.b));
+  const strict = mk({ scorecardOnlyUnverified: true }), s = stub();
+  await strict.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, drop: 'gear-change' });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'flag on: a dropped window pays scorecard counts only, like any kill without a verified record');
+  assert.deepEqual([dropOf('gear-change', undefined), dropOf('gear-change', 'rec'), dropOf('BAD', undefined), dropOf(undefined, undefined)], ['gear-change', null, 'other', null]);
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
@@ -97,10 +140,40 @@ test('kill_report with scorecardOnlyUnverified: no record or a bad one books the
   await assert.rejects(async () => ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: 'x'.repeat(60_001) }), /record/);
 });
 
+test('flipReadiness: a strict flag is ready only with at least minKills kills AND at least minRate of them good (checked reach / a verified record), from the strictFlip row', () => {
+  const rule = { minKills: 50, minRate: 0.95 };
+  assert.deepEqual(flipReadiness({}, {}, rule), { refuseUnchecked: { kills: 0, rate: null, ready: false }, scorecardOnly: { kills: 0, rate: null, ready: false } }, 'no kills: never ready');
+  assert.equal(flipReadiness({ checked: 49 }, {}, rule).refuseUnchecked.ready, false, 'all checked but too few kills');
+  assert.equal(flipReadiness({ checked: 48, offline: 2 }, {}, rule).refuseUnchecked.ready, true, 'exactly 50 at 96 %');
+  assert.equal(flipReadiness({ checked: 47, offline: 2, 'other-zone': 1 }, {}, rule).refuseUnchecked.ready, false, '94 %');
+  const live = flipReadiness({ offline: 5 }, { 'no record': 4, sheet: 1 }, rule);   // the first five live kills (2026-10-18)
+  assert.deepEqual([live.refuseUnchecked.rate, live.scorecardOnly.rate, live.refuseUnchecked.ready, live.scorecardOnly.ready], [0, 0, false, false]);
+  assert.equal(flipReadiness({}, { verified: 95, 'no record': 5 }).scorecardOnly.ready, true, 'the row itself: 100 kills at 95 %');
+});
+
+test('kill_report with scorecardOnlyUnverified: an honest record of ANOTHER creature (a wolf fight claimed on a different spawn kind) books the event only (audit 2026-10-18, case 3 of 4)', async () => {
+  const { text } = await honest(), other = [...all.values()].find((s) => s.spec.character !== wolf.spec.character && s.fight !== wolf.fight) as Spawn;
+  assert.ok(other, 'Zone 1 has a second kind');
+  const posed: Spawn = { ...other, spec: { ...other.spec, id: wolf.spec.id } };   // the token's instance now resolves to the other kind; the record still fights a wolf
+  const s = stub();
+  await mk({ scorecardOnlyUnverified: true, spawns: new Map([[wolf.spec.id, posed]]) }).kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'nothing spendable');
+  assert.equal((s.kills[0]!.b[0]!.payload as { cp: number }).cp, 0);
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /^refused: /);
+});
+
 test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified', async () => {
   const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 0 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
+});
+
+test('heroOf is handed the CLAIM\'s record version (rv), so a v74 page\'s world fight posted after a v75 deploy is held to v74 rules', async () => {
+  const { rec, text } = await honest(), seen: (number | undefined)[] = [];
+  const ops = mk({ scorecardOnlyUnverified: true, heroOf: async (_a: string, _c: string, version?: number) => { seen.push(version); return { level: 0 }; } });
+  await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(seen, [rec.rv], 'the version is the record\'s own, not this build\'s');
+  assert.ok(rec.rv > 0);
 });
 
 test('an overlong record is refused in a few ms without a replay, and kill_report still pays as today', async () => {
@@ -155,7 +228,11 @@ test('the pool: one job at a time, a full queue answers busy at once, a timeout 
 });
 
 test('the pool: a real worker thread verifies an honest record and refuses junk', async () => {
-  const { text } = await honest(), pool = createVerifyPool({ timeoutMs: 20_000 });
+  // The record was fought under the era this thread is forced to (tests/lib/era-off.ts via tests/origins-world-verify.test.ts) but stamped with the current version, so a fresh worker thread (era ON by default) would replay
+  // a different fight (RV79 rows: bands, stances 2x). The worker is started with the same preload when the force is on.
+  const { text } = await honest(), forcedOff = !sandboxFor(RECORD_VERSION);
+  const make = (): never => new Worker(new URL('./world-verify-worker.ts', import.meta.url), { execArgv: ['--import', new URL('../../tests/lib/era-off.ts', import.meta.url).href] }) as never;
+  const pool = createVerifyPool({ timeoutMs: 20_000, ...(forcedOff ? { make } : {}) });
   try {
     const good = await pool.verify({ text, spawn: { spec: wolf.spec }, kind: 'wolf' });
     assert.ok(good.ok, JSON.stringify(good));
@@ -165,18 +242,48 @@ test('the pool: a real worker thread verifies an honest record and refuses junk'
 
 test('the tally: empty has no rate; outcomes accumulate', () => {
   const t = createVerdictTally(() => new Date('2026-10-13T00:00:00Z'));
-  assert.deepEqual(t.snapshot(), { since: '2026-10-13T00:00:00.000Z', total: 0, verified: 0, rate: null, outcomes: {} });
+  const empty = { total: 0, outcomes: {}, first: { kills: 0, good: 0 }, run: 0, maxRun: 0 };
+  assert.deepEqual(t.snapshot(), { since: '2026-10-13T00:00:00.000Z', total: 0, verified: 0, rate: null, outcomes: {}, cohorts: { organic: empty, qa: empty } });
   t.add('timeout'); t.add('timeout'); t.add('verified');
   assert.deepEqual(t.snapshot().outcomes, { timeout: 2, verified: 1 });
+});
+
+test('cohorts (Strategy 2026-10-18): QA kills count in the totals the flip reads, and apart from organic ones; each cohort keeps its first-N outcomes and its longest run of not-good kills', () => {
+  const t = createVerdictTally(undefined, 'checked', 4);
+  for (const o of ['checked', 'offline', 'offline', 'checked', 'offline', 'offline', 'offline']) t.add(o);
+  t.add('offline', 'qa'); t.add('checked', 'qa');
+  const s = t.snapshot();
+  assert.deepEqual(s.outcomes, { checked: 3, offline: 6 }, 'the totals hold both cohorts (QA-driven kills count for the matrix, Strategy)');
+  assert.deepEqual(s.cohorts.organic, { total: 7, outcomes: { checked: 2, offline: 5 }, first: { kills: 4, good: 2 }, run: 3, maxRun: 3 }, 'first 4 only; the run resets on a good kill');
+  assert.deepEqual(s.cohorts.qa, { total: 2, outcomes: { checked: 1, offline: 1 }, first: { kills: 2, good: 1 }, run: 0, maxRun: 1 });
+  s.cohorts.organic.outcomes.checked = 99; assert.equal(t.snapshot().cohorts.organic.outcomes.checked, 2, 'a snapshot is a copy');
+});
+
+test('strictRevert (Strategy 2026-10-18): organic only; revert on the first-N rate under minRate once N are in, or at once on a run of maxUncheckedRun unchecked', () => {
+  const rule = { firstKills: 50, minRate: 0.95, maxUncheckedRun: 10 };
+  const of = (kills: number, good: number, maxRun = 0) => strictRevert({ first: { kills, good }, maxRun }, rule);
+  assert.deepEqual(of(0, 0), { kills: 0, rate: null, maxRun: 0, revert: false, why: null }, 'nothing yet: no revert');
+  assert.equal(of(49, 40).revert, false, 'under the first 50: the rate is not judged yet');
+  assert.equal(of(50, 48).revert, false, '48 of 50 = 96 %: holds');
+  assert.deepEqual(of(50, 47), { kills: 50, rate: 0.94, maxRun: 0, revert: true, why: 'first 50 organic kills: 47 checked' }, '47 of 50 = 94 %: revert');
+  assert.equal(of(12, 2, 10).why, '10 organic kills in a row unchecked', 'a run of 10 reverts at once, before 50');
+  assert.equal(of(12, 3, 9).revert, false);
+  const t = createVerdictTally(undefined, 'checked');
+  for (let i = 0; i < 10; i++) t.add('offline', 'qa');
+  assert.equal(strictRevert(t.snapshot().cohorts.organic).revert, false, 'QA kills never trip the revert');
+  for (let i = 0; i < 10; i++) t.add('offline');
+  assert.equal(strictRevert(t.snapshot().cohorts.organic).revert, true, 'the production row: 10 organic unchecked in a row');
 });
 
 test('the soak counters are wired in the production entry and answer GET /internal/world-records behind the key', async () => {
   const { readFileSync } = await import('node:fs'), { createServer } = await import('node:http'), { internalRoute } = await import('./location.ts');
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
-  assert.match(entry, /const tally = createVerdictTally\(\)/);
-  assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
-  assert.match(entry, /heroOf: \(account, character\) => heroLimitOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
-  assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
+  assert.match(entry, /const tally = createVerdictTally\(\), reachTally = createVerdictTally\(undefined, 'checked'\)/, 'the reach tally\'s good outcome is checked (its runs feed strictRevert)');
+  assert.match(entry, /revert: strictRevert\(r\.cohorts\.organic\)/, 'the readout carries the revert rule on organic reach (Strategy 2026-10-18)');
+  assert.match(entry, /verifyRecord: [^}]*, tally, reachTally[,} ]/, 'the spawn deps count every verdict and every reach');
+  assert.match(entry, /flip: flipReadiness\(r\.outcomes, t\.outcomes\)/, 'the readout judges both against the strictFlip row (audit 2026-10-18)');
+  assert.match(entry, /heroOf: \(account, character, version\) => heroLimitOf\(db, account, character, version\)/, 'and bound the hero claim by the held worn set, read at the claim\'s own record version');
+  assert.match(entry, /flusher, worldRecords, liveOps/, 'the internal route reads the readout');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });
   const srv = createServer((req, res) => void route(req, res));
@@ -187,4 +294,29 @@ test('the soak counters are wired in the production entry and answer GET /intern
     const body = await (await fetch(base, { headers: { authorization: 'Bearer k' } })).json() as { total: number; rate: number; outcomes: object };
     assert.deepEqual([body.total, body.rate, body.outcomes], [2, 0.5, { verified: 1, timeout: 1 }]);
   } finally { srv.close(); }
+});
+
+test('verifyWorldRecord: a two-slot cast record verifies only when the ledger vouches for BOTH spells', async () => {
+  const a = { id: SPELL_IDS[0]!, skill: 0 }, b = { id: SPELL_IDS.find((id) => id !== a.id)!, skill: 0 };
+  const { rec, text } = await honestCast(a, b);
+  assert.deepEqual(rec.hero.spell2, b); assert.ok(rec.steps.some((st) => st.cast2), 'the record carries slot-b presses');
+  const held = { grimoire: { [a.id]: {}, [b.id]: {} }, xp: {}, placed: {} };
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
+  const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
+});
+
+test('verifyWorldRecord: a cast record verifies only when the ledger vouches for its spell (grimoire and skill)', async () => {
+  const claim = { id: SPELL_IDS[0]!, skill: 0 };
+  const { rec, text } = await honestCast(claim);
+  assert.deepEqual(rec.hero.spell, claim); assert.ok(rec.steps.some((st) => st.cast), 'the record carries cast presses');
+  const held = { grimoire: { [claim.id]: {} }, xp: {}, placed: {} };
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length, damage: damageOf(rec) });   // no ledger at all (dev): nothing to hold the claim to
+  const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
+  await no({ cut: LIFTED }, 'spell');                                             // a ledger that gave no spell read cannot vouch for the claim
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
+  const high = await honestCast({ ...claim, skill: 100 });
+  const v = await verifyWorldRecord(high.text, wolf, 'wolf', { cut: LIFTED, spells:held }); assert.ok(!v.ok && v.reason === 'spell', 'a skill past the stored one is refused');
 });

@@ -1,0 +1,19 @@
+{
+  "note": "The clip-pack row (Characters, 2026-10-18; Dom's data-layer rule). scripts/character/add-weapon-packs.mjs and tests/creature-packs.test.ts read every number and list here. donors: the hero-rig GLB each weapon's Warhammer_/Maul_/Scythe_/Trident_ clips come from (dwarf.glb and minotaur.glb packs are retargeted to those bodies and are never donors). retargets: identity copies the donor's keys; goblin is scripts/build-warrior.mjs BUILD.goblin (hunch = [bone, degrees] post-rotated about the bone's rest sideways axis; bob = the pelvis sways rest + bob * (hero - hero rest)). bodies: which body file carries which weapons' packs, through which retarget (a kind's world body and its engine body carry the same clip names: tests/world-bodies.test.ts). pelvisTolerance: the most a pack's pelvis key may differ from the retarget rule (tests/creature-packs.test.ts).",
+  "donors": {
+    "warhammer": "src/assets/weapons/warhammer/veteran-warhammer.glb",
+    "maul": "src/assets/knight.glb",
+    "scythe": "src/assets/weapons/scythe/warrior-scythe.glb",
+    "trident": "src/assets/skeleton.glb"
+  },
+  "retargets": {
+    "identity": {},
+    "goblin": { "hunch": [["spine_02", 9], ["spine_03", 9], ["neck_01", -8], ["Head", -8]], "bob": 0.84 }
+  },
+  "bodies": [
+    { "file": "public/world/kit/goblin-bare.glb", "weapons": ["warhammer", "maul", "scythe", "trident"], "retarget": "goblin" },
+    { "file": "public/world/cave-troll.glb", "weapons": ["warhammer", "maul"], "retarget": "identity" },
+    { "file": "public/beasts/cave-troll.glb", "weapons": ["warhammer", "maul"], "retarget": "identity" }
+  ],
+  "pelvisTolerance": 0.0001
+}

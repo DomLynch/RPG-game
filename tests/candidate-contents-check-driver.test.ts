@@ -1,5 +1,6 @@
 // The contents-check must rebuild a cut that the allow-list merge driver resolved (scripts/as-data/merge-allow.mjs, PR #2725; cut-release passes it per call, PR #2728).
 // Plain `git merge-tree` conflicts on two PRs that add allow entries side by side, so without the driver the first such candidate would read as not treeEqual.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';

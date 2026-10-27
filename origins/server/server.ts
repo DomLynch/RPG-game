@@ -5,9 +5,10 @@ import type { Verify } from './auth.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
-import type { WhereFn } from '../presence/where.ts';
+import type { WhereFn, WornPokeFn } from '../presence/where.ts';
 import type { LiveOpsState } from './live-ops.ts';
 import { internalRoute, type InternalOptions } from './location.ts';
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVER_ERROR, HTTP_UNAUTHORISED, HTTP_UNAVAILABLE } from './http-status.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const MAX_BODY = 64 * 1024;
@@ -42,7 +43,9 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
 // only source of a player's place (launch gate X1). It is required so no writer can be built that silently takes a place from somewhere else.
 // `internal`: the shared key presence presents on the writer's internal routes (origins/server/location.ts, X2 Stage 2). Unset: those routes do not exist.
 // `liveOps`: the kill-switch rows (origins/server/live-ops.ts). A row `op:<name>` set off answers that op 503 without a restart; no row means on.
-export function createWriter({ db, verify, where, handlers = defaults, internal, liveOps }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions; liveOps?: Pick<LiveOpsState, 'switchOn'> }): Server {
+// `wornPoke`: told presence after a successful op in the wornPoke rows (gear_equip, gear_unequip, gear_import), so other players see new gear at once; failures are ignored (presence also re-reads on a timer).
+const WORN_OPS: ReadonlySet<string> = new Set(SERVER_RULES.wornPoke.map((r) => r.id));
+export function createWriter({ db, verify, where, handlers = defaults, internal, liveOps, wornPoke }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions; liveOps?: Pick<LiveOpsState, 'switchOn'>; wornPoke?: WornPokeFn }): Server {
   const inside = internal ? internalRoute(db, internal) : null;
   const serial = serialQueue();
   // A held position belongs to the character that was active when presence saw it; origins_save_location resolves the active character at WRITE time, and open / create_character switch it. So
@@ -59,23 +62,25 @@ export function createWriter({ db, verify, where, handlers = defaults, internal,
     if (inside && (req.url ?? '').startsWith('/internal/')) return void inside(req, res);
     try {
       const op = /^\/origins\/([a-z_]{1,32})$/.exec(req.url ?? '')?.[1];
-      if (req.method !== 'POST' || !op || !Object.hasOwn(handlers, op)) return send(404, { ok: false, error: 'not found' });
-      if (liveOps && !liveOps.switchOn(`op:${op}`)) return send(503, { ok: false, error: 'switched off', code: 'switched-off' });
+      if (req.method !== 'POST' || !op || !Object.hasOwn(handlers, op)) return send(HTTP_NOT_FOUND,{ ok: false, error: 'not found' });
+      if (liveOps && !liveOps.switchOn(`op:${op}`)) return send(HTTP_UNAVAILABLE,{ ok: false, error: 'switched off', code: 'switched-off' });
       const token = /^Bearer (\S+)$/.exec(req.headers.authorization ?? '')?.[1];
       const account = token ? await verify(token) : null;
-      if (!account) return send(401, { ok: false, error: 'sign in' });
+      if (!account) return send(HTTP_UNAUTHORISED,{ ok: false, error: 'sign in' });
       let body: unknown = {};
       const text = await readBody(req);
       if (text) { try { body = JSON.parse(text); } catch { throw new BadRequest('body is not JSON'); } }
       if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequest('body must be an object');
-      send(200, { ok: true, result: await serial(account, async () => { await settleHeldSpot(account, op, body as Record<string, unknown>); return handlers[op]!({ db, account, where }, body as Record<string, unknown>); }) });
+      const result = await serial(account, async () => { await settleHeldSpot(account, op, body as Record<string, unknown>); return handlers[op]!({ db, account, where }, body as Record<string, unknown>); });
+      if (wornPoke && WORN_OPS.has(op)) wornPoke(account).catch(() => {});   // after the commit; never awaited, never fails the op
+      send(HTTP_OK,{ ok: true, result });
     } catch (e) {
-      if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
-      if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });
-      if (e instanceof Refused) return send(e.status, e.code === undefined ? { ok: false, error: e.message } : { ok: false, error: e.message, code: e.code });
+      if (e instanceof BadRequest) return send(HTTP_BAD_REQUEST,{ ok: false, error: e.message });
+      if (e instanceof Conflict) return send(HTTP_CONFLICT,{ ok: false, error: e.message, code: 'op-conflict' });
+      if (e instanceof Refused) return send(e.status, e.code === undefined ? { ok: false, error: e.message } : { ...e.detail, ok: false, error: e.message, code: e.code });
       if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.code === '23505' ? 'already exists' : e.message, code: e.code });
       console.error('origins-writer:', e instanceof Error ? e.message : e);
-      send(500, { ok: false, error: 'server error' });
+      send(HTTP_SERVER_ERROR,{ ok: false, error: 'server error' });
     }
   });
 }

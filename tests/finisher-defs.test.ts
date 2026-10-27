@@ -1,5 +1,6 @@
 // Finishers as data: the loaded table is byte-identical to the code tables it replaced, the pick is unchanged, a finisher is one row, and the
 // loader refuses a broken table at load.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -12,7 +13,9 @@ import type { WeaponId } from '../src/fight/moves.ts';
 import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { BoxGeometry, Group, Mesh, Object3D, PerspectiveCamera, Texture } from 'three';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
-import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
+import { createCameraRig, finisherSidePose, setFightBack } from '../src/fight/camera.ts';
+
+setFightBack(1);   // the rig digest below covers plain lock frames (finisher null) and the opening of a finish: the pins are the camera at fight-back 1; the live row fightBackDefault is 1.3 and a finish eases it out (camera.ts), so a settled kill frames as it did
 import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate, PICKER_OPTIONS, PLAIN_DEATH } from '../src/fight/finisher-look.ts';
 import { hamstrungPick, poseOf as hamstrungPoseOf, resolveHamstrung } from '../src/fight/hamstrung.ts';
 import { executionPick, poseOf as executionPoseOf, resolveExecution } from '../src/fight/execution.ts';
@@ -241,7 +244,7 @@ test('the finisher blood driven by the rows is byte-identical to the name-switch
 // whether a pick is its template, which pose word its victim plays (body.victim.pose) and which row is the plain death to fall back to. The hash
 // covers both poseOf, both picks (installed or not) and both resolvers over every roster body × victim × move × heading × override × resolved,
 // computed on trunk BEFORE the change.
-const STAGED_BEFORE = '821d5223a2376130b03c6016ad111b4fed073d76f039afcd22678380c4c7a8a0';
+const STAGED_BEFORE = 'db9368bcd1b1d0bdfd65985aba703205df3de37d240761c1d1f8ba1c62cb92a9';
 test('the staged templates driven by the rows are byte-identical to the name-switches they replaced; hamstrung.ts and execution.ts name no finisher', () => {
   const ids = [null, ...Object.keys(FINISHER_POSE)], h = createHash('sha256');
   for (const id of ids) { if (id) h.update(JSON.stringify([hamstrungPoseOf(id), executionPoseOf(id)])); for (const inst of [true, false]) h.update(JSON.stringify([hamstrungPick(id, inst), executionPick(id, inst)])); }

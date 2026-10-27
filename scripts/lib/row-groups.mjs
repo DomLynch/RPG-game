@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 /** Measured seconds of each CI row's own step (max of the EH and EK candidate runs, 2026-10-13); a row not listed is packed as DEFAULT_ROW_S. */
 export const rowSeconds = () => JSON.parse(readFileSync(new URL('./row-seconds.json', import.meta.url), 'utf8'));
 export const DEFAULT_ROW_S = 120;
-export const TARGET_GROUP_S = 480;
+export const TARGET_GROUP_S = 600;   // 480 -> 600 (Dom 2026-10-20, releases every 10-20 min): with row 9/46/56/57 weighed at their measured seconds the same ~14 jobs hold, rows 57 and 9 each get a job alone, and no job but end-overlap-check's own (320 s measured) is over ~11 min
 
 /** rows: [{ index, name, argv }]. Longest-processing-time first into n balanced bins (n = ceil(total / target)); a single row longer than the target gets a bin alone.
  *  Deterministic: ties by row index. Returns [{ id, rows, estimateS }] with ids g1.. in descending estimate, rows inside a group in ascending index.

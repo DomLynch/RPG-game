@@ -1,0 +1,8 @@
+FROM node:22
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl python3 build-essential && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /w /tmp/box-logs && chown -R node:node /w /tmp/box-logs
+USER node
+WORKDIR /home/node/app
+COPY --chown=node:node runner.mjs inner.sh ./
+ENV PORT=__PORT__ HFBOX_INNER=/home/node/app/inner.sh
+CMD ["node", "runner.mjs"]

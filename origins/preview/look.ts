@@ -4,6 +4,8 @@
 import { SCHEMA } from '../world/schema.ts';
 import type * as THREE from 'three';
 import { loadZone } from '../zones/loader.ts';
+import { goblinLooks } from '../world/goblin-field-rules.ts';
+import LOOK_ROWS from './look-rows.json' with { type: 'json' };
 
 export type Look = {
   fog: string; fogDensity: number;   // FogExp2 colour (also the scene background) and its density at the DEFAULT fogFar
@@ -18,11 +20,12 @@ export type LookParams = { ambience: { preset: string }; view: { fogFar: number 
 export const DEFAULT_FOG_FAR: number = SCHEMA.view.fields.fogFar.def;   // read from schema.ts view.fogFar's default: the Pit's own distance, where a preset's fogDensity applies unchanged
 
 // The Pit's golden hour, as literals (was read from src/arena-themes.ts ARENA_1: zones import nothing from the Pit; look.test.ts pins these numbers).
-const t1 = { fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25] as [string, string, number], sun: ['#ffb46a', 5.2] as [string, number], exposure: 1.3, light: { sun: [-24, 12, -15] as [number, number, number] } };
+// 'ash-pit' (the Pit's golden hour) and 'exchange-dusk' (the Concord Exchange: a lamp-lit dusk, the sun low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge
+// read as the light) are `lookPreset` rows (look-rows.json), every field the literal it replaced.
+const ROW_LOOKS = Object.fromEntries(LOOK_ROWS.lookPreset.map(({ id, ...look }) => [id, look])) as unknown as Record<string, Look>;
 export const PRESETS: Record<string, Look> = {
-  'ash-pit': { fog: t1.fog, fogDensity: t1.fogDensity, hemiSky: t1.hemisphere[0], hemiGround: t1.hemisphere[1], hemiIntensity: t1.hemisphere[2], sunColor: t1.sun[0], sunIntensity: t1.sun[1], sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: t1.exposure, ground: [1, 1, 1] },
-  // The Concord Exchange: a lamp-lit dusk. The sun is low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge read as the light.
-  'exchange-dusk': { fog: '#8f5f3f', fogDensity: 0.024, hemiSky: '#7d86ad', hemiGround: '#3a2418', hemiIntensity: 0.95, sunColor: '#ff9a52', sunIntensity: 3.4, sunPos: [-24, 7, -15], exposure: 1.25, ground: [0.92, 0.88, 0.84] },
+  ...ROW_LOOKS,
+  ...(goblinLooks() as unknown as Record<string, Look>),   // the goblin field's moods (origins/world/goblin-field-defs.json looks): read only through a palette's haze (?look=goblin)
   ...loadZone().looks,   // Zone 1's presets (zone1, frontier-haze, cinder-haze, frontier-duel, frontier-night): data in origins/zone-rows/zone1.row.json (looks), through the loader
 };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
@@ -72,6 +75,8 @@ export function withZoneLook(base: Look, z: ZoneFields): Look {
 }
 /** The Pit arena theme key a zone's walk-out is built and lit with: the zone's look.arena when its row SETS it and the themes have it, else Zone 1's '1' (so a zone that says nothing, and every old link, is unchanged). */
 export const zoneArena = (z: ZoneFields, themes: Readonly<Record<string, unknown>>): string => { const k = z.set?.includes('look.arena') ? z.fields?.['look.arena'] : undefined; return typeof k === 'string' && k in themes ? k : '1'; };
+/** How much further back and up the duel's lock camera stands in this zone (`camera.fightBack`, the schema bounds it 1..2), and the extra on a portrait screen only (`camera.fightBackPortrait`, multiplied on top). A zone that sets neither is 1: the duel as it always was. */
+export const zoneFightBack = (z: ZoneFields, portrait: boolean): number => { const read = (path: string): number => { const v = z.set?.includes(path) ? z.fields?.[path] : undefined; return typeof v === 'number' ? v : 1; }; return read('camera.fightBack') * (portrait ? read('camera.fightBackPortrait') : 1); };
 /** A fixed hour of day when the zone says not to follow the clock (look.timeOfDay.follow false), else null. */
 export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.timeOfDay.follow') && z.fields?.['look.timeOfDay.follow'] === false ? Number(z.fields['look.timeOfDay.hour'] ?? 12) : null;
 /** False when the zone turns the day/night cycle off (dayNight.on false). */

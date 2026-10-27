@@ -1,14 +1,23 @@
 // Layers and spatial interest management (docs/specs/origins/one-shard.md §2, §4, §5). Pure: no sockets, no clock of its own, so the rules are
 // testable and the load test can drive them. All numbers are the note's *est.* planning figures until the load test replaces them.
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
-import { interestRules } from './presence-rules.ts';
+import { interestRules, presenceRule } from './presence-rules.ts';
+import { CELL_STRIDE } from './units.ts';
+import { HALF, MS_PER_SECOND } from '../units.ts';
+import type { Worn } from '../server/location.ts';
 import { LEGACY_SHIFT_CM, SPAWN, TOWN_CM, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
 
 export const RULES = interestRules();
 export type Rules = ReturnType<typeof interestRules>;
 
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null };
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; credit: number; fresh: boolean; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
+  name: string | null; guest: boolean;   // the name tag the page draws (null: none known; guests carry no name)
+  worn: Worn;   // {slot: lootId} the writer reads from the ledger for the active character, what others see on it (a guest wears nothing: {})
+  told: Map<number, string>; sees: Set<number>;   // viewer state: the id -> identity this viewer has been introduced to (so an `enter` goes out once per sighting), and the ids in range this tick
+};
+/** One `enter` record: who an id is, sent to a viewer before the first packet that carries that id. */
+export type Intro = { id: number; name: string | null; guest: boolean; worn: Worn };
 export class Layer {
   readonly players = new Map<number, Player>();
   readonly cells = new Map<number, Set<Player>>();
@@ -18,8 +27,8 @@ export class Layer {
 }
 
 export type MoveResult = 'ok' | 'snapped' | 'drop';
-const TOWN_HALF_CM = TOWN_CM / 2;
-const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cellCm) * 4096 + Math.floor(z / r.cellCm);
+const TOWN_HALF_CM = TOWN_CM * HALF;
+const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cellCm) * CELL_STRIDE + Math.floor(z / r.cellCm);
 
 export class World {
   readonly layers = new Map<number, Layer>();
@@ -28,7 +37,7 @@ export class World {
   private nextLayer = 1;
   readonly rules: Rules;
   readonly maxLayers: number;
-  constructor(rules: Rules = RULES, maxLayers = 8) { this.rules = rules; this.maxLayers = maxLayers; }
+  constructor(rules: Rules = RULES, maxLayers = presenceRule('maxLayers')) { this.rules = rules; this.maxLayers = maxLayers; }
 
   // Join: the friend's layer if they are online and it has room, else the fullest layer under the soft cap (fill first), else a new layer.
   // Where it starts (X2 stage 1): `at` when given, else the position this account was last seen at here (kept `memoryMs` after it left, moved clear of any trade area),
@@ -48,7 +57,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z) };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: 0, fresh: true, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -59,7 +68,8 @@ export class World {
     layer.cells.get(cellOf(this.rules, p.x, p.z))?.delete(p);
     layer.players.delete(p.id); this.byAccount.delete(p.account);
     if (!layer.players.size) layer.emptySince = now;
-    this.memory.delete(p.account); this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
+    this.memory.delete(p.account); if (p.guest) return;   // a guest leaves no 10-minute memory: a reconnect is a new guest at the spawn
+    this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
     if (this.memory.size > this.rules.memoryMax) this.memory.delete(this.memory.keys().next().value!);
   }
   // The remembered position of an account that left at most `memoryMs` ago, moved clear of any trade area; undefined when there is none or it has expired.
@@ -72,18 +82,34 @@ export class World {
   // The client's claimed pose, clamped: somewhere walkable (the town square, a Frontier zone, the west road; a v1 client: the square, clamped to its edge), at most the sprint speed times the speed of
   // the zone it is leaving (with slack). A pose off the walkable ground or a jump past the speed keeps the old position ("snapped": the client is told nothing, it simply sees itself pulled back
   // by the next packet) and counts a strike; repeated, the player is dropped.
+  // The reach is a CREDIT, not a per-packet window (Lead 2026-10-17): it accrues in real time at the speed limit, is capped at one second plus the jitter row, and each accepted step spends what it
+  // moved. So packets that bunch on a jittery link draw on what the walker earned while they were in flight, a refused pose spends nothing (and the clock still runs, so one hiccup cannot snowball),
+  // and a speed hack still cannot average more than the limit: the cap bounds any burst.
   move(p: Player, pose: Pose, now: number): MoveResult {
-    const { maxSpeedCmS, speedSlack, strikesToDrop, strikeWindowMs } = this.rules;
+    const { strikesToDrop, strikeWindowMs, jitterMs, tickMs } = this.rules;
     if (now - p.strikeAt > strikeWindowMs) { p.strikes = 0; p.strikeAt = now; }
-    const dt = Math.max(100, Math.min(1000, now - p.movedAt)) / 1000, reach = maxSpeedCmS * (p.zone?.speed ?? 1) * speedSlack * dt;
+    const rate = this.creditRate(p.zone);
+    p.credit = Math.min(rate * (MS_PER_SECOND + jitterMs), p.credit + rate * Math.max(0, now - p.movedAt));
     const lo = SPAWN.x - TOWN_HALF_CM, hi = SPAWN.x + TOWN_HALF_CM;
     const x = p.legacy ? Math.min(hi, Math.max(lo, pose.x)) : pose.x, z = p.legacy ? Math.min(hi, Math.max(lo, pose.z)) : pose.z;
     p.movedAt = now; p.seenAt = now;
-    if (!(p.legacy || walkable(x, z)) || Math.hypot(x - p.x, z - p.z) > reach) {
+    const step = Math.hypot(x - p.x, z - p.z);
+    const reach = Math.max(p.credit, p.fresh ? rate * tickMs : 0);   // one tick's worth for the FIRST pose after a join or warp only (the client's opening step); after that, only what time has earned
+    p.fresh = false;
+    if (!(p.legacy || walkable(x, z)) || step > reach) {
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
     }
+    p.credit = Math.max(0, p.credit - step);
     return this.place(p, x, z, pose);
+  }
+  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there; one tick of it is allowed for their first pose only).
+  private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / MS_PER_SECOND; }
+  // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
+  warp(p: Player, x: number, z: number, now: number): void {
+    p.movedAt = now; p.seenAt = now; p.strikes = 0;
+    this.place(p, x, z, { x, z, heading: p.heading, anim: p.anim, flags: p.flags });
+    p.credit = 0; p.fresh = true;   // the credit restarts from the warp like the clock does
   }
   private place(p: Player, x: number, z: number, pose: Pose): MoveResult {
     const from = cellOf(this.rules, p.x, p.z), to = cellOf(this.rules, x, z);
@@ -109,23 +135,38 @@ export class World {
     const cx = Math.floor(p.x / cellCm), cz = Math.floor(p.z / cellCm), span = Math.ceil(radiusCm / cellCm);
     for (let i = cx - span; i <= cx + span; i++) for (let j = cz - span; j <= cz + span; j++) {
       if (i < 0 || j < 0) continue;
-      const set = p.layer.cells.get(i * 4096 + j);
+      const set = p.layer.cells.get(i * CELL_STRIDE + j);
       if (set) for (const e of set) if (e !== p && this.canSee(p, e)) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d <= radiusCm) near.push({ e, d }); }
     }
     near.sort((a, b) => a.d - b.d);
-    const out: Entity[] = [];
-    for (const { e, d } of near.slice(0, nearCap)) {
+    const out: Entity[] = [], inRange = near.slice(0, nearCap);
+    p.sees = new Set(inRange.map(({ e }) => e.id));
+    for (const { e, d } of inRange) {
       const every = (tiers.find(t => d <= t[0]) ?? tiers[tiers.length - 1])[1];
       if ((tickNo + e.id) % every === 0) out.push({ id: e.id, x: e.x, z: e.z, heading: e.heading, anim: e.anim, flags: e.flags, tick: e.tick });
     }
     return out;
   }
   // One tick: a packet for every player who has anything to be told (never an empty packet).
+  // `intros` is filled by the same call: per viewer, the `enter` records for ids it is about to be sent for the first time since they came into range (a v1 viewer is sent none).
+  readonly intros = new Map<Player, Intro[]>();
   tick(tickNo: number): Map<Player, Uint8Array> {
     const out = new Map<Player, Uint8Array>();
+    this.intros.clear();
     for (const layer of this.layers.values()) for (const p of layer.players.values()) {
       const seen = this.seenBy(p, tickNo);
+      for (const id of p.told.keys()) if (!p.sees.has(id)) p.told.delete(id);   // out of range: introduce again when it comes back
       if (seen.length) out.set(p, encodeDown(tickNo, p.legacy ? seen.map(e => ({ ...e, x: e.x - LEGACY_SHIFT_CM, z: e.z - LEGACY_SHIFT_CM })) : seen));
+      if (p.legacy) continue;
+      for (const e of seen) {
+        const o = layer.players.get(e.id);
+        if (!o) continue;
+        const who = `${o.account}|${o.name ?? ''}|${o.guest}|${JSON.stringify(o.worn)}`;   // a changed worn set is a new identity: the viewer is introduced again with the new set
+        if (p.told.get(e.id) === who) continue;
+        p.told.set(e.id, who);
+        const list = this.intros.get(p); const intro: Intro = { id: e.id, name: o.guest ? null : o.name, guest: o.guest, worn: o.guest ? {} : o.worn };
+        if (list) list.push(intro); else this.intros.set(p, [intro]);
+      }
     }
     return out;
   }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { openInventory } from '../inventory/inventory.ts';
+import { openInventory } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { mobBatch } from './mob-rewards.ts';
 import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
@@ -16,6 +16,8 @@ import { CENTRE_CM, LEGACY_SHIFT_CM, zoneAt } from '../presence/zones.ts';
 import { createPresence, PROTOCOL_V2 } from '../presence/server.ts';
 import { encodeUp } from '../presence/wire.ts';
 import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, defaultZoneSpawns, zoneSpawns, type Spawn } from './world-spawns.ts';
+import { createVerdictTally } from './world-verify.ts';
+import { allZoneIds, loadZone } from '../zones/loader.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -29,6 +31,7 @@ const wolf = [...spawns.values()].find((s) => s.spec.character === 'character:as
 function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {}) {
   const kills: { m: string; r: string; b: Json[]; g: Json }[] = [];
   const db: Db = { async run(sql, v = {}) {
+    if (/origins_account_is_test/.test(sql)) { const a = answers.origins_account_is_test; if (a instanceof Error) throw a; return a === 'absent' ? 'absent' : String(a === true); }   // the QA mark (fighter_profiles.is_test)
     if (/origins_spawn_/.test(sql) && opts.absent) return 'absent';
     const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)?.[1];   // after the psql guard; the bare call once the probe is cached (store.ts gated)
     if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!), g: JSON.parse(v.g!) }); }
@@ -106,6 +109,23 @@ test('engage: the server names the kind, level and HP; unknown instances are ref
   await assert.rejects(async () => ops.engage!(ctx(stub({ origins_spawn_engage: { refused: 'too-many' } }).db), { character: PC, instance: wolf.spec.id }), status(429, 'too-many'));
 });
 
+// The server half of "kill_report is silent in an unlisted zone" (#3204): the page sends none, and a crafted client gets nothing either. The writer sees only LISTED zones (zoneOf: listedZoneIds), a token exists only
+// after engage (the one place a spawn is priced), and a kill_report with a token the writer never issued is a 409 that writes nothing.
+test('an UNLISTED zone cannot be engaged, and a crafted kill_report pays and writes nothing', async () => {
+  const ops = worldSpawnOps({ content, spawns }), unlisted = allZoneIds().filter((id) => loadZone(id, true).unlisted);
+  assert.ok(unlisted.length > 0, 'the registry has an unlisted zone');
+  for (const zoneId of unlisted) {
+    const s = stub({});
+    await assert.rejects(async () => ops.engage!(ctx(s.db), { character: PC, instance: `z${zoneId}:wolf-1`, zoneId }), BadRequest, `zone ${zoneId}: engage is refused`);
+    await assert.rejects(async () => ops.spawn_state!(ctx(s.db), { zoneId }), BadRequest, `zone ${zoneId}: no spawn list`);
+    await assert.rejects(async () => ops.engage!(ctx(s.db), { character: PC, instance: wolf.spec.id, zoneId }), BadRequest, 'a listed instance under an unlisted zoneId is refused too');
+    assert.deepEqual(s.kills, [], `zone ${zoneId}: nothing written`);
+  }
+  const forged = stub({});   // a kill_report naming an unlisted zone with a token engage never issued
+  await assert.rejects(async () => ops.kill_report!(ctx(forged.db), { token: TOKEN, hits: 50, zoneId: unlisted[0] }), status(409, 'used'));
+  assert.deepEqual(forged.kills, [], 'nothing paid, nothing written');
+});
+
 test('kill_report: too few hits is refused before anything is written; a valid report sends the TTK floor, the respawn and ONE batch (event + rewards)', async () => {
   const ops = worldSpawnOps({ content, spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {} });
   const few = stub({ origins_spawn_engage_get: open });
@@ -121,6 +141,71 @@ test('kill_report: too few hits is refused before anything is written; a valid r
   assert.deepEqual((k!.b[0]!.payload as Json).beta, true);
   assert.ok(!JSON.stringify(k!.b).includes('999'), 'nothing in the body is paid');
   assert.deepEqual(k!.g, { reach: 'checked' }, 'the ledger input is the reach status only (cp is derived in SQL); a fresh pose in the zone');
+});
+
+test('kill_report 409 (launch gate V5): a paid token reads back as paid with its STORED receipt, an expired one as expired, an unknown or another account\'s one as unknown; the code stays used; nothing is paid or written on the retry', async () => {
+  const logs: string[] = [], ops = worldSpawnOps({ content, spawns, log: (l: string) => logs.push(l) });
+  const answers: Record<string, unknown> = { origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } };
+  const first = stub(answers);
+  assert.equal((await ops.kill_report!(ctx(first.db), { token: TOKEN, hits: 50 }) as { result: string }).result, 'killed');
+  assert.equal(first.kills.length, 1, 'the first report pays once');
+  const stored = { kind: 'paid', instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 };
+  const retry = async (a: Record<string, unknown>, receiptAbsent = false) => {
+    const s = stub({ origins_spawn_engage_get: null, ...a });
+    const db: Db = receiptAbsent ? { run: async (sql, v) => (/origins_spawn_receipt/.test(sql) ? 'absent' : s.db.run(sql, v)) } : s.db;   // only the V5 migration missing
+    const e = await ops.kill_report!(ctx(db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
+    assert.ok(e instanceof Refused && e.status === 409 && e.code === 'used' && e.message === 'engage token unknown, used or expired', 'always the old 409: status, code and message unchanged');
+    assert.equal(s.kills.length, 0, 'a retry never reaches the kill function: no second kill, ledger or reward row');
+    return (e as Refused).detail;
+  };
+  assert.deepEqual(await retry({ origins_spawn_receipt: stored }), { kind: 'paid', receipt: { instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 } }, 'the receipt is the stored row, field for field');
+  assert.deepEqual(await retry({ origins_spawn_receipt: { kind: 'expired' } }), { kind: 'expired' });
+  assert.deepEqual(await retry({}), { kind: 'unknown' }, 'no row for this account: unknown, nothing about the token');
+  assert.deepEqual(await retry({ origins_spawn_receipt: { kind: 'paid', instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1, token: 'LEAK', account: 'LEAK' } }), { kind: 'paid', receipt: { instance: 'x', killedAt: 'y', cp: 1, bronze: 1, loot: 1 } }, 'only the receipt fields leave the writer');
+  assert.equal(await retry({ origins_spawn_receipt: { kind: 'open' } }), undefined, 'a token that is still open is not a receipt: the plain 409');
+  assert.equal(await retry({ origins_spawn_receipt: new Error('db down') }), undefined, 'a failed lookup is the plain 409, never a 500');
+  assert.equal(await retry({}, true), undefined, 'receipt migration absent: the plain 409');
+  // a duplicate that raced the first report: the engage looked open, the kill function found it used (O0009), the answer is the receipt
+  const race = stub({ origins_spawn_engage_get: open, origins_spawn_kill: new DbError('O0009', 'gone'), origins_spawn_receipt: stored });
+  const e = await ops.kill_report!(ctx(race.db), { token: TOKEN, hits: 50 }).then(() => null, (x: unknown) => x);
+  assert.deepEqual((e as Refused).detail, { kind: 'paid', receipt: { instance: wolf.spec.id, killedAt: '2026-10-08T10:01:00Z', cp: 12, bronze: 3, loot: 2 } });
+  const kinds = logs.filter((l) => / 409 /.test(l)).map((l) => /409 (\w+)/.exec(l)![1]);
+  assert.deepEqual(kinds, ['paid', 'expired', 'unknown', 'paid', 'unread', 'unread', 'unread', 'paid'], 'the log line names the 409 kind for the soak');
+  assert.ok(logs.every((l) => !l.includes(TOKEN)), 'only the token tail is logged');
+});
+
+test('kill_report for the QA account (fighter_profiles.is_test): every check and every soak tally counts it, but it persists nothing (event only, qa marked, answered with zero payout); the QA state is logged and a blind lookup pays as normal', async () => {
+  const logs: string[] = [], tally = createVerdictTally(), reachTally = createVerdictTally();
+  const ops = worldSpawnOps({ content, spawns, tally, reachTally, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l: string) => logs.push(l) });
+  // a creature whose ordinary kill really pays something at this seed, so "pays nothing" below is a real difference
+  const priced = (s: Spawn) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: s.fight, seed: 7, enemy: s.spec.body, level: s.spec.level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z', { level: s.spec.level }).batch;
+  const payer = [...spawns.values()].find((s) => priced(s).length > 0) as Spawn;
+  assert.ok(payer, 'some Zone 1 creature pays at this seed');
+  const wolf = payer, open = { token: TOKEN, character: PC, instance: payer.spec.id, generation: 0, issuedAt: '2026-10-08T10:00:00Z', expiresAt: '2026-10-08T10:02:00Z' };
+  const run = async (qa: unknown) => {
+    const s = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: qa });
+    const out = await ops.kill_report!(ctx(s.db, poseAt(wolf)), { token: TOKEN, hits: 50 }) as { result: string; cp: number; bronze: number; loot: number };
+    return { s, out, opsOf: s.kills[0]!.b.map((l) => l.op), payload: s.kills[0]!.b[0]!.payload as Record<string, unknown> };
+  };
+  const no = await run(false), yes = await run(true), blind = await run(new Error('db down')), absent = await run('absent');
+  assert.ok(no.opsOf.length > 1, 'an ordinary kill pays (more than the event)');
+  assert.deepEqual(yes.opsOf, ['event'], 'QA: the event only: no CP, no minted item, no bronze, no wear');
+  assert.deepEqual([yes.payload.qa, yes.payload.paid, yes.payload.cpReason, yes.payload.cp], [true, false, 'qa', 0]);
+  assert.deepEqual([yes.out.result, yes.out.cp, yes.out.bronze, yes.out.loot], ['killed', 0, 0, []], 'the answer says killed and pays nothing (no loot)');
+  assert.equal('qa' in no.payload, false, 'only a QA event is marked');
+  for (const normal of [blind, absent]) assert.deepEqual(normal.opsOf, no.opsOf, 'a blind or absent lookup pays exactly as an ordinary kill');
+  assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4 }, 'the soak counters count the QA kill like the others');
+  assert.deepEqual(reachTally.snapshot().outcomes, { checked: 4 }, 'and so does the reach tally');
+  for (const t of [tally, reachTally]) assert.deepEqual([t.snapshot().cohorts.qa.total, t.snapshot().cohorts.organic.total], [1, 3], 'the QA kill lands in the qa cohort, the other three (false, blind, absent) in organic');
+  assert.deepEqual(logs.filter((l) => /^kill_report .* qa=/.test(l)).map((l) => /qa=(\S+)/.exec(l)![1]), ['no', 'yes', '?', '?'], 'the log names the QA state; ? = the lookup was blind');
+  // the checks apply to QA exactly as to anyone: too far is refused, and the strict flag refuses an unchecked QA kill
+  const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + (wolf.spec.home.x + 50) * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
+  const qaStub = () => stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }, origins_account_is_test: true });
+  const away = qaStub();
+  await assert.rejects(async () => ops.kill_report!(ctx(away.db, far), { token: TOKEN, hits: 50 }), status(422, 'away'));
+  const strictOps = worldSpawnOps({ content, spawns, refuseUnchecked: true, log: () => {} }), unchecked = qaStub();
+  await assert.rejects(async () => strictOps.kill_report!(ctx(unchecked.db, null), { token: TOKEN, hits: 50 }), status(422, 'unchecked'));
+  assert.equal(away.kills.length + unchecked.kills.length, 0, 'a refused QA kill writes nothing');
 });
 
 test('kill_report: the database\'s refusals map to the contract (dead 409, too-fast 422, cap 429, used 409); reach via presence', async () => {
@@ -147,6 +232,25 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   const nearDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   assert.equal((await ops.kill_report!(ctx(nearDb.db, near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
   assert.equal(nearDb.kills[0]!.g.reach, 'checked', 'a fresh presence pose in the zone: reach checked');
+});
+
+test('kill_report logs WHY a kill is unchecked and what its record was, and an unchecked kill pays in full while refuseUnchecked is off (Auditor 2026-10-18: every live kill was unchecked, cause unseen)', async () => {
+  const reachTally = createVerdictTally(), logs: string[] = [], ops = worldSpawnOps({ content, spawns, reachTally, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: (l) => logs.push(l) });
+  const killed = () => stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
+  const elsewhere: WhereFn = async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 });
+  const cases: [WhereFn | null, string][] = [[null, 'no-presence'], [async () => { throw new Error('presence: HTTP 404'); }, 'presence-error: presence: HTTP 404'], [async () => ({ online: false as const }), 'offline'], [elsewhere, `other-zone: elsewhere not ${wolf.spec.zone}`]];
+  for (const [where, why] of cases) {
+    const db = killed(); logs.length = 0;
+    await ops.kill_report!(ctx(db.db, where), { token: TOKEN, hits: 50 });
+    assert.ok(logs.some((l) => l.includes(`reach=unchecked (${why}) record=none`)), `${why}: ${logs.join(' | ')}`);
+    assert.notEqual((db.kills[0]!.b[0]!.payload as { cpReason: string }).cpReason, 'unverified', `${why}: the unchecked kill is priced as usual (the flag is off)`);
+  }
+  const strict = worldSpawnOps({ content, spawns, log: (l) => logs.push(l), refuseUnchecked: true }); logs.length = 0;
+  await assert.rejects(async () => strict.kill_report!(ctx(killed().db, async () => ({ online: false as const })), { token: TOKEN, hits: 50 }), status(422, 'unchecked'));
+  assert.ok(logs.some((l) => /refused unchecked \(offline\)/.test(l)), 'a refusal names its why too');
+  logs.length = 0; await ops.kill_report!(ctx(killed().db), { token: TOKEN, hits: 50 });
+  assert.ok(logs.some((l) => /reach=checked record=none/.test(l)), 'a checked kill names no why');
+  assert.deepEqual(reachTally.snapshot().outcomes, { 'no-presence': 1, 'presence-error': 1, offline: 1, 'other-zone': 1, checked: 1 }, 'the flip readout counts every report by reach kind');
 });
 
 test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance), not the form\'s: a level-1 spawn pays level-1 CP and loot, a level-2 spawn pays level-2 (Auditor, #1900; priced against level 2, not the form: the Zone 1 form level is 1 now)', async () => {
@@ -190,10 +294,11 @@ test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 40
   assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
 });
 
-test('zone keys: a zone is `z<N>:` with N one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
-  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
-  for (const key of ['z0:wolves-1', 'z01:wolves-1', 'z2wolves-1', 'z2', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
-  assert.equal(zoneOfKey('z0:wolves-1'), null); assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+test('zone keys: a zone is `z<N>:` with N = 0 (the town) or one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
+  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z0:town-1', '0'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
+  for (const key of ['z01:wolves-1', 'z2wolves-1', 'z2', 'z0', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
+  assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z0'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+  assert.equal(zoneOfKey('z0:town-1') === null, false, 'the town\'s id is the STRING "0": a truth test on it is a bug, a null test is the right one');
 });
 
 test('engage refuses a key that starts like a zone but does not parse (400), instead of reading it as Zone 1', async () => {
@@ -217,7 +322,7 @@ test('the registry obeys the key rule the database column reads (zoneKeyProblems
 
 // The allow-list of what a reported hit may write: the scorecard event and the career's world credit row, loot lines and nothing else. Anything else (an XP pool, a level, a spell, boss gear, a new currency) fails.
 const BATCH_OPS = new Set(['event', 'career_set', 'put', 'mint']);
-const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'record', 'cp', 'cpReason', 'paid', 'beta']);
+const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'record', 'cp', 'cpReason', 'paid', 'beta', 'qa']);   // 'qa' marks the QA account's event (it pays event-only); it grants nothing
 const CAREER_KEYS = new Set(['op', 'account', 'expected_version', 'world_credit', 'rested', 'rested_at', 'heat', 'story', 'beaten']);
 function guardBatch(batch: Json[]): void {
   for (const o of batch as Record<string, unknown>[]) {

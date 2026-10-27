@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot } from '../origins/encounters/encounters.ts';
-import { openInventory } from '../origins/inventory/inventory.ts';
+import { openInventory } from '../src/core/server.ts';
 import { mobBatch } from '../origins/server/mob-rewards.ts';
 import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 
@@ -123,6 +123,20 @@ try {
   eq(await code('anon', `select public.origins_skill_pool('${C}', '${pcC}');`), '42501', 'skill pool: no client reads it');
   eq(await code('authenticated', `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: no client flips it');
   psql(`update public.origins_skill_xp set focus = false where character = '${pcC}'`);
+  // ---- 20261020150000: the two SPECIAL slots (table RLS-closed, two definer functions, both writer roles) ----------------------------------------------------------------------
+  const slotsOf = (role, sql) => JSON.parse(psql(`set role ${role}; select (${sql})::text;`).split('\n').pop());
+  eq(JSON.stringify(slotsOf(V, `public.origins_special_slots_get('${C}', '${pcC}')`)), '{"slot1":null,"slot2":null}', 'special slots: no row reads as both empty');
+  eq(JSON.stringify(slotsOf(O, `public.origins_special_slots_set('${C}', '${pcC}', 'lunge', 'shove')`)), '{"slot1":"lunge","slot2":"shove"}', 'special slots: the origins role sets both');
+  eq(JSON.stringify(slotsOf(V, `public.origins_special_slots_set('${C}', '${pcC}', 'shove', 'lunge')`)), '{"slot1":"shove","slot2":"lunge"}', 'special slots: the verifier role (the production writer) swaps them in one write');
+  eq(JSON.stringify(slotsOf(V, `public.origins_special_slots_set('${C}', '${pcC}', 'cleave', null)`)), '{"slot1":"cleave","slot2":null}', 'special slots: null clears a slot');
+  eq(JSON.stringify(slotsOf(O, `public.origins_special_slots_get('${C}', '${pcC}')`)), '{"slot1":"cleave","slot2":null}', 'special slots: get reads what was stored');
+  eq(await code(O, `select public.origins_special_slots_set('${C}', '${pcC}', 'Not A Skill', null);`), 'O0002', 'special slots: a malformed id is refused');
+  eq(await code(O, `select public.origins_special_slots_set('${C}', '${pcC}', 'lunge', 'lunge');`), 'O0002', 'special slots: the same skill in both slots is refused');
+  eq(psql(`set role ${V}; select coalesce(public.origins_special_slots_set('${A}', '${pcC}', 'lunge', null)::text, 'null');`).split('\n').pop(), 'null', 'special slots: not the account\'s character -> null');
+  eq(psql(`select slot1 || '/' || coalesce(slot2, 'none') from public.origins_special_slots where character = '${pcC}'`), 'cleave/none', 'special slots: a refused or stranger write changed nothing');
+  eq(await code(V, `select count(*) from public.origins_special_slots`), '42501', 'special slots: the writer role has no table grant (RLS closed too; the functions are the only way)');
+  eq(await code('anon', `select public.origins_special_slots_get('${C}', '${pcC}');`), '42501', 'special slots: no client reads it');
+  eq(await code('authenticated', `select public.origins_special_slots_set('${C}', '${pcC}', 'lunge', null);`), '42501', 'special slots: no client writes it');
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
 
   // ---- grimoire (migration 202610130027): a spell is taken only by the 7-arg settle, on a win, once per account and legend ----------------------------------------
@@ -298,6 +312,11 @@ try {
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
 
+  if (files.includes('20261020150000_origins_special_slots.sql')) {
+    psql(readFileSync(join(dir, '..', 'down', '20261020150000_origins_special_slots_down.sql'), 'utf8'));
+    eq(psql(`select (to_regprocedure('public.origins_special_slots_get(uuid,text)') is null)::text || '/' || (to_regprocedure('public.origins_special_slots_set(uuid,text,text,text)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_special_slots'`), 'true/true/0', 'special slots down: both functions and the table are gone');
+    psql(readFileSync(join(dir, '20261020150000_origins_special_slots.sql'), 'utf8'));
+  }
   psql(readFileSync(join(dir, '..', 'down', '202610130029_skill_pool_access_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_skill_pool(uuid,text)') is null)::text || '/' || (to_regprocedure('public.origins_skill_focus(uuid,text,text,boolean)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_skill_xp'`), 'true/true/1', 'skill pool down: both functions gone, the pool table untouched');
   psql(readFileSync(join(dir, '..', 'down', '202610130026_skill_practice_down.sql'), 'utf8'));

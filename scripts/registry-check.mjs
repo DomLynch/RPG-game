@@ -5,7 +5,7 @@ import { dirname, join, relative } from 'node:path';
 import { buildTables, checkTables } from '../src/core/server.ts';
 import { describeDuplicates, duplicateKeys } from './lib/json-dup-keys.mjs';
 
-const roots = process.argv[2] ? [process.argv[2]] : ['origins', 'src/fight'];   // src/fight: the sim's own tables (pool-defs, weapon-defs) ride the same gate as the runtime
+const roots = process.argv[2] ? [process.argv[2]] : ['origins', 'src/fight', 'src/core/items'];   // src/fight: the sim's own tables (pool-defs, weapon-defs) ride the same gate as the runtime; src/core/items: the burn-reasons table that moved out of origins/inventory
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(join(d, e.name))) : e.name.endsWith('.manifest.json') ? [join(d, e.name)] : []);
 // JSON.parse keeps the LAST of two equal keys silently, so the RAW text of every rows file is scanned first (one shared scan, scripts/lib/json-dup-keys.mjs).
 export function rawDuplicates(rootDirs) {

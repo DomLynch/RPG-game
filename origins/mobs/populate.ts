@@ -15,6 +15,8 @@ export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
 export type Populated = { camps: Camp[]; budget: number; rejected: { row: string; issues: RowIssue[] }[]; issues: ZoneIssue[] };
 
+const CAMP_SPREAD = stageRule('campSpread'), OPENER_RETRIES = stageRule('openerRetries'), FILL_GUARD = stageRule('fillGuard');   // the camp's default scatter (m), how often the opener is redrawn, the fill loop's guard (x the budget)
+const CAMP_TRIES = stageRule('campTries'), CAMP_FILL = stageRule('campFill');   // stage-rules-defs.json: placement attempts per member / per fill pass
 const CAMP_GAP = worldRule('campGap'); // m: two camps' centres stay at least this far apart
 const DOOR_CLEAR = OPENER_CLEAR;   // m: no camp within this of the entry landmark (the hero arrives there)
 const MOBS = stageRule('mobsSeed'); // "mobs": the stream's seed offset
@@ -34,7 +36,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   if (!budget || !eligible.length) return finish();
   // Where camps may stand: the zone's own landmarks, not its exits (`to-…`), not the entry and not the boss anchor.
   const sites = Object.entries(zone.layout).filter(([k]) => !k.startsWith('to-') && k !== 'entry' && k !== zone.spawns.boss);
-  const entry = zone.layout.entry, door = entry ? { x: entry.u * width, z: entry.v * depth } : { x: width / 2, z: 0 }, reach = Math.min(width, depth) * 0.3;
+  const entry = zone.layout.entry, door = entry ? { x: entry.u * width, z: entry.v * depth } : { x: width / 2, z: 0 }, reach = Math.min(width, depth) * stageRule('campDoorReach');
   const rand = prng((seed ^ MOBS) >>> 0), weights = rungWeights(eligible, zone.difficulty), total = weights.reduce((n, w) => n + w, 0);
   if (!(total > 0)) return finish();   // only rares (or nothing drawable): a rare never stands alone
   const inside = (x: number, z: number) => x >= 0 && x <= width && z >= 0 && z <= depth;
@@ -44,10 +46,10 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   const apart = (c: { x: number; z: number }) => !camps.some((k) => Math.hypot(k.members[0]!.x - c.x, k.members[0]!.z - c.z) < CAMP_GAP);
   // One camp of `row` round `centre`, `size` members (default: the row's own draw); null when no member found room.
   const camp = (row: MobRow, at: string, centre: { x: number; z: number }, size?: number): Camp | null => {
-    const n = size ?? campCount(row.behaviour.campSize, rand()), spread = row.behaviour.spread ?? 6;
+    const n = size ?? campCount(row.behaviour.campSize, rand()), spread = row.behaviour.spread ?? CAMP_SPREAD;
     const lo = Math.max(row.level[0], zone.difficulty.levelMin), hi = Math.min(row.level[1], zone.difficulty.levelMax), members: Member[] = [];
     for (let i = 0; i < n; i++) {
-      for (let tries = 0; tries < 40; tries++) {
+      for (let tries = 0; tries < CAMP_TRIES; tries++) {
         const r = spread * Math.sqrt(rand()), a = rand() * Math.PI * 2, x = centre.x + Math.sin(a) * r, z = centre.z + Math.cos(a) * r;
         if (inside(x, z) && stand(x, z)) { members.push({ x, z, level: lo + (i % (hi - lo + 1)) }); break; }
       }
@@ -55,12 +57,12 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
     return members.length ? { row: row.id, at, members } : null;
   };
   // The opener (zone-rules.ts openerSpot, the same rule the hand zones use): the first fight stands inside the 10 s window.
-  for (let t = 0; t < 6 && !camps.length; t++) {
+  for (let t = 0; t < OPENER_RETRIES && !camps.length; t++) {
     const spot = openerSpot(door, 0, rand, inside);
     const c = spot && camp(pickRow(), 'opener', spot); if (c) camps.push(c);
   }
   let made = camps.reduce((n, c) => n + c.members.length, 0);
-  for (let guard = 0; sites.length && made < budget && guard < budget * 8; guard++) {
+  for (let guard = 0; sites.length && made < budget && guard < budget * FILL_GUARD; guard++) {
     const row = pickRow(), [site, l] = sites[Math.floor(rand() * sites.length)]!, r0 = reach * Math.sqrt(rand()), a0 = rand() * Math.PI * 2;
     const centre = { x: l.u * width + Math.sin(a0) * r0, z: l.v * depth + Math.cos(a0) * r0 };
     if (!inside(centre.x, centre.z) || Math.hypot(centre.x - door.x, centre.z - door.z) < DOOR_CLEAR || !apart(centre)) continue;
@@ -69,7 +71,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   }
   // Dead stretches: wherever the walk is left more than 15 s with nothing, a camp goes in the middle of the gap (bounded; the rule may beat the budget).
   const stops = Object.entries(zone.layout).filter(([k]) => k !== 'entry').map(([, l]) => ({ x: l.u * width, z: l.v * depth }));
-  for (let fill = 0; fill < 40; fill++) {
+  for (let fill = 0; fill < CAMP_FILL; fill++) {
     const hop = worstHop(door, [...stops, ...camps.flatMap((c) => c.members)]);
     if (!hop || hop.d <= MAX_HOP_M) break;
     const mid = { x: (hop.from.x + hop.to.x) / 2, z: (hop.from.z + hop.to.z) / 2 }, c = camp(pickRow(), 'fill', mid, 1);

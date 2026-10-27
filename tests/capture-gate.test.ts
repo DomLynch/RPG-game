@@ -2,10 +2,11 @@
 // --hf-ok that is still waiting after the spill wait, with the box STILL over the line, is handed to its caller (exit 76 + a CAPTURE_SPILL line) and
 // scripts/capture-mac.sh runs it once on Hugging Face (cpu-upgrade, Deploy's node:22 image) with the Mac's login, cancels it after a quiet spell, and
 // appends the result to the VPS spill.log. Real bash, flock and /proc; stubbed ssh (runs locally), hf, npm, lanejob and ionice.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -39,16 +40,34 @@ async function capture(args: string[], load: string, env: Record<string, string>
   git('init', '-q'); writeFileSync(join(repo, 'a.txt'), 'a\n'); git('add', '.'); git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a');
   setup?.(repo);
   const loadavg = join(dir, 'loadavg'); writeFileSync(loadavg, `${load} 1/100 1\n`);
+  const psi = join(dir, 'psi'); if (env.PSI_BODY) writeFileSync(psi, env.PSI_BODY);   // no file: the gate falls back to the load average (the tests that name load5); a body is /proc/pressure/cpu
   if (lowerAfterMs) setTimeout(() => writeFileSync(loadavg, '1.00 1.00 1.00 1/100 1\n'), lowerAfterMs);
   let out: string, code = 0;
   try {
     const r = await run('bash', viaMac ? [mac, '--host', 'vps', '--dir', repo, ...args] : [script, ...args], { cwd: repo, timeout: 120000, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-      CAPTURE_LOADAVG: loadavg, CAPTURE_RUNS_DIR: join(dir, 'no-release-runs'), CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
+      CAPTURE_PSI: psi, CAPTURE_LOADAVG: loadavg, CAPTURE_RUNS_DIR: join(dir, 'no-release-runs'), CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
     out = r.stdout + r.stderr;
   } catch (e) { const x = e as { code: number; stdout: string; stderr: string }; code = x.code; out = x.stdout + x.stderr; }
   const read = (f: string) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8') : '');
   return { code, out, ran: read('npm-ran'), lanejob: read('lanejob-ran'), hf: read('hf-calls'), ssh: read('ssh-calls'), spill: read('home/capture.spill.log'), queue: read('home/capture.queue') };
 }
+
+const PSI = (avg60: string) => `some avg10=1.00 avg60=${avg60} avg300=1.00 total=1\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n`;
+
+test('the gate reads CPU pressure, not the load average: load 39 with the CPU idle (31 steamcmd threads in D) still starts a job; real CPU pressure holds it (Lead 2026-10-21)', { skip }, async () => {
+  const [idle, busy] = await Promise.all([
+    capture(['t', 'npm', 'test'], '39.00 39.00 39.00', { PSI_BODY: PSI('7.04') }),
+    capture(['t', 'npm', 'test'], '1.00 1.00 1.00', { PSI_BODY: PSI('60.00') })]);
+  assert.equal(idle.code, 0, idle.out); assert.equal(idle.ran.trim(), 'test');
+  assert.equal(busy.code, 75, busy.out); assert.equal(busy.ran, ''); assert.match(busy.out, /cpu-pressure 60\.00 WAITING: cpu-pressure 60\.00 is at or over 25/);
+  const edge = await capture(['t', 'npm', 'test'], '1.00 1.00 1.00', { PSI_BODY: PSI('10.00'), CAPTURE_MAX_CPU_PRESSURE: '10' });
+  assert.equal(edge.code, 75, 'the line is exclusive, like the load line: at the limit it waits');
+});
+
+test('an unparsable pressure file falls back to the load average instead of passing everything', { skip }, async () => {
+  const r = await capture(['t', 'npm', 'test'], '1.00 20.00 20.00', { PSI_BODY: 'garbage\n' });
+  assert.equal(r.code, 75, r.out); assert.match(r.out, /load5 20\.00 WAITING: load5 20\.00 is at or over 12/);
+});
 
 test('the job runs through lanejob (the live copy\'s line since the 10-08 OOM)', { skip }, async () => {
   assert.match(readFileSync(script, 'utf8'), /nice -n 15 ionice -c3 lanejob "\$@" 9>&- &/);
@@ -142,7 +161,7 @@ test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)
   git('init', '-q'); writeFileSync(join(repo, 'a.txt'), 'a\n'); git('add', '.'); git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a');
   const loadavg = join(dir, 'loadavg'); writeFileSync(loadavg, '1.00 20.00 20.00 1/100 1\n');
   const child = spawn('bash', [mac, '--host', 'vps', '--dir', repo, '--hf-ok', 't', 'npm', 'test'], { cwd: repo, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-    CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1',
+    CAPTURE_PSI: join(dir, 'no-psi'), CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1',
     CAPTURE_HF_POLL_S: '0.2', CAPTURE_HF_QUIET_S: '600', HF_STUB_QUIET: '1' } });
   let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
   const code = await new Promise<number | null>((resolve) => {
@@ -177,4 +196,44 @@ test('a head that waits says WHY: a release run owns the box (load is fine) or t
   assert.equal(busy.code, 75, busy.out); assert.match(busy.out, /WAITING: load5 20\.00 is at or over 12/, 'the wait line names the load');
   const free = await capture(['t', 'npm', 'test'], '1.00 1.00 1.00');
   assert.equal(free.code, 0, free.out); assert.doesNotMatch(free.out, /WAITING/, 'nothing waits, nothing is blamed');
+});
+
+// v9 (Lead 2026-10-16): `npm ci` in a checkout whose node_modules is a symlink empties the shared target (bn-trunk was wiped that way twice). capture refuses it
+// before the job queues; the same commands run when node_modules is the checkout's own folder, and npm test / npm run go through a link untouched.
+test('a job that would rewrite a SYMLINKED node_modules (npm ci/install/i, also inside bash -c) is refused before it queues; the shared target is untouched', { skip }, async () => {
+  const shared = mkdtempSync(join(tmpdir(), 'capture-shared-nm-'));
+  writeFileSync(join(shared, 'keep'), 'x');
+  const linked = (repo: string) => symlinkSync(shared, join(repo, 'node_modules'));
+  for (const job of [['npm', 'ci'], ['npm', '--no-audit', 'install'], ['npm', 'i', 'three'], ['bash', '-c', 'git pull -q && npm ci --no-fund']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, linked);
+    assert.equal(r.code, 2, `${job.join(' ')}: ${r.out}`);
+    assert.match(r.out, /capture: refused: .* rewrites node_modules, and .*node_modules is a symlink to .*capture-shared-nm-/);
+    assert.equal(r.lanejob, '', `${job.join(' ')}: nothing ran`); assert.equal(r.ran, ''); assert.equal(r.queue.trim(), '', 'it never took a ticket');
+    assert.ok(existsSync(join(shared, 'keep')), 'the shared folder keeps its files');
+  }
+  for (const job of [['npm', 'test'], ['npm', 'run', 'typecheck:tests'], ['bash', '-c', 'echo npm-ci-skipped; echo install done']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, linked);
+    assert.equal(r.code, 0, `${job.join(' ')} reads node_modules only and runs through a link: ${r.out}`);
+  }
+  const own = await capture(['t', 'npm', 'ci'], '1.00 1.00 1.00', {}, (repo) => mkdirSync(join(repo, 'node_modules')));
+  assert.equal(own.code, 0, own.out); assert.equal(own.ran.trim(), 'ci', 'a checkout with its own node_modules installs as before');
+});
+
+// v9 follow-up (Lead 2026-10-16, the #2861 gap): npm's --prefix / -C points it at ANOTHER checkout, so that checkout's node_modules link is checked too.
+test('npm --prefix / --prefix= / -C at a checkout with a SYMLINKED node_modules is refused; read-only npm and other tools\' -C are not', { skip }, async () => {
+  const shared = mkdtempSync(join(tmpdir(), 'capture-shared-nm-'));
+  writeFileSync(join(shared, 'keep'), 'x');
+  const ownPlusLinkedSibling = (repo: string) => { mkdirSync(join(repo, 'node_modules')); mkdirSync(join(repo, '..', 'linked')); symlinkSync(shared, join(repo, '..', 'linked', 'node_modules')); };
+  for (const job of [['npm', '--prefix', '../linked', 'ci'], ['npm', '--prefix=../linked', 'install'], ['npm', '-C', '../linked', 'ci'], ['npm', '--silent', '--prefix', '../linked', 'i', 'three'], ['bash', '-c', 'npm --prefix "../linked" ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 2, `${job.join(' ')}: ${r.out}`);
+    assert.match(r.out, /capture: refused: .*\/linked\/node_modules is a symlink to .*capture-shared-nm-/, job.join(' '));
+    assert.equal(r.lanejob, '', `${job.join(' ')}: nothing ran`); assert.ok(existsSync(join(shared, 'keep')));
+  }
+  for (const job of [['npm', '--prefix', '../linked', 'test'], ['bash', '-c', 'git -C ../linked status >/dev/null; npm ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 0, `${job.join(' ')} runs: ${r.out}`);
+  }
+  const silent = await capture(['t', 'npm', '--silent', 'ci'], '1.00 1.00 1.00', {}, (repo) => symlinkSync(shared, join(repo, 'node_modules')));
+  assert.equal(silent.code, 2, `an option before the subcommand is skipped: ${silent.out}`);
 });

@@ -1,5 +1,6 @@
 // The Ash Wolf (Combat, 2026-10-07; mob beasts proposal): a held opponent on its own quadruped rig, the Goblin's hit-and-run with a bite. The sim half: the row, the weapon, the bake, the
 // reach, the clips the role map names, the flee layer, and a fairness fingerprint against the Goblin.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -76,7 +77,9 @@ function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24
 test('against the hero\'s brain the wolf is neither a pushover nor a wall (the Goblin\'s band)', () => {
   const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(OPPONENTS.goblin, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(OPPONENTS.goblin, PROFILES.normal, 'normal')] };
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
-  for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
+  // RV87 (2026-10-21, Strategy/Lead: the L1 wolf must die to a masher at >= 80 % of the gaps): the wolf is 45 hp, so it is now FRAILER than the Goblin (hero wins 18/24 against the Goblin's 7 and 4), no longer in his band.
+  // Re-pinned to a two-sided bar: not stronger than the Goblin (w >= g - 3) and not a pushover (the hero's brain wins at most 22/24; the masher sweep, zone1-fairness-masher-sweep.ts, holds the L2 wolf to <= 50 % of the gaps).
+  for (const [w, g] of [rows.easy, rows.normal]) { assert.ok(w >= g - 3, `the wolf lost ${w}/24 to the hero's brain, the Goblin ${g}: the beast must not be tougher than the Goblin`); assert.ok(w <= 22, `the hero's brain won ${w}/24 against the wolf: a pushover`); }
 });
 
 // The baked blade tables of every rig that was live before the wolf are byte-identical to trunk (the Auditor's RV35 delta, 2026-10-07: a re-bake had moved all nine Goblin knife
@@ -90,6 +93,10 @@ test('every rig baked before the wolf keeps its blade table byte for byte; the w
   minotaur: '943a7378e25f5a1be6f82b080b7b3057425ad2e380bbc1874adde7fae41e2a8b',
   wraith: 'bcfee62bc3a70d6c9a07d531e7b6fbf217b0a86bea78da976206c702216dc8af',
   };
-  for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(bladePathsByRig[rig])).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
+  // The hero's table without the bow and the staff (2026-10-19): those two are exact aliases of the hero knife and trident bakes (scripts/blade-manifest.json), so the pin still guards every weapon trunk baked before them.
+  const tableOf = (rig: string) => (rig === 'hero' ? Object.fromEntries(Object.entries(bladePathsByRig.hero!).filter(([weapon]) => weapon !== 'bow' && weapon !== 'staff')) : bladePathsByRig[rig]);
+  assert.deepEqual(bladePathsByRig.hero!.bow, bladePathsByRig.hero!.knife, 'the bow is the knife\'s hero bake');
+  assert.deepEqual(bladePathsByRig.hero!.staff, bladePathsByRig.hero!.trident, 'the staff is the trident\'s hero bake');
+  for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(tableOf(rig))).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
   assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf', 'boar', 'bear']);
 });

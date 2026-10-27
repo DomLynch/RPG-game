@@ -11,6 +11,9 @@
 // and the ring's starting angles), a stream separate from every warden's AI seed. Waiting enemies are presentation: their ring places
 // come from here, never from the sim. Every number is PROVISIONAL (spec: "until Combat measures it on the battery"); 60 Hz ticks.
 import { crowdRules, skirmisherHandover, stageRule, sweepRules } from '../world/stage-rules.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import ROLE_ROWS from './roles.json' with { type: 'json' };
+import ROLE_MANIFEST from './roles.manifest.json' with { type: 'json' };
 import type { AiState } from '../../src/fight/index.ts';
 import type { CombatEvent, Duel, Fighter, Phase } from '../../src/fight/index.ts';
 import type { MoveId } from '../../src/fight/index.ts';
@@ -28,12 +31,19 @@ export const BUSY_PHASES: ReadonlySet<Phase> = new Set<Phase>(['attack', 'hurt',
 
 export type Role = 'duellist' | 'brute' | 'skirmisher' | 'leader';
 // Where each role circles while waiting: radius (m) and angular pace (rad/tick). Skirmisher fast and closest, brute slower, leader back.
-export const ROLE_RING: Readonly<Record<Role, { radius: number; pace: number }>> = {
-  duellist: { radius: 5, pace: 0.006 },
-  brute: { radius: 5.5, pace: 0.003 },
-  skirmisher: { radius: CROWD.ring.min, pace: 0.012 },
-  leader: { radius: CROWD.ring.max, pace: 0.002 },
+// A role row (roles.json) is a fixed `radius`, or a `ringEdge` ('min' | 'max') that takes the ring's own bound from the crowd rules.
+loadRegistry([tableFromFile(ROLE_MANIFEST.tables[0] as unknown as Manifest, ROLE_ROWS, 'roles.json')]);
+const roleRow = (id: Role): { radius: number; pace: number } => {
+  const r = ROLE_ROWS.roles.find((x) => x.id === id) as { radius?: number; ringEdge?: 'min' | 'max'; pace: number } | undefined;
+  if (!r) throw new Error(`crowd roles.json has no row "${id}"`);
+  return { radius: r.radius ?? CROWD.ring[r.ringEdge ?? 'min'], pace: r.pace };
 };
+export const ROLE_RING: Readonly<Record<Role, { radius: number; pace: number }>> = { duellist: roleRow('duellist'), brute: roleRow('brute'), skirmisher: roleRow('skirmisher'), leader: roleRow('leader') };
+// What a role does in the token queue is its row's flags (roles.json), not its name: `opens` (his turn unlocks the roles that wait), `waitsForOpener`
+// (steps in only after an opener had the token, while one lives), `quickHandover` (the holder before him hands over sooner), `leads` (last to take
+// the token, caps the others' hold while he lives, and his fall is the pack's leaderFell).
+type RoleFlag = 'opens' | 'waitsForOpener' | 'quickHandover' | 'leads';
+const roleHas = (role: Role, flag: RoleFlag): boolean => (ROLE_ROWS.roles.find((x) => x.id === role) as Partial<Record<RoleFlag, boolean>> | undefined)?.[flag] === true;
 
 export type Spot = { x: number; z: number };
 export type Ring = { angle: number; radius: number; turn: 1 | -1; delay: number };   // angle from the player, sim convention (x = sin, z = cos)
@@ -70,7 +80,7 @@ const unit = (s: number): number => s / 0x1_0000_0000;
 // Each enemy's own AI seed: from the encounter seed and his slot, never 0.
 export const enemySeed = (seed: number, i: number): number => lcg((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0);
 
-const isLeader = (s: CrowdState, i: number) => s.enemies[i]!.role === 'leader';
+const isLeader = (s: CrowdState, i: number) => roleHas(s.enemies[i]!.role, 'leads');
 const othersAlive = (s: CrowdState, i: number) => s.enemies.some((e, j) => j !== i && e.alive && !isLeader(s, j));
 
 // May enemy i take the token now? `relaxed`: after a breath somebody MUST step in, so the role gates and the sweep delay give way.
@@ -79,8 +89,8 @@ function eligible(s: CrowdState, i: number, relaxed: boolean): boolean {
   if (!e.alive || i === s.holder) return false;
   if (relaxed) return true;
   if (e.ring.delay > 0) return false;
-  if (e.role === 'leader' && othersAlive(s, i)) return false;   // last to take the token
-  if (e.role === 'brute' && !s.duellistHad && s.enemies.some((d, j) => j !== i && d.alive && d.role === 'duellist')) return false;   // only after a Duellist had it (while one lives)
+  if (roleHas(e.role, 'leads') && othersAlive(s, i)) return false;   // last to take the token
+  if (roleHas(e.role, 'waitsForOpener') && !s.duellistHad && s.enemies.some((d, j) => j !== i && d.alive && roleHas(d.role, 'opens'))) return false;   // only after an opener (a Duellist) had it (while one lives)
   return true;
 }
 // Who steps in next: the first eligible in the queue (the "next" marker); a breath falls back to the first alive waiting enemy.
@@ -91,9 +101,9 @@ export function nextUp(s: CrowdState, relaxed = false): number | null {
 }
 // The holder's hand-over limits, set by who steps in after him and whether a pack leader still lives.
 export function limits(s: CrowdState, next: number | null): { starts: number; hold: number } {
-  const skirmisher = next !== null && s.enemies[next]!.role === 'skirmisher';
-  const base = skirmisher ? SKIRMISHER_HANDOVER : { starts: CROWD.starts, hold: CROWD.hold };
-  const leaderLives = s.enemies.some((e, j) => e.alive && e.role === 'leader' && j !== s.holder);
+  const quick = next !== null && roleHas(s.enemies[next]!.role, 'quickHandover');
+  const base = quick ? SKIRMISHER_HANDOVER : { starts: CROWD.starts, hold: CROWD.hold };
+  const leaderLives = s.enemies.some((e, j) => e.alive && roleHas(e.role, 'leads') && j !== s.holder);
   return { starts: base.starts, hold: leaderLives ? Math.min(base.hold, LEADER_HOLD) : base.hold };
 }
 
@@ -106,7 +116,8 @@ export function newCrowd(seed: number, pack: readonly PackMember[]): CrowdState 
   let rng = lcg(seed >>> 0);
   const order = pack.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { rng = lcg(rng); const j = Math.floor(unit(rng) * (i + 1)); [order[i], order[j]] = [order[j]!, order[i]!]; }
-  const ranked = [...order.filter((i) => pack[i]!.role !== 'leader'), ...order.filter((i) => pack[i]!.role === 'leader')];
+  const leads = (i: number) => roleHas(pack[i]!.role ?? 'duellist', 'leads');
+  const ranked = [...order.filter((i) => !leads(i)), ...order.filter(leads)];
   const enemies = pack.map((m, i): CrowdEnemy => {
     rng = lcg(rng); const turn: 1 | -1 = unit(rng) < 0.5 ? 1 : -1;
     rng = lcg(rng); const jitter = (unit(rng) - 0.5) * (Math.PI / pack.length);
@@ -125,7 +136,7 @@ function take(s: CrowdState, to: number, from: number | null = null, at?: Spot, 
     return e;
   });
   const queue = [...s.queue.filter((i) => i !== to), ...(from !== null && s.enemies[from]!.alive ? [from] : [])];
-  return { ...s, enemies, queue, holder: to, heldAt: s.tick, starts: 0, lastPass: s.tick, breath: 0, duellistHad: s.duellistHad || s.enemies[to]!.role === 'duellist' };
+  return { ...s, enemies, queue, holder: to, heldAt: s.tick, starts: 0, lastPass: s.tick, breath: 0, duellistHad: s.duellistHad || roleHas(s.enemies[to]!.role, 'opens') };
 }
 
 // Where a waiting enemy stands now (sim metres).
@@ -156,7 +167,7 @@ export function stepCrowd(prev: CrowdState, obs: Observation): Step {
     const h = s.holder;
     if (obs.holderDown) {
       const enemies = s.enemies.map((e, i) => (i === h ? { ...e, alive: false } : e));
-      s = { ...s, enemies, holder: null, queue: s.queue.filter((i) => i !== h), leaderFell: s.leaderFell || s.enemies[h]!.role === 'leader' };
+      s = { ...s, enemies, holder: null, queue: s.queue.filter((i) => i !== h), leaderFell: s.leaderFell || roleHas(s.enemies[h]!.role, 'leads') };
       events.push({ kind: 'fell', who: h });
       if (!enemies.some((e) => e.alive)) { events.push({ kind: 'won' }); return { state: { ...s, outcome: 'won' }, events }; }
       return { state: { ...s, breath: CROWD.breath }, events };

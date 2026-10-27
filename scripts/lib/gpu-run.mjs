@@ -1,7 +1,7 @@
 // The rules half of scripts/gpu-run.mjs (the I/O half): argument parsing, the renderer guard, the job script, the job-log parser. No I/O but reading the two job scripts.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { T4_MEDIUM_USD_PER_HOUR } from './hf-wall-rows.mjs';
+import { T4_DEFAULT_FLAVOR, T4_MEDIUM_USD_PER_HOUR, T4_USD_PER_HOUR } from './hf-wall-rows.mjs';
 
 const dir = fileURLToPath(new URL('..', import.meta.url));
 export const USAGE = 'usage: node scripts/gpu-run.mjs <sha> [--timeout 20m] [--blender] -- <cmd...>';
@@ -48,7 +48,8 @@ export function jobScript({ readText = file => readFileSync(`${dir}${file}`, 'ut
   return `${wall.slice(0, at)}\n${readText('gpu-run/job-tail.sh')}`;
 }
 
-export const costOfSeconds = (seconds, rate = T4_MEDIUM_USD_PER_HOUR) => seconds / 3600 * rate;
+export const rateOf = (flavor = T4_DEFAULT_FLAVOR) => T4_USD_PER_HOUR[flavor] ?? T4_MEDIUM_USD_PER_HOUR;   // an unknown flavor is priced at the dearer T4: the safe side of a money line
+export const costOfSeconds = (seconds, rate = rateOf()) => seconds / 3600 * rate;
 
 // What the job printed: the build it ran, the renderer line, a blocker, the command's exit, the seconds, and the artifacts blob.
 export function parseJobLog(text) {

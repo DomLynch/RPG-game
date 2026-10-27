@@ -1,5 +1,6 @@
 // The blade seam pin: every (rig, weapon) pair the game can put in a hand has its own baked table, with every combat path the weapon's
 // moves need, and the lookup never serves another rig's sweep. A pair missing here is a fight that would throw in play (src/fight/blade.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bladePathsByRig } from '../src/fight/blade-paths.ts';

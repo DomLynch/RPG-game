@@ -1,5 +1,6 @@
 // Proof 3 in the open world (src/fight/world.ts, open-fight.ts): three creatures on one hero are three separate duels (the nearest on his lock-on, two joiners), and the hero's posture breaks in ALL of them step
 // ONE crowd-control ladder carried by his world Fighter on the world's clock. And the hero on a boss steps the boss's own ladder.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES } from '../src/fight/moves.ts';

@@ -3,6 +3,7 @@
 //   world live during the fight: the creatures other than the foe keep moving while the duel draws
 //   engage hitch budget (4x the walk's median on software GL, PROVISIONAL until the Mac Metal / real-device reading; a real GPU gets the 200 ms floor): the worst frame gap from the tap on is at most max(200 ms, 4x the walk's median gap) in the first 5 s after the tap: a first number to tighten (software GL runs ~3 fps, so the floor alone could never hold there)
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the numbers on a miss; a receipt goes to artifacts/origins-seamless.json.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -24,18 +25,20 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser(chromium, { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { origin, physicalPhone: false, errors: [] };
 try {
   const desktop = process.env.SEAMLESS_VIEWPORT === 'desktop';   // SEAMLESS_VIEWPORT=desktop: 1280x800 desktop viewport, no touch (Proof 2's desktop row); default is the 375x812 phone
   const page = await (await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   receipt.viewport = desktop ? '1280x800 desktop' : '375x812 touch';
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
+  if (process.env.SEAMLESS_TRACE_LINKS) await page.addInitScript(() => { window.__links = []; for (const C of [WebGL2RenderingContext, WebGLRenderingContext]) { const o = C.prototype.linkProgram; C.prototype.linkProgram = function (p) { if (window.__zoneReady) window.__links.push({ at: Math.round(performance.now()), stack: String(new Error().stack).split('\n').slice(2, 9).map((s) => s.trim().replace(/https?:\/\/[^/]+/, '')).join(' < ') }); return o.call(this, p); }; } });   // SEAMLESS_TRACE_LINKS=1: who links a program after [zone ready] (receipt.linkStacks), to find the owner of a late newPrograms entry
   const zone = process.env.SEAMLESS_ZONE || '1';   // the zone page to run (the pageZoneId ?zone=N fallback): Zone 2 is data, so the same gate must pass on it
-  await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}${process.env.SEAMLESS_QS || ''}`, { waitUntil: 'load' });   // SEAMLESS_QS='&kitwarm=soft': forces the remote-kit warm a fast device runs after [zone ready] (software GL skips it as a slow device), the race the late-program reds of zone 7 came from
   const want = process.env.SEAMLESS_TARGET || '';   // a creature id to engage (default: the first drawn one), e.g. bounty-shrine-1 or wolves-1
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
-  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.find((m) => (id ? m.id === id : m.drawn && m.body)), want);
+  // The default foe is the drawn creature farthest from any legend boss: a legend notices a hero inside its aggro radius and opens the verified duel (Dom 2026-10-22: bosses aggro like every NPC), which is the legend row's business (legend-fight.test.ts), not the engage hitch's. K6q20 #3596: the walk stood 2.5 m from scavengers-1, 10 m from the Zone 1 kobold, and the duel took the canvas before [zone ready]. Zones with no legend keep the first drawn creature.
+  const target = await page.evaluate((id) => { const all = window.originsPreview.mobs().mobs, legends = all.filter((m) => /legend/.test(m.id)); if (id) return all.find((m) => m.id === id); const clear = (m) => legends.reduce((d, l) => Math.min(d, Math.hypot(m.x - l.x, m.z - l.z)), Infinity); return all.filter((m) => m.drawn && m.body && !/legend/.test(m.id)).reduce((best, m) => (!best || clear(m) > clear(best) ? m : best), null); }, want);
   assert.ok(target, `no creature ${want}`); receipt.zone = zone; receipt.target = { id: target.id, body: target.body };
   const moved = async (ms) => {
     const read = () => page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => ({ id: m.id, x: m.x, z: m.z })));
@@ -75,7 +78,7 @@ try {
   receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
-  { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
+  { const info = await page.evaluate(() => window.originsPreview.renderInfo()); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, info.programKeys[n]])); receipt.newProgramOwners = Object.fromEntries(receipt.newPrograms.map((n) => [n, info.programOwners?.[n] ?? ['(no scene material uses it)']])); }   // WHICH programs compile at the engage (each one is a stall), and which scene material (type:name @ the object's parent chain) owns each: a red names its owner
   const after = { ...engaged, gaps: await page.evaluate(() => window.__gaps.slice()) };
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
   let clock = 0; const engageGaps = after.gaps.slice(0, -1).filter((g) => (clock += g) <= 5000), worst = Math.max(...engageGaps, 0);   // the engage is the first 5 s after the tap; later long frames are the fight, not the engage
@@ -88,6 +91,7 @@ try {
   // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
   receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
+  if (process.env.SEAMLESS_TRACE_LINKS) receipt.linkStacks = await page.evaluate(() => window.__links ?? []);
   receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer) && !process.env.SEAMLESS_PROGRAMS;   // SEAMLESS_PROGRAMS=1: assert the program rule on any renderer (a real GPU compiles fast, so the hitch bar alone would hide a late link)
   if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
   else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');

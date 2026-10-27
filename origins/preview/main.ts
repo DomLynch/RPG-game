@@ -1,35 +1,71 @@
 import './zone-guard.ts';
+import { captureOn, createCaptureClock } from './capture.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
-import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
+import { actorPose, armWarriors, loadEquip, loadRangedPart, loadWarriors, DEFAULT_WEAPON, PLAYER_WEAPONS, type Practice, type WeaponId } from '../../src/fight/index.ts';
+import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, fetchReleaseJson, mountBuild, storedAccount, type OwnBuild, type Tier } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
+import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { SPEEDS } from '../../src/fight/index.ts';
+import { SPEEDS, world } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
+import { planFor, planZones, walkHeight } from '../zones/plan.ts';
+import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
-import { loadKit } from './frontier-kit-view.ts';
+import { loadKit, updateKitViews } from './frontier-kit-view.ts';
+import { createGroundItemView } from './ground-item-view.ts';
+import { groundLook, dropLook } from './ground-looks.ts';
+import { RANGED_MODELS, rangedGroundPartOf, rangedModelOf, rangedModelUrl } from '../../src/fight/index.ts';
+import { createOutfit, dressedSet, dropSet, groundItemOf } from './outfit.ts';
+import { createFound, createKillDrops } from './kill-drop.ts';
+import { loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
+import { fxNum, regenOn, regenRules } from '../../src/fight/index.ts';
+import { createGroundPickup } from './ground-pickup.ts';
+import { groundPointOf } from '../world/ground-point.ts';
+import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
+import { createFirstPersonArm, type ArmPose } from './first-person-arm.ts';
+import { createWarBandRun } from './war-band-run.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
+import { createLoadoutGate } from './loadout-gate.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
-import { legendSpecs } from './legend-mobs.ts';
-import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { createRemoteHeroes } from './remote-heroes.ts';
+import { legendFelled, legendPull, legendSpecs } from './legend-mobs.ts';
+import { killCopy, legendIdOf, zoneHint } from './legend-copy.ts';
+import { DEFAULT_ZONE, loadZone, pageZoneId } from '../zones/loader.ts';
+import { createHorizonDome } from './horizon-dome.ts';
+import { createAreaSky } from './area-sky.ts';
+import { areaSky, goblinPalette, goblinPitParts, goblinRule, zoneAmbience, zoneBuildings, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../world/goblin-field-rules.ts';
+import { propKit, withPropKit } from './prop-kit.ts';
+import { createAmbience } from './ambience.ts';
+import { createGoblinSmoke } from './goblin-smoke.ts';
+import { goblinDirtMaterial } from './goblin-ground.ts';
+import { buildingSkin } from './building-skin.ts';
+import { loadSkinModels } from './skin-models.ts';
+import { skinsOfFile } from './exchange-skin.ts';
+import { standers, townPeople } from './town-people.ts';
+import { layerTextures } from '../world/building-skins-rules.ts';
+import { openExits, type ExitRow } from '../zones/exits.ts';
+import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { applyServerKill, killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast, receiptToast, reportsKills } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
+import { guestBag, guestKillLoot } from './guest-loot.ts';
+import { loadEncounterContent } from '../encounters/encounters.ts';
 import { mountRepair } from './repair-screen.ts';
 import { readWear, repairPiece, repairOp } from './repair-net.ts';
 import { chromeText as repairText } from './repair-view.ts';
 import { mountStats } from './stats-screen.ts';
 import { chromeText as statsText } from './stats-view.ts';
 import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
+import { STARTER_WIELD } from '../region1/starter-wield.ts';
+import { sessionWeapons } from './guest-weapons.ts';
 import { chromeText as shopText } from '../shops/shop-view.ts';
 import { mountShop } from './shop-screen.ts';
 import { buyOne, newOp, readStock } from './shop-net.ts';
@@ -45,28 +81,58 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, medianGap, probeReadout, readReleaseId, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList, noMobZone, emptyWarmState } from './warm-plan.ts';
+import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
+import { dressRemote } from './dress-remote.ts';
+import { wideCombatCam } from './combat-cam.ts';
+import { warmKits, type WarmKit } from './warm-kits.ts';
+import lootUrl from '../../src/assets/loot.glb?url';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createMeters, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
+import { drawProxy, linkProxy } from './warm-proxy.ts';
+import { createLateStream } from './late-stream.ts';
+import { replanGapRow } from './replan-gap.ts';
+import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, enableSpecialCounter, loadFeedback, woundSpec, specialRoleOf } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
+import { localOutbox } from './outbox-store.ts';
 import { startFight as startEncounter, settleFight as settleEncounter } from './encounter-net.ts';
 import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
+import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, mountSpecials, onSpecialsChanged, onSpellsChanged, ownedSpells, pullSpecialSlots, pushSpecialSlotsOnPick, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
+import { SKILL_ROWS, specialName, type SkillId } from '../../src/fight/index.ts';   // specialName: the name a special shows for the wielded weapon, a sword's Skull Crack or a bow's Power Shot (Dom's beta specials ruling 2026-10-20)
+import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneFightBack, zoneHour } from './look.ts';
+import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
+import { gfxOn } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
+import { createCover } from './load-cover.ts';
+import { hiddenDriver, waitFrame, type FrameEnv } from './frame-wait.ts';
+import { createClampRate } from './clamp-rate.ts';
 
+// The load cover (load-cover.ts) lifts at the first frame drawn once the hero's body and the zone's kit have each settled (loaded, or failed and left to their stand-ins). It is made FIRST, before the renderer
+// and the zone are touched: its max hold is a wall-clock timer, so a device with no WebGL or a throw anywhere below still fades the cover at the hold (and says why) instead of leaving it up for good.
+const settled = { hero: false, kit: false };
+// settledAt: the first moment nothing is missing (the hero and the kit have both settled), stamped for scripts/load-time-check.mjs --page zone1. A stamp only:
+// the cover still lifts at the next drawn frame. It is load-bound, not GPU-bound, so CI's software GL can time it; the cover's own lift on software GL is
+// the max hold (HF cpu-upgrade jobs 6ad7a8345275124786e19cf7, 6ad7aa6b5275124786e19e8e: 12 of 12 samples).
+let settledAt = -1;
+const stampSettled = (): void => { if (settledAt < 0 && Object.values(settled).every(Boolean)) settledAt = Math.round(performance.now()); };
+const coverEl = document.getElementById('cover');
+let playableNow!: () => void;
+const lookFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };   // the deferred look files wait this many frames (rows deferredLookFrames, deferredLookGapFrames) so none of their parse and upload lands on the player's first frames or taps
+const playable = new Promise<void>((resolve) => { playableNow = resolve; });   // resolves when the cover lifts (first playable): the zone's heavy LOOK files (dome pictures, camp-kit and building models) start downloading only then, so they never share the phone's bandwidth with the bodies the player needs first (Z1b)
+const cover = createCover({ fade: (ms) => { playableNow(); if (coverEl) { coverEl.style.transition = `opacity ${ms}ms linear`; coverEl.classList.add('lifted'); } }, later: (cb, ms) => { setTimeout(cb, ms); }, remove: () => { coverEl?.remove(); }, warn: (m) => { console.warn(m); }, now: () => performance.now(), missing: () => Object.entries(settled).filter(([, done]) => !done).map(([what]) => what) }, previewRule('loadCoverFadeMs'), previewRule('loadCoverHoldMs'));
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
 const theme = ARENA_THEMES[zoneArena(loadZone(), ARENA_THEMES) as keyof typeof ARENA_THEMES], PHONE = phoneTier();   // the zone's own Pit theme (look.arena in its row); Zone 1 and any zone that sets none keep the Ash Pit's
@@ -90,6 +156,10 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
+// ?gfx=1 (gfx-lift.ts, Test Zone C16): height fog, half-res bloom, grade. Off = none of it is fetched. The chunk loads while the zone loads, so the fog patch lands before the first material compiles; until it is in, the frame is drawn plainly.
+let gfx: { render(): void; compile(): void; setSize(w: number, h: number): void } | null = null;
+const gfxWanted = gfxOn(location.search, fxNum('gfx.default') > 0);
+const gfxLoad: Promise<unknown> = gfxWanted ? import('../../src/fight/gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); }).catch(() => {}) : Promise.resolve();   // a failed chunk leaves the plain path; [zone ready] waits for this (gfxDrawn, below)
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -100,39 +170,95 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
+const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier, buildingSkin(zoneBuildings(loadZone())));   // a zone row's look.buildings names a skin (building-skins.json); none = the brick blocks
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
-const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields (Test Zone port). Zones 1-4 set none of them, so they are unchanged
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow && zoneRow.set?.includes('look.dress') ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // a zone row's look.props.kit stands its camp props (prop-kit.ts) on the dressed ground
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
-const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
+const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!, zoneRow?.set?.includes('look.props.density') ? Number(zoneRow.fields?.['look.props.density']) : undefined) : null;
 if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 // The hills (frontier-relief.ts): flat pads under everything the plan and the dressing put down, hills in the open ground between; ?relief=0 is the kill switch. groundY is the ground under a world point (0 off the Frontier).
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
-const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
+// A zone that carries its own plan rows (Dungeon 1's bowl, zone "7", rows in origins/zones/plan-rows.json keyed by the zone id; /dungeon1/ is its URL alias) is drawn as that plan: no zone-specific code, a second dungeon is a new zone row + plan rows. The plan stands where the Exchange stands,
+// the Pit's own scenery is hidden, he opens on the layout's `start` mark, walks the pieces marked `walk` (ground under him = the highest walkable top; a step up a wall is refused: the layoutSlope rule), and the layout's fighters are placeholders.
+const PIT_LAYOUT = zoneRow && planZones().includes(zoneRow.id) ? zoneRow.id : null;   // a zone whose own id carries plan rows (the Dungeon 1 bowl, zone "7") IS its plan; the Exchange's plan is keyed by name, not by a zone id
+const layoutPlan = PIT_LAYOUT ? planFor(PIT_LAYOUT, () => 0) : null;
+const OWN_PLAN = !!zoneRow && (PIT_LAYOUT !== null || planZones().some((z) => zoneRow.world.includes(z)));   // the Exchange group IS this page's zone: the bowl (its own id carries plan rows) or the town (its `world` names the zone the plan rows are keyed by); the group is then never Pit scenery to hide
+const groundY = (x: number, z: number): number => (layoutPlan ? (walkHeight(layoutPlan.pieces, x, z) ?? 0) : relief.length ? groundAt(relief, x, z) : 0);
+// Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
+const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc,bow,staff}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
+// One fetch and parse per model file: the ground view and the remote-kit warm-up (loot.glb's pieces) read the same scene. On a phone the skins are capped as the fighters' are (loadFighter / loadLoot do the same).
+const gltfScenes = new Map<string, Promise<THREE.Object3D>>();
+const sceneOf = (url: string): Promise<THREE.Object3D> => {
+  let p = gltfScenes.get(url);
+  if (!p) gltfScenes.set(url, (p = (async () => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); const loaded = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; if (phoneTier()) budgetTextures(loaded, FIGHTER_TEXTURE_CAP); return loaded; })().catch((error: unknown) => { gltfScenes.delete(url); throw error; })));
+  return p;
+};
+// A row whose asset is a ranged-model id (`bow`, ranged-model-defs.json) lies as the painted model the hand holds (the player/bow.glb equip file is a knife copy), with its matte and no hold.
+const groundAssetOf = (lookOf: (item: string) => { asset: string }) => (item: string) => { const { asset } = lookOf(item), ranged = rangedModelOf(asset); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : ranged ? rangedModelUrl(ranged) : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; };
+const groundModelOf = (url: string): Promise<THREE.Object3D> => { const ranged = RANGED_MODELS.find((m) => rangedModelUrl(m) === url); return ranged ? sceneOf(url).then((loaded) => rangedGroundPartOf(loaded, ranged)) : sceneOf(url); };
+// On a phone loot.glb (2 MB on the wire, 77k skinned vertices to parse, fetched at 5 s in the live K6l capture) is not fetched or parsed before [zone ready]: the loot pieces lying about appear when the zone is ready, or after groundDeferMax if it never settles. The weapons lying about (0.7 MB) still load at once: their materials (Steel, Antique brass, Wood, GladiusSteel) are programs the zone's own upload plan links before ready, and deferring them put 7 programs after ready (seamless-quiet stays green, but they would link at first sight). Desktop loads at once.
+let zoneReadyOpen!: () => void;
+const zoneReadyGate = new Promise<void>((resolve) => { zoneReadyOpen = resolve; });
+const afterReadyOnPhone = <T>(load: () => Promise<T>): Promise<T> => PHONE ? Promise.race([zoneReadyGate, new Promise<void>((resolve) => { setTimeout(resolve, previewRule('groundDeferMax')); })]).then(load) : load();
+const isLootFile = (url: string) => url === GROUND_LOOT['../../src/assets/loot.glb'];
+const compileLoot = (root: THREE.Object3D): THREE.Object3D => { void renderer.compileAsync(root, camera, scene).catch(() => {}); return root; };   // loot.glb arrives after [zone ready]: its materials' programs build off the draw path the moment it lands, not on the first draw of a loot item (right after a kill). Not awaited: an item that draws before it resolves still draws.
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: groundAssetOf(groundLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => groundModelOf(url).then(compileLoot)) : groundModelOf(url) });
+// A creature's dropped loot piece (every zone, see creatureFell): its own view over the drop-looks table, so the server's starter-item looks above are untouched.
+const dropItems = createGroundItemView({ scene, groundAt: groundY, lookOf: dropLook, assetOf: groundAssetOf(dropLook), loadModel: (url) => isLootFile(url) ? afterReadyOnPhone(() => sceneOf(url).then(compileLoot)) : sceneOf(url) });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
-const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
+const exchangePieces = layoutPlan ?? (frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined);
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
-let frontierGroup: THREE.Group | null = null;
+if (layoutPlan) arena.group.visible = false;   // the Pit layout test: the Pit's own sand, stands and sky give way to the layout
+const pitFar: THREE.Object3D[] = [];   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walk loop), so a zone dome has no cream town behind it
+let frontierGroup: THREE.Group | null = null, zoneDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
+// The area-sky hook (area-sky.ts): an area (a frontier-plan zone id) with a `<area>:sky` names row shows that dome and light while the walker is in it; no row = nothing changes.
+const areas = createAreaSky({ skyOf: areaSky, own: () => zoneDome, blendS: goblinRule('areaBlendS'), make: (p) => { const d = createHorizonDome(scene, p, import.meta.env.BASE_URL), pitSky = arena.group.getObjectByName(d.covers); if (pitSky) pitSky.renderOrder = d.mesh.renderOrder - 1; return d; } });
+settled.kit = !zoneKit;   // no kit to wait for (the cover itself is made at the top of the page, before the renderer)
+// The town kit (exchange-skin.ts): plan pieces that name a model are drawn by its glb once the file lands (their greybox hides then; a failed file keeps it). Same pacing as the zone's buildings below; [zone ready] waits for it like for them.
+const skinsOff = /[?&]skins=(?:0|off)\b/.test(location.search);
+const townSkins = skinsOff ? [] : exchange.skins;   // ?skins=0: every skinned plan piece keeps its greybox shape (the A/B of the skin path's cost reads it)
+const townFolk = townPeople(skinsOff || /[?&]folk=(?:0|off)\b/.test(location.search) ? [] : /[?&]far=(?:0|off)\b/.test(location.search) ? standers(exchange.people).map((s) => { const rest = { ...s }; delete rest.far; delete rest.full; return rest; }) : standers(exchange.people), (id, on) => { const c = exchange.capsules.get(id); if (c) c.visible = !on; }, (body) => warmActor(renderer, camera, scene, cloneRig(body), () => nextFrame()));   // a person who stands as a body (their row's `body`) hides their capsule while it shows; a body's programs, textures and geometry are warmed for the drawn target before its first person is revealed
+exchange.group.add(townFolk.group);
+let exchangeSkinsDrawn = REGION || !townSkins.length;   // only the Exchange's own page (region=0) waits on its skins before it is ready; a zone that merely shows the Exchange streams them in after ready (the Auditor, #3608: ~4.7 MB must not move Zone 1's ready)
+if (townSkins.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(townSkins, undefined, () => lookFrames(previewRule('deferredLookGapFrames')), (url) => { for (const id of skinsOfFile(url)) { const g = exchange.fallbacks.get(id); if (g) g.visible = false; } })).then((g) => { exchange.group.add(g); cleanPlan = false; uploadNext = 0; }).then(() => Promise.all(layerTextures().map(async (t) => exchange.setLayerTexture(t.layer, await new THREE.TextureLoader().loadAsync(`/${t.url}`), t.slabM, async (probe) => { const holder = new THREE.Group(); holder.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), probe)); await renderer.compileAsync(holder, camera, scene); if (probe.map) renderer.initTexture(probe.map); })))).catch(() => {}).finally(() => { exchangeSkinsDrawn = true; });   // a texture row that names a plan layer draws on that layer once its file lands (a failed file keeps the arena's stone)
+let modelsDrawn = true;   // the skin's and the camp kit's modelled nodes (loadSkinModels: the gate torches, the buildings) are in the scene and the upload plan has looked at them: [zone ready] waits for it, or their materials compile at first sight after it (seamless-quiet, K5p: torch-sconce-baked)
 if (frontier && frontierParts) {
-  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
+  const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
+  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; stampSettled(); });   // a failed kit file only leaves the ground bare
+  { const standing = [...frontierParts.models, ...(goblinKit?.models ?? [])]; modelsDrawn = !standing.length; if (standing.length) void playable.then(() => lookFrames(previewRule('deferredLookFrames'))).then(() => loadSkinModels(standing, groundY, () => lookFrames(previewRule('deferredLookGapFrames')))).then((g) => { frontierGroup?.add(g); cleanPlan = false; uploadNext = 0; }).catch(() => {}).finally(() => { modelsDrawn = true; }); }   // (the new meshes: look again at once, the last look is stale) the skin's buildings and the camp kit's modelled nodes: each model file is fetched only now, on entering this zone
+  if (ZONE_SKY) void playable.then(() => lookFrames(previewRule('deferredLookFrames') + previewRule('deferredLookGapFrames'))).then(() => { zoneDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL); areas.refresh(); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; return lookFrames(previewRule('deferredLookGapFrames')); }).catch(() => {}).finally(() => { domeDrawn = true; });   // a dome that failed to build must not hold the zone   // the dome (its pictures) is made once the player can play; until then the Pit's own sky shows   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
+  if (!frontier.pit) arena.group.visible = false;   // a page whose zone row does not own the Pit yard (the town, zone 0) shows none of the Pit's sand, stands or abyss: it was the white and cream behind the town wall
+  if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); if (!OWN_PLAN) pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery, unless the group IS this zone's own plan (OWN_PLAN: the Dungeon 1 bowl, 200 m out, or the town itself, whose forge (61 m) and bank (67 m) lie past pitHideM: hiding it there left Orla's smithy a purple void)
+  if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette(), Number(new URLSearchParams(location.search).get('torchlights') ?? NaN) >= 0 ? Number(new URLSearchParams(location.search).get('torchlights')) : undefined);   // the camp fires' smoke and light; ?torchlights=N lights only the N nearest fires (the lights A/B's other arm; absent = the torchLights row)
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
+  if (layoutPlan && frontierGroup) frontierGroup.visible = false;   // the Pit layout test: the Frontier's ground and dressing give way to the layout (so it opens on any zone page, Zone 1 included)
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.
 let mobs: Mobs | null = null, mobsAsked = false;
-const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
+const canStand = layoutPlan
+  ? (x: number, z: number): boolean => { const h = walkHeight(layoutPlan.pieces, x, z); return h !== null && Math.abs(h - groundY(state.x, state.z)) <= previewRule('layoutSlope') * Math.hypot(x - state.x, z - state.z) + previewRule('layoutSlack'); }   // the layout test: only on a walkable piece, and never up a wall (the rise per metre is the layoutSlope rule)
+  : (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
 const GAP = previewRule('gateGap');   // radians either side of the gate
 arena.group.traverse((o) => {
   if (o.name !== 'backdrop' || !(o instanceof THREE.Mesh)) return;
   o.geometry.dispose();
-  o.geometry = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  const geo = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+  // The cut edges fade out (vertex alpha) so the painting never ends in a hard-edged rectangle against the sky: u runs 0..1 along the arc, and the alpha ramps over gateGapFade of it at each end
+  const FADE = previewRule('gateGapFade'), WHITE = [1, 1, 1], uv = geo.attributes.uv, channels = WHITE.length + 1, tint = new Float32Array(uv.count * channels);
+  for (let i = 0; i < uv.count; i++) { const u = uv.getX(i); tint.set([...WHITE, THREE.MathUtils.smoothstep(Math.min(u, 1 - u), 0, FADE)], i * channels); }
+  geo.setAttribute('color', new THREE.BufferAttribute(tint, channels)); (o.material as THREE.MeshBasicMaterial).vertexColors = true; o.material.needsUpdate = true;
+  o.geometry = geo;
 });
 function environment(sky?: THREE.Texture) {
   const pmrem = new THREE.PMREMGenerator(renderer), room = sky ? null : new RoomEnvironment();
@@ -141,7 +267,7 @@ function environment(sky?: THREE.Texture) {
 }
 let skyReady = false;   // the scene's environment map is final (programs are keyed on it): warm-up waits for this
 environment(); void arena.ready.then(() => environment(arena.sky)).finally(() => { skyReady = true; });
-const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
+const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); if (exchange.hearth) forgeGlow.position.copy(exchange.hearth); else forgeGlow.visible = false; scene.add(forgeGlow);   // (a plan with no hearth row has no forge light: the light stays, dark, so the lights' count and programs do not change)
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 
@@ -164,27 +290,59 @@ const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), 
 ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
-let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
+let remote: ReturnType<typeof createRemoteHeroes> | undefined, shownOthers: Other[] | null = null;   // the zone's other players (remote-heroes.ts), made with the hero's own rig once it has loaded
+let warriors: (Awaited<ReturnType<typeof loadWarriors>> & { baseAsset: Awaited<ReturnType<typeof loadWarriors>>['asset'] }) | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+// The weapon the hero wields in the world is the one he wears (Dom 2026-10-17): the rig draws it and the sim swings it, from the same variable (`rigWeapon`, handed to the sim by hero() below). Only weapons whose art
+// ships with this page (the ground models) are offered; any other worn weapon is the longsword. A change re-arms the rig between fights (the equip file loads on demand), and the sim's hero is rebuilt at the next clean window.
+const WEAPON_ART: Record<string, string> = Object.fromEntries(Object.entries(GROUND_MODELS).map(([path, url]) => [path.replace(/^.*\/(\w+)\.glb$/, '$1'), url]));
+const ZONE_CARRIED: readonly WeaponId[] = PLAYER_WEAPONS.filter((w) => w === DEFAULT_WEAPON || WEAPON_ART[w] !== undefined);
+let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false, failedWeapon: WeaponId | null = null, forcedWeapon: WeaponId | null = null;   // forcedWeapon: the browser checks hold him in one weapon (originsPreview.forceWeapon; a local run, the server would refuse its record)
+function syncRigWeapon() {
+  const want = forcedWeapon && ZONE_CARRIED.includes(forcedWeapon) ? forcedWeapon : gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
+  if (want === rigWeapon || want === failedWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
+  swappingWeapon = true;
+  const base = warriors.baseAsset;
+  (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadRangedPart(want, WEAPON_ART[want]).then((ranged) => ranged ?? loadEquip(WEAPON_ART[want]!))).then((part) => {   // the bow and the staff are the painted bow and the orb staff the Pit draws (loadRangedPart, as loadWarriors does), never their equip files (the bow's a byte copy of the knife's, kept only as the fallback shape; the staff's gives it its clips)
+    const next = armWarriors(base, undefined, [want, want], part, (error) => console.warn('hero weapon equip failed', error));
+    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); syncSpell2Button();   /* a bow wielded: SPECIAL 1 / 2 take the bow's names */ void warmHero(next.player.anchor);
+  }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
+}
+loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); }).finally(() => { settled.hero = true; stampSettled(); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
-if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null;   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
+const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
+if (start) { state.x = start.x; state.z = start.z; heading = fxNum('start.face-on') > 0 ? fxNum('start.face-rad') : start.facing; }
+if (start && goblinKit?.centre && fxNum('start.camp-on') > 0) { const a = fxNum('start.camp-angle'), r = fxNum('start.camp-radius'); state.x = goblinKit.centre.x + Math.sin(a) * r; state.z = goblinKit.centre.z + Math.cos(a) * r; }   // a zone with a camp kit starts him at a set place just inside the camp wall, by the skull post (rows start.camp-*: the angle as a ring counts it, the radius from the camp centre), as the Test Zone did   // the hero starts facing the camp wall and the sun, as the Test Zone's start did (start.face-rad is the compass heading to the sun, rad; start.face-on 0 = toward the first creatures, as before)
+const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
+if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
+else if (layoutPlan?.marks?.start) { const at = layoutPlan.marks.start; state.x = at.x; state.z = at.z; heading = at.facing ?? heading; }   // the Pit layout test opens him at the yard's start mark
+else if (zoneRow?.set?.includes('entry')) { const at = zoneRow.fields!['entry'] as { x: number; z: number; facing?: number } | null; if (at) { state.x = at.x; state.z = at.z; if (at.facing !== undefined) heading = at.facing; } }   // a zone row's own `entry` point (a town zone opens on its plaza, not among creatures)
+const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
+function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page
+  const veil = document.createElement('div'); veil.id = 'zone-cross'; veil.textContent = row.label;
+  veil.style.cssText = 'position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#000;color:#e8dcc8;font:600 22px/1 Georgia,serif;opacity:0;transition:opacity .45s;pointer-events:all';
+  document.body.append(veil); requestAnimationFrame(() => { veil.style.opacity = '1'; });
+  setTimeout(() => { presence?.stop(); location.assign(exitHref(location.href, row)); }, 550);
+}
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
+let viewH = innerHeight;   // the window's height, read once per resize (resize() below), not per frame: reading innerHeight mid-frame makes the browser flush every style and layout the frame's DOM writes dirtied, ~3 ms of the frame on a phone-class CPU (the walk-loop span between the dome and the tags)
 let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
 const measureHud = () => {
   const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
   document.documentElement.style.setProperty('--hud-bottom', `${bottom}px`);
-  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.fm-meters')?.getBoundingClientRect().bottom ?? 0));   // the shared meters sit under the HUD stack (meters.css)
+  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));   // the Pit's bars (.combat-hud) sit under the HUD stack (index.html)
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level);
+const MARKERS = zoneMarkers(zoneRow ?? loadZone());   // the "!", the name tag and the info card style this page's zone asks for
+const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0, lockPausedUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none. lockPausedUntil: the soft lock lets go until then
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level, MARKERS.card);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
+if (frontier) hint.textContent = zoneHint(pageZoneId(), 'watch') ?? 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';   // a zone with a hint row (the Pit's Dungeon 1: opponents) says its own words (legend-copy.json)
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -223,13 +381,13 @@ const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
 // Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
-const NEAR: Partial<Record<Kind | 'fight' | 'back', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit',
+const NEAR: Partial<Record<Kind | 'fight' | 'back' | 'ground', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit',
   bounty: `Talk to ${frontier?.giver.name ?? ''}`, back: 'Take the road back to the Exchange' };
 type Panel = Kind | 'allegiance';
-let near: Kind | 'fight' | 'back' | null = null, open: Panel | null = null;
+let near: Kind | 'fight' | 'back' | 'ground' | null = null, open: Panel | null = null, groundNear: { instance: string; label: string } | null = null, groundLine = '', groundLineUntil = 0;   // groundNear: the ground item the prompt is for (ground-pickup.ts)
 // ?region=1: the way back, from the Frontier's signpost to the Exchange's west gate, facing into the plaza.
-const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; };
-const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else openPanel(near); };
+const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; presence?.warp('zone1-road-end'); };   // presence moves the player itself: a client jump is a teleport it would strike
+const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else if (near === 'ground') { if (groundNear) void groundPickup.tap(groundNear.instance); } else openPanel(near); };
 const show = (kind: Panel | null) => { const was = open; open = kind; if (kind === 'journal') hint.hidden = true; else if (was === 'journal' && !hintMoved) hint.hidden = false; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
 function openPanel(kind: Panel | null) {
   play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
@@ -262,21 +420,29 @@ const ZONE_FIELDS = loadZone(), FIXED_HOUR = zoneHour(ZONE_FIELDS);   // the zon
 const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNight(ZONE_FIELDS), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
 const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
-let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
+let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number; spec?: { id: string } } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = previewRule('lockRange'), CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
 const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = previewRule('turnRate'), followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
 function zoneCamera<T>(path: string): T | undefined { return ZONE_FIELDS.set?.includes(path) ? ZONE_FIELDS.fields![path] as T : undefined; }   // a camera field the zone (or its biome) SET
+const actionLog: [number, string][] = [], ACT_LOG_KEEP = 16;   // the last few actions the controls handed the walk, for the browser checks (combat().acts)
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
   else if (kit) {   // the Pit's own controls (src/fight/input.ts over the game's kit, pit-duel.ts world mode): stick walks, a button presses the nearest creature into a duel
     const i = duel!.worldIntent(), k = i.run ? 2 : 1;
-    forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
+    forward = Math.max(-previewRule('walkBackMax'), Math.min(previewRule('stickRange'), -i.z)) * k; strafe = Math.max(-previewRule('stickRange'), Math.min(previewRule('stickRange'), i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
-    if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
-    const a = i.action;
-    if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
+    if (lockOn) {   // the Pit's lock: the camera swings behind the hero to face it. 'soft' (the zone's look.creatures.lock): a gentler pull that lets go while he runs away (stick pushed back) or looks round (a drag), for lockPauseSec
+      const soft = MARKERS.lock === 'soft', now = performance.now();
+      if (soft && forward < -previewRule('lockAwayStick')) lockPausedUntil = now + previewRule('lockPauseSec') * 1000;
+      if (!soft || now >= lockPausedUntil) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-previewRule(soft ? 'lockPullSoft' : 'lockPull') * dt));
+    }
+    wc.hold(i.held);   // the STRIKE hold, every frame: a heavy chambers and charges while it is down (WSV64, as the Pit's held)
+    const a = i.action; if (a) { actionLog.push([Math.round(performance.now()), a]); if (actionLog.length > ACT_LOG_KEEP) actionLog.shift(); }   // the browser checks read it (combat().acts): which action the Pit's controls handed the walk
+    if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
+    else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
+    else if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
     if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
       const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
       wc.roll(len > 0.2 ? { x: wx, z: wz } : a === 'backstep' ? { x: -Math.sin(wc.hero().facing), z: -Math.cos(wc.hero().facing) } : { x: 0, z: 0 });
@@ -291,74 +457,115 @@ function step(dt: number) {
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
   // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
-  const px = state.x, pz = state.z, ground = running ? RUN / 2 : WALK;   // Intent.running, not a guess from the stick size
+  const rimZone = RIM.margin && frontier ? frontierZoneAt(frontier, state.x, state.z) : null, rim = rimZone ? rimScale(edgeDistance(rimZone, state.x, state.z), RIM.margin, RIM.slow) : 1;   // the soft rim (boundary.* on the zone): slower near the edge, with one line
+  if (rim < 1 && forward) { rimUntil = performance.now() + 3000; hint.textContent = RIM.line; hint.hidden = !RIM.line; } else if (rimUntil && performance.now() > rimUntil) { rimUntil = 0; hint.hidden = true; }
+  const px = state.x, pz = state.z, ground = (running ? RUN / 2 : WALK) * rim;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
     if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
+    const area = areas.look(dt); if (area) look = blendLook(look, lookOf(area.preset), area.k);   // the area's own light, eased in on entering and out on leaving
     sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   // The engine's actor poses him: the gait follows the speed he actually covers (collisions included, signed backwards), the pose / progress / attack / contact come from the engine's actorPose of his duel.
   if (warriors) {
-    gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, 1e-3) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
+    gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, previewRule('dtFloor')) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
     const duel = wc.heroDuel(), posed = forcedPose ?? (duel ? actorPose({ duel } as unknown as Practice, 0) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 });
     const dx = state.x - px, dz = state.z - pz, moved = Math.hypot(dx, dz);
+    warriors.player.specialMove(duel ? specialRoleOf(duel.fighters[0]) : null);   // the special's own clip (Skull Crack, Whirlwind, Ground Slam, Lunge), as the Pit's scene.ts does every frame; without it every SPECIAL played the weapon's plain Heavy (Dom 2026-10-20)
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) });
+  const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
+  { const head = warriors?.player.anchor.getObjectByName('Head'); if (firstPerson) { head?.scale.setScalar(fxNum('fp.head-scale')); headCollapsed = true; } else if (headCollapsed) { head?.scale.setScalar(1); headCollapsed = false; } }   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it, and given back ONCE when the view leaves first person (never forced every frame: nothing else's scale on the Head is overwritten); the body, arms and weapon stay in view
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap'), bobJumpM: fxNum('fp.bob-jump-m'), bobWalkMps: fxNum('fp.bob-walk-mps'), bobFade: fxNum('fp.bob-fade') } } : {}) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
+  applyCombatView();
+  fpArm.update(dt, warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), wc.hero().phase === 'ready', fpPose());   // first person: the hero's own right arm holds his own sword in a ready pose between swings (first-person-arm.ts)
+  if (firstPerson) followCam.kick(fpArm.kick(), heading, { roll: fxNum('fp.kick-roll'), yaw: fxNum('fp.kick-yaw'), lunge: fxNum('fp.kick-lunge') });   // a swing moves the view: a lean into a cut, a dip and lunge into a thrust
+  warBandRun.tick(dt);
+  killDrops.update(state);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true;
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, zoneReady: () => zoneReadyAt >= 0, players: () => (shownOthers ?? []).map((o) => ({ x: o.x, z: o.z })), markers: MARKERS, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready, seeded: !!CAPTURE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
-  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = (mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, f = seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus); } } }
-  const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
+  syncRigWeapon();
+  if (mobs) { mobs.update(dt, state, cardId); legendAggro(dt); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = mobs.seen(), f =seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
+  const label = zone ? zone.name : PIT_LAYOUT && zoneRow ? zoneRow.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
+  groundNear = groundPickup.nearest(state.x, state.z);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
     : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
     : Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
+    : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
-    : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
-  prompt.hidden = !near || !!open; if (near) prompt.textContent = NEAR[near]!;
+    : zoneNow?.zone === 'exchange' && state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;   // the bank is the Exchange's: south of its step is the whole Frontier (and the Bone Hollow's gate stands at x 0), where "Bank" is wrong
+  const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
+  prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
+  prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
 // ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
 // sets no light, fog or sky). Off the Frontier the Exchange's own data names the preset (exchange-dusk; the Pit's ash-pit).
+const otherNames = new Map<number, { name: string | null; guest: boolean; worn: Record<string, string> }>();   // id -> name tag and worn gear {slot: lootId}, from presence's `enter` records (Web's remote-hero view reads it)
 let presence: Presence | null = null, others: Other[] = [];   // the Zone 1 page joined to presence (assigned once storage is read, below)
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
 function showZone(id: string | null) {
   if (!frontier) return;
-  const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange')))!;
+  const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange'))) ?? frontier.zones[0]!;   // (a town page owns only some of the concord zones: the first it has)
   if (zoneNow?.zone === z.zone) return;
   zoneNow = { region: z.region, zone: z.zone, name: z.name, preset: z.preset };
+  areas.enter(z.zone);
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
+// The combat camera (Dom 2026-10-17; combat-cam.ts, the wide auto-fit rows): in a fight the follow camera eases into it and back out, slower. `?combatcam=0` is the walking camera in a fight too (a look test: before / after).
+// The follow camera only places the camera; what a fight adds to the lens (a lift off the thumb buttons, fov, zoom) is applied here, only when it changed.
+const COMBAT_CAM = /[?&;]combatcam=0\b/.test(location.search) ? undefined : wideCombatCam(), BASE_FOV = camera.fov, MAN_M = previewRule('camPSizeFrom');
+let lastView = '';
+// First person (the ☰ menu's View setting, Dom 2026-10-17; first-person-arm.ts): the camera is the hero's head and his own right arm holds his own sword between swings. Default stays over the shoulder; `?view=first|third` overrides the saved setting for a link.
+const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { return localStorage.getItem(BOB_KEY) !== 'off'; } catch { return true; } })();   // head bob on unless the player turned it off (the ☰ menu)
+const fpArm = createFirstPersonArm();
+let headCollapsed = false;   // the head is collapsed only while the view is first person
+const fpPose = (): ArmPose => ({ handRight: fxNum('fp.hand-right'), handUp: fxNum('fp.hand-up'), handForward: fxNum('fp.hand-forward'), poleRight: fxNum('fp.pole-right'), poleUp: fxNum('fp.pole-up'), poleForward: fxNum('fp.pole-forward'), bladeRight: fxNum('fp.blade-right'), bladeUp: fxNum('fp.blade-up'), bladeForward: fxNum('fp.blade-forward'), rate: fxNum('fp.arm-rate'), kickRest: fxNum('fp.kick-rest') });
+const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());
+const foeSizes = new Map<string, number>();
+const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
+  let s = foeSizes.get(id); if (s !== undefined) return s;
+  const body = mobs?.anchorOf(id); if (!body) return MAN_M;
+  const b = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3()); s = Math.max(b.x, b.y, b.z); foeSizes.set(id, s); return s;
+};
+function applyCombatView() {
+  const v = followCam.view, key = `${v.fov.toFixed(3)}|${v.zoom.toFixed(3)}|${v.shiftY.toFixed(3)}`; if (key === lastView) return; lastView = key;
+  camera.fov = BASE_FOV + v.fov; camera.zoom = v.zoom;
+  if (v.shiftY > 0.001) camera.setViewOffset(innerWidth, innerHeight, 0, Math.round(v.shiftY * innerHeight), innerWidth, innerHeight); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; viewH = h; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 let compileChain: Promise<unknown> = Promise.resolve(), programsInFlight = 0, uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
+let cleanPlan = false;   // the last look at the scene (planUpload), taken once every kind and the hero were warmed, found nothing left to compile or upload: a zone is ready only after such a look, never between two looks (the 3 s re-plan), or a material that streamed in after the last plan links at the engage (seamless #87, 71 vs 73 programs on the same tree)
 const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
+const lateStream = createLateStream(location.search, scene, uploaded);   // test-only hooks of the late-stream browser row (late-stream.ts)
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
 const UPLOAD_BUDGET_MS = previewRule('uploadBudget');
 const KINDS_WAIT_MS = previewRule('kindsWait'), MATERIAL_BOUND_MS = previewRule('materialBound');   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
 const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
-function planUpload() {
-  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+function scanScene() {   // what the scene holds that no plan has put on the GPU yet (the plan below queues it; zoneReadyCheck looks again before it says ready)
   const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh | THREE.Points>();
   scene.traverse((o) => {
     const sp = o as THREE.Sprite; if (sp.isSprite) { const t = sp.material.map; if (t && !uploaded.has(t)) textures.add(t); return; }   // a creature's name label and its '!' are canvas-texture sprites: first drawn at first sight, so they upload here (Metal trace: +1 texture at engage, #1921)
@@ -369,48 +576,207 @@ function planUpload() {
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
   });
-  const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4), queue: (() => void)[] = [];
+  return { textures, geometries, materials };
+}
+function planUpload() {
+  wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
+  const { textures, geometries, materials } = scanScene();
+  linkProxy(renderer, camera);   // the shared proxy's program is linked now, before [zone ready], and stays (warm-proxy.ts)
+  const queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
-  for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } uploaded.add(g); });
+  for (const g of geometries) queue.push(() => { drawProxy(renderer, camera, g); uploaded.add(g); });
   // The copy is shown: compile skips hidden objects, and the fx marks (wound spots, splats) are created hidden.
-  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(), copy = m.clone(); copy.visible = true; holder.add(copy); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
-  if (queue.length) queue.push(() => { target.dispose(); proxy.dispose(); }); else { target.dispose(); proxy.dispose(); }
+  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(lateStream.hold).then(() => { const holder = new THREE.Group(), copy = m.clone(); copy.visible = true; holder.add(copy); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
-  if (!mobs || !skyReady) return;
-  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); if (!uploadQueue.length) return; }
+  if ((!mobs && !noMobZone(loadZone().spawns.rows.length)) || !skyReady) return;   // a zone row with no spawns has no creature view: its scene is still planned and uploaded
+  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + previewRule(replanGapRow(lateLookAt, zoneReadyAt)); uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
 }
 // "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
-let zoneReadyAt = -1;
+let zoneReadyAt = -1, domeDrawn = !ZONE_SKY, gfxDrawn = !gfxWanted;   // gfxDrawn: the lift's chunk has landed (fog patched, composer built), its programs are compiled for the composer's target and it has drawn a few frames: [zone ready] waits for it, or the lift's programs would link at the first engage (seamless and seamless-quiet, 2026-10-20)
+void gfxLoad.then(() => { cleanPlan = false; uploadNext = 0; gfx?.compile(); return lookFrames(previewRule('deferredLookFrames')); }).then(() => { gfx?.compile(); }).catch(() => {}).finally(() => { gfxDrawn = true; });   // the fog patch changed what a material compiles to: plan again, compile for the composer's target (a program is keyed on its target), draw a few frames; a failed load must not hold the zone   // domeDrawn: the painted dome exists and has been drawn for a few frames, so its sector programs (the zero-scale twin, horizon-dome.ts) are built: [zone ready] waits for it, or the first draw of them would compile after it (seamless-quiet, K3b)
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
-  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), () => new Promise<void>((r) => requestAnimationFrame(() => r()))), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
   warmedHero.done = true;
 }
+const frameEnv: FrameEnv = { raf: (cb) => { requestAnimationFrame(cb); }, timer: (cb, ms) => { setTimeout(cb, ms); }, hidden: () => document.hidden };
+const nextFrame = () => waitFrame(frameEnv, previewRule('hiddenTickMs'), previewRule('hiddenCheckMs'));   // rAF never fires in a hidden tab: a timer stands in (frame-wait.ts)
+// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked AFTER [zone ready] and off its critical path (Lead's ruling on #2938, 2026-10-16 night: before ready the one kit in flight cost +8 s of [zone ready] on SwiftShader and the cap cannot cut a compile). One kit per idle slice, and NO kit starts while a creature is within tap range (the engage window the seamless row guards); the kit already in flight cannot be cut. Nothing is fetched or
+// parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
+// the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
+type KitPhase = { kit: string; at: number; prepMs: number; actorMs: number; dressMs: number; cloneMs: number; compileMs: number; framesMs: number; steps: { step: string; ms: number }[] };   // at: ms from the warm's start; prep / actor only on the first kit
+type KitsWarm = { failed: boolean; skipped?: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: { at: number; ms: number }[]; phases?: KitPhase[] };
+let remoteKitsWarm: KitsWarm | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
+const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
+const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
+// The player's OWN figure wears the ledger's set (Lead 2026-10-17; the walking hero was the bare base figure while the gear sheet showed his gear). The sheet's wear is the one place every change passes (gear-mount.ts onWorn).
+// The set's programs are built on a second actor out of sight BEFORE the walker puts the pieces on (the kit warm's step: warmActor, then two frames in the scene for the shadow-pass programs), so dressing him links nothing
+// at the next frame. ONE dressing path (dress-remote.ts); self keeps the full rig (hero.glb), the near/far LODs are for remotes only. A newer set supersedes an older one still being built.
+let selfWorn: { ids: readonly string[]; tiers: Record<string, Tier> } | null = null, selfSeq = 0, selfBusy = 0;
+const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [id, id]));
+// What the hero took off the bodies of creatures: PAGE MEMORY ONLY, local to this tab (Lead 2026-10-18: nothing stored, nothing sent to an account or the DB). In an UNLISTED zone each taken piece replaces the
+// account's piece in its paperdoll slot (dressedSet); a listed zone ignores it, and a reload or leaving the zone brings the account gear back.
+const outfit = createOutfit();
+const NO_GEAR = { ids: [] as readonly string[], tiers: {} as Record<string, Tier> };
+async function applySelf() {
+  const base = selfWorn ?? (loadZone().unlisted || outfit.ids().length ? NO_GEAR : null);   // a guest in a listed zone keeps the default look until a dropped piece is taken; the sandbox always dresses from the bare body
+  if (!warriors || !base) return;
+  const dressed = dressedSet(base, outfit), mine = { ids: dressed.ids, tiers: dressed.tiers as Record<string, Tier> }, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  selfBusy++;
+  try {
+    const pieces = mine.ids.length ? await sharedLoot() : [];   // a bare hero (the guest's default look) wears nothing, so loot.glb (2 MB on the wire) is not fetched before [zone ready]: `wear([])` below only undresses
+    if (mine.ids.length) {
+      const probe = secondActor(); probe.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(probe.anchor);
+      try { dressRemote(probe, pieces, worn, mine.tiers, failed); await warmActor(renderer, camera, scene, cloneRig(probe.anchor), nextFrame); await nextFrame(); await nextFrame(); } finally { scene.remove(probe.anchor); }
+    }
+    if (seq === selfSeq && warriors) dressRemote(warriors.player, pieces, worn, mine.tiers, failed);
+  } catch (error) { console.warn('your gear did not go on', error); } finally { selfBusy--; }
+}
+// The zone is not ready while his gear is being built, nor (signed in) before the ledger has answered (bounded by loadoutWait: an unreachable writer must not hold the zone).
+const selfSettled = () => selfBusy === 0 && (!storedToken(storage, Date.now()) || !!gearMount?.ready() || performance.now() > previewRule('loadoutWait'));
+// One idle slice, then wait while a creature is within tap range; gives up (the loop reports failed) once `until` passes with one still there.
+async function kitSlice(until: number) {
+  for (;;) {
+    await new Promise<void>((r) => { if ('requestIdleCallback' in window) requestIdleCallback(() => r(), { timeout: KINDS_WAIT_MS }); else requestAnimationFrame(() => r()); });
+    if (!mobs?.within(state.x, state.z, previewRule('tapRange')).length) return;
+    if (performance.now() > until) throw new Error('a creature stayed within tap range');
+  }
+}
+// The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
+// (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once per load: the median frame gap of the first idle frames after first playable (the load cover lifted, then kitProbeSettleMs). The VERDICT is sticky for the device (slowVerdictMs, warm-plan.ts slowVerdict): one load of a phone near
+// the threshold used to answer differently from the next. Storage may be blocked: then it is the per-load measure, as before.
+const SLOW_KEY = 'origins-preview-slow-device';
+let deviceSlow: boolean | undefined, probeMedianMs: number | undefined;   // the median of this load's probe (undefined when the verdict was kept from storage), for the skip warning
+async function slowDevice(): Promise<boolean> {
+  if (deviceSlow !== undefined) return deviceSlow;
+  let kept: boolean | undefined;
+  // The verdict is keyed to the live release (slowVerdictByRelease): a new sha re-measures. /release.json unreadable (dev server, offline): the time limit (slowVerdictMs) applies.
+  const release = previewRule('slowVerdictByRelease') === 1 ? await readReleaseId(fetchReleaseJson, previewRule('releaseReadMs')) : undefined;
+  const showProbe = /[?&]probe=1\b/.test(location.search);   // ?probe=1: measure fresh (a kept verdict is skipped) and print the median on screen, for a number from a real phone
+  if (!showProbe) try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs'), release); } catch { /* storage blocked: measure */ }
+  if (kept !== undefined) return (deviceSlow = kept);
+  // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).
+  const visibleAtStart = document.visibilityState === 'visible'; let hiddenSeen = false;
+  const onVisibility = () => { if (document.visibilityState !== 'visible') hiddenSeen = true; };
+  document.addEventListener('visibilitychange', onVisibility);
+  // The window opens AFTER first playable (Strategy 2026-10-19: 167 ms on a quiet M5 was the page's own load work, not the device): the load cover has lifted, then kitProbeSettleMs more. The wait is bounded (the cover's own max hold, then the settle).
+  { const until = performance.now() + previewRule('loadCoverHoldMs') + previewRule('kitProbeSettleMs'); while (!cover.lifted() && performance.now() < until) await nextFrame(); await new Promise<void>((r) => { setTimeout(r, previewRule('kitProbeSettleMs')); }); }
+  const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
+  for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+  document.removeEventListener('visibilitychange', onVisibility);
+  deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')); probeMedianMs = medianGap(gaps);
+  if (showProbe) { const el = document.createElement('div'); el.id = 'probe-readout'; el.textContent = probeReadout(probeMedianMs, previewRule('kitSlowFrameMs'), release); el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;padding:6px 8px;background:#000c;color:#fff;font:12px/1.3 monospace;border-radius:6px;pointer-events:none'; document.body.appendChild(el); }
+  if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now(), release)); } catch { /* storage blocked: not kept */ }
+  return deviceSlow;
+}
+// On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
+// On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
+const GEAR_WARM_FORCED = /[?&]gearwarm=1\b/.test(location.search);
+async function warmGearScreen() {
+  const t0 = performance.now(), took = () => Math.round(performance.now() - t0);
+  try {
+    if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
+    // (?kitwarm=soft is the browser rows' flag: software GL by definition, so no second probe)
+    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
+    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
+    let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
+    const settled = await settleWithin('gear-screen', gearMount.warm(() => kitSlice(t0 + previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'))).then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
+    gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
+  } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
+}
+async function warmRemoteKitsAfterReady() {
+  gearMount?.hold();
+  try { await warmRemoteKits(); } finally { await warmGearScreen(); if (kitsResult) remoteKitsWarm = kitsResult; }
+}
+async function warmRemoteKits() {
+  const t0 = performance.now();
+  let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
+  // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
+  const cap = previewRule(/[?&]kitwarm=soft\b/.test(location.search) ? 'kitWarmMsSoft' : 'kitWarmMs');   // ?kitwarm=soft is the browser rows' flag: software GL links a kit in ~40 s, so they get the longer row; the live page never carries it
+  const until = t0 + cap;
+  // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
+  // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
+  if (!/[?&]kitwarm=soft\b/.test(location.search) && await slowDevice()) {
+    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device${probeMedianMs === undefined ? ', kept verdict' : `, measured ${Math.round(probeMedianMs)} ms`}), remotes keep the base figure`);
+    kitsResult = { failed: false, skipped: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };   // skipped is not failed: the page chose not to warm; remotes keep the base figure either way
+    return;
+  }
+  // What the warm costs the main thread, for the receipt: every long task (the browser reports only those over 50 ms, so an empty list is "none over 50 ms") and each kit's three phases in wall ms.
+  const longTasks: { at: number; ms: number }[] = [], phases: KitPhase[] = [];
+  const watcher = typeof PerformanceObserver === 'function' ? new PerformanceObserver((list) => { for (const e of list.getEntries()) longTasks.push({ at: Math.round(e.startTime - t0), ms: Math.round(e.duration) }); }) : null;
+  try { watcher?.observe({ type: 'longtask' }); } catch { /* an engine without long-task entries: the list stays empty */ }
+  const warmOne = async (kit: WarmKit) => {
+    await kitSlice(until);
+    let prepMs = 0, actorMs = 0;
+    if (!pieces || !remote) {
+      const p0 = performance.now(); pieces = await sharedLoot(); prepMs = Math.round(performance.now() - p0);
+      const a0 = performance.now(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); remote.anchor.visible = false; scene.add(remote.anchor); actorMs = Math.round(performance.now() - a0);   // hidden between kits: drawn only for the two frames below (a whole second hero, ~60 k triangles and 17 draws every frame for the ~50 s the loop runs, census 2026-10-20)
+    }
+    const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
+    const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
+    await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
+    await kitSlice(until);   // the creature may have come within tap range while the colour programs compiled: the shadow-pass frames below link the kit's depth program in a real frame, so they wait for him to leave range too (zone 7 red, 2026-10-22: the kit's depth program linked inside the engage window, 38 s after ready on a fast-enough device)
+    remote.anchor.visible = true;   // the two frames the shadow pass takes it in (a hidden object is skipped)
+    try { await nextFrame(); await nextFrame(); } finally { remote.anchor.visible = false; }
+    phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
+  };
+  // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
+  const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
+  if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
+  await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
+  watcher?.disconnect();
+  kitsResult = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed, maxLongTaskMs: Math.max(0, ...longTasks.map((t) => t.ms)), longTasks, phases };
+}
+function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
+  const none = noMobZone(loadZone().spawns.rows.length), w = mobs?.warmState() ?? (none ? emptyWarmState() : undefined);   // a zone row with no spawns has no creature view and no kinds: the hero alone gates it
+  return !!w && (none || w.kinds.length > 0) && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
+}
+let lateLookAt = -1;   // when zoneReadyCheck first found something streamed in after the last plan (the bound's start)
 function zoneReadyCheck() {
-  if (zoneReadyAt >= 0 || !mobs) return;
-  const w = mobs.warmState();
+  const none = noMobZone(loadZone().spawns.rows.length);
+  if (zoneReadyAt >= 0 || (!mobs && !none)) return;
+  const w = mobs?.warmState() ?? emptyWarmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
-  if (!w.kinds.length || !warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]) || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  if (!selfSettled()) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0 || !domeDrawn || !gfxDrawn || !modelsDrawn || !exchangeSkinsDrawn) return;
+  // One last look before it says ready: a body or prop that streamed in after the plan's last look would link its programs at the engage (seamless-quiet, K5r and trunk under load: a creature weapon's Leather and WeatheredStone, "mesh_2/mesh_3<WeaponDrawn<hand_r"). Plan again now, not in 3 s; bounded by the kinds' own wait so a material that never uploads cannot hold the zone.
+  { const late = scanScene(), n = late.textures.size + late.geometries.size + late.materials.size; if (n) { lateLookAt = lateLookAt < 0 ? performance.now() : lateLookAt; if (performance.now() - lateLookAt < KINDS_WAIT_MS) { cleanPlan = false; uploadNext = 0; console.info('[zone ready] deferred: streamed in after the last plan', { items: n, materials: [...new Set([...late.materials.keys()].map((m) => m.name || m.type))] }); return; } } }
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
-  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
+  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail); zoneReadyOpen();
+  void warmRemoteKitsAfterReady();   // off the critical path: [zone ready] is already logged
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
-const walkLoop = () => {
-  const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+// The frame clamp's rate: how many frames the clamp below bound and the game speed (sim s / wall s). Always counted (a few additions a frame); mirrored on #debug only with ?debug (clamp-rate.ts).
+const clampRate = createClampRate(previewRule('clampPauseS'), /[?&]debug\b/.test(location.search) ? document.getElementById('debug') : null);
+(window as unknown as { __clampRate: typeof clampRate.snapshot }).__clampRate = clampRate.snapshot;   // window.__clampRate() -> { frames, clamped, paused, wallMs, simMs, clampedShare, gameSpeed }: cumulative, a harness subtracts two reads
+const CAPTURE = captureOn(location.search) ? createCaptureClock() : null;   // ?capture=seed: the walk is HELD (dt 0 every drawn frame) and moves only through originsPreview.capture.advance(n), n fixed ticks (capture.ts)
+const walkFrame = (rawDt: number, time: number, draw: boolean, loadTime = time) => {   // loadTime: the upload plan's re-look gap is paced by it; under ?capture=seed it is the real clock (the held `time` would never reach uploadNext and the zone would never go ready)
+  const dt = Math.min(rawDt, previewRule('frameDtMax'));
+  clampRate.frame(rawDt, dt);
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); warmUpload(loadTime); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time); townFolk.update(dt, state.x, state.z);
+  if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }   // a zone with a dome hides the Pit's scenery (and the Exchange) once the walker is far from it
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
-  camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight);
-  renderer.render(scene, camera);
+  if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
+  ambience?.update(dt); goblinSmoke?.update(dt, state); updateKitViews(state, previewRule('kitViewStepM'), camera.position);   // the zone's wind and fire bed, and the camp fires' smoke and flicker; the kit's shadow, draw radius and near/far swap re-pack
+  zoneDome?.follow(camera); areas.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, viewH); remote?.clampLabels(camera, labelFloor, viewH);
+  if (!draw) return;   // a capture tick between shots steps the world and draws nothing
+  if (gfx) gfx.render(); else renderer.render(scene, camera);
+  if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
+const walkLoop = () => { if (CAPTURE) walkFrame(0, CAPTURE.time(), true, clock.getElapsedTime()); else walkFrame(clock.getDelta(), clock.elapsedTime, true); };   // the live path reads the clock exactly as before (getDelta, then elapsedTime)
 renderer.setAnimationLoop(walkLoop);
 
 // The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.
@@ -420,6 +786,7 @@ renderer.setAnimationLoop(walkLoop);
 // thing the page keeps is its own: the graduation allegiance, under save.ts ALLEGIANCE_KEY (never a `frankendom.*` key).
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
+setInterval(hiddenDriver({ hidden: () => document.hidden, held: () => fighting || zoneReadyAt >= 0 }, walkLoop), previewRule('hiddenTickMs'));   // a hidden tab gets no animation frames: a timer drives the walk until [zone ready] so it still arrives, and stops there (a hidden tab never fights or reports kills; a visible tab is drawn by rAF as before; a duel owns the canvas while it is up)
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
 // The daily board (origins/board): a button under the Journal and a dialog; the tasks, their words and their names are rows, the reset is the board rule's.
@@ -431,8 +798,8 @@ if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then(async (m) => {
     await m.sceneReady;
-    duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit');
-    hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit'); syncSpell2Button();   // the Pit's buttons exist now: show SPELL 2 if slot b is already filled
+    hint.textContent = zoneHint(pageZoneId(), 'walk') ?? 'Left stick walks. Push to the edge to run. Walk up to a creature and tap STRIKE (slide to stab or slash, hold for heavy) to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
     if (menu && chips) {
@@ -451,8 +818,14 @@ if (frontier) {
       const boardEntry = document.createElement('button'); boardEntry.id = 'menu-board'; boardEntry.textContent = chromeText('button');   // the daily board, beside the Journal (the corner button is hidden in the kit)
       boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
       chips.append(boardEntry);
+      // The beta's four specials (Dom 2026-10-20): the picker lists them (the bow's four while a bow is wielded: nameOf asks the wielded weapon), any of them goes into SPECIAL 1 or SPECIAL 2, the pick is kept on this device (the store above) and reaches the buttons through onSpecialsChanged
+      const specials = mountSpecials(document.getElementById('special-dialog') as HTMLDialogElement, (id) => specialName(rigWeapon, id, SKILL_ROWS[id]?.name ?? id));
+      const specialsEntry = document.createElement('button'); specialsEntry.id = 'menu-specials'; specialsEntry.textContent = 'Specials';
+      specialsEntry.addEventListener('click', () => { menu.close(); keys.clear(); releaseSticks(); specials.open(); });
+      chips.append(specialsEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
-      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      // P0-b: worn gear changes the combat sheet (gearMount.sheet), so onWorn tells the loop: a record window open on the old sheet is dropped ('gear-change') and the next opens on the new one
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, signedIn: pageSignedIn, sessionWeapons: () => sessionWeapons(guestHeld.items(), (item) => STARTER_WIELD.get(item)), onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; try { wc.heroChanged(); } catch { /* the world loop is not up yet: nothing is open to drop */ } void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
@@ -463,28 +836,69 @@ if (frontier) {
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
     paint();
+    if (chips) {   // View: over the shoulder (the main game's camera B) or first person (Dom 2026-10-17); a setting on this device, ?view=first|third overrides it for a link
+      const v = document.createElement('button'); v.id = 'menu-view';
+      const paintView = () => { v.textContent = `View: ${firstPerson ? 'First person' : 'Over the shoulder'}`; v.setAttribute('aria-pressed', String(firstPerson)); };
+      v.addEventListener('click', () => { firstPerson = !firstPerson; try { localStorage.setItem(VIEW_KEY, firstPerson ? 'first' : 'third'); } catch { /* storage blocked */ } followCam.snap(); lastView = ''; paintView(); });
+      paintView(); chips.append(v);
+      const b = document.createElement('button'); b.id = 'menu-head-bob';   // first person only matters, but the setting is kept either way
+      const paintBob = () => { b.textContent = `Head bob: ${headBob ? 'On' : 'Off'}`; b.setAttribute('aria-pressed', String(headBob)); };
+      b.addEventListener('click', () => { headBob = !headBob; try { localStorage.setItem(BOB_KEY, headBob ? 'on' : 'off'); } catch { /* storage blocked */ } paintBob(); });
+      paintBob(); chips.append(b);
+    }
   }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
 }
 const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
 // The graduation picker (allegiance.ts): only on the SAVED career at Gladiator or above; the choice lives in the preview's own save.
 let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
+// The open-world cast (Strategy order 2026-10-14): the equipped spell is the viewer's pick from the account's grimoire (src/core/spell-equip.ts, the Pit page's own), read at load like the Pit page does; the world hero carries it (world-combat hero dep) and SKILL casts it.
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / SPECIAL 2 (the specials PR): class skills from the beta pick row, read by the hero hook above and the buttons
+try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }
+const spellSkills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void spellSkills.refresh();
+void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend).filter(inBetaSpells)); syncSpell2Button(); } }, () => {});   // spells are off in the beta (betaCut spellsOff): the book offers only the utility spells } }, () => {});
+const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
+// The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
+// The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
+const spellNames = new Map<string, string>();   // legend id -> the catalogue's spell name, read once through the lazy catalogue (the entry bundle carries no spell data)
+function syncSpell2Button() {
+  const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
+  duel?.setWorldSpecials((equippedSpecial(0) as SkillId | undefined) ?? null, equippedSpecial(1) as SkillId | undefined);   // the world input judges presses against an idle stand-in fighter: it carries the picks, so the press is accepted and the HUD lights the buttons
+  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? specialName(rigWeapon, melee2, SKILL_ROWS[melee2]?.name ?? melee2) : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows the wielded weapon's name for the pick (a bow's four, else the sandbox name)
+  const melee1 = equippedSpecial(0) as SkillId | undefined; duel?.setWorldSlotA(melee1 && !equippedCast() ? specialName(rigWeapon, melee1, SKILL_ROWS[melee1]?.name ?? melee1) : undefined);   // and SPECIAL 1 the same, idle as well as in a fight
+  if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
+}   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
+onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
-// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
+// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
+// The warp that places a page's hero at its zone's own start (the page's start, a zone row's `warps` landmark `zone<N>-start`; Zone 1's is the table's `zone1-start`): never another zone's. A zone with none asks for no warp (a Zone 2 page asking for Zone 1's start was refused by presence and the hero ended in the Pit, 2026-10-22).
+const START_WARP = (() => { const z = loadZone(); return z.warps?.find((w) => w.id === `zone${z.id}-start`)?.id ?? (z.id === DEFAULT_ZONE ? 'zone1-start' : null); })();
+let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
-  token: storedToken(storage, Date.now()), url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,
-  pose: () => (!frontier && Math.abs(state.x) < 149 && Math.abs(state.z) < 149 ? { x: state.x, z: state.z, heading } : null),
-  onHello: (at) => { if (!frontier && Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); } },   // where the server placed us (a rejoin lands where it was left)
+  token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
+  pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
+  onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
+    if (frontier && !startWarped && (landed || START_WARP)) { startWarped = true; presence?.warp(landed?.row.warp ?? START_WARP!); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
+  },
   onOthers: (list) => { others = list; },
+  onEnter: (who) => { otherNames.set(who.id, { name: who.name, guest: who.guest, worn: who.worn }); },
 }); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
+// "Place your point" in Zone 1 (Lead 2026-10-17): a one-line nudge beside "Sign in to keep it" while there are points to place; a tap opens the build dialog, never a modal on its own. The count and the dialog are mounted below the stored build.
+let pointsOpen = 0, pointsPolled = -1, buildOpen: (() => void) | null = null, buildPoll: (() => void) | null = null;
+let guestHolds = (): boolean => false;   // whether a guest's session bag holds anything (set where the bag is made, below: showCareer runs before that line)
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${extra ? ` · +${extra} CP (preview)` : ''}`;
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
-  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a);
+    if (guestHolds()) { const loss = document.createElement('span'); loss.id = 'guest-loss'; loss.textContent = GUEST_SIGN_IN_LOSS; loss.style.cssText = 'display:block;pointer-events:none'; saveNote.append(loss); }   // before the tap: what signing in costs a guest who holds loot (an empty bag gets no noise)
+  }
+  if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); career.append(' · ', b); }   // on the career line (Level 16 · 0 / 8625 CP · 16 points to place): one line on a phone
+  if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. A fight is never re-based under the player, so a career that arrives while one is on is held and adopted
@@ -534,17 +948,29 @@ function settleFight(finish: Finished) {
 // A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
 // to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
 const LEGEND_REACH = previewRule('legendReach');
+// A legend aggroes like any named creature (Dom 2026-10-22: "they have their aggression zone like every other NPC, so she can definitely come up and attack"): the mob loop wanders it, notices the hero inside
+// its aggro radius (the legend row, else the legendAggro rule) and walks it up (mobs-view legendChase); here, once it hunts the hero inside LEGEND_REACH, the same verified fight a tap starts begins. Not for a hero
+// more than the world's maxLevelGap levels from it (the creature is trivial or out of reach, not a pull), and not again for legendCooldown seconds after a fight (a loss must not re-pull on the respawn tick).
+const LEGEND_COOLDOWN_S = previewRule('legendCooldown'), LEGEND_LEVEL_GAP = world.MAX_LEVEL_GAP;   // the engine's own row-backed constant (world-rules maxLevelGap) through the fight barrel, not a second read of the rules module
+let legendCool = 0;
+function legendAggro(dt: number) {
+  legendCool = Math.max(0, legendCool - dt);
+  if (!mobs) return;
+  const pulled = legendPull(mobs.legends(), state, careerLine(session.career).level, fighting || duelFailed, legendCool, { reach: LEGEND_REACH, levelGap: LEGEND_LEVEL_GAP });   // the rule is pure and unit-tested (legend-mobs.ts, legend-fight.test.ts)
+  if (pulled) { legendCool = LEGEND_COOLDOWN_S; void legendFight(pulled); }
+}
 const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
 async function legendFight(spec: MobSpec) {
   if (fighting || duelFailed) return;
-  const begun = await beginLegendFight(spec, legendNet);
+  const begun = await beginLegendFight(spec, legendNet, Date.now() >>> 0);   // a guest's fight is the same legend at the same level on our own seed: no record, no spell (Dom: sign-in is a save, never a gate)
   if (!begun.ok) { say(begun.say); return; }
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name} — a legend`;
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
   renderer.setAnimationLoop(null);
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
   if (!fighting) return;
-  duel.openDuel(duelLayer, begun.duel as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+  // The weapon is the ledger main hand the rig can draw (what the settle checks), read now and not from rigWeapon, which lags a swap in flight; the gear is not reachable during the duel (the ☰ is hidden above).
+  duel.openDuel(duelLayer, { ...begun.duel, weapon: gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON } as never, { ended: (finish, record) => { const outcome = outcomeOf(finish), won = outcome === 'win'; if (legendFelled(outcome)) mobs?.fell(spec.id); void finishLegendFight(spec, begun, record, legendNet, won).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);   // a win lays the legend down for the respawn (a loss: the cooldown below keeps it from pulling again at once)
 }
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
@@ -561,16 +987,17 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 // is Combat's (pit-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
 const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-const itemName = itemNamer();
+const itemName = itemNamer(), guestContent = loadEncounterContent(), guestHeld = guestBag();   // a signed-out player's session loot: in memory only
+guestHolds = () => guestHeld.items().length > 0 || guestHeld.bronze() > 0;
 let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
 // stalemate shows nothing; the hero's death dims the screen for ~2 s ("You died"), then he stands up in town at full health, everything kept. The Pit keeps its own banner and rules.
-const TOWN_RESPAWN = { x: 0, z: 3 };   // TODO(World, with Characters' town kit #1825 / generator #1826): placeholder, the square the region page opens on; replace with the Zone 1 bank town's respawn point when the town is placed
+const TOWN_RESPAWN = loadZone().fields!['respawn'] as { x: number; z: number; warp: string };   // the zone row's `respawn` point and the presence warp that moves him there (schema default = the square the region page opens on, presence warp town-respawn; a town zone sets its own)
 function worldToast(text: string) {
   document.getElementById('world-toast')?.remove();
   const t = document.createElement('div'); t.id = 'world-toast'; t.className = 'glass'; t.textContent = text;
-  t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none';
+  t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none;white-space:pre-line';   // pre-line: a legend's "Reward:" sits on its own line
   document.body.append(t); setTimeout(() => t.remove(), 3500);
 }
 canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY, far: 0, lx: e.clientX }); });
@@ -584,7 +1011,7 @@ canvas.addEventListener('pointerup', (e) => {
   const d = taps.get(e.pointerId); taps.delete(e.pointerId);
   const why = !d ? 'no-down' : !mobs ? 'no-mobs' : fighting ? 'fighting' : open ? `panel:${open}` : e.timeStamp - d.t > TAP_MS ? `hold:${Math.round(e.timeStamp - d.t)}ms` : Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)) > TAP_PX ? `moved:${Math.round(d.far)}px` : '';
   tapLog.push(why || 'tap'); if (tapLog.length > 20) tapLog.shift();
-  if (why === 'no-mobs' && mobsAsked && d && Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)) <= TAP_PX && e.timeStamp - d.t <= TAP_MS) say('The creatures are still loading: try again in a moment.');   // a clean tap while the Frontier's creatures load (mobsAsked: the hero has reached the Frontier); the Exchange never says it
+  if (why === 'no-mobs' && mobsAsked && d && Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)) <= TAP_PX && e.timeStamp - d.t <= TAP_MS) say(zoneHint(pageZoneId(), 'arriving') ?? 'The creatures are still loading: try again in a moment.');   // a clean tap while the Frontier's creatures load (mobsAsked: the hero has reached the Frontier); the Exchange never says it
   if (why || !d) return;
   const r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
@@ -599,22 +1026,51 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
-const meters = createMeters(document.body); hudWatch.observe(document.querySelector('.fm-meters')!);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
+const meters = createZoneBars(<T extends HTMLElement>(id: string) => document.getElementById(id) as T, document.body); hudWatch.observe(document.querySelector('.combat-hud')!);   // the Pit's own bars (src/fight/hud.ts createZoneBars; look: src/style.css): the foe in reach, health, stamina, plus the hit vignette
 function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
   document.body.append(veil);
-  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp(TOWN_RESPAWN.warp); woundFx?.clear(); warBandRun.reset(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+}
+// The goblin war band (war-band-run.ts, Strategy's #1 test for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Every zone since 2026-10-19 (row `warband.enabled` switches it).
+const warBandRun = createWarBandRun({
+  mobs: () => mobs ?? undefined, band: mobSpecList.map((s) => ({ id: s.id, loadout: mobVariant(s.character, s.id)?.loadout })).filter((g) => !!loadoutRow(g.loadout)), piecesOf: (l) => loadoutRow(l)?.pieces.length ?? 0,
+  hero: () => state, engagedId: () => lockOn?.spec?.id, toast: (t) => worldToast(t), enabled: () => fxNum('warband.enabled') > 0,
+});
+// A creature (every zone since 2026-10-19; the sandbox's rule moved over) drops what it wore on the ground (zone-loot rows: how many, how wide the ring); walking onto a piece takes it into the page-memory outfit and re-dresses the hero. Local only: no account or DB write.
+const killDrops = createKillDrops({
+  view: dropItems, itemOf: groundItemOf, found: createFound(), reach: fxNum('drop.reach'),
+  onPick: (d) => { const { replaced } = outfit.take(d.piece, d.rung ?? 'Recruit'); worldToast(replaced ? `You take the ${d.label} (swaps ${pieceLabel(replaced)}).` : `You take the ${d.label}.`); void applySelf(); }, onChange: () => undefined,
+});
+function dropLoot(spec: MobSpec, at: { x: number; z: number }) {
+  const row = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), pieces = dropSet(row, spec.id, fxNum('zoneloot.take-limit'));
+  pieces.forEach((piece, i) => {
+    const a = (i / pieces.length) * fxNum('zoneloot.turn');
+    try { killDrops.drop(piece, pieceLabel(piece), spec.name, at.x + Math.cos(a) * fxNum('zoneloot.ring-m'), at.z + Math.sin(a) * fxNum('zoneloot.ring-m'), row?.rung); } catch (error) { console.error(`${spec.name}'s ${piece} could not be laid on the ground`, error); }   // loud, and the kill goes on
+  });
 }
 function creatureFell(spec: MobSpec) {
+  warBandRun.fell(spec.id);
+  const fellAt = mobs?.find(spec.id);
   mobs?.fell(spec.id);
-  const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
+  const sandbox = !reportsKills(loadZone());   // an unlisted zone: the server cannot know it, so no kill_report goes out at all and the kill line says nothing was saved (a listed zone reports every kill, unchanged)
+  if (fellAt) dropLoot(spec, fellAt);   // every zone: what the creature wore lies on the ground (Dom 2026-10-19, everything from the sandbox); local only, the paid loot is the server's
+  const answer = (sandbox ? Promise.resolve({ offline: 'unlisted' } as Awaited<ReturnType<typeof spawnNet.killed>>) : spawnNet.killed(spec.id, wc.record(), wc.recordDrop())).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
-  void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
+  void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
+    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0, loadZone().spawns.rows.find((r) => r.id === spec.character)?.loot) : null;
+    if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
+    const row = loadZone().spawns.rows.find((r) => r.id === spec.character);
+    worldToast(killToast(k, itemName, spec.name, bountyTaken, guest, sandbox, legendIdOf(row) ? killCopy() : null, row?.roster === true));   // a Pit legend is "defeated" with a "Reward:" line (legend-copy.ts); the spawn row's own `roster` flag, as the server reads it (world-spawns.ts), is a ladder roster kill
+  });
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+// The special slots follow the account (Dom 2026-10-20, Backend #3422): a signed-in page reads its character's slots once (the server's pair replaces the device cache, an empty server takes the device's picks up) and sends every pick it makes; a guest, an unanswered writer or a 503 leaves the device pick as it is.
+pushSpecialSlotsOnPick(() => storedToken(storage, Date.now()), characterNow, { base: writerBase(location.search) });
+void (async () => { const token = storedToken(storage, Date.now()), character = token ? await characterNow() : null; if (token && character) await pullSpecialSlots(token, character, { base: writerBase(location.search) }); })();
 // The smith screen (origins/preview/repair-*.ts): gear_wear lists the worn pieces with the writer's own quote; a repair is one gear_repair under a fresh op id. The page prices and wears nothing.
 const repairName = itemNamer(), repairBase = { base: writerBase(location.search) };
 const repairScreen = mountRepair(document.getElementById('repair-dialog') as HTMLDialogElement, {
@@ -635,40 +1091,119 @@ const shopScreen = mountShop(document.getElementById('shop-dialog') as HTMLDialo
     return character ? buyOne(storedToken(storage, Date.now()), character, EXCHANGE_PROVISIONER, item, revision, newOp(item, Date.now()), shopBase) : { offline: 'no-session' };
   } });
 play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
-const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
+const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search), account: () => storedAccount(storage), store: storage ? localOutbox(storage) : undefined, onReceipt: (n) => worldToast(receiptToast(n)) });   // the kill outbox is durable per account (outbox-store.ts)
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
+enableSpecialCounter(location.search, globalThis, document.getElementById('debug'));   // ?debug=1: window.__specials + #debug data-special-fx / -cues, counted where the real FX spawn (zone-fx.ts) and cue plays (feedback.ts) (src/fight/special-counter.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
-for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => zoneSound.unlock(), { passive: true });
+for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
+// Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
+const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
+const groundPickup = createGroundPickup({
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); }, nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  read: () => readGround(storedToken(storage, Date.now()), repairBase),
+  take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
+});
+void AUTH_READY.then(() => groundPickup.refresh()); setInterval(() => void groundPickup.poll(state.x, state.z, document.hidden), groundPickup.pollSec * 1000);   // not while the tab is hidden or the walker is far from every item
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void groundPickup.poll(state.x, state.z, false); });
+(typeof requestIdleCallback === 'function' ? (f: () => void) => requestIdleCallback(f, { timeout: 3000 }) : (f: () => void) => setTimeout(f, 1000))(() => zoneSound.preload());   // the feedback chunk loads at idle, so the first gesture's unlock is synchronous (iOS resumes audio only inside the gesture)
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
-const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); });   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
+let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
+const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) { ownBuild = b; wc.heroChanged(); } else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
+// The build dialog (build-screen.ts, the Pit's own) over EITHER copy: a signed-in character's is the server's (build-server.ts), a guest's lives in memory only (build-guest.ts: nothing stored or sent, a reload resets it, his world
+// kills stay unverified and unpaid). Saving a signed-in build re-reads it for the fight's sheet; a guest's own build is the sheet's `own` at once (hero() below). Opening is always the player's tap: a nudge line, the journal's "Your build".
+const guestBuild = createGuestBuild(() => careerLine(session.career).level), serverBuild = createServerBuild({ storage, search: location.search, now: () => Date.now() });
+const buildCopy = {
+  view: () => (pageSignedIn() ? serverBuild.view() : guestBuild.view()),
+  refresh: () => (pageSignedIn() ? serverBuild.refresh() : guestBuild.refresh()),
+  save: async (next: Parameters<typeof guestBuild.save>[0]) => { const out = pageSignedIn() ? await serverBuild.save(next) : await guestBuild.save(next); if (out === 'saved') { if (pageSignedIn()) loadOwnBuild(2); else wc.heroChanged(); } return out; },
+};
+{ const dialog = document.getElementById('build-dialog') as HTMLDialogElement | null;
+  if (dialog) {
+    const build = mountBuild(dialog, buildCopy, (open) => { pointsOpen = open; const dot = document.getElementById('build-dot'), note = document.getElementById('build-open-note'); if (dot) dot.hidden = open === 0; if (note) note.textContent = open ? `${open} to place` : ''; showCareer(); });
+    buildOpen = () => { void build.open(); }; buildPoll = () => { void build.poll(); };
+    document.getElementById('build-open')?.addEventListener('click', () => { (document.getElementById('journal') as HTMLDialogElement | null)?.close(); buildOpen?.(); });
+    buildPoll();
+  } }
+// No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
+// on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
+// The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
+// The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
+const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh().then(() => wc.heroChanged()); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
+ wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
+const regenAsked = Number(new URLSearchParams(location.search).get('regen')), regenSeconds = Number.isFinite(regenAsked) && regenAsked > 0 ? regenAsked : undefined;   // ?regen=45|60|90: Dom's feel dial for the full-health refill time (the row's value when absent)
 const wc = createWorldCombat({
+  regen: () => (regenOn() ? regenRules(regenSeconds) : null),   // every open-world zone (row regen.out-of-combat); the Pit has no world combat loop (hero-regen.ts)
+  loadoutReady,
   canPlay: canPlayFinisher,
-  onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
+  onCreatureHit: (spec, hit) => { warBandRun.hit(spec.id); const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild); return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = pageSignedIn() ? gearMount?.sheet(ownBuild) : gearMount?.sheet(guestBuild.own(), true), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; const special = equippedSpecial(0) as SkillId | undefined, special2 = equippedSpecial(1) as SkillId | undefined; return { level: careerLine(session.career).level, weapon: rigWeapon, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}), ...(special ? { special } : {}), ...(special2 ? { special2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
+// Debug (the dressRemote warm-up proof, scripts/remote-programs-check.mjs): a second hero actor beside the walker, re-dressed with one source kit at a time through dressRemote. The page's own renderer links what that kit needs,
+// so renderInfo() before and after names the programs a remote wearing it would compile after zone ready.
+let probeActor: ReturnType<typeof secondActor> | undefined, probePieces: Awaited<ReturnType<typeof sharedLoot>> | undefined;
+async function remoteProbe(opponent: string): Promise<{ worn: string[]; missing: string[] }> {
+  if (!probeActor || !probePieces) { probePieces = await sharedLoot(); probeActor = secondActor(); scene.add(probeActor.anchor); }
+  const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(4);   // in the camera's view, so the frame draws it and links its programs
+  probeActor.anchor.position.set(camera.position.x + ahead.x, hero.position.y, camera.position.z + ahead.z);
+  const [kit, only] = opponent.split(':');   // 'goblin' = the whole kit, 'goblin:Helmet' = one slot of it
+  const worn = Object.fromEntries(probePieces.filter((p) => p.userData.opponent === kit && p.userData.slot !== 'Weapon' && (!only || p.userData.slot === only)).map((p) => [String(p.userData.slot), lootIds(p)[0]!]));
+  return { worn: Object.values(worn), missing: dressRemote(probeActor, probePieces, worn) };
+}
+// Which scene objects use each linked program (material type:name @ the object's parent chain), for a seamless receipt: a program that links at the engage is named by its owner, so a red row says what it was.
+function programOwners(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  scene.traverse((o) => {
+    const mats = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (!mats) return;
+    for (const m of Array.isArray(mats) ? mats : [mats]) {
+      const p = (renderer.properties.get(m) as { currentProgram?: { id: number; name: string } }).currentProgram; if (!p) continue;
+      const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && chain.length < 4; n = n.parent) chain.push(n.name || n.type);
+      const list = out[`${p.name}#${p.id}`] ??= []; if (list.length < 4) list.push(`${m.type}${m.name ? `:${m.name}` : ''} @ ${chain.join('<')}`);
+    }
+  });
+  return out;
+}
 (window as unknown as { originsPreview: unknown }).originsPreview = {
-  combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug(), fx: zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
-  presence: () => ({ state: presence?.state() ?? 'off', others }),
+  guestTake: (item: string, quantity: number) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); },   // browser rows: put something in a guest's session bag as a take or a kill would (guest-loss-check.mjs); the real paths are the ground pickup and the kill
+  camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
+  camPos: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z, under: groundY(camera.position.x, camera.position.z), hero: groundY(state.x, state.z) }),   // the Pit layout test: the camera's height against the ground under it (scripts/pit-layout-stills.mjs)
+  kitNodes: (prefix: string) => { const out: { node: string; x: number; z: number }[] = [], m = new THREE.Matrix4(); frontierGroup?.traverse((o) => { const im = o as THREE.InstancedMesh; if (im.isInstancedMesh && im.name.startsWith(prefix)) for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); out.push({ node: im.name, x: m.elements[12]!, z: m.elements[14]! }); } }); return out; },   // stills: where the kit's instances of a node stand in the live scene (the boulder still, #3471)
+  combat: () => ({ acts: actionLog.slice(), hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe(), clip: warriors?.player.playing() ?? null }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
+  presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
+  clampRate: clampRate.snapshot,   // the same read as window.__clampRate(), for the browser checks
+  settledAt: () => settledAt,   // ms from navigation start when the hero and the kit had both settled, -1 before (scripts/load-time-check.mjs --page zone1)
+  cover: () => cover.state(),   // the load cover: { reason: 'styled' | 'max-hold' | null, atMs }, for the browser checks
+  capture: CAPTURE && { step: CAPTURE.step, ticks: () => CAPTURE.ticks(), gates: () => ({ selfSettled: selfSettled(), allWarmed: allWarmed(), cleanPlan, queue: uploadQueue.length, programsInFlight: !!programsInFlight, uploadTotal, domeDrawn, gfxDrawn, modelsDrawn: !!modelsDrawn, exchangeSkinsDrawn }),   // what [zone ready] is still waiting for (a held-walk diagnosis)
+ advance: (n: number) => CAPTURE.advance(n, (dt, time) => walkFrame(dt, time, false)),   // ?capture=seed (capture.ts): the harness waits ready(), places the hero, waits ready() again, then advance(n) and shoots
+    ready: () => { const d = ((window as unknown as { originsPreview: { mobs: () => unknown } }).originsPreview.mobs() ?? undefined) as { mobs: { drawn: boolean; model: boolean }[]; bodies: Record<string, string> } | undefined; return !!(window as unknown as { __zoneReady?: unknown }).__zoneReady && !!d && d.mobs.every((m) => !m.drawn || m.model) && Object.values(d.bodies).every((b) => b === 'ready' || b === 'failed'); } },
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
-  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
+  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
-  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
+  remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm, selfWorn: () => warriors?.player.worn().map((piece) => piece.name) ?? [],   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
+  pointLights: () => { let n = 0; scene.traverse((o) => { if ((o as THREE.PointLight).isPointLight) n++; }); return n; },   // the lights A/B reads this to prove which arm it is in
+  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
+  remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
+  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
+  injectLate: () => { lateStream.inject(); uploadNext = Infinity; return true; },   // browser row only: one model streams into the scene after the plan's last look and before the next one (the 3 s re-plan is frozen, so only zoneReadyCheck can still see it)
+  lateState: () => ({ ...lateStream.state(), inFlight: programsInFlight, clean: cleanPlan, settled: modelsDrawn && exchangeSkinsDrawn && domeDrawn && gfxDrawn }),
+  releaseCompiles: lateStream.release,
   // tap a creature by id as the page would (same reach rule).
+  ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
+  promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
+  goblinCentre: () => goblinKit?.centre ?? null, goblinKitCount: () => goblinKit ? { pieces: goblinKit.dress.pieces.length, ground: goblinKit.dress.ground.length, models: goblinKit.models.length, solids: goblinKit.dress.solids.length, fires: goblinKit.fires.length } : null,   // where the zone's prop kit camp stands and how much it laid (null = no kit), for the same-spot stills
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
@@ -685,3 +1220,4 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   leave: leaveFight,
   reset: (level: number) => { session = newSession(level); source = { offline: 'reset' }; last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
 };
+if (new URLSearchParams(location.search).has('crowd')) void import('./crowd-demo.ts').then((m) => m.crowdFromUrl((window as unknown as { originsPreview: Parameters<typeof m.crowdFromUrl>[0] }).originsPreview));   // ?crowd=N: fake remote heroes and the fps on screen, for a real phone (dev tooling)

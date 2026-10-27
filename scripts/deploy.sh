@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Playwright browsers live in ~/Developer/.ms-playwright, not ~/Library/Caches (macOS emptied ms-playwright on 10-16 and 10-21 and every Mac row died at launch); an explicit PLAYWRIGHT_BROWSERS_PATH wins, and a Mac without the folder keeps Playwright's default.
+if [[ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "$HOME/Developer/.ms-playwright" ]]; then export PLAYWRIGHT_BROWSERS_PATH="$HOME/Developer/.ms-playwright"; fi
 [[ -z "$(git status --porcelain)" ]] || { echo 'Refusing a dirty release'; exit 1; }
 # One deployer, one Mac: while this runs, the Claude hooks refuse other sessions' browser checks, test suites and bakes
 # (the BUSY/FREE handshake, made mechanical). The lock names the revision, the start and this pid; it goes on any exit, and
@@ -8,10 +10,12 @@ cd "$(dirname "$0")/.."
 # Pipelining (scripts/lib/deploy-lock.sh): two runs may be in flight, each in its own checkout; only the publish window is exclusive.
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
+source scripts/lib/net-bound.sh   # net_git / net_gh: every network call below has a limit and a name (a gh poll hung 21 min inside the launchd train, 2026-10-16)
 source scripts/lib/deploy-lock.sh
 deploy_lock_take "$(git rev-parse HEAD)"
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
+source scripts/lib/hf-submit-path.sh   # submit=vps in scripts/lib/hf-submit.json: every hf below runs from the VPS (default mac: no change)
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh
@@ -48,7 +52,7 @@ deploy_scope_apply() {
   echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
 }
 # The waterfall (Dom 2026-10-09: "max out the VPS, the HF CPU and the T4"): every row a remote box may vouch for is launched NOW, so it overlaps the
-# quality gate, minus the rows CI already proved and the rows out of this release's scope. T4 wall rows: scripts/hf-wall-rows.mjs (one t4-medium job, its
+# quality gate, minus the rows CI already proved and the rows out of this release's scope. T4 wall rows: scripts/hf-wall-rows.mjs (one t4-small job, its
 # GPU guard); CPU rows: launch.mjs cpu (cpu-upgrade shards, 20 m each). The Mac runs the Mac-only list (scripts/lib/row-placement.mjs) and every row no
 # receipt proves for this tree. No switch: the list is the only config. The first line says where every row goes.
 out_of_scope=""
@@ -90,9 +94,9 @@ quality_run_with() {
   local want="$1" run_id run_url verdict
   while read -r run_id run_url; do
     [[ -n "$run_id" ]] || continue
-    verdict=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
+    verdict=$(net_gh 60 run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
     if [[ "$verdict" == "$want" || "$verdict" == yes ]]; then echo "$run_url"; return 0; fi
-  done < <(gh run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  done < <(net_gh 60 run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
   return 0
 }
 # A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk under this candidate must have had browser (combat) green itself (Auditor LOW on #2136).
@@ -105,7 +109,7 @@ quality_green() {
   for n in 1 2 3 4 5 6 7 8; do
     base=$(git rev-parse -q --verify "$1~$n" 2>/dev/null || true)
     [[ -n "$base" ]] || return 0
-    runs=$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
+    runs=$(net_gh 60 run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
     if [[ -n "$runs" ]]; then
       [[ -n "$(quality_run_with yes "$base")" ]] && echo "$url"
       return 0
@@ -169,8 +173,9 @@ fi
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
 # One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
+deploy_lock_yield_early "$DEPLOY_ROWS_LOCK"   # a pre-staged candidate's early rows must not hold the Mac against this deploy (K6i, 460 s); they restart after it
 deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
-trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
+trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" CI_DISPATCH_IF_MISSING="${CI_DISPATCH_IF_MISSING:-1}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
@@ -189,7 +194,7 @@ if [[ "${DEPLOY_MAC_AFTER_PUBLISH:-off}" == on ]]; then
   mac_deferred=$(SKIP="$trusted_checks,$out_of_scope" node --input-type=module -e 'import { MAC_ROWS } from "./scripts/lib/row-placement.mjs"; const skip = new Set(process.env.SKIP.split(",").map(Number)); console.log(MAC_ROWS.filter(row => !skip.has(row)).join(","))')
   [[ -z "$mac_deferred" ]] || echo "Mac rows deferred to after Published (rollback on failure): $mac_deferred"
 fi
-RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # width = row-placement.mjs LOCAL_CONCURRENCY (3) unless the caller sets RELEASE_CHECK_CONCURRENCY; SERIAL_ROWS (WebKit rows, rows that fail off the Mac, timing gates) run alone after the concurrent ones (Dom 2026-10-10: two WebKit rows at once put the load at 30, X ran 5 wide at 97; Dom 2026-10-20 asked why one at a time)
 deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
@@ -203,7 +208,7 @@ host=root@49.12.7.18
 key="$HOME/.ssh/binance_futures_tool"
 release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
+ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
 # The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
 # forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.
@@ -238,13 +243,41 @@ presence_back() {
   [[ -n "$presence_prev" ]] || return 0
   ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence nginx)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
 }
-writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
+# A dead connection fails in ~45 s (ServerAlive above); net_bound is the step ceiling behind it (K6q11, 2026-10-21 17:38: the remote install finished, the ssh client sat 12 min on a dead path).
+writer_install=$(net_bound "${INSTALL_STEP_MAX_S:-600}" "writer install ssh" ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && $(net_remote_fetch_cmd "$revision") && $(net_remote_checkout_cmd "$revision") && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; writer_back; exit 1; }
 printf '%s\n' "$writer_install"
 if [[ -n "$presence_prev" ]]; then
-  presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
+  presence_install=$(net_bound "${INSTALL_STEP_MAX_S:-600}" "presence install ssh" ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
   printf '%s\n' "$presence_install"
 fi
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; exit 1; }
+# The replay verifiers flip with the site too (Auditor, 2026-10-18: verify-daily ran JD's rules against JE for two minutes because the install came after the switch; on an RV bump
+# a record from the new version would be verified by old code). Ship the closure and flip /opt/frankendom-verifier/current just before the switch, gated by the dry import;
+# the timers are (re)installed in the "verifier" step after the switch, as before.
+verifier="/opt/frankendom-verifier/$revision"
+deploy_step "verifier install"
+verifier_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-verifier/current || true")
+# Same rule as writer_back: put `current` back at the outgoing install only while the site has NOT moved to $release.
+verifier_back() {
+  [[ -n "$verifier_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "test \"\$(readlink -f /var/www/frankendom/current)\" = '$release' || ln -sfn '$verifier_prev' /opt/frankendom-verifier/current" >&2 || echo "VERIFIER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $verifier_prev" >&2
+}
+# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
+# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
+verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
+printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
+  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE' || { echo "verifier install failed for $revision; the site has not moved" >&2; writer_back; presence_back; verifier_back; exit 1; }
+set -euo pipefail
+# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
+# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
+(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
+echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
+ln -sfn "$1" /opt/frankendom-verifier/current
+REMOTE
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; verifier_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -277,9 +310,16 @@ previews_ok=1
 # Same rule as above: record the failure, raise it at the end, never skip the verifier install.
 if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
   rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
-  bash scripts/publish-origins-preview.sh || previews_ok=0
+  # A transient network drop (K6o2, 2026-10-21: "ssh: connect to host 49.12.7.18 port 22: Operation timed out" in this step) is retried before it counts: up to 3 publish attempts, 20 s apart.
+  for _pv_try in 1 2 3; do
+    if bash scripts/publish-origins-preview.sh; then previews_ok=1; break; fi
+    previews_ok=0; echo "origins preview: publish attempt $_pv_try of 3 failed" >&2; [[ "$_pv_try" == 3 ]] || sleep "${PREVIEW_RETRY_S:-20}"
+  done
   built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
-  live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+  for _pv_try in 1 2 3; do   # a short re-read: the page may be served a moment after the copy
+    live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+    [[ -n "$built_bundle" && "$built_bundle" == "$live_bundle" ]] && break; sleep "${PREVIEW_RETRY_S:-20}"
+  done
   if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
     echo "origins preview: /zone1/ serves '${live_bundle:-none}', this revision built '${built_bundle:-none}'" >&2
     previews_ok=0
@@ -287,30 +327,39 @@ if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
     echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
   fi
 fi
+# Look-test folders (/preview/<name>/ with an index.html, e.g. rv86) are carried forward but are NOT production (Lead 2026-10-21): one that does not serve after the switch is NAMED, never fatal.
+# (/zone1/ and /preview/origins/ above are the production pages: those stop the train.)
+look_missing=""
+for _lt in $(ssh "${ssh_options[@]}" "$host" 'cd /var/www/frankendom/current/preview 2>/dev/null && for d in */; do [ -f "${d}index.html" ] && echo "${d%/}"; done' 2>/dev/null || true); do
+  [[ "$_lt" == origins ]] && continue
+  [[ "$(curl --silent --output /dev/null --max-time 15 --write-out '%{http_code}' "https://frankendom.com/preview/$_lt/" || true)" == 200 ]] || look_missing="$look_missing $_lt"
+done
+[[ -z "$look_missing" ]] || echo "look-test folders not serving:$look_missing" >&2   # shares no words with the production LIVE line raised at the end: the resume greps for that one to STOP
 # The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
+# A drift stops the train ONLY when this release did not change the vhost: a release that does (K6q17 #3568, K6q19 #3582) is the announced case, provision.sh follows the Published line, and
+# stopping there made the train raise a false previews failure for a healthy release (two false STOPs on 2026-10-22, each a manual clear). Unexplained drift still stops.
+# nginx-drift begin
+nginx_drift_expected() {   # $1 the outgoing live sha, $2 this revision: 0 only when both are real commits and the vhost paths differ between them
+  [[ "$1" =~ ^[0-9a-f]{40}$ ]] || return 1
+  git cat-file -e "$1^{commit}" 2>/dev/null || return 1
+  [[ -n "$(git diff --name-only "$1" "$2" -- deploy/frankendom.com.conf ops/nginx 2>/dev/null)" ]]
+}
+# nginx-drift end
 nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
-if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
+if [[ -n "$nginx_drift" ]]; then
+  echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2
+  if nginx_drift_expected "${live_now:-}" "$revision"; then echo "nginx: PROVISION PENDING: this release changes the vhost (deploy/frankendom.com.conf or ops/nginx), so the drift is expected and does not stop the train; run scripts/provision.sh after the Published line" >&2
+  else previews_ok=0; fi
+fi
 curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
-verifier="/opt/frankendom-verifier/$revision"
 deploy_step "verifier"
-# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
-# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
-verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
-ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
-printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
-rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
-  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
+# The files and the `current` flip happened before the switch (the "verifier install" step above); this step arms the timers.
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
-# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
-# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
-(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
-  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
-echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
-ln -sfn "$1" /opt/frankendom-verifier/current
+test "$(readlink /opt/frankendom-verifier/current)" = "$1"
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
   install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" \
@@ -320,7 +369,15 @@ if test -s /etc/frankendom/verifier.env; then
   echo "daily verifier timer armed on $1"
   # The loot sweep reads loot_claims (migration 202609230001): arm it only once that table exists, so a publish before the apply is harmless.
   db=$(sed -n 's/^DATABASE_URL=//p' /etc/frankendom/verifier.env | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-  if ! loot=$(psql "$db" -tAc "select to_regclass('public.loot_claims') is not null" 2>&1); then
+  # No secret in argv (Lead 2026-10-17): the URL becomes a mode-600 libpq service file, as ops/db-backup.sh does, and psql reads it by PGSERVICEFILE.
+  svc=$(mktemp) && chmod 600 "$svc"
+  python3 -c 'import sys, urllib.parse as u
+r = u.urlparse(sys.stdin.read().strip()); q = dict(u.parse_qsl(r.query))
+v = {"host": r.hostname, "port": r.port, "dbname": (r.path or "/")[1:] or None, "user": u.unquote(r.username) if r.username else None, "password": u.unquote(r.password) if r.password else None, **q}
+print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' <<<"$db" >"$svc"
+  loot_ok=0; loot=$(PGSERVICEFILE="$svc" PGSERVICE=fk psql -tAc "select to_regclass('public.loot_claims') is not null" 2>&1) && loot_ok=1
+  rm -f "$svc"
+  if test "$loot_ok" = 0; then
     echo "loot verifier shipped to $1; loot_claims check failed, timer not armed: $(printf '%s' "$loot" | head -n 1 | cut -c1-200)"
   elif test "$loot" = t; then
     systemctl enable --now --quiet frankendom-verify-loot.timer
@@ -348,7 +405,7 @@ printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
 if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi
-node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
+node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?') (open release PRs excluded); running T4 jobs: $(node scripts/lib/prelaunch-jobs.mjs running "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
 # The Published block carries presence's state (Strategy + Lead joint GO): active, restarts before -> after, the local health curl and what release.json says.
 if [[ -n "$presence_prev" ]]; then
   presence_state=$(ssh "${ssh_options[@]}" "$host" 'P=$(grep -E "^PRESENCE_PORT=" /etc/frankendom/presence.env 2>/dev/null | cut -d= -f2); echo "active=$(systemctl is-active frankendom-presence) NRestarts=$(systemctl show -p NRestarts --value frankendom-presence) health=$(curl -s -m 8 -o /dev/null -w "%{http_code}" http://127.0.0.1:${P:-8793}/origins/presence/health)"' || echo 'state unreadable')
@@ -366,6 +423,11 @@ deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 # The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
 post_rc=0
 POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1"; export POST_PUBLISH_LIVE_CMD   # rows start only while the release they test is the live one
+# The deferred non-Mac group goes to the GitHub runners (post_publish_ci_start: CI-trusted by tree, else one release-checks dispatch, returns at once); the Mac group below, which can roll the
+# release back, never waits on CI; post_publish_ci_collect then waits for the run and leaves only what CI could not prove for the Mac.
+pp_all="$post_publish"
+if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && "${TAIL_MIN_INTERVAL_S:-0}" =~ ^[1-9][0-9]*$ ]]; then export POST_PUBLISH_DISPATCH=true; fi   # coalesced window (release-train.env): the window's tail dispatches ONE CI run for the newest member, not one per release
+pp_open=$(post_publish_ci_start "$revision" "$post_publish")
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0
 if [[ -n "$mac_deferred" ]]; then
@@ -381,6 +443,26 @@ if [[ -n "$mac_deferred" ]]; then
   if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback=mac_rollback_release
   else echo "Mac rows failing will not roll back: this publish changed the writer (or live was unknown), a person decides" >&2; fi
   POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
+fi
+if (( mac_rc == 0 )); then   # a rolled-back or failed Mac group: no CI wait, post_publish_rows skips or fails as before
+  if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && -n "$pp_open" ]]; then
+    # Overlapping publishes (Lead GO 2026-10-18, Dom): the live read-backs and the rollback-capable Mac group are done, so the hold may release now. The rows CI has not finished are NOT
+    # waited for here: the train publisher starts scripts/release-train-postcheck.sh on this line, which waits for CI and holds the NEXT publish on a red or unproved row. The pending
+    # full-run stamp is not promoted on this path (the tail cannot reach this checkout's artifacts: the next publish rewrites the slot).
+    # The rows CI never proves (POST_PUBLISH_MAC_ROWS, default 9: polearm-browser-check ran on the Mac as the fallback in every cycle before this) are NOT detached: they run on the Mac below,
+    # inside the hold, exactly as before. Only the rest is the tail's. If nothing is left to detach, the old path runs (IT, 2026-10-18: the first detached cycle dropped row 9).
+    detach_rows=$(_pp_left "$pp_open" "${POST_PUBLISH_MAC_ROWS:-9}")
+    if [[ -n "$detach_rows" ]]; then
+      post_publish=$(_pp_left "$pp_open" "$detach_rows")   # the Mac-first rows among the open ones
+      echo "post-publish CI tail: rows $detach_rows for $revision (detached: the Mac group is done, the hold is released, release-train-postcheck.sh waits for CI; Mac rows now: ${post_publish:-none})"
+    else
+      post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
+      [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"
+    fi
+  else
+    post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
+    [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"   # every row was CI-trusted: nothing left to run, the stamp still counts
+  fi
 fi
 POST_PUBLISH_PROMOTE=$(( 1 - mac_rc )) post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then

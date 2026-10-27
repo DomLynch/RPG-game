@@ -1,0 +1,18 @@
+{
+  "ladder": [
+    { "id": "tier-1", "fromZone": 1, "capM": 2.639, "note": "Dom 2026-10-18 (via Lead): size rises with zone tier. Zone 1's cap is the cave troll's drawn height at scale 1.52 (1.736 m x 1.52 = 2.6387, rounded up to the millimetre; the troll body was re-measured 1.739 -> 1.736 when its GLB changed on trunk). A creature's DRAWN height is its body's rest-pose height (bodies below) times the scale it is drawn at (the look's, else the catalogue's render.scale), not the raw scale factor. A higher tier's row is Dom's to set." }
+  ],
+  "bodies": [
+    { "id": "cave-troll", "heightM": 1.736, "lengthM": 0.994, "glb": "/world/cave-troll.glb", "sha256": "72cefc872d6f009a729b7a8bf61dbfdd5dff22adb3cd798ee881d003741c39b6" },
+    { "id": "giant-salamander", "heightM": 0.319, "lengthM": 1.002, "glb": "/world/giant-salamander.glb", "sha256": "54494bda42c57233432ccaccd68a5550a699f9d4eb54d40baea70e8ebc95f912" },
+    { "id": "goblin", "heightM": 1.406, "lengthM": 1.478, "glb": "/world/goblin.glb", "sha256": "df22268bf628e5b483f976cc2ce5a9e0ef9019aa48c0385c9fe35e35393826b8" },
+    { "id": "wolf", "heightM": 0.647, "lengthM": 1, "glb": "/world/wolf.glb", "sha256": "5390a72819ada693cad7ca3c4c5788b3d9d9357d48b17ad823d018e86b30becc" },
+    { "id": "boar", "heightM": 0.64, "lengthM": 1.002, "glb": "/world/boar.glb", "sha256": "6f63434746793972b3d5c8c2528889d004bdbd040883c92116be6b13d97308fe" },
+    { "id": "bear", "heightM": 0.655, "lengthM": 1.01, "glb": "/world/bear.glb", "sha256": "df116ed82ad8e8d77b6390008b72d48c2c99ce9d97679605e29379407cc7191e" },
+    { "id": "witch", "heightM": 1.751, "lengthM": 1.232, "glb": "/world/witch.glb", "sha256": "c45778e77863ebe4ad4304df1ce686e400492daab5473f76b6ba6e9dc46d7a6e" },
+    { "id": "knight", "heightM": 2.122, "lengthM": 0.83, "glb": "/world/knight.glb", "sha256": "2d0e70f87c321da7da7bf6906ff6c0f2ac168d44fd7df6563bf2905b41e07297" },
+    { "id": "pitborn", "heightM": 2.002, "lengthM": 1.839, "glb": "/world/pitborn.glb", "sha256": "9ea040aa1b3b30c84ffaa4f7965e03665ee23428195ca6e30b7577fc8a77a2e0" },
+    { "id": "warrior", "heightM": 1.781, "lengthM": 1.628, "glb": "/world/warrior.glb", "sha256": "2b99b714d46682ada1a04571beb336c0ec1e0f6d12f1702b46ba75a2244c0b3c" }
+  ],
+  "exceptions": []
+}

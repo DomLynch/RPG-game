@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, counterLine, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/fight/combat.ts';

@@ -1,5 +1,6 @@
 // Real touch input and passive combat/animation observations; no simulation overrides. Page time is the gate's after boot
 // (scripts/lib/harness-clock.mjs), so the parry-then-counter presses land on the same ticks on any machine.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
@@ -7,14 +8,14 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 // Three independent counters, each on a fresh page with its own arena boot. COUNTER_ONLY=<move> runs just one of them so CI
 // can fan them out across runners (quality.yml); unset runs all three, which is what deploy.sh and .quality-gate.json do.
-const COUNTERS=[['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]];
+const COUNTERS=[['attack-button','slash_riposte','Attack',6],['thrust-button','riposte','Riposte',9],['heavy-button','heavy_riposte','Heavy',7]];   // RV79 (reach bands live, Dom's cm edges): each riposte lands off the longsword's mid band, x 0.4 on top of the armour rows: 14 x .4 = 6, 22 x .4 = 9, 18 x .4 = 7   // RV78 sandbox era (Dom-approved 2026-10-18): the warden is a veteran in plate; sandbox armourVs heavy: slash 600, pierce 900 per mille: 24 x .6 = 14, 24 x .9 = 22, 30 x .6 = 18
 const only=(process.env.COUNTER_ONLY||'').trim();
 const selected=only?COUNTERS.filter(([,move])=>move===only):COUNTERS;
 // A typo must fail the gate, never pass it by running nothing.
 if(!selected.length) throw new Error(`COUNTER_ONLY=${only} matches no counter; expected one of: ${COUNTERS.map(([,m])=>m).join(', ')}`);
 const server=process.env.QA_URL?null:await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
 const url=new URL(process.env.QA_URL||`http://127.0.0.1:${server.httpServer.address().port}`);url.searchParams.set('debug','1');
-const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
+const browser=await launchBrowser(chromium, {headless:true,executablePath:chromium.executablePath()});
 const receipt={url:url.href,physicalPhone:false,only:only||null,counters:[],errors:[]};
 const dir='artifacts/weapons/counter-buttons';await fs.mkdir(dir,{recursive:true});
 try {
@@ -34,6 +35,15 @@ try {
   });
   const cdp=await page.context().newCDPSession(page);
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
+  // The counter press. The one-button pad is the default (RV80, Dom 2026-10-19): the Thrust and Heavy buttons are hidden, so the thrust is a slide up from STRIKE and the heavy is a hold on it (past the counter-window hold, input.heavy-hold-window-ms 80); a plain tap is the light cut. A page that still shows the old buttons taps them.
+  const press = async (id) => {
+    const direct = page.locator('#'+id);
+    if (await direct.isVisible()) return direct.tap();
+    const b = await page.locator('#attack-button').boundingBox(), c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await touch('touchStart', c);
+    if (id === 'thrust-button') await touch('touchMove', { x: c.x, y: c.y - 30 }); else await run(120);
+    await touch('touchEnd');
+  };
   // Diagnosis for a runner where the fight never starts under harness time: what the page looks like right after the press and on failure.
   const diagnose=()=>page.evaluate(()=>({visibility:document.visibilityState,welcomeHidden:document.querySelector('#welcome')?.hidden,message:document.querySelector('#message')?.textContent,messageHidden:document.querySelector('#message')?.hidden,attack:document.querySelector('#attack-button')?.textContent,attackDisabled:document.querySelector('#attack-button')?.getAttribute('aria-disabled'),guard:document.querySelector('#guard-button')?.getAttribute('aria-disabled'),status:document.querySelector('#combat-status')?.textContent,debug:{...document.querySelector('#debug')?.dataset},performance:document.querySelector('#performance')?.textContent,combatEvents:window.__combat.length,lastTick:window.__combat.at(-1)?.tick??null,now:Math.round(performance.now())}));
   await page.getByRole('button',{name:'Fight',exact:true}).tap();
@@ -52,7 +62,7 @@ try {
   await touch('touchStart',centre);
   if(slide){await touch('touchMove',{x:centre.x+slide.x,y:centre.y+slide.y});}
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
-  await touch('touchEnd');await page.locator('#'+button).tap();
+  await touch('touchEnd');await press(button);
   await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);
   const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value,max:document.querySelector('#target-health').max}));
   assert.ok(state.events.some(e=>e.type==='AttackStarted'&&e.actor===0&&e.move===move));

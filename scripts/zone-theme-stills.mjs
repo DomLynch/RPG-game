@@ -1,5 +1,6 @@
 // Zone page stills at 375x812 for zones 1 and 3 (?zone=<id> on the origins-preview build): the first view at spawn, then the hub (the Pit and the Exchange, placed at the start) the walk starts from.
 // ?daynight=0 pins the light so a before and an after of the same zone are comparable. Reads the zone the page reports and its ambience preset. Needs ZONE_DIST (the origins-preview build). Stills: artifacts/zone-theme/.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -13,14 +14,14 @@ const roots = { '/preview/origins/': `${built}/` }; for (const d of ['game', 'we
 const zs = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let hit = null; for (const [pre, r] of Object.entries(roots)) if (u.startsWith(pre)) hit = path.join(r, u.slice(pre.length) || 'index.html'); if (hit && existsSync(hit) && statSync(hit).isDirectory()) hit = path.join(hit, 'index.html'); if (!hit || !existsSync(hit)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); createReadStream(hit).pipe(res); });
 await new Promise((r) => zs.listen(0, '127.0.0.1', r)); const origin = `http://127.0.0.1:${zs.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const out = {};
 try {
   for (const zone of ['1', '3']) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     const page = await context.newPage(); page.setDefaultTimeout(90000); await page.route('**/*sentry.io/**', (r) => r.abort());
     await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}&daynight=0`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 }); await page.waitForTimeout(3000);
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 120000 }); await page.waitForTimeout(3000);
     out[zone] = await page.evaluate(() => ({ ambience: document.body.dataset.ambience, pos: { ...window.originsPreview.pos } }));
     await page.screenshot({ path: `${dir}/${tag}-zone${zone}-spawn.png` });
     await page.evaluate(() => window.originsPreview.place(0, 3, 0)); await page.waitForTimeout(2500);   // the hub: the Pit's ring, facing +z (heading 0)

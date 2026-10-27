@@ -1,0 +1,16 @@
+{
+  "liveOps": [
+    { "id": "events", "maxEventMinutes": 10080, "note": "the longest a scheduled live event may run, in minutes (7 days); a row longer than this is refused at load" }
+  ],
+  "zone1Hop": [
+    { "id": "next", "nextTtlMs": 600000, "note": "how long an abandoned sign-in's Zone 1 hop mark stays valid, in ms (10 minutes), so it cannot send a much later arena sign-in to Zone 1" }
+  ],
+  "tradeLock": [
+    { "id": "first", "firstTradeDelayS": 259200, "note": "seconds a freshly looted, minted or bought piece waits before it can be offered (72 hours)" }
+  ],
+  "tradeCooldownStep": [
+    { "id": "after-1", "hops": 1, "seconds": 604800, "note": "after its 1st change of hands the new owner waits 7 days" },
+    { "id": "after-2", "hops": 2, "seconds": 1209600, "note": "after its 2nd change of hands: 14 days" },
+    { "id": "after-3", "hops": 3, "seconds": 2592000, "note": "after its 3rd change of hands: 30 days; every later trade uses the last step" }
+  ]
+}

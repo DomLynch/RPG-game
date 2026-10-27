@@ -1,0 +1,2 @@
+// Whether a phone draws a far creature's rank-look body only (mobs-view.ts farDetail). Pure. A creature that fights the hero, hunts him or is his engaged foe always wears all of its look; any other creature past `range` metres draws the body alone (its arms, gloves, greaves and helmet are a few pixels at that distance).
+export const farHide = (dist: number, matters: boolean, range: number): boolean => !matters && dist > range;

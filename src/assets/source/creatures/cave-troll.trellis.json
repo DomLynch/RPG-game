@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1536",
+  "faces": 500000,
+  "texture": 4096,
+  "image": "docs/character-references/cave-troll-seed-190927.png",
+  "preprocess_s": 12.4,
+  "image_to_3d_s": 107.3,
+  "extract_glb_s": 126.9,
+  "glb": "src/assets/source/creatures/cave-troll.glb",
+  "bytes": 23171448,
+  "sha256": "ecdcbfcbaa4a00e48330e7c4fa51bfc84de04625e11a8be0b8f4192f76379397",
+  "attempts": 1
+}

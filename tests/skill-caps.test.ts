@@ -5,6 +5,7 @@
 //   stun    — the worst stun a clean hit can deal (counter × rear) is short of a guaranteed follow-up light (only the Pommel owns that);
 //   block   — after a blocked contact the caster stays exposed long enough for the hero's 16-tick thrust with ≥ 9 ticks to spare.
 // The full fairness sweep is scripts/skill-battery.mjs --skill <id>; its output goes in the PR that changes a row.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, mirror, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';

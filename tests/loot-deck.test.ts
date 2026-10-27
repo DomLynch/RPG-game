@@ -1,4 +1,5 @@
 // Loot deck with pity: the rows load with their refs checked, the draw obeys the rows, and a dry streak never passes the deck's hard pity.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LOOT_DECKS, LOOT_DECK_RESETS, applyReset, deckById, dropChance, drawCard, freshDeck, loadLootDecks, type DeckState } from '../src/fight/loot-deck.ts';

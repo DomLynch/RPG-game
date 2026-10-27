@@ -3,6 +3,7 @@
 // time). Behaviour here is exactly what browser-check.mjs and roster-browser-check.mjs did inline; a script that needs
 // something else passes it in rather than forking the boot. Dev-server previews (vite createServer) join when the first
 // one migrates; nothing speculative lives here.
+import { launchBrowser } from './harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
@@ -18,7 +19,7 @@ export async function serveDist(env = process.env) {
 }
 
 // Headless Chromium from Playwright's own download (the runner has no system Chrome). Extra launch options pass through.
-export const launch = (options = {}) => chromium.launch({ headless: true, executablePath: chromium.executablePath(), ...options });
+export const launch = (options = {}) => launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), ...options });
 
 // The debug overlay (?debug=1, #debug) is how the harness reads the sim, and it paints over the top of every still (Dom/Strategy 2026-10-12: stills carry no overlay).
 // Capture scripts hide it by default: display:none keeps its text for the gates that read it. SHOW_DEBUG=1 is the opt-in to see it in a still.

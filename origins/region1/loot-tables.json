@@ -150,7 +150,9 @@
     "currency": null,
     "fallback": null,
     "rolledBy": [
-      "character:ruin-ghoul"
+      "character:ruin-ghoul",
+      "character:ash-skeleton",
+      "character:pale-duelist"
     ]
   },
   {
@@ -313,6 +315,195 @@
     "rolledBy": [
       "character:cinder-bear"
     ]
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:giant-salamander",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 60,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 2,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 8,
+      "max": 20
+    },
+    "fallback": null,
+    "rolledBy": [
+      "character:giant-salamander"
+    ]
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:cave-troll",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 70,
+            "quantity": 4,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 8,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 8,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:loot.pitborn.Greaves",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.pitborn.Boots",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 25,
+      "max": 60
+    },
+    "fallback": null,
+    "rolledBy": [
+      "character:cave-troll"
+    ]
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:tz-cave-troll",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 70,
+            "quantity": 4,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 8,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 8,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:loot.pitborn.Greaves",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.pitborn.Boots",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 25,
+      "max": 60
+    },
+    "fallback": null,
+    "rolledBy": []
   },
   {
     "kind": "loot-table",
@@ -561,5 +752,32 @@
     ],
     "currency": null,
     "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:pit-legend",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {"item": "item:loot.goblin.Helmet", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null},
+          {"item": "item:loot.goblin.Body", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null},
+          {"item": "item:loot.goblin.Arms", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null},
+          {"item": "item:loot.goblin.Greaves", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null},
+          {"item": "item:loot.goblin.Boots", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null},
+          {"item": "item:loot.goblin.Gloves", "chance": 25, "quantity": 1, "levelMin": null, "levelMax": null}
+        ]
+      }
+    ],
+    "currency": {"min": 4, "max": 12},
+    "fallback": null,
+    "rolledBy": []
   }
 ]

@@ -4,8 +4,8 @@
 // calls frame() once per 60 Hz tick and moves packets; the fake-link test (tests/net-rollback.test.ts) drives two sessions in one process.
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
-import { NET_ROW, PLAYABLE_ROW } from './net-rules.ts';
-import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
+import { NET_ROW, PLAYABLE_ROW, TIMING_ROW } from './net-rules.ts';
+import { bandsFlag, createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
 import { quantizeIntent } from '../fight/record.ts';
 import { initialState, TARGET } from '../fight/sim.ts';
 import { setPlayScale } from '../fight/play-radius.ts';
@@ -22,7 +22,7 @@ export const NET = NET_ROW;
 // pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel, and the record needs no second format then.
 export type Kit = { weapon: WeaponId; skill: SkillId | null; gear?: readonly string[] };
 export const pvpDuel = (a: Kit = { weapon: DEFAULT_WEAPON, skill: null }, b: Kit = { weapon: DEFAULT_WEAPON, skill: null }): Duel => (setPlayScale(1), {   // PvP is not Arena 1: both peers and the verifier pin the original circle at duel start, whatever the page's last Match left (play-radius.ts)
-  tick: 0, finish: null, events: [],
+  tick: 0, finish: null, events: [], ...bandsFlag(),   // RV79 (Lead's ruling 2026-10-19): the reach bands apply to every duel as in the sandbox, PvP included; symmetric for both players, keyed on the same era switch as the Pit and the world
   fighters: [{ ...createFighter(initialState(), 'sheathed', a.weapon), skill: a.skill }, { ...createFighter({ ...TARGET, heading: 0, distance: 0 }, 'sheathed', b.weapon), skill: b.skill }],
 });
 
@@ -207,10 +207,10 @@ export class RollbackSession {
   // asking for less, so a jitter spike does not see-saw the delay.
   private adapt(): void {
     if (this.rtt.length < 8) return;
-    const rtt = quantile(this.rtt, 0.9), want = delayFor(rtt, this.maxRollback);
+    const rtt = quantile(this.rtt, TIMING_ROW.delayRttQuantile), want = delayFor(rtt, this.maxRollback);
     this.tooSlow = neededDelay(rtt, this.maxRollback) >= NET.maxDelay;   // at the cap: no headroom left for jitter
     if (want > this.delay) { this.delay = want; this.steady = 0; }
-    else if (want < this.delay) { if (++this.steady >= 120) { this.delay--; this.steady = 0; } }
+    else if (want < this.delay) { if (++this.steady >= TIMING_ROW.delayStepDownFrames) { this.delay--; this.steady = 0; } }
     else this.steady = 0;
     this.stats.maxDelay = Math.max(this.stats.maxDelay, this.delay);
   }

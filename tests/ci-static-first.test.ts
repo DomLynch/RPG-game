@@ -2,12 +2,14 @@
 // quality shard, browser job and unit-ci shard `needs:` it on a pull request, so a red tsc costs one job, not 30; (2) scope: release-checks rows run
 // only for release-* candidates, never a feature PR (label or not); a feature PR's browser jobs run only once it carries auditor:ready.
 // The workflows' own `needs:` / `if:` / concurrency expressions are evaluated here per event, so this tests what Actions would schedule.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { steps as expand } from './lib/npm-script.ts';
 
 type Ctx = { event_name: string; event: Record<string, unknown>; head_ref?: string; ref?: string; run_id?: string };
 type Job = { name: string; needs: string[]; cond: string | null; outputs: boolean };
@@ -63,7 +65,7 @@ const schedule = (file: string, github: Ctx, results: Record<string, string> = {
 const pr = (action: string, labels: string[] = [], extra: Record<string, unknown> = {}): Ctx =>
   ({ event_name: 'pull_request', head_ref: 'deploy-b/x', event: { action, pull_request: { number: 7, draft: false, labels: labels.map(name => ({ name })) }, ...extra } });
 const Q = '.github/workflows/quality.yml', U = '.github/workflows/unit-ci.yml', R = '.github/workflows/release-checks.yml';
-const BROWSER = ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page'];
+const BROWSER = ['load-time', 'load-time-zone1', 'browser', 'net-engines', 'asset-rows', 'duel-two-page'];
 const game = { plan: { game: 'true', browser: 'true' } };
 // Actions resolves github.event.pull_request.labels.*.name; the files use it only inside contains(...)
 const withLabelNames = (c: Ctx) => { const p = c.event.pull_request as { labels?: { name: string }[] } | undefined; if (p?.labels) Object.assign(p.labels, { '*': { name: p.labels.map(l => l.name) } }); return c; };
@@ -152,7 +154,7 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   const push: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} };
   const ran = schedule(Q, push, {}, game);
   assert.ok(!ran.has('static'));
-  for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
+  for (const j of ['quality-shard', 'quality', 'load-time', 'load-time-zone1', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
   const unit = schedule(U, push);
   assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
   assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
@@ -171,15 +173,22 @@ test('fail closed (the Auditor on #2476): a red static or a red plan still runs 
   assert.ok(!schedule(R, withLabelNames({ ...pr('synchronize', ['ci:release-checks']), head_ref: 'release-DX' }), {}, { plan: { checks: '[]' } }).has('summary'), 'an empty matrix still skips it (docs-only diff)');
 });
 
-test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {
+// Dom's repo audit (2026-10-21): the lint half lives once, in package.json's quality:lint; the static jobs run it, and the quality shard runs it
+// only when its static did not run (a trunk push), so a pull request lints once per workflow instead of re-linting inside quality:static.
+test('the static job is tsc + lint only (fast) through quality:lint; the quality shard lints only when static did not run, and always runs quality:checks', () => {
+  const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts as Record<string, string>;
+  assert.deepEqual(expand(scripts, 'quality:lint'), ['eslint src', 'npm run typecheck:tests', 'npm run typecheck:origins', 'npm run lint:origins']);
   for (const f of [Q, U]) {
     const t = readFileSync(f, 'utf8'), at = t.indexOf('\n  static:\n');
     assert.ok(at >= 0, `${f} has a static job`);
     const block = t.slice(at + 1), end = block.slice(1).search(/\n {2}[a-z][a-z0-9-]*:\n/);
     const s = end < 0 ? block : block.slice(0, end + 1);
-    for (const cmd of ['npx eslint src', 'npm run typecheck:tests', 'npm run typecheck:origins', 'npm run lint:origins']) assert.ok(s.includes(cmd), `${f} static runs ${cmd}`);
-    assert.doesNotMatch(s, /npm run build|test:all|playwright/, `${f} static stays fast`);
+    assert.match(s, /\n {6}- run: npm run quality:lint\b/, `${f} static runs quality:lint`);
+    assert.doesNotMatch(s, /npm run build|test:all|playwright|quality:checks|quality:static/, `${f} static stays fast`);
   }
+  const q = readFileSync(Q, 'utf8');
+  assert.match(q, /- if: matrix\.part == 'static' && needs\.static\.result != 'success'\n {8}run: npm run quality:lint\n/, 'the shard lints when static did not run');
+  assert.match(q, /- if: matrix\.part == 'static'\n {8}run: npm run quality:checks\n/, 'the shard always runs the rest');
 });
 
 test('release-checks: rows only for a release-* candidate; a feature PR, labelled or not, schedules no job; a dispatch is unchanged', () => {

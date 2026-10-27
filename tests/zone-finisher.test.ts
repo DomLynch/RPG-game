@@ -1,4 +1,5 @@
 // K6: a zone creature's decapitation is keyed by its catalogue row (src/fight/zone-finisher.ts): it plays only for a creature whose row has a head to cut, once, with the row's bones.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

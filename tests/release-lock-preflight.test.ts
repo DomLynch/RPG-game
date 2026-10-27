@@ -1,5 +1,6 @@
 // scripts/lib/release-lock-preflight.mjs: test:all refuses while a release run's marker is live, unless the release runner set its flag. Real files in a temp dir (RELEASE_LOCK_DIR);
 // nothing here reads /run or any live box state.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

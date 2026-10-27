@@ -1,5 +1,6 @@
 // The PR preflight (scripts/preflight-steps.sh runs on the box; scripts/preflight.mjs ships it and prints the receipt). Red-to-green on fixture repos: a clean PR passes, a type clash
 // (TS2308: two `export *` both exporting `x`) and a merge conflict both FAIL, and the conflict names its file and stops before any step runs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

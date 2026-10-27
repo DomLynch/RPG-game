@@ -1,0 +1,173 @@
+{
+  "id": "crypt-sample",
+  "name": "The Sample Crypt",
+  "theme": "bone-camp",
+  "level": [
+    4,
+    6
+  ],
+  "world": "crypt-sample",
+  "size": {
+    "width": 60,
+    "depth": 40
+  },
+  "entrance": {
+    "room": "crypt-door",
+    "exit": "crypt-door"
+  },
+  "rooms": [
+    {
+      "id": "crypt-door",
+      "at": {
+        "u": 0,
+        "v": 0.5,
+        "facing": 90
+      },
+      "piece": "door",
+      "links": [
+        "crypt-nave"
+      ]
+    },
+    {
+      "id": "crypt-nave",
+      "at": {
+        "u": 0.5,
+        "v": 0.5,
+        "facing": 0
+      },
+      "piece": "nave",
+      "links": [
+        "crypt-door",
+        "crypt-vault"
+      ]
+    },
+    {
+      "id": "crypt-vault",
+      "at": {
+        "u": 0.95,
+        "v": 0.5,
+        "facing": 180
+      },
+      "piece": "vault",
+      "links": [
+        "crypt-nave"
+      ]
+    }
+  ],
+  "creatures": [
+    {
+      "id": "character:cinder-scavenger",
+      "source": {
+        "kind": "chronicle",
+        "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)",
+        "author": "Orderic Vitalis",
+        "year": 1141,
+        "authorDied": 1142,
+        "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\""
+      },
+      "role": "beast",
+      "loot": "loottable:cinder-scavenger",
+      "level": [
+        4,
+        5
+      ],
+      "behaviour": {
+        "roam": 6,
+        "spread": 8,
+        "pull": 0,
+        "campSize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "id": "character:giant-salamander",
+      "source": {
+        "kind": "history",
+        "work": "Naturalis Historia (the salamander, the beast that puts out fire)",
+        "author": "Pliny the Elder",
+        "year": 77,
+        "authorDied": 79,
+        "locator": "Bk. X, ch. 86 (§188)"
+      },
+      "role": "beast",
+      "loot": "loottable:giant-salamander",
+      "level": [
+        6,
+        6
+      ],
+      "named": true,
+      "respawnSeconds": 90,
+      "behaviour": {
+        "aggro": 6,
+        "roam": 2,
+        "spread": 4,
+        "pull": 0,
+        "campSize": [
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "encounters": [
+    {
+      "id": "crypt-guard",
+      "room": "crypt-nave",
+      "creature": "character:cinder-scavenger"
+    },
+    {
+      "id": "crypt-boss",
+      "room": "crypt-vault",
+      "creature": "character:giant-salamander"
+    }
+  ],
+  "boss": {
+    "encounter": "crypt-boss"
+  },
+  "mount": {
+    "waypointsBefore": [
+      "reach-crypt",
+      "crypt-mouth"
+    ],
+    "connections": {
+      "mouth": {
+        "to": "ash-reach",
+        "kind": "road",
+        "here": "crypt-door",
+        "there": "reach-crypt"
+      }
+    },
+    "density": {
+      "creatures": 0.3
+    },
+    "ambience": {
+      "preset": "frontier-haze"
+    },
+    "joins": [
+      {
+        "zone": "ash-reach",
+        "landmark": "reach-crypt",
+        "at": {
+          "u": 0.5,
+          "v": 0,
+          "facing": 180
+        },
+        "link": "crypt",
+        "to": "crypt-sample",
+        "here": "reach-crypt",
+        "there": "crypt-door"
+      },
+      {
+        "zone": "cinder-fields",
+        "landmark": "crypt-mouth",
+        "at": {
+          "u": 0.35,
+          "v": 0.15,
+          "facing": 90
+        }
+      }
+    ]
+  }
+}

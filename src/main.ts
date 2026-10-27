@@ -1,13 +1,14 @@
-import { createInput } from './fight/index.ts';
+import { createInput, fxNum } from './fight/index.ts';
+import { gfxOn } from './fight/gfx-flag.ts';
 import { ui } from './ui-rows.ts';
-import { AFK_CAP_S } from './first-loss.ts';
-import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
+import { AFK_CAP_S, FRAME_DT_MAX_S } from './first-loss.ts';
+import { GEAR_IN_FIGHTS, fightSheet, gearNumbers, pieceNumbers } from './fight/gear-numbers.ts';
 import { weightClassOf } from './fight/gear-weight.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
+import { PLAYER_WEAPONS, RULES, SKILL_ROWS, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
-import { arenaFor } from './arena-themes.ts';
+import { ARENA_KEYS, LADDER_PICK, arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './fight/defence-grade.ts';
 import { kickCloseFlag } from './fight/kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
@@ -15,18 +16,19 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
+import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, mountSpecials, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import { pickSpell } from './fight/spell-pick.ts';
+import { slot2Pick } from './fight/spell-slot2.ts';
 import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { fightLevel, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
+import { betaMarks, equippedSpecial, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, onSpecialsChanged, rankFor, shownMarks, useSpecialStore, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
@@ -36,12 +38,14 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
+import { specialName } from './fight/special-names.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
-import { mountStancePanel, stanceFlag, type StancePanel } from './fight/stance-panel.ts';
+import { loadStancePref, mountStanceMenu, saveStancePref, stanceColour, stanceLabel, stanceLocked, stanceStart, type StanceMenu } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
 import { SPECIAL_CUE_OF } from './fight/sound/special.ts';
+import { enableSpecialCounter } from './fight/special-counter.ts';
 import { announcePowerWord, powerWordsLook } from './fight/power-words.ts';
 import { spellLook } from './fight/boss-telegraph.ts';
 import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
@@ -54,7 +58,7 @@ import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparrin
 import { createGearSheet, lootThumb } from './core/index.ts';
 import { wornIdsOf, wornTiersOf } from './core/index.ts';
 import { createServerGear } from './core/index.ts';
-import { openCharacter } from './core/index.ts';
+import { characterFor, followAccountSlots, openCharacter } from './core/index.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './fight/sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
@@ -66,11 +70,12 @@ import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
 import { createHud } from './fight/hud.ts';
+import { mountManaBar } from './fight/mana-bar.ts';
 import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
-import { impactTier } from './fight/hit-impact.ts';
+import { HOLD_TIER, impactTier } from './fight/hit-impact.ts';
 import { stopFor } from './hit-stop.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
@@ -131,7 +136,7 @@ const fightRank = element('fight-rank');
 // Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
 // Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
 // player's Match is built at the level the HUD shows.
-function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
+function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return betaMarks(shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length)); }   // the beta cut (career-ladder.ts): the rank, the HUD and the fight's level stop at the cut; the server's marks do not
 // A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
 // so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
 let watchedLevel: number | null = null;   // a kill link's record level while its fight is on screen (startReplay); PLAY NOW clears it
@@ -255,12 +260,13 @@ if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: locat
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 // eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
-const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers, pieceNumbers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
 const hud = createHud(element);
+mountManaBar();
 const runButton = element<HTMLButtonElement>('run-button');
 const input = element<HTMLInputElement>('fighter-name');
 // A browser that refuses storage (Safari with site data blocked throws on `localStorage` itself) reads as empty: every setting
@@ -367,7 +373,7 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? [...ARENA_KEYS, LADDER_PICK].includes(rawArena) ? rawArena : LADDER_PICK
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 // The career's own arena (Lead + Dom 2026-10-06, rotation): the first fight is Arena 1, then ladder.ts nextArena. A kill link is NOT a career fight: it replays in its
@@ -375,7 +381,7 @@ const sparArena = sparPreview.kit ? requestedArena : undefined;
 const careerArena = !replayText && !sharedId ? profile.arena ?? '1' : undefined;
 const arenaPick = requestedArena ?? (storedArena || careerArena);   // what the scene is built with (createScene); 'ladder' and unknown keys fall to the band
 const builtArena = arenaFor(opponent.id, arenaPick).id as RecordArena;   // the key the scene really builds: a live fight's record names it
-arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
+arenaSelect.value = sparArena === LADDER_PICK ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
 // Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
 // The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
@@ -404,7 +410,7 @@ function nameOpponent() {
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 // A local build (the release gates and the bot serve dist on localhost): the one place ?debug acts on its own.
-const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '');
+const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') || (globalThis as { __SANDBOX__?: boolean }).__SANDBOX__ === true;   // the Combat Sandbox build (sandbox/entry.ts) counts as a local build: the admin test tools and the Sparring tab show; undefined on every other build
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
@@ -424,13 +430,22 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void lo
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
+// The better graphics (height fog, half-res bloom, grade: fight/gfx-lift.ts, the one module the zone pages use; Dom 2026-10-20: on for everyone, the default is the gfx.default row, ?gfx=0 opts out). Off = the chunk is never fetched.
+const gfxPost = gfxOn(location.search, fxNum('gfx.default') > 0) ? () => import('./fight/gfx-lift.ts') : undefined;   // a loader, not a started import: createScene calls it once its renderer exists (no WebGL = nothing fetched, one pageerror)
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
+// The special slots follow the account (Dom 2026-10-20, Backend #3422; the Zone 1 page's wiring, #3430): a signed-in Pit reads its character's slots once at load (the server's pair replaces the device cache the picker reads, an empty server takes the device's picks up) and sends every pick it makes; a guest, an unanswered writer or a 503 leaves the device pick exactly as it was.
+let specialCharacterId: string | null = null;
+const specialCharacter = characterFor({ storage, search: location.search }, () => specialCharacterId, (id) => { specialCharacterId = id; });
+void followAccountSlots(() => storedToken(storage, Date.now()), specialCharacter, { base: writerBase(location.search) });
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
-const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
+const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), spell2: slot2Pick, ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const stanceAsk = stanceStart(typeof location !== 'undefined' ? location.search : '', loadStancePref(storage, profile.id));   // the character's stored pick (src/fight/stance-panel.ts; ?stances=<pick> overrides it for a look test): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
+let stanceMenu: StanceMenu | null = null, stanceShown = '';   // the menu's setting (showStances below); declared here so no early updateHud can reach them before they exist
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
+if ((globalThis as { __SANDBOX_SPECIALS_FROM__?: number }).__SANDBOX_SPECIALS_FROM__ !== undefined) { (globalThis as { __sandboxMatch?: unknown }).__sandboxMatch = match; (globalThis as { __sandboxSpellDbg?: unknown }).__sandboxSpellDbg = () => ({ eq: equippedSpell(), owned: ownedSpells(), pick: pickSpell(equippedSpell(), ownedSpells(), skills.values()), ls: (() => { try { return localStorage.getItem('frankendom.spell.equipped.v1'); } catch { return 'err'; } })() }); }   // sandbox debug handle
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
@@ -520,6 +535,7 @@ let state = match.practice.fighter,
 let assetsReady = false,
   graphicsLost = false;
 let debug = /[?&]debug\b/.test(window.location?.search ?? '');
+enableSpecialCounter(window.location?.search ?? '', globalThis, document.getElementById('debug'));   // ?debug=1: window.__specials + #debug data-special-fx / -cues, counted where the real FX spawn and cue play (special-counter.ts)
 // What ?debug SHOWS (the combat-debug overlay, the scorecard table, the clip size line) follows the test tools: a local build or the admins
 // roster (Strategy 2026-09-29). The #debug element's data the release checks read is written whenever `debug` is on, shown or not.
 const testTools = element('test-tools'), debugShown = () => debug && !testTools.hidden;
@@ -666,6 +682,7 @@ let lessonNow: LessonLine | undefined, lessonTimer = 0;
 export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  showStances();   // the menu's stance setting follows the fight: locked from the draw to the result (a change only repaints)
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
@@ -777,8 +794,11 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
   element('journal-button').addEventListener('click', () => { void build.poll(); });   // the dot sits on the journal button: opening the journal re-reads the build
   void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
 }
-{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got; });   // the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
+{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
+  { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) match.skill = one; }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }   // match.lastSkill is the "taken this win" flag (takeSkill's one-take guard), so the equipped pick must not set it: with the default pick every player has one, and no take would ever be offered
+  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => specialName(ladderWeapon(), id, SKILL_ROWS[id]?.name ?? id));   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
+    element('special-open').addEventListener('click', () => { journal.close(); specials.open(); }); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }
 element('journal-button').addEventListener('click', openJournal);
@@ -843,13 +863,17 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/fight/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
-// The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
-let stancePanel: StancePanel | null = null;
-// Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
+// The stance setting (src/fight/stance-panel.ts): a character setting in the menu's Gear tab, on unless ?stances=off. A pick sets Match.stancePref, is kept per character and applies from the NEXT fight (no restart); its buttons are locked while a fight runs.
+// There is no panel on the fight screen (Dom 2026-10-19) and no reveal line (it would only clutter the fight): the foe's mood is not drawn over it.
+// Called at boot, at every start and every frame's HUD update; it repaints on a change only (the pick or the lock), never per frame.
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
-  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
-  if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+  stanceMenu ??= mountStanceMenu(element('stance-menu'), (p) => { match.stancePref = p; saveStancePref(storage, profile.id, p); showStances(); }, document);
+  const mine = match.stancePref, locked = stanceLocked(match.practice.phase, !!match.practice.finish), key = `${mine}/${locked}`;
+  if (key === stanceShown) return;
+  stanceShown = key; stanceMenu.sync(mine, locked);
+  const card = element('journal-stance');   // the character card names the stance in its colour
+  card.textContent = mine ? `Stance: ${stanceLabel(mine)}` : ''; card.hidden = !mine; if (mine) card.style.color = stanceColour(mine);
 }
 function began() {
   nameOpponent();
@@ -932,7 +956,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/fight/replay.ts, or a stances clip would re-sim a different fight
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances, undefined, undefined, undefined, undefined, undefined, record.skill2));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/fight/replay.ts, or a stances clip would re-sim a different fight
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1197,7 +1221,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', (ARENA_KEYS as readonly string[]).includes(arenaSelect.value) ? arenaSelect.value : LADDER_PICK);   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
@@ -1275,6 +1299,8 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
     peerKit,
+    undefined,
+    gfxPost,
   );
   // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
   // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from
@@ -1481,7 +1507,7 @@ function frame(now: number) {
   // jump (every release check under page.clock on the Linux runner: frames ran, page time advanced, the tick never moved).
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
-  const dt = Math.min(elapsed, 0.1);
+  const dt = Math.min(elapsed, FRAME_DT_MAX_S);
   const room = gearRoom(); if (room) { room.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (!paused()) {
     controls.promoteDodge(now);
@@ -1583,7 +1609,8 @@ function frame(now: number) {
         let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
       }
-      if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
+      if (!quiet) hud.floatDamage(practice.events, practice.duel.fighters, view.project, damageNumbersOn);
+      if (!quiet) hud.floatSpell(practice.events, practice.duel.fighters, view.project);   // sandbox spellRange: the refused-cast cue and a landed spell's number; nothing without a spell event
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
@@ -1631,7 +1658,7 @@ function frame(now: number) {
       let stop = quiet || match.mode === 'pvp' ? 0 : stopFor(practice.events);
       if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
         const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
-        stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'full' || tier === 'half' ? tier : null);
+        stop += weaponHoldMs(armfeel, stop, practice.events, tier ? HOLD_TIER[tier] : null);   // the weapon's own hold treats a skill as the heavy it always was (HOLD_TIER)
       }
       if (stop) {
         hitStop = stop;

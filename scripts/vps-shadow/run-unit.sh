@@ -5,7 +5,10 @@
 # deploy.sh trusts it for the exact TREE only (scripts/lib/vps-receipts.mjs unitReceiptOk). Usage: run-unit.sh <sha>
 set -uo pipefail
 sha="${1:?usage: run-unit.sh <sha>}"; home="${SHADOW_HOME:-/opt/frankendom-shadow}"; me="$(cd "$(dirname "$0")" && pwd)/run-unit.sh"
-cd "$home/repo"; git fetch -q origin; full=$(git rev-parse --verify -q "$sha^{commit}") || { echo "unknown sha $sha"; exit 2; }
+# GitHub only when the commit is not already in the local store, and a bounded, named failure when it is unreachable (Strategy 2026-10-21; scripts/lib/net-bound.sh). Without the lib beside this script: the plain fetch.
+lib="$(dirname "$me")/../lib/net-bound.sh"; if [ -f "$lib" ]; then . "$lib"; else net_fetch_local_first() { git -C "$1" fetch -q origin; }; fi
+net_fetch_local_first "$home/repo" "$sha" || { echo "fetch failed: ${NET_WHY:-github unreachable}"; exit 5; }
+cd "$home/repo"; full=$(git rev-parse --verify -q "$sha^{commit}") || { echo "unknown sha $sha"; exit 2; }
 git checkout -q --detach "$full"; git reset -q --hard && git clean -fdq
 want_tree=$(git rev-parse "$full^{tree}"); [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" ]] || { echo "tree mismatch at start"; exit 3; }
 run="$home/runs/$full"; mkdir -p "$run"

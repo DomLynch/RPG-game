@@ -5,7 +5,7 @@
 // with O0001. The stored event is the original receipt: the same request gets it back (replayed: true) and changes nothing; a different
 // request under that op id is an op-id conflict.
 import type { Issue, Result } from '../../src/core/server.ts';
-import { consume, type Burn, type Burned, type ConsumeAsk, type ConsumeOp } from '../inventory/inventory.ts';
+import { consume, type Burn, type Burned, type ConsumeAsk, type ConsumeOp } from '../../src/core/server.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldings, type Content } from './holdings.ts';

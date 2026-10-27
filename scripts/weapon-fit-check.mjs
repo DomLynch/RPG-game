@@ -20,6 +20,7 @@ export const ENVELOPE = {
   cleaver:   { y: [-.13, .86], contact: [.14, .86], x: .20, z: .14, hafted: false },
   scythe:    { y: [-.40, 1.35], contact: [1.22, 1.32], x: .79, z: .35, hafted: true },
   trident:   { y: [-.20, 1.22], contact: [.76, 1.22], x: .35, hafted: false },
+  staff:     { y: [-.20, 1.22], contact: [.76, 1.22], x: .35, hafted: false },   // the player's staff (RV82): the trident's envelope, its blade table is the trident's alias
   warhammer: { y: [-.12, .82], contact: [.705, .815], x: .35, hafted: true },
   maul:      { y: [-.20, .87], contact: [.65, .87], x: .35, hafted: true },
   reaper:    { y: [-.20, .87], contact: [0, .87], x: .60, hafted: true },

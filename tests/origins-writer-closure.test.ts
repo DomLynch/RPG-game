@@ -1,6 +1,7 @@
 // The box's five node services (systemd ExecStart) run under plain node with no `three` installed. Release AA crash-looped it because origins/preview/mobs.ts
 // (loaded by origins/server/world-spawns.ts) took SPEEDS from the page door src/fight/index.ts, which re-exports characters.ts -> 'three'. The K7 test only guards
 // src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { zoneRows } from '../scripts/gen-zones.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -81,7 +82,7 @@ test('stripComments leaves division after a postfix ++/-- and after an identifie
 
 test('the writer walk reaches every origins/zones file the loader, registry and resolve import (the walker once lost 15 of them)', () => {
   const { files } = writerClosure(disk, existsSync);
-  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/from-row.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
-  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 8, 'origins/zones/* files in the writer closure');
+  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes.json','origins/zones/from-row.ts', 'origins/zones/listed.ts', 'origins/zones/pvp.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
+  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 27, 'origins/zones/* files in the writer closure (27 since the Dungeon 1 bowl, 2026-10-22: the loader now reaches plan.ts (ringEdges and the plan rows: Combat\'s bowl roster reads the ring edges on the writer) with plan-rows.json and its manifest, so a plan-row edit needs a writer restart; 24 since zone PvP by area, 2026-10-21: pvp.ts rides with the loader, Dungeon slice A #3567; 23 since the creature height ladder, 2026-10-18: height-ladder.ts, height-ladder.json and its manifest ride with the loader, which checks a creature\'s drawn height; 20 since the package biome presets, 2026-10-18: biomes.packages.json, generated from origins/packages/<id>/biome.row.json, is imported by biomes.ts so it rides with the loader; 19 since the dungeon framework: dungeon.ts, dungeon-rows.json, dungeon-themes.json and their two manifests ride with from-row.ts; 14 since the zone band, 2026-10-17: band.ts rides with the mint rung; 13 since the biomes became rows: biomes-data.ts is now biomes.json plus its manifest; 12 since the zone exits: exits.ts, exit-rows.json and its manifest ride with frontier-plan)');
   assert.deepEqual(files.filter((f) => f.startsWith('origins/zone-rows/')), zoneRows().map((r: { file: string }) => `origins/zone-rows/${r.file}`), 'one row file per zone, and nothing else, rides with the writer (a new zone row adds a file here: update nothing, it is derived)');
 });

@@ -1,6 +1,7 @@
 // Ratchet: no NEW unbounded synchronous child processes in scripts/. Deploy #71 (2026-09-21) sat an hour in a jpegtran with no timeout
 // anywhere in its chain. Every execFileSync / execSync / spawnSync added from now on must pass `timeout:`; the sites below predate the
 // rule and are debt to burn down (a file's count may only fall). Async spawn/exec are covered by the release-check and deploy ceilings.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -10,7 +11,7 @@ const KNOWN: Record<string, number> = {
   'scripts/account-browser-check.mjs': 1, 'scripts/account-database-check.mjs': 1, 'scripts/arena-audio-check.mjs': 3,
   'scripts/arena-closeup.mjs': 1, 'scripts/arena-preview.mjs': 1, 'scripts/audio-preview.mjs': 1, 'scripts/build-arena-audio.mjs': 3,
   'scripts/build-audio.mjs': 3, 'scripts/build-creatures.mjs': 2, 'scripts/build-player-weapon.mjs': 2, 'scripts/character-preview.mjs': 1,
-  'scripts/ci-trusted-checks.mjs': 2, 'scripts/finisher-preview.mjs': 1, 'scripts/impact-preview.mjs': 1, 'scripts/release-checks.mjs': 2,
+  'scripts/ci-trusted-checks.mjs': 1, 'scripts/finisher-preview.mjs': 1, 'scripts/impact-preview.mjs': 1, 'scripts/release-checks.mjs': 2,
 };
 const files = (dir: string): string[] => readdirSync(dir).flatMap(n => { const p = join(dir, n); return statSync(p).isDirectory() ? files(p) : p.endsWith('.mjs') ? [p] : []; });
 // A call is bounded when `timeout:` appears inside its argument list (balanced parentheses from the call's opening one).

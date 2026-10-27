@@ -1,4 +1,5 @@
 // The zone schema (A1, docs/specs/origins/zone-schema.md): one field registry, defaults < biome < zone, versioned, unknown fields refused with the nearest known one. The five tests Strategy named.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadZone, zoneIds } from '../origins/zones/loader.ts';
@@ -33,7 +34,7 @@ test('3. WIRED REPORT: what takes effect today, and what does not (the unwired c
   const report = wiredReport();
   console.log(`zone schema: ${FIELDS.length} rows = ${report.wired.length} wired + ${report.unwired.length} unwired; wired fields (${report.wired.join(', ')}); unwired by owner: ${JSON.stringify(report.unwired.reduce<Record<string, number>>((m, u) => ({ ...m, [u.owner]: (m[u.owner] ?? 0) + 1 }), {}))}`);
   for (const w of ['name', 'level', 'spawns', 'kit', 'looks', 'camps']) assert.ok(report.wired.includes(w), `${w} is wired`);
-  assert.ok(report.unwired.length > 0 && report.unwired.length <= 70, 'ratchet: wire fields, never add unwired ones without lowering this');
+  assert.equal(report.unwired.length, 57, 'ratchet, pinned EXACT (Auditor 2026-10-18): wiring a field lowers this number in the same PR, adding an unwired one raises it with a reason (57 since the town, zone 0, 2026-10-22: `entry` and `respawn` are wired by main.ts (where a zone row opens him, and where and by which presence warp he stands up after a death); 59 since Dungeon slice A #3567, 2026-10-21: pvp and safeAreas wired by origins/zones/pvp.ts; 75 since A0, 2026-10-18; 74 since B3a: look.buildings is read by main.ts (zoneBuildings -> buildingSkin); 58 since BULK-TZ, 2026-10-18: the sandbox bulk port brings the readers of look.dress, look.props.rim, look.creatures.*, camera.fightBack/fightBackPortrait and boundary.*, so thirteen flip to wired; 61 not 58 because camera.combat, combatPreset and landscapeZoom have no page reader (tests only: Auditor 2026-10-18), they stay unwired until the Web camera work reads them)');
   assert.equal(FIELDS.length, new Set(FIELDS.map((f) => f.path)).size, 'one row per path');
   for (const f of FIELDS) assert.equal(badValue(f, f.default), null, `${f.path}: the default is a legal value of its own field`);
 });
@@ -43,7 +44,7 @@ test('4. IDENTITY: Zone 1 and Zone 2 resolve with no problems, keep every view t
     const z = loadZone(id), r = z.resolved as Record<string, unknown>;
     assert.deepEqual(resolveZone(id, folderZone(id)).problems, [], `zone ${id}`);
     assert.equal(r.name, z.name); assert.equal(r.level, z.level); assert.deepEqual(r.looks, z.looks); assert.deepEqual(r.spawns, z.spawns); assert.deepEqual(r.kit, z.kit);
-    assert.equal(((r.look as Record<string, Record<string, unknown>>).weather)!.preset, 'dust', 'the biome reaches the zone');
+    assert.equal(((r.look as Record<string, Record<string, unknown>>).weather)!.preset, id === '1' ? 'clear' : 'dust', 'the biome reaches the zone (Zone 1 = the goblin-fortress biome, Dom-approved 2026-10-18)');
   }
   assert.equal(resolveZone('999', zone999).problems.length, 0); assert.equal(resolveZone('999', {}).values.name, 'Zone 999', 'a missing name is a placeholder, not an error');
 });

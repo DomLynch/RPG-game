@@ -1,5 +1,6 @@
 // The release train (scripts/release-train.mjs cutter + scripts/release-train-publish.sh publisher, Lead 2026-10-12): the plan's order and stacking,
 // a conflict skipped without blocking the rest, the push retry, the publisher's pick, its no-double-publish lock and its stop on failure.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, optionalRedRows, optionalRowNames, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -170,6 +171,29 @@ test('passAt is anchored at a line start: "waiting for Auditor: PASS @…" is no
   assert.ok(!passAt([own('waiting for Auditor: PASS @abcdef123')], h) && !passAt([own('> Auditor: PASS @abcdef123')], h));
 });
 
+test('optional rows (Strategy 2026-10-19): a red quality.yml matrix row marked required: false never blocks a publish; a red required row still does; optional names come from the matrix itself', () => {
+  const yml = [
+    '          - { name: combat, script: scripts/browser-check.mjs, required: true }',
+    '          - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }',
+    '          - { name: remote-heroes-soft, script: scripts/origins-remote-heroes-check.mjs, required: false, kitsoft: \'1\' }',
+    '          - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }',
+  ].join('\n');
+  const names = optionalRowNames(yml);
+  assert.deepEqual(names, ['seamless', 'remote-heroes-soft', 'counter-slash'], 'only required: false rows');
+  const head = 'f'.repeat(40);
+  const red = (name: string) => ({ __typename: 'CheckRun', workflowName: 'quality', name: `browser (${name})`, status: 'COMPLETED', conclusion: 'FAILURE', startedAt: '2026-10-19T10:00:00Z', completedAt: '2026-10-19T10:10:00Z' });
+  const cand = (extra: unknown[]) => ({ number: 7, headRefName: 'release-T7', baseRefName: TRUNK, headRefOid: head, createdAt: 'a', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [own('Auditor: PASS @fffffffff')], statusCheckRollup: [...OK, ...extra] });
+  assert.equal(pickPublish([cand([red('remote-heroes-soft')])], TRUNK, names)?.number, 7, 'an optional red is publishable');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft'), red('seamless')])], TRUNK, names)?.number, 7, 'several optional reds are');
+  assert.equal(pickPublish([cand([red('combat')])], TRUNK, names), null, 'a red required row still blocks');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft'), red('combat')])], TRUNK, names), null, 'an optional red does not hide a required one');
+  assert.equal(pickPublish([cand([red('remote-heroes-soft')])], TRUNK, []), null, 'with no optional rows known (unreadable file) the gate is as strict as before');
+  assert.deepEqual(optionalRedRows(cand([red('remote-heroes-soft'), red('combat')]).statusCheckRollup, names), ['browser (remote-heroes-soft)'], 'the ignored optional reds are named for the log');
+  assert.ok(optionalRowNames().includes('remote-heroes') || optionalRowNames().length > 0, 'the real quality.yml of this checkout lists optional rows');
+  const src = readFileSync('scripts/release-train.mjs', 'utf8');
+  assert.match(src, /optional \(required: false\) rows not green, ignored: /, 'the pick logs what it let through');
+});
+
 test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at the head AND unit-ci/quality/release-checks present and green; oldest first', () => {
   const head = 'f'.repeat(40), pass = [{ body: '**Auditor: PASS @fffffffff** (candidate)', authorAssociation: 'OWNER' }];
   const c = (number: number, createdAt: string, over: Record<string, unknown> = {}) => ({ number, headRefName: `release-T${number}`, baseRefName: TRUNK, headRefOid: head, createdAt, isDraft: true, labels: [{ name: 'candidate:pass' }], comments: pass, statusCheckRollup: OK, ...over });
@@ -193,17 +217,17 @@ function publisher() {
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));
   mkdirSync(join(repo, 'scripts', 'lib'), { recursive: true }); copyFileSync(join('scripts', 'lib', 'receipt-rule.mjs'), join(repo, 'scripts', 'lib', 'receipt-rule.mjs'));   // release-train.mjs imports the one receipt rule   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
-  sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
+  sh('gh', `echo "gh $*" >> "${log}"; if [ -n "\${GH_REQUIRE_REPO_FLAG:-}" ]; then case " $* " in *" --repo "*) ;; *) echo "not a git repository (no --repo, launchd cwd)" >&2; exit 1 ;; esac; fi; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
-  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
-  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
+  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; fetch) fn=$(cat "${dir}/fetchn" 2>/dev/null || echo 0); fn=$((fn+1)); echo $fn > "${dir}/fetchn"; if [ "$fn" -le "\${FETCH_RACES:-0}" ]; then echo "error: cannot lock ref 'refs/remotes/origin/lane/x': is at A but expected B" >&2; exit 1; fi ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
+  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; if [ "\${DEPLOY_PREVIEWS_FAIL:-}" = look ] || [ "\${DEPLOY_PREVIEWS_FAIL:-}" = lookrc1 ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nlook-test folders not serving: rv86 zone-look\\n' "$CAND" "$CAND"; [ "$DEPLOY_PREVIEWS_FAIL" != lookrc1 ] || exit 1; exit 0; fi; if [ -n "\${DEPLOY_PREVIEWS_FAIL:-}" ]; then printf 'rows ok\\nPublished %s\\npost-publish CI tail: rows 3,10 for %s (detached)\\nrelease %s is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision bundle\\n' "$CAND" "$CAND" "$CAND"; [ "$DEPLOY_PREVIEWS_FAIL" != red ] || echo 'RED: post-publish rows 9 FAILED for the LIVE release'; exit 1; fi; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)', authorAssociation: 'OWNER' }], statusCheckRollup: OK }]));
-  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
+  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, MAX_PENDING_TAILS: '99', ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
-  const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
+  const env = { MAX_PENDING_TAILS: '99', PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
   return { dir, state, run, calls, cand, env, reset: () => writeFileSync(log, '') };
 }
 
@@ -219,6 +243,162 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
     assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
     assert.equal(existsSync(join(p.state, 'release-train.lock')), false, 'lock released');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+// Strategy 2026-10-20: a lane force-pushing its branch while the train's all-refs `git fetch origin` runs fails it with "cannot lock ref ... is at X but expected Y" (10-19 19:16 and 19:41). The first call only
+// cost a tick; the same fetch at the candidate read and after the fast-forward STOPS the train. The fetches are scoped to trunk (+ release-*) and retried once.
+test('publisher: a "cannot lock ref" race on the fetch does not stop the train, and every fetch is scoped to the refs the train needs', () => {
+  const p = publisher();
+  try {
+    const r = p.run({ FETCH_RACES: '2' });   // the first two fetch calls lose a race (the trunk move gives up after its retry), the publish-path fetch then succeeds
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(p.calls(), new RegExp(`git push -q origin ${p.cand}:refs/heads/${TRUNK}`), 'it still publishes');
+    assert.doesNotMatch(r.stdout, /STOPPED/, r.stdout);
+    const fetches = p.calls().split('\n').filter(l => l.startsWith('git fetch'));
+    assert.ok(fetches.length >= 3, `retried: ${fetches.join(' | ')}`);
+    for (const f of fetches) assert.match(f, new RegExp(`\\+refs/heads/${TRUNK.replace(/[/]/g, '\\/')}:refs/remotes/origin/`), `scoped to trunk: ${f}`);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+  const src = readFileSync('scripts/release-train-publish.sh', 'utf8') + readFileSync('scripts/release-train-resume.sh', 'utf8');
+  assert.doesNotMatch(src, /fetch -q origin(\s*\)?\s*(\|\||&&|;|$))/m, 'no bare all-refs `fetch -q origin` is left (the one last-resort call goes through fetch_scoped with no refspec)');
+});
+
+// Overlapping publishes (#3177, Lead 2026-10-18): the pending marker, the stale-tail hold, the detached tail's start, publish-to-publish minutes.
+test('publisher (#3177): a post-publish tail marker whose tail is DEAD, or never started within the grace, holds the next publish; a live tail or a fresh marker does not', () => {
+  const stale = (marker: string) => { const p = publisher(); writeFileSync(join(p.state, 'post-publish-pending-aaaaaaaa'), marker); return p; };
+  const now = Math.floor(Date.now() / 1000);
+  const dead = stale(`rev=${'a'.repeat(40)}\nrows=9,46\nat=${now - 60}\npid=999999\n`);
+  try {
+    const r = dead.run();
+    assert.match(r.stdout, /post-publish CI tail marker .* is stale \(tail pid 999999 is not running; rows 9,46 for a{40} were never proved on CI\): holding/);
+    assert.doesNotMatch(dead.calls(), /git push|deploy/, 'nothing publishes');
+    assert.equal(existsSync(join(dead.state, 'post-publish-pending-aaaaaaaa.told')), true, 'told once');
+  } finally { rmSync(dead.dir, { recursive: true, force: true }); }
+  const never = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 1000}\n`);
+  try {
+    assert.match(never.run().stdout, /tail pid never started is not running/);
+    assert.doesNotMatch(never.calls(), /git push|deploy/);
+  } finally { rmSync(never.dir, { recursive: true, force: true }); }
+  const alive = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 60}\npid=${process.pid}\n`);
+  try {
+    const r = alive.run();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(alive.calls(), /git push -q origin/, 'a live tail is the overlap Lead allowed');
+  } finally { rmSync(alive.dir, { recursive: true, force: true }); }
+  const fresh = stale(`rev=${'a'.repeat(40)}\nrows=9\nat=${now - 10}\n`);
+  try {
+    assert.match(fresh.run().stdout, /published #2400/, 'a marker younger than the grace is a tail that has not started yet');
+  } finally { rmSync(fresh.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead cap): with MAX_PENDING_TAILS=2 a third publish waits while two live tails are unconfirmed; one live tail, no cap, or a cap of 0 do not block', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const withTails = (n: number) => { const p = publisher(); for (let i = 0; i < n; i++) writeFileSync(join(p.state, `post-publish-pending-aaaaaa0${i}`), `rev=${'a'.repeat(40)}\nrows=9\nat=${now - 60}\npid=${process.pid}\n`); return p; };
+  const two = withTails(2);
+  try {
+    const r = two.run({ MAX_PENDING_TAILS: '2' });
+    assert.match(r.stdout, /2 detached post-publish tail\(s\) still unconfirmed \(MAX_PENDING_TAILS=2\): the next publish waits/);
+    assert.doesNotMatch(two.calls(), /git push|deploy/, 'nothing publishes');
+  } finally { rmSync(two.dir, { recursive: true, force: true }); }
+  const one = withTails(1);
+  try { assert.match(one.run({ MAX_PENDING_TAILS: '2' }).stdout, /published #2400/, 'one live tail is under the cap'); } finally { rmSync(one.dir, { recursive: true, force: true }); }
+  // FAIL CLOSED (Auditor nit, Lead's requirement): a missing, empty, zero or malformed row is no publish plus a reason, never unlimited.
+  for (const [label, row] of [['missing', null], ['malformed', 'export MAX_PENDING_TAILS=two\n'], ['zero', 'export MAX_PENDING_TAILS=0\n']] as const) {
+    const bad = withTails(0);
+    try {
+      if (row !== null) writeFileSync(join(bad.state, 'release-train.env'), row);
+      const r = bad.run({ MAX_PENDING_TAILS: '' });
+      assert.match(r.stdout, /MAX_PENDING_TAILS is missing or malformed/, label);
+      assert.doesNotMatch(bad.calls(), /git push|deploy/, `${label}: nothing publishes`);
+    } finally { rmSync(bad.dir, { recursive: true, force: true }); }
+  }
+  const fromEnvFile = withTails(2);
+  try {
+    writeFileSync(join(fromEnvFile.state, 'release-train.env'), 'export MAX_PENDING_TAILS=2   # Lead\n');
+    const r = fromEnvFile.run({ MAX_PENDING_TAILS: '' });
+    assert.match(r.stdout, /cap=2 pending=2/, 'the cap is DATA: read from release-train.env, and logged each tick');
+    assert.match(r.stdout, /MAX_PENDING_TAILS=2/);
+  } finally { rmSync(fromEnvFile.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (window): the first release of a window owns the one tail (marker carries window=N); a release inside the open window JOINS it (member line, no tail, no marker of its own); an expired window opens a new one', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const setup = (existing: string | null) => {
+    const p = publisher();
+    const deploy = join(p.dir, 'bin', 'deploy-tail'), postcheck = join(p.dir, 'bin', 'postcheck');
+    writeFileSync(deploy, `#!/usr/bin/env bash\nprintf 'Published %s\\npost-publish CI tail: rows 9,46,3 for %s (detached)\\n' "$CAND" "$CAND"\n`); chmodSync(deploy, 0o755);
+    writeFileSync(postcheck, `#!/usr/bin/env bash\necho "tail $1 $2" >> "${p.dir}/postcheck.out"\n`); chmodSync(postcheck, 0o755);
+    if (existing !== null) writeFileSync(join(p.state, 'post-publish-pending-aaaaaaaa'), existing);
+    const run = () => p.run({ RELEASE_TRAIN_DEPLOY: deploy, RELEASE_TRAIN_POSTCHECK: postcheck, CAND: p.cand, TAIL_MIN_INTERVAL_S: '720', MAX_PENDING_TAILS: '99' });
+    const tailRan = () => { for (let i = 0; i < 20 && !existsSync(join(p.dir, 'postcheck.out')); i++) spawnSync('sleep', ['0.1']); return existsSync(join(p.dir, 'postcheck.out')); };
+    return { p, run, tailRan };
+  };
+  const first = setup(null);
+  try {
+    const r = first.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(readFileSync(join(first.p.state, `post-publish-pending-${first.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/);
+    assert.ok(first.tailRan(), 'the opener starts the tail');
+  } finally { rmSync(first.p.dir, { recursive: true, force: true }); }
+  const open = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    const r = open.run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /joined the open window of a{40} \(rows 9,46,3\): no tail or CI run of its own/);
+    assert.match(readFileSync(join(open.p.state, 'post-publish-pending-aaaaaaaa'), 'utf8'), new RegExp(`\nmember=${open.p.cand} 9,46,3\n`));
+    assert.equal(existsSync(join(open.p.state, `post-publish-pending-${open.p.cand.slice(0, 8)}`)), false, 'a joiner has no marker of its own');
+    assert.equal(open.tailRan(), false, 'and starts no tail');
+  } finally { rmSync(open.p.dir, { recursive: true, force: true }); }
+  const expired = setup(`rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 1000}\nwindow=720\npid=${process.pid}\n`);
+  try {
+    expired.run();
+    assert.match(readFileSync(join(expired.p.state, `post-publish-pending-${expired.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the old window closed: this release opens a new one');
+    assert.ok(expired.tailRan());
+  } finally { rmSync(expired.p.dir, { recursive: true, force: true }); }
+  const closed = setup(null);
+  try {
+    writeFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), `rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+    closed.run();
+    assert.doesNotMatch(readFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), 'utf8'), /member=/, 'a CLOSED window takes no joiner');
+    assert.match(readFileSync(join(closed.p.state, `post-publish-pending-${closed.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the late publish opens a new window with its own tail');
+    assert.ok(closed.tailRan());
+  } finally { rmSync(closed.p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {
+  const p = publisher();
+  try {
+    const deploy = join(p.dir, 'bin', 'deploy-tail'), postcheck = join(p.dir, 'bin', 'postcheck');
+    writeFileSync(deploy, `#!/usr/bin/env bash\nprintf 'Published %s\\npost-publish CI tail: rows 9,46,3 for %s (detached: x)\\n' "$CAND" "$CAND"\n`); chmodSync(deploy, 0o755);
+    writeFileSync(postcheck, `#!/usr/bin/env bash\necho "postcheck $1 $2 $3 hold=$(test -e "${p.state}/deploy_hold" && echo yes || echo no) marker=$(test -e "${p.state}/post-publish-pending-${p.cand.slice(0, 8)}" && echo yes || echo no)" >> "${p.dir}/postcheck.out"\n`); chmodSync(postcheck, 0o755);
+    writeFileSync(join(p.state, 'release-train-last-publish'), `rev=${'b'.repeat(40)}\nat=${Math.floor(Date.now() / 1000) - 600}\n`);
+    const r = p.run({ RELEASE_TRAIN_DEPLOY: deploy, RELEASE_TRAIN_POSTCHECK: postcheck, CAND: p.cand });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold released');
+    const marker = readFileSync(join(p.state, `post-publish-pending-${p.cand.slice(0, 8)}`), 'utf8');
+    assert.match(marker, new RegExp(`^rev=${p.cand}\\nrows=9,46,3\\nat=\\d+\\n`));
+    assert.match(r.stdout, /post-publish CI tail for c{40}: rows 9,46,3/);
+    assert.match(r.stdout, /publish-to-publish 10 min \(bbbbbbbb -> cccccccc\)/);
+    assert.match(readFileSync(join(p.state, 'release-train-last-publish'), 'utf8'), new RegExp(`^rev=${p.cand}\\nat=\\d+\\n`));
+    // the tail is detached: give it a moment to run its stub
+    for (let i = 0; i < 50 && !existsSync(join(p.dir, 'postcheck.out')); i++) spawnSync('sleep', ['0.1']);
+    assert.match(readFileSync(join(p.dir, 'postcheck.out'), 'utf8'), new RegExp(`^postcheck ${p.cand} 9,46,3 2400 hold=no marker=yes`));
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Auditor on #2863): a push refused says so; a push killed at its limit says the trunk state is UNKNOWN, names the check, and never claims "refused" or "nothing deployed"', () => {
+  const refused = publisher();
+  try {
+    const r = refused.run({ PUSH_RC: '1' });
+    assert.equal(r.status, 1);
+    assert.match(readFileSync(join(refused.state, 'release-train.stopped'), 'utf8'), /the fast-forward of .* was refused \(trunk moved\?\); nothing deployed/);
+  } finally { rmSync(refused.dir, { recursive: true, force: true }); }
+  const hung = publisher();
+  try {
+    const r = hung.run({ PUSH_HANG: '1', NET_PUSH_S: '1' });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    const stopped = readFileSync(join(hung.state, 'release-train.stopped'), 'utf8');
+    assert.match(stopped, /git push timed out after 1s: trunk state UNKNOWN .*git ls-remote origin codex\/01a09a76\/task-1 before any retry/);
+    assert.doesNotMatch(stopped, /refused|nothing deployed/);
+    assert.doesNotMatch(hung.calls(), /deploy FRANKENDOM/, 'deploy.sh did not run');
+  } finally { rmSync(hung.dir, { recursive: true, force: true }); }
 });
 
 test('publisher: after a publish it closes EVERY open PR whose head the new trunk contains, stacked or feature, not only release-* candidates (DI left #2430/#2442/#2444/#2447/#2426 open, 2026-10-13)', () => {
@@ -344,7 +524,7 @@ test('publisher: starts the Mac-only rows at the cut for the OLDEST open candida
     const listed = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8'));
     const newer = { ...listed[0], number: 2401, headRefName: 'release-T2', headRefOid: 'd'.repeat(40), createdAt: '2026-10-12T18:00:00Z', labels: [] };
     writeFileSync(join(p.dir, 'prs.json'), JSON.stringify([newer, listed[0]]));
-    writeFileSync(join(p.state, 'deploy_hold'), '');   // held: no publish this tick, but the early rows still start
+    writeFileSync(join(p.state, 'deploy_hold'), '');   // held (a post-publish CI tail, no deploy.sh running): no publish this tick, but the early rows still start
     let r = p.run();
     assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
     await new Promise((done) => setTimeout(done, 300));
@@ -353,6 +533,83 @@ test('publisher: starts the Mac-only rows at the cut for the OLDEST open candida
     writeFileSync(join(p.state, 'pre-launch', `${'c'.repeat(40)}.macrows.json`), '{}');
     p.reset(); r = p.run();
     assert.match(r.stdout, /mac rows \(early\) for ddddddddd: started/, 'next: the newer one, once the oldest has a receipt');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead 2026-10-19, JN): an early Mac-rows start that fails is never silent: exit code logged, a marker written, shown every tick, cleared by a good run', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.dir, 'bin', 'failing-mac-rows'), '#!/usr/bin/env bash\necho "no checkout" >&2\nexit 3\n');
+    chmodSync(join(p.dir, 'bin', 'failing-mac-rows'), 0o755);
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    let r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'failing-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/, 'the attempt is logged');
+    const marker = join(p.state, 'mac-rows-early.failed-ccccccccc');
+    for (let i = 0; i < 40 && !existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.equal(existsSync(marker), true, 'a failed start leaves a marker');
+    assert.match(readFileSync(marker, 'utf8'), new RegExp(`^${'c'.repeat(40)} exit 3 at `));
+    assert.match(readFileSync(join(p.state, 'mac-rows-early.log'), 'utf8'), /mac-rows-early ccccccccc: exit 3/);
+    r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'failing-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) FAILED earlier: c{40} exit 3 at .*mac-rows-early\.failed-ccccccccc/, 'the next tick shows it');
+    r = p.run();   // the default fake succeeds: the marker goes
+    for (let i = 0; i < 40 && existsSync(marker); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.equal(existsSync(marker), false, 'a good run clears the marker');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('mac rows and deploy.sh default PLAYWRIGHT_BROWSERS_PATH to ~/Developer/.ms-playwright when it exists and the caller set none (macOS emptied ~/Library/Caches/ms-playwright on 10-16 and 10-21)', () => {
+  for (const f of ['scripts/mac-rows-early.sh', 'scripts/deploy.sh']) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    assert.match(src, /if \[\[ -z "\$\{PLAYWRIGHT_BROWSERS_PATH:-\}" && -d "\$HOME\/Developer\/\.ms-playwright" \]\]; then export PLAYWRIGHT_BROWSERS_PATH="\$HOME\/Developer\/\.ms-playwright"; fi/, `${f} defaults the browsers path out of ~/Library/Caches`);
+  }
+});
+
+test('publisher (Strategy 2026-10-20, K6k): an early run ended by a signal (a yield to a deploy, exit 143) is logged but leaves no failed marker', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.dir, 'bin', 'yielded-mac-rows'), '#!/usr/bin/env bash\nexit 143\n');
+    chmodSync(join(p.dir, 'bin', 'yielded-mac-rows'), 0o755);
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    const r = p.run({ RELEASE_TRAIN_MAC_ROWS: join(p.dir, 'bin', 'yielded-mac-rows') });
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    const logFile = join(p.state, 'mac-rows-early.log');
+    for (let i = 0; i < 40 && !(existsSync(logFile) && /exit 143/.test(readFileSync(logFile, 'utf8'))); i++) await new Promise((done) => setTimeout(done, 100));
+    assert.match(readFileSync(logFile, 'utf8'), /mac-rows-early ccccccccc: exit 143/, 'the exit code is still logged');
+    assert.equal(existsSync(join(p.state, 'mac-rows-early.failed-ccccccccc')), false, 'a yield is not a failure');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead 2026-10-19): the early Mac rows wait while a deploy.sh is running (it is the Mac\'s user) and start on the first tick after it ends', async () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    writeFileSync(join(p.state, 'deploy_in_flight.json'), JSON.stringify({ pid: process.pid, revision: 'x' }));   // a live deploy.sh run (this test process stands in for it)
+    let r = p.run();
+    assert.match(r.stdout, /early rows deferred: deploy using the Mac \(deploy\.sh pid \d+\); mac rows \(early\) for ccccccccc start after it/);
+    assert.doesNotMatch(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.doesNotMatch(p.calls(), /mac-rows /, 'nothing started while the deploy uses the Mac');
+    rmSync(join(p.state, 'deploy_in_flight.json'));   // the deploy ended; a post-publish CI tail alone (deploy_hold) does not defer
+    p.reset(); r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.match(p.calls(), new RegExp(`mac-rows ${'c'.repeat(40)}`));
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (JQ, 2026-10-19): the early-rows candidate query names its repo, so a launchd cwd outside any repo cannot make it fail; if it does fail it is logged', () => {
+  const p = publisher();
+  try {
+    writeFileSync(join(p.state, 'deploy_hold'), '');
+    let r = p.run({ GH_REQUIRE_REPO_FLAG: '1' });   // the stub's gh exits 1 on a `pr list` without --repo, as the real one did outside a repo
+    assert.doesNotMatch(r.stdout, /open-candidate query failed/, 'the query carries --repo');
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    assert.match(p.calls(), /gh pr list --repo DomLynch\/RPG-game --state open --base /);
+    const src = readFileSync('scripts/release-train-publish.sh', 'utf8');
+    assert.match(src, /early_cands=\$\(cd "\$repo" 2>\/dev\/null && net_gh 60 pr list --repo /, 'run from the repo AND with --repo');
+    const before = src.slice(0, src.indexOf('cd "$repo" || {')).split('\n').filter((l) => /net_gh \d+ pr (list|view)/.test(l) && !l.trimStart().startsWith('#'));
+    assert.equal(before.length, 1, 'the early query is the only gh call before the tick cds into the repo');
+    assert.ok(before.every((l) => l.includes('--repo')), 'and it names its repo');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
@@ -425,4 +682,111 @@ test('checksGreen: a feature head needs unit-ci/receipt and quality present and 
   assert.equal(checksGreen(OK.map(c => (c.name === 'quality' ? { ...c, conclusion: 'FAILURE' } : c)), 'lane/x'), false, 'a red quality verdict');
   assert.equal(checksGreen(staticOnly, 'release-CV'), true, 'a release-* head is held by missingRows, not here');
   assert.equal(checksGreen(staticOnly), true, 'no head ref: this rule is not applied');
+});
+
+test('publisher: a stop AFTER the fast-forward names the exact resume command and says trunk is already the sha; a stop BEFORE it does not (HL2 2026-10-16: merged but not live, nothing left to pick)', () => {
+  let p = publisher();
+  try {
+    assert.equal(p.run({ DEPLOY_RC: '3' }).status, 1);
+    const stopped = readFileSync(join(p.state, 'release-train.stopped'), 'utf8');
+    assert.match(stopped, new RegExp(`Trunk is ALREADY ${p.cand} \\(#2400 reads merged\\) but live is not`));
+    assert.match(stopped, new RegExp(`bash scripts/release-train-resume\\.sh 2400 ${p.cand}`));
+    assert.match(p.calls(), /gh pr comment 2400 --body .*release-train-resume\.sh 2400/);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+  p = publisher();
+  try {
+    assert.equal(p.run({ PUSH_RC: '1' }).status, 1);
+    assert.doesNotMatch(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /ALREADY|release-train-resume/, 'nothing was fast-forwarded: no resume hint');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('release-train-resume: refuses unless trunk IS the sha and live is not; takes the hold; deploys with FRANKENDOM_RELEASE=1; removes the hold only on Published; a failure keeps the hold and re-files the stop', () => {
+  const p = publisher();
+  const liveFile = join(p.dir, 'release.json');
+  const resume = (env: Record<string, string> = {}, live = 'e'.repeat(40)) => {
+    writeFileSync(liveFile, JSON.stringify({ revision: live }));
+    return spawnSync('bash', ['scripts/release-train-resume.sh', '2400', p.cand], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, ...p.env, RELEASE_JSON_URL: `file://${liveFile}`, ...env } });
+  };
+  try {
+    let r = resume({}, p.cand);
+    assert.equal(r.status, 1); assert.match(r.stderr, /already live/); assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'refused before the hold');
+    r = resume({ TRUNK_SHA: 'd'.repeat(40) });
+    assert.equal(r.status, 1); assert.match(r.stderr, /not a resume, re-cut on trunk/);
+    writeFileSync(join(p.state, 'release-train.stopped'), 'still stopped\n');
+    r = resume(); assert.equal(r.status, 1); assert.match(r.stderr, /release-train\.stopped exists/);
+    rmSync(join(p.state, 'release-train.stopped'));
+    writeFileSync(join(p.state, 'deploy_hold'), '1\n');
+    r = resume(); assert.equal(r.status, 1); assert.match(r.stderr, /deploy_hold exists/);
+    rmSync(join(p.state, 'deploy_hold'));
+    assert.doesNotMatch(p.calls(), /deploy FRANKENDOM/, 'no refusal ran deploy.sh');
+
+    r = resume({ DEPLOY_RC: '3' });
+    assert.equal(r.status, 1); assert.match(r.stderr, /FAILED: deploy\.sh exit 3/);
+    assert.ok(existsSync(join(p.state, 'deploy_hold')), 'hold kept on failure');
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /RESUME of #2400 .* failed: deploy\.sh exit 3/);
+    rmSync(join(p.state, 'release-train.stopped')); rmSync(join(p.state, 'deploy_hold')); p.reset();
+
+    r = resume();
+    assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, new RegExp(`Published ${p.cand} \\(resumed\\)`));
+    assert.match(p.calls(), /deploy FRANKENDOM_RELEASE=1/);
+    assert.doesNotMatch(p.calls(), /git push/, 'a resume never pushes: trunk is already the sha');
+    assert.match(p.calls(), /gh pr comment 2400 --body release-train: RESUMED and published #2400/);
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('release-train-resume (K6o2, 2026-10-21): production previews stale = STOP (tail still started); look-test folders missing = warn + PR comment, no stop; a red post-publish row stops with no tail', async () => {
+  const p = publisher();
+  const liveFile = join(p.dir, 'release.json');
+  const resume = (env: Record<string, string> = {}) => {
+    writeFileSync(liveFile, JSON.stringify({ revision: 'e'.repeat(40) }));
+    return spawnSync('bash', ['scripts/release-train-resume.sh', '2400', p.cand], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, ...p.env, RELEASE_JSON_URL: `file://${liveFile}`, RELEASE_TRAIN_POSTCHECK: join(p.dir, 'bin', 'fake-postcheck'), ...env } });
+  };
+  try {
+    writeFileSync(join(p.dir, 'bin', 'fake-postcheck'), `#!/usr/bin/env bash\necho "postcheck $*" >> "${join(p.dir, 'postcheck.calls')}"\n`); chmodSync(join(p.dir, 'bin', 'fake-postcheck'), 0o755);
+    const marker = join(p.state, `post-publish-pending-${p.cand.slice(0, 8)}`);
+    const pc = join(p.dir, 'postcheck.calls');
+    const tailStarted = async () => {
+      assert.match(readFileSync(marker, 'utf8'), new RegExp(`^rev=${p.cand}\\nrows=3,10\\nat=`), 'the tail marker is written');
+      for (let i = 0; i < 40 && !existsSync(pc); i++) await new Promise((done) => setTimeout(done, 100));
+      assert.match(readFileSync(pc, 'utf8'), new RegExp(`postcheck ${p.cand} 3,10 2400`), 'the postcheck is started detached');
+    };
+    // PRODUCTION previews (/zone1/, /preview/origins/) stale after live moved: STOP, with the exact words, but the live release's tail is still started.
+    let r = resume({ DEPLOY_PREVIEWS_FAIL: 'zone1' });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.ok(existsSync(join(p.state, 'release-train.stopped')), 'a stale /zone1/ stops the train');
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), new RegExp(`failed: release LIVE and sound at ${p.cand}; previews stale: rerun scripts/publish-origins-preview\\.sh`));
+    await tailStarted();
+    rmSync(join(p.state, 'release-train.stopped')); rmSync(join(p.state, 'deploy_hold')); rmSync(marker); rmSync(pc); p.reset();
+    // LOOK-TEST folders (rv86 ...) missing: published WITH A WARNING, PR commented, no stop; the tail is started as for any release.
+    r = resume({ DEPLOY_PREVIEWS_FAIL: 'look' });
+    assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, new RegExp(`Published ${p.cand} \\(resumed\\) WITH A LOOK-TEST PREVIEW WARNING: rv86 zone-look`));
+    assert.equal(existsSync(join(p.state, 'release-train.stopped')), false, 'a look-test folder never stops the train');
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed');
+    assert.match(p.calls(), /gh pr comment 2400 --body release-train: WARNING #2400 .* look-test preview folders do not serve after the switch: rv86 zone-look/);
+    await tailStarted();
+    rmSync(marker); rmSync(pc); p.reset();
+    // The Auditor's collision (#3496 @7d695cfd8): a look-test warning must NOT read as the production line. A run that exits 1 for ANOTHER reason, with a look-test warning in its log, stops with the
+    // generic message, never with the "previews stale" words (which tell the reader the release is sound).
+    r = resume({ DEPLOY_PREVIEWS_FAIL: 'lookrc1' });
+    assert.equal(r.status, 1);
+    assert.doesNotMatch(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /previews stale/, 'a look-test warning never triggers the production-stale stop');
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /failed: deploy\.sh exit 1/);
+    rmSync(join(p.state, 'release-train.stopped')); rmSync(join(p.state, 'deploy_hold')); rmSync(marker); rmSync(pc, { force: true }); p.reset();
+    // A red post-publish row: stops as before and starts NO tail.
+    r = resume({ DEPLOY_PREVIEWS_FAIL: 'red' });
+    assert.equal(r.status, 1); assert.match(r.stderr, /FAILED: deploy\.sh exit 1/);
+    assert.ok(existsSync(join(p.state, 'release-train.stopped')), 'a red post-publish row still stops the train');
+    assert.equal(existsSync(marker), false, 'no tail marker when a post-publish row is already red');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publish-origins-preview.sh defaults VITE_SENTRY_RELEASE to the published revision (a hand republish must build the deploy bundle: K6o2 built index-UafUUjJu.js vs the deploy index-DvKwpY5i.js)', () => {
+  const src = readFileSync(new URL('../scripts/publish-origins-preview.sh', import.meta.url), 'utf8');
+  assert.match(src, /export VITE_SENTRY_RELEASE="\$\{VITE_SENTRY_RELEASE:-\$head\}"/);
+  assert.ok(src.indexOf('export VITE_SENTRY_RELEASE') < src.indexOf('npx vite build'), 'set before the build');
+  const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
+  assert.match(deploy, /for _pv_try in 1 2 3; do\n    if bash scripts\/publish-origins-preview\.sh; then previews_ok=1; break; fi/, 'deploy.sh retries the preview publish');
+  assert.match(deploy, /echo "look-test folders not serving:\$look_missing" >&2/, 'deploy.sh names look-test folders that stopped serving (non-fatal)');
+  assert.doesNotMatch(deploy.split('look_missing=""')[1] ?? '', /previews_ok=0[^\n]*look|look[^\n]*previews_ok=0/, 'a look-test folder never sets previews_ok=0');
 });

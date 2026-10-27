@@ -1,4 +1,6 @@
 import { cameraRule } from './camera-rules.ts';
+import { impactTier } from './hit-impact.ts';
+import { shardRows, specialShardsOf, specialTrailOf } from './sandbox-rules.ts';
 import { ROSTER, supportsFinishers, resolveFinisher } from '../roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
@@ -12,7 +14,7 @@ import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
+import { specialRoleOf, sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
 import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from '../hero-preview.ts';
@@ -35,7 +37,13 @@ import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
-import { createSkillImpact } from './skill-impact.ts';
+import { createSkillImpact, impactPoint } from './skill-impact.ts';
+import { countSpecial } from './special-counter.ts';
+import { createImpactFx } from './impact-fx.ts';
+import { createMissileFx } from './missile-fx.ts';
+import { createWoundNotice } from './wound-notice.ts';
+import { shardCapacity } from './special-shards-rows.ts';
+import { createSpecialShards } from './special-shards.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from '../look-flag.ts';
@@ -63,6 +71,9 @@ import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
 import { settleWithin } from './warm-gate.ts';
+import { fxNum } from './fx-rows.ts';
+import { heroBodyFile } from './hero-body-rows.ts';
+const WOUND_REACH_PROBE_MAX = fxNum('fx.scene.woundReachProbeMax');
 const COMPILE_BOUND_MS = cameraRule('compileBoundMs');   // a compile (warm-up only) that has not settled by then is given up on: a lost context never settles it, and the walk must not wait
 const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 
@@ -82,6 +93,8 @@ export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapo
 // the world. Without a mount (every Pit and game page) none of this runs.
 export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null; walkCam?: { back: number; up: number } };   // walkCam: the walk camera's distance behind the hero and height (metres): a world fight keeps them and only the aim locks on
 const worldArena = (): Arena => ({ group: new THREE.Group(), floor: new THREE.Mesh(), sky: Object.assign(new THREE.Texture(), { image: { width: 1 } }), materials: undefined, ready: Promise.resolve(), update() {}, raiseGate() {}, thinCrowd() {} }) as unknown as Arena;
+/** The better graphics (gfx-lift.ts, one module for every page): the Pit page hands the lazily imported module in (undefined = off, the chunk was never fetched). */
+export type GfxPost = { patchHeightFog(): void; createGfxLift(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): { render(): void; setSize(w: number, h: number): void; compile(): void } };
 export function createScene(
   canvas: HTMLCanvasElement,
   // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
@@ -105,6 +118,7 @@ export function createScene(
   // nothing and every line below is the fight it always was.
   peerKit?: Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>,
   world?: WorldMount,
+  post?: () => Promise<GfxPost>,   // the Pit page only (a world mount keeps the zone page's own frame); a LOADER, called once the renderer exists, so a page with no WebGL never starts the import (the chunk imports the entry, which has thrown: a second, identical pageerror)
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -173,6 +187,9 @@ export function createScene(
   const right = new THREE.Vector3();
   let look: ReturnType<typeof import('../souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('../souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  // The lift: the fog chunk is patched BEFORE any material compiles (the loading card waits on gfxReady below), the composer then draws every frame in place of the plain render. A failed chunk leaves the Pit exactly as it was.
+  let gfx: ReturnType<GfxPost['createGfxLift']> | undefined;
+  const gfxReady: Promise<unknown> = post && !world ? post().then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(width, height); }).catch(captureException) : Promise.resolve();
   const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -205,8 +222,14 @@ export function createScene(
     footDust = createFootDust(scene, dustToneFor(theme)),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene),
+    specialShards = shardRows() ? createSpecialShards(scene, shardCapacity()) : null,   // sandbox specialShards rows: lit 3D chips off a landed melee special (special-shards.ts); no rows (trunk) builds nothing
+    shardAt = new THREE.Vector3(),
+    woundNotice = createWoundNotice(),   // sandbox-mech wounds: the temporary on-screen message
+    missileFx = createMissileFx(scene),   // sandbox-mech missiles: the bolt in flight, nothing while none flies
+    impactFx = createImpactFx(scene),   // a flash + ground ring per contact row (hit-stop-defs.json flash/ring/tint columns; a row without them draws nothing)
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   if (world) scene.add(world.holder);
+  missileFx.warm(() => renderer.compile(scene, camera));   // sandbox heal: its shader programs and its light are compiled now, not at the first cast
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
@@ -355,7 +378,7 @@ export function createScene(
       // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
       const opponentEquip = pair[1] === (peer ? DEFAULT_WEAPON : ROSTER[opponentId].weapon) ? undefined : equipUrl(pair[1]);   // the hero's rig bakes the longsword
       const load = (hero: string) => peer ? loadPeerWarriors(hero, pair, WEAPON_LOOK[pair[0]]?.baked ? undefined : equipUrl(pair[0]), opponentEquip, (error) => captureException(error, { tags: { equip: pair[1] } })) : loadWarriors(hero, foeUrl(opponentId), pair, WEAPON_LOOK[pair[0]]?.baked ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip, SHIELD_CARRIERS.has(opponentId));
-      return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['../assets/warrior.glb']!)) : load(fighterUrls['../assets/warrior.glb']!);
+      return ((heroBody: string) => (heroUrl ? load(heroUrl).catch(() => load(heroBody)) : load(heroBody)))(fighterUrls[`../assets/${heroBodyFile()}.glb`]!);   // the hero-body row: Exo (warrior.glb) or the classic hero
     }),
     arena.ready,
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
@@ -382,12 +405,14 @@ export function createScene(
       // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
       // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
       // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
+      await gfxReady;   // the lift's fog patch lands before the first compile; its programs (keyed on the composer's target) are compiled below too
       renderer.compile(scene, camera);
+      gfx?.compile();
       // Then the first frame itself, behind the card (first-frame.ts): maps a slice per frame, one draw, at most 4 s, on macrotask yields and the clock only (never rAF or a timer: a paused page clock must still boot); a hidden tab skips it.
       if (typeof document === 'undefined' || !document.hidden) {
         const maps = new Set<THREE.Texture>(); scene.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points || o instanceof THREE.Line) for (const material of [o.material].flat()) for (const v of Object.values(material as object)) if (v instanceof THREE.Texture) maps.add(v); });
         performance.mark('first-frame-begin');
-        const how = await warmFirstFrame({ textures: [...maps], upload: (t) => renderer.initTexture(t as THREE.Texture), draw: () => renderer.render(scene, camera), frame: () => new Promise<void>((done) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); done(); }; c.port2.postMessage(0); }), budgetMs: 4000, sliceMs: 10, now: () => performance.now(), lost: () => renderer.getContext().isContextLost() });
+        const how = await warmFirstFrame({ textures: [...maps], upload: (t) => renderer.initTexture(t as THREE.Texture), draw: () => { if (gfx) gfx.render(); else renderer.render(scene, camera); }, frame: () => new Promise<void>((done) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); done(); }; c.port2.postMessage(0); }), budgetMs: 4000, sliceMs: 10, now: () => performance.now(), lost: () => renderer.getContext().isContextLost() });
         performance.mark('first-frame-' + how);
       }
       assetStatus('', 'ready');
@@ -482,6 +507,7 @@ export function createScene(
   const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
   const rig = createCameraRig(camera);
   // World fights (seamless combat step 4, Dom 2026-10-08): the duel's camera does not cut in, it eases from where the walk's camera stood. `easeCamera` is set by the page at the engage; every frame after rig.update blends the rig's pose with that start (smoothstep), and the rig itself is untouched.
+  const SIDE = { gapFloor: cameraRule('worldGapFloor'), max: cameraRule('worldSideMax'), base: cameraRule('worldSideBase'), low: cameraRule('worldSideLow'), ref: cameraRule('worldSideRef') };   // the world camera's side step, read once: the frame loop must not search the rule rows
   let worldCam: { back: number; up: number } | null = null;   // set by the page at a world engage: the camera stays at the walk's distance and height (seamless S2)
   const wcFoe = new THREE.Vector3();
   let ease: { pos: THREE.Vector3; quat: THREE.Quaternion; age: number; dur: number } | null = null;
@@ -504,6 +530,7 @@ export function createScene(
     camera.updateProjectionMatrix();
     if (!world) renderer.setSize(width, height, false);   // the page sizes its own renderer
     look?.setSize(width, height, renderer.getPixelRatio());
+    gfx?.setSize(width, height);
   };
   resize();
   window.addEventListener('resize', resize);
@@ -741,10 +768,10 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; shards: number; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
-      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(WOUND_REACH_PROBE_MAX, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, shards: specialShards?.alive() ?? 0,bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -778,7 +805,7 @@ export function createScene(
         if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
         if ((event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
-      const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
+      const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken' || impactTier(e) === 'special'),   // a landed melee special is a blow when its hit-stop row has frames (hit-impact.ts; the trunk row is 0)
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
       bloodEdge.render(events, practice.duel);
@@ -1075,6 +1102,12 @@ export function createScene(
         (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
         if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
       }
+      for (const side of SIDES) {   // a melee special's own weapon trail (sandbox specialTrail rows): longer and firmer than the swing's, from `lead` ticks before the release to `tail` after
+        const f = practice.duel.fighters[side], w = side === 0 ? warriors?.player : warriors?.opponent, row = f.skill && !f.spell ? specialTrailOf(f.skill) : undefined;
+        const live = !!row && ((f.special ?? 0) > 0 ? (f.special ?? 0) <= row.lead : (f.specialRecover ?? 0) > RULES.special.recovery - row.tail);
+        w?.specialTrail(live && row ? row : null);
+      }
+      for (const side of SIDES) (side === 0 ? warriors?.player : warriors?.opponent)?.specialMove(specialRoleOf(practice.duel.fighters[side]));   // the move's own clip (src/assets/special-clips.json)
       for (const side of SIDES) {
         const foe = (side === 0 ? warriors?.opponent : warriors?.player), l = foe?.boneWorld('foot_l'), r = foe?.boneWorld('foot_r');
         castTells[side].update(practice.duel.fighters[side], l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, practice.duel.tick, bossRing && side === 1);
@@ -1087,7 +1120,16 @@ export function createScene(
         }
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
-      skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+      countSpecial('fx', skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale])); skillImpact.update(dt);   // ?debug=1 counter (special-counter.ts): the real spawns only
+      if (specialShards) {   // a landed melee special throws its rows' chips off the contact, away from the attacker
+        for (const e of events) {
+          if (e.type !== 'SpecialLanded' || e.spell || e.target === undefined || e.target === e.actor || !e.move?.startsWith('skill_')) continue;
+          const rows = specialShardsOf(e.move.slice('skill_'.length)), by = practice.duel.fighters[e.actor]!.body, to = practice.duel.fighters[e.target]!.body;
+          if (rows.length) { impactPoint(e, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], shardAt); for (const row of rows) countSpecial('fx', specialShards.burst(row, shardAt.x, shardAt.y, shardAt.z, to.x - by.x, to.z - by.z)); }
+        }
+        specialShards.update(dt);
+      }
+      impactFx.fire(events, practice.duel.fighters); impactFx.update(dt); missileFx.burst(events, practice.duel.fighters); missileFx.update(practice.duel.tick, practice.duel.fighters); woundNotice.update(practice.duel.fighters, dt);
       if (miasmaMark) { miasmaMark.fire(events); miasmaMark.update(dt, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]); }
 
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
@@ -1146,7 +1188,7 @@ export function createScene(
       if (worldCam) {   // behind the hero, away from the foe, at the walk camera's distance and height; the aim is the foe (the lock)
         const dx = state.x - practice.enemy.x, dz = state.z - practice.enemy.z, n = Math.hypot(dx, dz) || 1;
         // The camera steps to the hero's right so he stands left of centre (x ~ 35-40 % of the screen, clear of the button column) and the foe, on the line ahead, shows beside and beyond him; a low foe (wolf, boar) steps further so it does not hide behind him.
-        const gap = Math.max(n, 0.8), side = Math.min(1.1, 0.7 + 0.4 * framingLow(opponentId) * (worldCam.back + gap) / (worldCam.back + 4));
+        const gap = Math.max(n, SIDE.gapFloor), side = Math.min(SIDE.max, SIDE.base + SIDE.low * framingLow(opponentId) * (worldCam.back + gap) / (worldCam.back + SIDE.ref));   // the side step's numbers are camera-rules rows
         camera.position.set(state.x + dx / n * worldCam.back + dz / n * side, worldCam.up, state.z + dz / n * worldCam.back - dx / n * side);
         camera.lookAt(wcFoe.set(practice.enemy.x, 1.0, practice.enemy.z));
       }
@@ -1174,7 +1216,7 @@ export function createScene(
       const specialDim = runtimeSpecial?.exposure ?? (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
       if (dip > 0 || specialDim !== 1) renderer.toneMappingExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * specialDim;   // the kill dip held then eased back
       if (specialId) previewLighting.apply(specialDim);
-      if (!look?.render()) renderer.render(scene, camera);
+      if (!look?.render()) { if (gfx) gfx.render(); else renderer.render(scene, camera); }
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
       rig.settle(dt);

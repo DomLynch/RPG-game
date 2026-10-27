@@ -1,4 +1,5 @@
 // The daily board screen's view model: every sentence is a row, every name comes from the namer, the reset arithmetic is the rule's, and the code names no task.
+import '../server/zone-package-env.ts';   // FIRST: beta (Dom 10-22) leaves zones 3-5 unlisted; this test reads their data with the explicit opt-in
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -32,6 +33,7 @@ test('board view: today\'s board has the rule\'s slots, each task a sentence bui
     assert.ok(!/\{\w+\}/.test(t.text + t.reward), `${t.id}: no placeholder left`);
   }
   assert.deepEqual(boardView(NOON, fake), v, 'the same time gives the same board');
+  assert.equal(v.redrawMs, 30_000); assert.equal(v.redrawMs, rule.redrawMs);   // the screen's redraw period is the board rule's row, the 30 s it had in code
   const boards = new Set<string>(); for (let d = 0; d < 30; d++) boards.add(boardView(NOON + d * 86_400_000, fake)!.tasks.map((t) => t.id).join());
   assert.ok(boards.size >= 10, `${boards.size} different boards over 30 days`);
 });

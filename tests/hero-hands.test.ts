@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -38,7 +39,7 @@ const FINGERS = ['index', 'middle', 'ring', 'pinky'] as const;
 // bone tip 30 % past the fingertip, so a clip's curl at the last joint moved no skin and the outer half of the finger swung as one
 // stiff stick (the owner's "spider" off-hand in Armed/Guard). Pinned for the hero only: the other bodies are their lanes' builds.
 const BODIES: { file: string; node: string; minVerts: number; skip?: string; knuckles?: true }[] = [
-  { file: 'warrior.glb', node: 'Skin', minVerts: 150, knuckles: true },
+  { file: 'hero-classic.glb', node: 'Skin', minVerts: 150, knuckles: true },
   { file: 'veteran.glb', node: 'CreatureBody', minVerts: 40, skip: 'donor src/assets/source/backups/veteran-v1.glb predates the finger fix; also used by skeleton/veteran-polish-check/veteran-neck-check — owner decision pending' },
   { file: 'pitborn.glb', node: 'Skin', minVerts: 150 },
   { file: 'executioner.glb', node: 'CreatureBody', minVerts: 10, skip: 'donor src/assets/source/backups/executioner-v5.glb predates the finger fix — owner decision pending' },

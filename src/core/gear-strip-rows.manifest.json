@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "gearStat", "file": "gear-strip-rows.json", "at": "gearStat", "key": "id", "required": { "label": "string", "note": "string" } }
+  ]
+}

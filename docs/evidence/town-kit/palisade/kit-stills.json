@@ -1,0 +1,35 @@
+[
+ {
+  "name": "goblin_palisade_a",
+  "fullTris": 4000,
+  "lodTris": 800,
+  "size": [
+   5.18,
+   2.79,
+   0.26
+  ],
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "name": "goblin_palisade_b",
+  "fullTris": 4000,
+  "lodTris": 800,
+  "size": [
+   5.19,
+   2.69,
+   0.89
+  ],
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ },
+ {
+  "name": "goblin_palisade_c",
+  "fullTris": 3999,
+  "lodTris": 800,
+  "size": [
+   5.2,
+   2.57,
+   0.64
+  ],
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+ }
+]

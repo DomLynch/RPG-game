@@ -1,11 +1,13 @@
 // scripts/ci-row-group.mjs + scripts/lib/row-groups.mjs: several release rows in ONE job, receipts still per row (Deploy, release speed 2026-10-13).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-const { runGroup } = await import('../scripts/ci-row-group.mjs');
+const { runGroup, rowCeilingS } = await import('../scripts/ci-row-group.mjs');
 const { packRows, groupLabel, rowSeconds, DEFAULT_ROW_S, TARGET_GROUP_S } = await import('../scripts/lib/row-groups.mjs');
 
 const row = (index: number, name = `r${index}`) => ({ index, name, argv: JSON.stringify(['node', `${name}.mjs`]) });
@@ -45,6 +47,126 @@ test('runGroup: a flaky row retries ALONE (never the group) and stays visible; a
   } finally { rmSync(h.dir, { recursive: true, force: true }); }
 });
 
+// Strategy 2026-10-20 (row 57, K5y): the first attempt failed for real after 699 s of a 900 s ceiling, then a full second attempt ran: up to 27 min. A SLOW failure (more than half the row's own
+// ceiling) is a real failure and is not retried in the job; a fast failure still retries once. The harness clock advances 1 s per attempt, so a ceiling of 1 s makes the 1 s failure "slow".
+test('runGroup: a slow first failure (over half the row ceiling) is NOT retried in the job and is marked slow_failure; a fast failure still retries once', () => {
+  const h = harness({ 'slow.mjs': [1, 0], 'fast.mjs': [1, 0] });
+  try {
+    const { failed, receipts } = runGroup({ id: 'g7', rows: [row(1, 'slow'), row(2, 'fast')], event: 'pull_request', ...h.args, ceilings: { default: 600, rows: { slow: 1 } } });
+    assert.deepEqual(h.calls, ['slow.mjs', 'fast.mjs', 'fast.mjs'], 'slow ran once, fast ran twice');
+    const by = Object.fromEntries(receipts.map(r => [r.index, r]));
+    assert.deepEqual([by[1].status, by[1].slow_failure, 'retried' in by[1], by[1].timed_out], [1, true, false, undefined], 'red, marked slow, never claims a retry');
+    assert.deepEqual([by[2].status, by[2].retried, by[2].first_status, 'slow_failure' in by[2]], [0, true, 1, false], 'the fast flake still retried and passed');
+    assert.deepEqual(failed.map(r => r.index), [1]);
+    assert.ok(h.lines.some(l => /check 1 \(slow\) failed after 1s, more than half of its 1s ceiling: a slow failure is a real failure, not retried/.test(l)));
+    assert.ok(!h.lines.some(l => /Retrying release check 1 alone/.test(l)) && h.lines.some(l => /Retrying release check 2 alone/.test(l)));
+  } finally { rmSync(h.dir, { recursive: true, force: true }); }
+});
+
+test('runGroup: a slow failure applies to the FIRST attempt only, and exactly half of the ceiling still retries (strictly over half is slow)', () => {
+  const h = harness({ 'edge.mjs': [1, 1] });
+  try {
+    // 1 s attempt, 2 s ceiling: exactly half, so retried; the second (failing) attempt is final either way
+    const { failed } = runGroup({ id: 'g8', rows: [row(3, 'edge')], event: 'pull_request', ...h.args, ceilings: { default: 600, rows: { edge: 2 } } });
+    assert.deepEqual(h.calls, ['edge.mjs', 'edge.mjs'], 'exactly half is not "more than half"');
+    assert.deepEqual(failed.map(r => [r.index, r.retried]), [[3, true]]);
+  } finally { rmSync(h.dir, { recursive: true, force: true }); }
+});
+
+// GS row 56 (2026-10-15): the row printed its first PASS and never exited, because its npx-spawned vite grandchild kept the pipes open. The old 30-minute row timeout equalled the job timeout, so the
+// job was cancelled at 30 min and the whole group failed. Now a row has its own ceiling (ROW_TIMEOUT_S, default 600 s) and a hang fails THAT row, by name, and is not retried.
+test('runGroup: a row that hangs fails BY NAME at its own ceiling, is not retried, its stray child is killed, and the next row still runs', { skip: spawnSync('sh', ['-c', 'command -v timeout']).status !== 0 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rowhang-')), lines: string[] = [];
+  const before = process.env.ROW_TIMEOUT_S; process.env.ROW_TIMEOUT_S = '2';
+  try {
+    const hang = { index: 7, name: 'hang', argv: JSON.stringify(['sh', '-c', 'sleep 31337 & wait']) };   // a grandchild that outlives its parent, like npx -> vite
+    const stubborn = { index: 8, name: 'stubborn', argv: JSON.stringify(['sh', '-c', 'trap "" TERM; sleep 31338 & wait']) };   // ignores TERM: timeout has to KILL the group after -k 5
+    const ok = { index: 9, name: 'ok', argv: JSON.stringify(['true']) };
+    const t0 = Date.now();
+    const { failed, receipts } = runGroup({ id: 'g9', rows: [hang, stubborn, ok], event: 'pull_request', dir, log: (l: string) => lines.push(l) });
+    assert.ok(Date.now() - t0 < 40_000, `both hangs were killed at their 2 s ceiling (+5 s KILL grace), not the job timeout (${Date.now() - t0} ms)`);
+    assert.deepEqual(failed.map(r => [r.index, r.name, r.status, r.timed_out]), [[7, 'hang', 124, true], [8, 'stubborn', 124, true]], 'only the hung rows failed, by name');
+    assert.equal(receipts.find(r => r.index === 9)?.status, 0, 'the next row still ran and passed');
+    assert.ok(!lines.some(l => /Retrying/.test(l)), 'a hang is not retried');
+    assert.ok(lines.some(l => /check 7 \(hang\) hit the 2s ceiling/.test(l)), lines.join('\n'));
+    assert.ok(lines.some(l => /::error::release rows FAILED.*7 \(hang, exit 124, timed out at the 2s ceiling\), 8 \(stubborn, exit 124, timed out at the 2s ceiling\)/.test(l)), lines.join('\n'));
+    for (const marker of ['^sleep 31337', '^sleep 31338']) assert.equal(spawnSync('pgrep', ['-f', marker], { encoding: 'utf8' }).status, 1, `the stray grandchild (${marker}) was killed with the row group`);
+    const one = JSON.parse(readFileSync(join(dir, 'release-check-7.json'), 'utf8'));
+    assert.equal(one.timed_out, true);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'release-check-9.json'), 'utf8')).timed_out, undefined, 'an ordinary row has no timed_out field');
+  } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('runGroup: exit 137 (timeout had to KILL a child that ignored TERM) at the ceiling is a timeout too (not retried); a 137 well before the ceiling is an ordinary failure (retried)', () => {
+  const before = process.env.ROW_TIMEOUT_S;
+  try {
+    process.env.ROW_TIMEOUT_S = '1';   // the harness clock advances 1 s per call, so a 137 here is "at the ceiling"
+    const a = harness({ 'r7.mjs': [137] });
+    const ra = runGroup({ id: 'g1', rows: [row(7, 'r7')], event: 'pull_request', ...a.args });
+    assert.deepEqual(a.calls, ['r7.mjs'], 'not retried');
+    assert.deepEqual(ra.failed.map(r => [r.status, r.timed_out]), [[124, true]]);
+    rmSync(a.dir, { recursive: true, force: true });
+    process.env.ROW_TIMEOUT_S = '600';
+    const b = harness({ 'r7.mjs': [137, 137] });
+    const rb = runGroup({ id: 'g1', rows: [row(7, 'r7')], event: 'pull_request', ...b.args });
+    assert.deepEqual(b.calls, ['r7.mjs', 'r7.mjs'], 'an early 137 is an ordinary failure: retried once');
+    assert.deepEqual(rb.failed.map(r => [r.status, r.timed_out]), [[137, undefined]]);
+    rmSync(b.dir, { recursive: true, force: true });
+  } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; }
+});
+
+test('rowCeilingS: 600 s by default, ROW_TIMEOUT_S overrides it, and a bad value falls back to 600', () => {
+  const before = process.env.ROW_TIMEOUT_S;
+  try {
+    delete process.env.ROW_TIMEOUT_S; assert.equal(rowCeilingS(), 600);
+    process.env.ROW_TIMEOUT_S = '45'; assert.equal(rowCeilingS(), 45);
+    for (const bad of ['', 'abc', '0', '-5']) { process.env.ROW_TIMEOUT_S = bad; assert.equal(rowCeilingS(), 600, `"${bad}"`); }
+  } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; }
+});
+
+// GT 2026-10-16: a flat 600 s ceiling killed row 55 (end-overlap-check), which passes in 868-1024 s (GS2 868, GR 1024, GQ 999); row 14 runs 503-525 s. A slow row now names its own ceiling as DATA
+// (scripts/lib/row-ceilings.json) and that entry wins over the default.
+test('rowCeilingS: a row\'s own entry (by NAME) wins over the default; ROW_TIMEOUT_S overrides the DEFAULT only', () => {
+  const table = { default: 600, rows: { 'account-browser-check': 900, 'end-overlap-check': 1500 } };
+  assert.equal(rowCeilingS('end-overlap-check', table, undefined), 1500);
+  assert.equal(rowCeilingS('account-browser-check', table, undefined), 900);
+  assert.equal(rowCeilingS('roster-browser-check', table, undefined), 600, 'a row with no entry gets the default');
+  assert.equal(rowCeilingS('roster-browser-check', table, '45'), 45, 'the env overrides the default');
+  assert.equal(rowCeilingS('end-overlap-check', table, '45'), 1500, 'but never a row\'s own ceiling');
+  assert.equal(rowCeilingS('x', { default: 'x', rows: { x: -5 } }, undefined), 600, 'bad data falls back to 600, never to "no limit"');
+  assert.equal(rowCeilingS(undefined, table, undefined), 600);
+});
+// The ceilings are keyed by check NAME because the row INDEX moves whenever a row is inserted (#2843 and #2834 both took 56 on 2026-10-16): a ceiling keyed by index would land on the wrong check
+// and put end-overlap-check back at the 600 s that killed it on GT. So every name in the table must be exactly one real release row, and every recorded time must fit its row's ceiling.
+test('row-ceilings.json: every named row is exactly one real release check, and the real table has end-overlap-check 1500 and account-browser-check 900', async () => {
+  const { rows: all } = await import('../scripts/release-rows-for.mjs');
+  const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8'));
+  assert.equal(real.default, 600);
+  assert.deepEqual([real.rows['end-overlap-check'], real.rows['account-browser-check']], [1500, 900]);
+  for (const name of Object.keys(real.rows)) assert.equal(all.filter((r: { name: string }) => r.name === name).length, 1, `"${name}" must name exactly one release_commands row (renamed or duplicated? re-key row-ceilings.json)`);
+});
+test('row-seconds.json vs row-ceilings.json: every recorded row time fits under 90% of its own ceiling, and a row longer than the packing target is alone in its job', async () => {
+  const { rows: all } = await import('../scripts/release-rows-for.mjs');
+  const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8')), seconds = rowSeconds();
+  const nameOf = (index: number) => all.find((r: { index: number }) => r.index === index)?.name;
+  for (const [index, s] of Object.entries(seconds)) assert.ok(Number(s) <= 0.9 * rowCeilingS(nameOf(Number(index)), real, undefined), `row ${index} (${nameOf(Number(index))}): recorded ${s} s needs a ceiling of at least ${Math.ceil(Number(s) / 0.9)} s (name it in row-ceilings.json)`);
+  const slow = all.find((r: { name: string }) => r.name === 'end-overlap-check');
+  assert.equal(seconds[String(slow.index)], 1024, 'row-seconds.json is keyed by index: end-overlap-check\'s measured time must sit at its CURRENT index (re-key after an insert)');
+  const groups = packRows([slow.index, 3, 6, 8].map((i: number) => ({ index: i, name: `r${i}` })));
+  assert.deepEqual(groups.find(g => g.rows.some(r => r.index === slow.index))?.rows.map(r => r.index), [slow.index], 'end-overlap-check (1024 s) gets a job to itself, so its 1500 s ceiling cannot eat the 30 min job timeout beside other rows');
+});
+test('runGroup: a row over the default but under its OWN ceiling passes; the same duration on a row without one is killed', { skip: spawnSync('sh', ['-c', 'command -v timeout']).status !== 0 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rowceil-')), lines: string[] = [];
+  try {
+    const slow = (index: number, name: string) => ({ index, name, argv: JSON.stringify(['sleep', '3']) });
+    const { receipts, failed } = runGroup({ id: 'g5', rows: [slow(4, 'own-ceiling'), slow(5, 'default-only')], event: 'pull_request', dir, log: (l: string) => lines.push(l), ceilings: { default: 1, rows: { 'own-ceiling': 8 } } });
+    assert.deepEqual(receipts.map(r => [r.index, r.status]), [[4, 0], [5, 124]], lines.join('\n'));
+    assert.deepEqual(failed.map(r => [r.index, r.name, r.timed_out]), [[5, 'default-only', true]]);
+    assert.ok(lines.some(l => /check 5 \(default-only\) hit the 1s ceiling/.test(l)), 'the kill names the default it hit');
+    assert.ok(lines.some(l => /timed out at the 1s ceiling/.test(l)) && !lines.some(l => /hit the 8s ceiling/.test(l)), 'row 4 (own ceiling 8 s) was not killed at 3 s');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('packRows: every row exactly once, groups near the target, the longest row alone, deterministic', () => {
   const sec = rowSeconds(), rows = Object.keys(sec).map(i => row(Number(i)));
   const groups = packRows(rows);
@@ -55,6 +177,18 @@ test('packRows: every row exactly once, groups near the target, the longest row 
   assert.deepEqual(groups.map(g => g.id), groups.map((_, i) => `g${i + 1}`));
   assert.deepEqual(packRows([]), []);
   assert.equal(packRows([row(999)])[0].estimateS, DEFAULT_ROW_S, 'a row with no measured weight is packed as the default');
+});
+
+// Dom 2026-10-20 (releases every 10-20 min): K5m's tail run had row 57 (ground-prompt-check, 713 s) packed with rows 35 and 38 because it had no weight (packed as the 120 s default),
+// so that job ran 1213 s; rows 9 (polearm, 494-854 s) and 46 (desktop-intro, 398 s) had no weight either. They are weighed now: the two longest CI rows get a job alone and nothing else
+// in the plan is over ~11 min. Today's measured seconds are the figures in scripts/lib/row-seconds.json.
+test('packRows: the real CI plan weighs rows 9, 46, 56 and 57, gives 57 and 9 a job each, and no shared job passes ~11 minutes', () => {
+  const sec = rowSeconds(), macOnly = [2, 4, 22, 44, 45, 48, 49, 52, 54], gpuOnly = [5, 7, 16, 21, 28, 34, 36];
+  for (const i of [9, 46, 56, 57]) assert.ok(Number(sec[String(i)]) > DEFAULT_ROW_S, `row ${i} carries a measured weight, not the ${DEFAULT_ROW_S} s default`);
+  const plan = Array.from({ length: 57 }, (_, k) => k + 1).filter(i => !macOnly.includes(i) && !gpuOnly.includes(i)).map(i => row(i));
+  const groups = packRows(plan);
+  for (const solo of [57, 9]) assert.deepEqual(groups.find(g => g.rows.some(r => r.index === solo))?.rows.map(r => r.index), [solo], `row ${solo} gets a job to itself`);
+  for (const g of groups) assert.ok(g.rows.length === 1 || g.estimateS <= 660, `shared job ${g.id} (${g.estimateS} s: rows ${g.rows.map(r => r.index).join(',')}) stays within ~11 minutes`);
 });
 
 test('groupLabel starts with the row list ci-trusted-checks reads', () => {

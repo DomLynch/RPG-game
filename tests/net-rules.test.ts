@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';
@@ -7,6 +8,8 @@ import { NET, PLAYABLE } from '../src/net/rollback.ts';
 import { INTENTS_CAP, MESSAGE_CAP, PING, SILENCE } from '../src/net/pvp.ts';
 import { RECONNECT } from '../src/net/transport.ts';
 import { DUEL_ANTIFARM } from '../src/net/duel-antifarm.ts';
+import { TIMING_ROW } from '../src/net/net-rules.ts';
+import { RETIRE_MS } from '../src/net/lobby.ts';
 
 test('net rules: every export keeps the exact shape and numbers it had in code (no id/note rides along)', () => {
   assert.deepEqual(NET, { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redundancy: 64, rttSamples: 120 });
@@ -16,6 +19,11 @@ test('net rules: every export keeps the exact shape and numbers it had in code (
   assert.deepEqual(RECONNECT, { retryMs: 500, fastMaxMs: 1000, maxRetryMs: 4000, reconnectMs: 30_000, beatStaleMs: 5000, directQuietMs: 1500 });
   assert.deepEqual([MESSAGE_CAP, INTENTS_CAP], [4096, 1024]);
   assert.deepEqual(DUEL_ANTIFARM, { elo: { start: 1000, k: 32, floor: 100 }, reward: { base: 10, perFullWin: 3, step: 0.5, min: 0.1 }, dayMs: 24 * 60 * 60 * 1000 });
+});
+
+test('net timing row: the numbers lobby.ts and rollback.ts had inline (delay step-down 120 frames at the p90 round trip, retire grace 5 s, 16 ms pump, 250 ms poll)', () => {
+  assert.deepEqual(TIMING_ROW, { delayStepDownFrames: 120, delayRttQuantile: 0.9, retireGraceMs: 5000, idlePumpMs: 16, lobbyPollMs: 250 });
+  assert.equal(RETIRE_MS, SILENCE.abandonMs + 5000);
 });
 
 test('net rules: the file loads through the registry, one row per table', () => {

@@ -50,7 +50,8 @@ const REACH = rule('reach');               // the foe swings only inside this
 const FINALE_LIMIT = rule('finale-limit'); // ticks the finishing blow is given to land by itself before it is forced
 const FLOOR = rule('floor');               // share of a bar the lessons keep both fighters above
 export const AFK_CAP_S = rule('afk-cap-s');   // seconds of a hidden tab's missed fight the page simulates on return (main.ts): steers the stepped duel, so it sits with the lesson rows
-if ([TIMEOUT, GAP, REACH, FINALE_LIMIT, FLOOR, AFK_CAP_S].some((v) => !(v > 0))) throw new Error('first-loss-rules.json is missing a row');
+export const FRAME_DT_MAX_S = rule('frame-dt-max-s');   // the most one frame injects into the stepped duel (a tab thaw or a long stall; main.ts): it steers the sim, so it sits with the lesson rows
+if ([TIMEOUT, GAP, REACH, FINALE_LIMIT, FLOOR, AFK_CAP_S, FRAME_DT_MAX_S].some((v) => !(v > 0))) throw new Error('first-loss-rules.json is missing a row');
 
 export function createFirstLoss(onLesson: (id: LessonId) => void = () => {}) {
   const fired: LessonId[] = [];

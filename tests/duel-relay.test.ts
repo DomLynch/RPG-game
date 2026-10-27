@@ -1,6 +1,8 @@
 // The PvP relay (scripts/duel-relay.mjs) against Node's own WebSocket client: it is not an open relay (a socket joins only with a signed,
 // unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import test from 'node:test';
 import { readToken, RELAY, signToken, startRelay, supabaseAdmin, supabaseUser } from '../scripts/duel-relay.mjs';
 
@@ -257,4 +259,22 @@ test('duel relay: the room byte budget is charged per side: the side that floods
     assert.equal(relay.stats().sockets, 1);
     b.ws.close();
   } finally { await relay.close(); }
+});
+
+test('the service entry stamps every log line with an ISO time and leaves an exit line (signal, open rooms) so the next restart can be read (2026-10-21: NRestarts 73, no record)', async () => {
+  const child = spawn(process.execPath, ['scripts/duel-relay.mjs'], { env: { ...process.env, DUEL_RELAY_OPEN: '1', DUEL_RELAY_SECRET: SECRET, DUEL_RELAY_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
+  const exited = new Promise<{ code: number | null; signal: string | null }>((r) => child.on('exit', (code, signal) => r({ code, signal })));
+  try {
+    assert.ok(await until(() => /signal handlers armed/.test(out) && /listening on/.test(out), 30000), out);   // both lines are printed after the handlers are registered (scripts/duel-relay.mjs): SIGTERM on seeing them always meets a handler
+    child.kill('SIGTERM');
+    const { code, signal } = await exited;
+    const lines = out.trim().split('\n');
+    // Assert the HANDLED stop line, not the exit code: a run killed by the default signal action leaves no such line, and that is what this must catch.
+    assert.match(lines[lines.length - 1], /duel-relay: received SIGTERM, exiting 0; open rooms 0 sockets 0/, `no handled stop line (code ${code}, signal ${signal}): ${out}`);
+    for (const l of lines) assert.match(l, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z duel-relay/, `an untimed line: ${l}`);
+    assert.match(lines[0], / duel-relay: signal handlers armed \(SIGTERM, SIGINT, uncaught exception, unhandled rejection\)$/, 'the handlers are armed before anything else is logged');
+    assert.match(lines[1], / listening on 127\.0\.0\.1:\d+, minting for anyone pid \d+$/, 'and the listening line comes after them');
+    assert.match(lines[lines.length - 1], /duel-relay: received SIGTERM, exiting 0; open rooms 0 sockets 0 \(a restart drops them\)$/);
+  } finally { child.kill('SIGKILL'); }
 });

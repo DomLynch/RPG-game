@@ -5,6 +5,7 @@ import { basename } from 'node:path';
 import { optimizeGlb } from '../../scripts/optimize-glb.mjs';
 import { liveKit } from './live-kit.mjs';
 import { ZONES_DIR, registrySource } from '../../scripts/gen-zones.mjs';
+import { staleGenerated } from '../../scripts/gen-packages.mjs';
 import { writeFile } from 'node:fs/promises';
 
 // Origins look prototype (Expansion lane, 2026-10-06): its own page, its own build, never part of the game's build.
@@ -20,7 +21,11 @@ export default defineConfig({
   build: { outDir: `${repo}artifacts/origins-preview`, emptyOutDir: true, chunkSizeWarningLimit: 2000 },
   plugins: [{
     name: 'zone-registry',   // a build never ships a stale registry: the zone folders are the source
-    async buildStart() { await writeFile(`${ZONES_DIR}registry.ts`, registrySource()); },
+    async buildStart() {   // the build CHECKS the package output, it never writes it (a hand edit must fail loudly, not be overwritten); only `npm run packages` writes
+      const stale = staleGenerated();
+      if (stale.length) throw new Error(`generated package files differ from what origins/packages/ generates (a hand edit, or a package changed without regenerating): ${stale.join(', ')}. Run \`npm run packages\` and commit, or revert the edit.`);
+      await writeFile(`${ZONES_DIR}registry.ts`, registrySource());
+    },
   }, {
     name: 'live-fight-kit',
     async transformIndexHtml(html) { return liveKit(await readFile(`${repo}index.html`, 'utf8'), html); },
@@ -34,9 +39,21 @@ export default defineConfig({
       return `export default import.meta.ROLLUP_FILE_URL_${ref};`;
     },
   }, {
+    // The dev server (hot-reload preview: a row edit shows in seconds, no rebuild, `npm run`-free: npx vite --config origins/preview/vite.config.mjs --host): serves the same two public folders a build emits.
+    name: 'dev-public', apply: 'serve',
+    configureServer(server) {
+      const TYPES = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.json': 'application/json', '.glb': 'model/gltf-binary' };
+      server.middlewares.use(async (req, res, next) => {
+        const m = /^(?:\/preview\/origins)?\/(arena|zones|world\/kit|world\/town|world\/far|world|beasts|looks|weapons\/shapes)\/([\w.-]+)$/.exec((req.url ?? '').split('?')[0]);   // + the creature bodies at the site root (/world/x.glb, /beasts/x.glb), where the live site serves them: without them the hot-reload page draws capsules
+        if (!m) return next();
+        try { const body = await readFile(`${repo}public/${m[1]}/${m[2]}`); res.setHeader('content-type', TYPES[m[2].slice(m[2].lastIndexOf('.'))] ?? 'application/octet-stream'); res.end(body); } catch { next(); }
+      });
+    },
+  }, {
     name: 'pit-arena-public', apply: 'build',
     async generateBundle() {
-      for (const name of await readdir(`${repo}public/arena`)) this.emitFile({ type: 'asset', fileName: `arena/${name}`, source: await readFile(`${repo}public/arena/${name}`) });
+      for (const dir of ['arena', 'zones']) for (const name of await readdir(`${repo}public/${dir}`)) this.emitFile({ type: 'asset', fileName: `${dir}/${name}`, source: await readFile(`${repo}public/${dir}/${name}`) });
+      for (const name of (await readdir(`${repo}public/world/kit`)).filter((n) => n.startsWith('goblin-'))) this.emitFile({ type: 'asset', fileName: `world/kit/${name}`, source: await readFile(`${repo}public/world/kit/${name}`) });   // a skin's model files (building-skins.json models): served next to the page, not from the live game's folder  // zones/: the zone domes' painted backdrops (goblin-field-defs.json backdrops rows)
     },
   }],
 });

@@ -1,0 +1,212 @@
+{"notes":[
+"2026-10-16 Dom: Arena 1 play circle +30% (it was too small): ARENA_ONE_SCALE 0.36 -> 0.468 (play-radius-defs row, 0.36 x 1.3).",
+"2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
+"2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
+"2026-10-14 Dom: reach bands (positioning gates): a landed blow outside its weapon's best distance band deals 40% (bandOff 400); inner <1.35 m, mid 1.35-1.8 m, outer beyond; NO on-screen marker (Dom: cheap). Strategy: never soften a hard miss.",
+"2026-10-14 Dom: armour vs blow type: plate takes 60% of cuts, 90% of stabs, 140% of crushes; leathers 85/65/100; robes 130/130/120 (blowKinds + armourVs rows); maul and warhammer crush, estoc and every thrust pierce, the rest cut.",
+"2026-10-14 Dom: commit vs bait: maul and warhammer heavies are 30% longer in the windup, cannot be feinted and shrug every stagger from the first tick; the dodge counter punishes them.",
+"2026-10-14 Dom: ward: the Witch's raised guard throws the first blow back (80% of it at the attacker, never to death) and is down for 4 s; a cheap light pops it first.",
+"2026-10-14 Dom: shield wall vs flank: a side blow on a raised guard (outside its arc, not from behind) deals 120% and 140% posture; the Shieldmaiden cannot step while her guard is up, so the answer is the shove or the flank.",
+"2026-10-14 Dom: clock fighter: a landed Plague Doctor special poisons you: 2 health a second for 10 s, refreshed by a new landing, never to death; no marker, the health bar is the signal.",
+"2026-10-14 Dom: bind and disarm: a block with a trident or estoc binds the attacker's blade for 0.75 s (no swings, kick is legal); kick to break it or be disarmed for 5 s (kick and guard only). Disarmed has no fists animation yet: the weapon stays in hand, it simply cannot swing.",
+"2026-10-15 Dom + Strategy: mana: a third bar of 100, spells cost mana (1.5x the spell's stamina cost) and no stamina, regen 6 a second after 1.5 s without casting, slowed by heavy armour (the casting penalty rows); stamina stays the melee cost.",
+"2026-10-15 Dom + Strategy: missiles: the weapon picked as the STAFF in the Loadout box (?staff=<weapon>, default none) throws a bolt instead of striking (stab forward, left slash left bolt, right slash right bolt, heavy forward at 150%), 12 mana, 7 m/s, side bolts fan 22 degrees; it only flies from the outer band (a hard miss up close); dodge, a same-side guard or a sidestep answers it.",
+"2026-10-15 Dom + Strategy: bow and crossbow (stand-in weapons picked in the Loadout box: ?bow= / ?crossbow=): a bow draws 20% slower and is fast and light, a crossbow reloads 120% slower, hits for 170% and a third of a blocked bolt goes through; both carry a finite quiver (20 arrows / 12 bolts; ?quiver=0 for unlimited), the staff is infinite and costs mana.",
+"2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
+"2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
+"2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
+"2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder.",
+"2026-10-13 Dom: arm wound shows as a temporary on-screen message (option B), about 2.6 seconds.",
+"2026-10-13 Strategy/Dom: ring stays ON as a row (parry, guard break); the existing clash sparks are wired to guard break as the switchable alternative (guardBreak sparks 0.8; parry already sparks on steel). Flip either in the panel.",
+"2026-10-13 Dom: ring off (looked basic); the clash sparks on guard break stay. Sandbox working mode: Dom's word beats the process rules; nothing leaves sandbox/page or the preview.",
+"2026-10-13 Dom: many-on-one damage cut: 1st attacker 100%, 2nd 50%, 3rd 30%, 4th and later 30%, per fight kind (same in every kind today). Values only: the engine applies them in Combat's many-on-one resolution (harness scripts/many-on-one-check.mjs); the sandbox is 1v1 so it cannot show the effect.",
+"2026-10-13 Dom: counter after a dodge: a clean roll-dodge opens the guard-counter window for 20 ticks (Heavy becomes the counter), same as a block does.",
+"2026-10-13 Dom: arm wound also takes 10 off the stamina ceiling for the rest of the fight (wounds with a concrete cost).",
+"2026-10-13 Dom: three armour classes. Light = leathers (stamina up, armour down), medium = mail (armour +12, stamina +3, magic resist -15), heavy = plate (armour +25, magic resist -15, stamina -10: the weight cost). One blended value per set, no hit locations.",
+"2026-10-13 Dom: heavy armour slows casting: a special's windup is +20% in plate, +10% in leathers, 0 in robes (sandbox-mech castPenalty, read off the sheet dials; same numbers as #2577).",
+"2026-10-13 Dom: the arm wound only forms once the defender is at 10% health or lower (wound row column below).",
+"2026-10-13 Dom: execution via posture break: the critical heavy that lands after a posture break hits 1.5x, and finishes a foe at or under 25% health (sandbox-mech execution).",
+"2026-10-14 Dom: no posture effects: the base animation only, no tired hunch, no open-stagger arm lift, no charge lean, no stance silhouette (sandbox-mech plainPosture). Guard-side tilt and finishers stay.",
+"2026-10-13 Lead: armour weights now match #2577 (src/fight/armour-weights.json, castPenalty heavy 20 / medium 10 / light 0): heavy = plate, medium = leathers, light = robes, no mail set. The line above is superseded. The cast hook is Combat's, built on #2577.",
+"2026-10-16 Dom: enrage removed (the boss-phase row is gone; phases is empty again, so no boss changes at 50% health).",
+"2026-10-13 Dom: boss phase: at 50% health a boss's special hits 1.5x as hard and is ready after 30% of its cooldown (attack change, no colour change), with an on-screen message. A cast cut early now locks the caster out up to twice as long."
+],"files":{
+"stance-defs":{"stances":[
+{"id":"aggressive","damage":100,"posture":200,"block":200},
+{"id":"defensive","damage":-100,"block":-300,"recover":500,"damageTaken":-200,"poise":-200},
+{"id":"trickster","heavyDamage":-100,"feint":-750,"kickPosture":1000}
+],
+"wounds":[
+]},
+"hit-stop-rules":{"stop":[{"id":"SpecialLanded","ms":0,"note":"a Special Move's strike holds like a clean hit"},
+{"id":"Blocked","ms":0,"note":"a blocked contact"},
+{"id":"Hit","ms":0,"note":"a landed blow"},
+{"id":"Parried","ms":0,"note":"a parried blow"},
+{"id":"GuardBroken","ms":0,"note":"a guard break"},
+{"id":"PostureBroken","ms":0,"note":"Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)"},
+{"id":"Killed","ms":0,"note":"a kill stops longest"}],"heavy":[{"id":"Hit","ms":0,"note":"a heavy-class blow that lands stops longer than the plain hit"},
+{"id":"Blocked","ms":0,"note":"a heavy-class blow that is blocked stops longer than the plain block"}]},
+"hit-stop-defs":{"contacts":[
+{"id":"hitLight","order":1,"ms":0,"frames":0,"knock":0.02,"push":0},
+{"id":"hitHeavy","order":2,"ms":0,"frames":0,"knock":0.04,"push":0},
+{"id":"blockLight","order":3,"ms":0,"frames":0,"knock":0.02,"push":0},
+{"id":"blockHeavy","order":4,"ms":0,"frames":0,"knock":0.02,"push":0},
+{"id":"parry","order":5,"ms":0,"frames":0,"knock":0,"push":0.07},
+{"id":"guardBreak","order":6,"ms":0,"frames":0,"knock":0.04,"push":0,"sparks":0.8},
+{"id":"special","order":7,"ms":0,"frames":6,"knock":0.03,"push":0.08},
+{"id":"postureBreak","order":8,"ms":0,"frames":0,"knock":0,"push":0},
+{"id":"kill","order":9,"ms":0,"frames":0,"knock":0,"push":0},
+{"id":"kick","order":10,"ms":0,"frames":0,"knock":0,"push":0,"drop":0.1}
+]},
+"crowd-defs":{"roars":[
+{"id":"kill-roar","on":"kill","cue":"reaction","gain":3.0},
+{"id":"parry-roar","on":"parry","cue":"reaction","gain":2.5},
+{"id":"break-roar","on":"guardBreak","cue":"reaction","gain":2.5},
+{"id":"heavy-roar","on":"heavy","cue":"reaction","gain":1.6}
+]},
+"swarm-defs":{"attackers":[
+{"id":"attacker1","index":1,"world-mob":1000,"pit":1000,"pvp":1000,"ladder":1000},
+{"id":"attacker2","index":2,"world-mob":500,"pit":500,"pvp":500,"ladder":500},
+{"id":"attacker3","index":3,"world-mob":300,"pit":300,"pvp":300,"ladder":300},
+{"id":"attacker4plus","index":4,"world-mob":300,"pit":300,"pvp":300,"ladder":300}
+]},
+"sandbox-rules-defs":{"rules":[
+{"id":"dodgeCounter","window":20},
+{"id":"interruptEarly","value":1000},
+{"id":"castPushback","value":30},
+{"id":"castPushbackMax","value":2},
+{"id":"executeMult","value":1500},
+{"id":"executeBelow","value":25},
+{"id":"oneButton","value":1},
+{"id":"plainPosture","value":1},
+{"id":"hideStancePicker","value":1},
+{"id":"heavyHold","value":220},
+{"id":"stabHalfAngle","value":50},
+{"id":"stabSlide","value":18},
+{"id":"bandOff","value":400},
+{"id":"castTellOff","value":1},{"id":"healOff","value":1},{"id":"missileGuardPosture","value":18},{"id":"spellsOff","value":1},{"id":"specialMeleeWindup","value":32},{"id":"specialMeleeReach","value":220},{"id":"specialMeleeSlack","value":40},{"id":"specialReact","value":1},{"id":"specialReactStagger","value":160},{"id":"specialReactKnock","value":450},{"id":"specialReactPosture","value":150},
+{"id":"spellBuffer","value":350},
+{"id":"spellReach","value":2500},
+{"id":"spellSkillFloor","value":100},
+{"id":"spellFx","value":1},
+{"id":"vfxGroundCm","value":5},
+{"id":"vfxScaleNear","value":100},
+{"id":"vfxScaleFar","value":1000},
+{"id":"vfxScaleMax","value":3000},
+{"id":"glanceGain","value":450},
+{"id":"glanceRate","value":820},
+{"id":"flankDamage","value":1200},
+{"id":"flankPosture","value":1400},
+{"id":"manaMax","value":100},
+{"id":"manaRegen","value":60},
+{"id":"manaDelay","value":90},
+{"id":"manaCostMult","value":600},
+{"id":"missileRadius","value":70},
+{"id":"missileHoming","value":1},
+{"id":"missileFan","value":22},
+{"id":"missileStun","value":16},
+{"id":"quiver","value":0},
+{"id":"armourFoe","value":0},
+{"id":"armourYou","value":0},
+{"id":"centimetresPerMetre","value":100},
+{"id":"hitImpactGlance","value":1},
+{"id":"hitImpactSpecial","value":1},
+{"id":"percentScale","value":100}
+],"bands":[
+{"id":"inner","upTo":135},
+{"id":"mid","upTo":180},
+{"id":"outer","upTo":100000}
+],"spellRange":[
+{"root":"theWord","band":"outer","kind":"magic"},{"root":"threeBlows","band":"outer","kind":"magic"},{"root":"theRing","band":"outer","kind":"magic"},{"root":"harvest","band":"outer","kind":"magic"},
+{"root":"crack","band":"outer","kind":"magic"},{"root":"longShadow","band":"outer","kind":"magic"},{"root":"baying","band":"outer","kind":"magic"},
+{"root":"gale","band":"outer","kind":"magic","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","kind":"magic","speed":700,"tint":"#ff8a3a"}
+],"spellCue":[
+{"id":"far","text":"too far"}
+],"spellPick":[
+{"id":"ugallu","level":1,"vfx":"shock","unlock":"start"},{"id":"brokkr","level":1,"vfx":"ash","unlock":"pit"},
+{"id":"kamaitachi","level":1,"vfx":"wind","unlock":"zone1"},{"id":"banshee","level":1,"vfx":"nyx","unlock":"zone2"},
+{"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
+],"specialPick":[
+{"id":"cleave","role":"heavy","label":"Skull Crack","unlockAfterBossKills":0,"slot2Default":1},{"id":"reaping","role":"sweep","label":"Whirlwind","unlockAfterBossKills":0,"slot2Alt":1},{"id":"stomp","role":"posture break","label":"Ground Slam","unlockAfterBossKills":1},{"id":"lunge","role":"opener","label":"Lunge","unlockAfterBossKills":2}
+],"missileAnswer":[
+{"dodge":15,"guard":15,"run":0}
+],"bowSpecial":[
+{"skill":"cleave","clip":"Special_BowPower","label":"Power Shot","unlockAfterBossKills":0,"arrows":2,"lanes":[0],"mult":2000,"windup":40,"speed":700,"react":1,"posture":70,"tint":"#fff2c0"},
+{"skill":"reaping","clip":"Special_BowFan","label":"Fan Volley","unlockAfterBossKills":1,"arrows":3,"lanes":[-1,0,1],"mult":600,"windup":36,"speed":900,"tint":"#e8d9a8"},
+{"skill":"stomp","clip":"Special_BowPin","label":"Pinning Shot","unlockAfterBossKills":2,"arrows":1,"lanes":[0],"mult":1000,"windup":36,"speed":900,"pin":90,"posture":90,"tint":"#d8c8ff"},
+{"skill":"lunge","clip":"Special_BowQuick","label":"Quick Shot","unlockAfterBossKills":0,"arrows":1,"lanes":[0],"mult":1500,"windup":7,"speed":2600,"tint":"#ffffff"}
+],"specialReactFloor":[
+{"id":"lunge","stagger":36}
+],"specialLook":[
+],"specialShards":[
+],"specialTrail":[
+],"specialSound":[
+{"id":"cleave-1","cue":"whoosh_heavy","gain":650,"room":200,"delay":280,"on":"start","skill":"cleave"},{"id":"cleave-2","cue":"bone_crack","gain":850,"room":150,"delay":0,"skill":"cleave"},{"id":"cleave-3","cue":"hit_heavy","gain":600,"room":300,"delay":0,"skill":"cleave"},
+{"id":"reaping-1","cue":"whoosh_heavy","gain":600,"room":200,"delay":120,"on":"start","skill":"reaping"},{"id":"reaping-2","cue":"whoosh_heavy","gain":750,"room":200,"delay":300,"on":"start","skill":"reaping"},{"id":"reaping-3","cue":"hit_heavy","gain":750,"room":300,"delay":0,"skill":"reaping"},
+{"id":"reaping-4","cue":"flesh_cut","gain":550,"room":200,"delay":0,"skill":"reaping"},{"id":"stomp-1","cue":"whoosh_heavy","gain":600,"room":200,"delay":260,"on":"start","skill":"stomp"},{"id":"stomp-2","cue":"hit_heavy","gain":900,"room":350,"delay":0,"skill":"stomp"},
+{"id":"stomp-3","cue":"guard_break","gain":450,"room":300,"delay":0,"skill":"stomp"},{"id":"lunge-1","cue":"whoosh_light","gain":600,"room":150,"delay":150,"on":"start","skill":"lunge"},{"id":"lunge-2","cue":"flesh_stab","gain":750,"room":150,"delay":0,"skill":"lunge"},
+{"id":"lunge-3","cue":"hit_heavy","gain":300,"room":250,"delay":0,"skill":"lunge"},{"id":"ironrush-1","cue":"whoosh_light","gain":600,"room":150,"delay":150,"on":"start","skill":"ironrush"},{"id":"ironrush-2","cue":"hit_heavy","gain":700,"room":250,"delay":0,"skill":"ironrush"},
+{"id":"ironrush-3","cue":"flesh_stab","gain":400,"room":150,"delay":0,"skill":"ironrush"},{"id":"shove-1","cue":"charge","gain":300,"room":300,"delay":0,"on":"start","skill":"shove"},{"id":"shove-2","cue":"hit_heavy","gain":800,"room":300,"delay":0,"skill":"shove"},
+{"id":"pommel-1","cue":"hit_heavy","gain":500,"room":250,"delay":0,"skill":"pommel"},{"id":"pommel-2","cue":"bone_crack","gain":300,"room":150,"delay":0,"skill":"pommel"}
+],"spellHeal":[
+{"id":"gula","share":250,"uses":2,"windup":120}
+],"bandBest":[
+{"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
+{"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},
+{"weapon":"trident","band":"outer"},{"weapon":"scythe","band":"outer"},{"weapon":"estoc","band":"outer"},{"weapon":"reaper","band":"outer"}
+],"blowKinds":[
+{"weapon":"*","move":"*","kind":"slash"},{"weapon":"*","move":"thrust","kind":"pierce"},{"weapon":"*","move":"riposte","kind":"pierce"},
+{"weapon":"estoc","move":"*","kind":"pierce"},{"weapon":"maul","move":"*","kind":"crush"},{"weapon":"warhammer","move":"*","kind":"crush"}
+],"armourVs":[
+{"kind":"slash","armour":"heavy","value":600},{"kind":"pierce","armour":"heavy","value":900},{"kind":"crush","armour":"heavy","value":1400},
+{"kind":"slash","armour":"medium","value":850},{"kind":"pierce","armour":"medium","value":650},{"kind":"crush","armour":"medium","value":1000},
+{"kind":"slash","armour":"light","value":1300},{"kind":"pierce","armour":"light","value":1300},{"kind":"crush","armour":"light","value":1200}
+],"commit":[
+{"weapon":"maul","move":"heavy_overhead","windup":30},
+{"weapon":"warhammer","move":"heavy_overhead","windup":30}
+],"brace":[
+{"opponent":"shieldmaiden"}
+],"poison":[
+{"opponent":"plaguedoctor","damage":2,"every":60,"duration":600}
+],"bind":[
+{"weapon":"trident","window":45,"hold":300,"react":28},
+{"weapon":"estoc","window":45,"hold":300,"react":28}
+],"missileLanes":[
+{"move":"thrust","lane":0},{"move":"light_left","lane":-1},{"move":"light_right","lane":1},{"move":"heavy_overhead","lane":0,"mult":1500}
+],"missile":[
+{"kind":"staff","weapon":"none","speed":700,"share":1000,"mana":12,"tint":"#6aa8ff"},
+{"kind":"bow","weapon":"none","speed":900,"share":1000,"mana":0,"windup":20,"recovery":0,"ammo":20,"pierce":350,"chipKills":1,"tint":"#e8d9a8"},
+{"kind":"crossbow","weapon":"none","speed":1100,"share":1700,"mana":0,"windup":120,"recovery":60,"ammo":12,"pierce":500,"tint":"#ffb066"}
+],"ward":[
+{"opponent":"witch","down":240,"reflect":800}
+],"readyStyles":[
+{"id":1,"s1":-120,"s2":-120,"s3":-80,"neck":-100},
+{"id":2,"s1":-220,"s2":-200,"s3":-140,"neck":-160},
+{"id":3,"s1":-320,"s2":-280,"s3":-200,"neck":-220}
+],"hurtStyles":[
+{"id":1,"weight":350,"s1":-160,"s2":-140,"twist":0},
+{"id":2,"weight":450,"s1":-50,"s2":-60,"twist":350},
+{"id":3,"weight":250,"s1":-220,"s2":-200,"twist":-120}
+],"castPenalty":[
+{"id":"heavy","dial":"armour","atLeast":20,"percent":20},
+{"id":"medium","dial":"stamina","atLeast":20,"percent":10}
+]},
+"gear-defs":{"sets":[
+{"id":"plate","weightClass":"heavy","shape":{"armour":25,"magicResist":-15,"stamina":-10},"quality":{"armour":2,"health":2,"poise":1}},
+{"id":"robes","weightClass":"light","shape":{"magicResist":25,"armour":-25},"quality":{"magicResist":2,"spellPower":2,"focus":1}},
+{"id":"leathers","weightClass":"medium","shape":{"stamina":25,"armour":-25},"quality":{"stamina":2,"recovery":2,"luck":1}}
+],
+"gear":[
+{"id":"light","weightClass":"light","preset":true,"set":"robes","weight":4,"wearMax":60,"resist":{}},
+{"id":"medium","weightClass":"medium","preset":true,"weight":9,"wearMax":90,"resist":{},"set":"leathers"},
+{"id":"heavy","weightClass":"heavy","preset":true,"set":"plate","weight":16,"wearMax":140,"resist":{}}
+]},
+"boss-phase-defs":{"phases":[]},
+"play-radius-defs":{"dials":[
+{"id":"OPEN_RADIUS","value":1000000000.0},
+{"id":"WALL_INNER","value":11.7},
+{"id":"BODY_RADIUS","value":0.425},
+{"id":"BASE_RADIUS","value":8.55},
+{"id":"ARENA_ONE_SCALE","value":0.468},
+{"id":"SPAWN_FLOOR","value":0.5}
+]}}}

@@ -85,4 +85,5 @@ for n in $(grep -oE 'Release check [0-9]+/[0-9]+ (FAILED|CEILING)' /tmp/rows.log
   for f in artifacts/release-checks/$(printf '%02d' "$n")-*.log; do [[ -e "$f" ]] && { echo "--- $f"; tail -25 "$f" | cut -c1-400; }; done
 done
 say "END failing row tails"
+peak=$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes 2>/dev/null || echo 0); say "PEAK_RAM_MB $(( peak / 1048576 )) (container cgroup high-water mark; 0 = not readable)"   # the t4-small (15 GB) vs medium (30 GB) width question
 say "COST seconds=$(( $(date +%s) - t0 )) rows_wall=${wall}"

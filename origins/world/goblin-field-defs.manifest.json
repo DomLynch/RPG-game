@@ -1,0 +1,137 @@
+{
+  "tables": [
+    {
+      "table": "goblin-rule",
+      "file": "goblin-field-defs.json",
+      "at": "rules",
+      "key": "id",
+      "required": {
+        "value": "number",
+        "unit": "string"
+      }
+    },
+    {
+      "table": "goblin-palette",
+      "file": "goblin-field-defs.json",
+      "at": "palettes",
+      "key": "id",
+      "required": {
+        "haze": "string",
+        "zenith": "string",
+        "mid": "string",
+        "horizon": "string",
+        "glow": "string",
+        "ridge": "string",
+        "ridgeFar": "string",
+        "smoke": "string",
+        "puff": "string",
+        "torch": "string",
+        "torchPower": "number",
+        "backdropPortrait": "string",
+        "backdropLandscape": "string"
+      },
+      "refs": {
+        "haze": "goblin-look"
+      }
+    },
+    {
+      "table": "goblin-harmonic",
+      "file": "goblin-field-defs.json",
+      "at": "harmonics",
+      "key": "id",
+      "required": {
+        "k": "number",
+        "a": "number"
+      }
+    },
+    {
+      "table": "goblin-backdrop",
+      "file": "goblin-field-defs.json",
+      "at": "backdrops",
+      "key": "id",
+      "required": {
+        "file": "string",
+        "x0": "number",
+        "x1": "number",
+        "y0": "number",
+        "y1": "number",
+        "texW": "number",
+        "texH": "number",
+        "fadeTop": "number",
+        "fadeFoot": "number",
+        "drop": "number"
+      },
+      "optional": {
+        "repeat": "number",
+        "arc": "number",
+        "azimuth": "number",
+        "fadeSide": "number",
+        "flat": "number",
+        "around": "number",
+        "keepFoot": "number"
+      }
+    },
+    {
+      "table": "goblin-name",
+      "file": "goblin-field-defs.json",
+      "at": "names",
+      "key": "id",
+      "required": {
+        "text": "string"
+      }
+    },
+    {
+      "table": "goblin-look",
+      "file": "goblin-field-defs.json",
+      "at": "looks",
+      "key": "id",
+      "required": {
+        "fog": "string",
+        "fogDensity": "number",
+        "hemiSky": "string",
+        "hemiGround": "string",
+        "hemiIntensity": "number",
+        "sunColor": "string",
+        "sunIntensity": "number",
+        "sunPos": "array",
+        "sunPos[]": "number",
+        "exposure": "number",
+        "ground": "array",
+        "ground[]": "number"
+      }
+    },
+    {
+      "table": "goblin-ground",
+      "file": "goblin-field-defs.json",
+      "at": "grounds",
+      "key": "id",
+      "required": {
+        "texN": "number",
+        "tileM": "number",
+        "seed": "number",
+        "blotches": "number",
+        "blotchMin": "number",
+        "blotchMax": "number",
+        "wetPatches": "number",
+        "wetMin": "number",
+        "wetMax": "number",
+        "speckles": "number",
+        "speckleMin": "number",
+        "speckleMax": "number",
+        "pebbles": "number",
+        "pebbleMin": "number",
+        "pebbleMax": "number",
+        "cracks": "number",
+        "crackSteps": "number",
+        "crackStep": "number",
+        "noise": "number",
+        "bump": "number",
+        "roughness": "number",
+        "base": "string",
+        "light": "string",
+        "dark": "string",
+        "wet": "string"
+      }
+    }
+  ]
+}

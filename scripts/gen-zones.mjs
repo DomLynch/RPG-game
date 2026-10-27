@@ -9,8 +9,8 @@ export const ROWS_DIR = fileURLToPath(new URL('../origins/zone-rows/', import.me
 // The zone rows under `dir` (zone1.row.json, zone2.row.json, ... zone99), by number. A file that is not named zone<N>.row.json (a leading zero, a stray name) is an error, never skipped.
 export function zoneRows(dir = ROWS_DIR) {
   return readdirSync(dir).filter((f) => f.endsWith('.row.json')).map((file) => {
-    const m = /^zone([1-9][0-9]*)\.row\.json$/.exec(file);
-    if (!m) throw new Error(`${file} is not a zone row name (zone<N>.row.json, N a number without a leading zero)`);
+    const m = /^zone(0|[1-9][0-9]*)\.row\.json$/.exec(file);   // zone0 is the town (Dom 2026-10-22)
+    if (!m) throw new Error(`${file} is not a zone row name (zone<N>.row.json, N a number without a leading zero; 0 itself is the town)`);
     return { file, id: m[1], n: Number(m[1]) };
   }).sort((a, b) => a.n - b.n);
 }

@@ -1,6 +1,7 @@
 // The transport's reconnect (Strategy 2026-10-01) against the real relay and Node's own WebSocket: a dropped relay socket is retried with the
 // same token, the peer is told down and then up, packets flow again, and `link()` is the relay's beats (down while cut, up once they come back).
 // `direct: false` never builds a peer connection, so everything here rides the relay.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { RELAY, startRelay } from '../scripts/duel-relay.mjs';

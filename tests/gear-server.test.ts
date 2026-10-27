@@ -1,4 +1,5 @@
 // The engine's gear screen reads and writes the server's ledger when signed in, and falls back to the local one otherwise (src/core/gear-server.ts).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServerGear } from '../src/core/gear-server.ts';

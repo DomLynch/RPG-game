@@ -9,6 +9,8 @@
         "minGap": "number",
         "markGap": "number",
         "edge": "number",
+        "scaleFloor": "number",
+        "maxCoordM": "number",
         "note": "string"
       }
     },
@@ -33,6 +35,61 @@
         "slack": "number",
         "reachSlack": "number",
         "poseAgeMs": "integer",
+        "maxHits": "integer",
+        "engageTokenBytes": "integer",
+        "windowSlackTicks": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "pace",
+      "file": "server-rules.json",
+      "at": "pace",
+      "key": "id",
+      "required": {
+        "slowRatio": "number",
+        "minTickS": "number",
+        "startsKept": "integer",
+        "decimals": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "fightLimit",
+      "file": "server-rules.json",
+      "at": "fightLimit",
+      "key": "id",
+      "required": {
+        "maxFightSec": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "gearImport",
+      "file": "server-rules.json",
+      "at": "gearImport",
+      "key": "id",
+      "required": {
+        "closesAt": "string",
+        "note": "string"
+      }
+    },
+    {
+      "table": "wornPoke",
+      "file": "server-rules.json",
+      "at": "wornPoke",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "mobPayout",
+      "file": "server-rules.json",
+      "at": "mobPayout",
+      "key": "id",
+      "required": {
+        "capReached": "integer",
         "note": "string"
       }
     },
@@ -46,6 +103,125 @@
         "maxPending": "integer",
         "queueMax": "integer",
         "presenceFreshMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "inputLimits",
+      "file": "server-rules.json",
+      "at": "inputLimits",
+      "key": "id",
+      "required": {
+        "characterIdChars": "integer",
+        "pieceIdChars": "integer",
+        "instanceIdChars": "integer",
+        "lootIdChars": "integer",
+        "questIdChars": "integer",
+        "npcIdChars": "integer",
+        "stageIdChars": "integer",
+        "choiceIdChars": "integer",
+        "lineIdChars": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "callTimeouts",
+      "file": "server-rules.json",
+      "at": "callTimeouts",
+      "key": "id",
+      "required": {
+        "authFetchMs": "integer",
+        "psqlMs": "integer",
+        "verifyQueueMax": "integer",
+        "verifyJobMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "recordLimits",
+      "file": "server-rules.json",
+      "at": "recordLimits",
+      "key": "id",
+      "required": {
+        "maxTicks": "integer",
+        "minRecordChars": "integer",
+        "maxRecordChars": "integer",
+        "seedBound": "integer",
+        "reasonChars": "integer",
+        "psqlErrorChars": "integer",
+        "psqlStderrKeepChars": "integer",
+        "nonceBytes": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "strictFlip",
+      "file": "server-rules.json",
+      "at": "strictFlip",
+      "key": "id",
+      "required": {
+        "minKills": "integer",
+        "minRate": "number",
+        "note": "string"
+      }
+    },
+    {
+      "table": "worldShare",
+      "file": "server-rules.json",
+      "at": "worldShare",
+      "key": "id",
+      "required": {
+        "qualifyOfTop": "number",
+        "tagExpiryS": "integer",
+        "joinWindowS": "integer",
+        "replaysPerAccount": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "worldMarks",
+      "file": "server-rules.json",
+      "at": "worldMarks",
+      "key": "id",
+      "required": {
+        "ofTop": "number",
+        "graceS": "integer",
+        "everyS": "integer",
+        "batch": "integer",
+        "perHour": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "spawnLayers",
+      "file": "server-rules.json",
+      "at": "spawnLayers",
+      "key": "id",
+      "required": {
+        "janitorEveryS": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "dynamicRespawn",
+      "file": "server-rules.json",
+      "at": "dynamicRespawn",
+      "key": "id",
+      "required": {
+        "playersFull": "integer",
+        "floorS": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "strictRevert",
+      "file": "server-rules.json",
+      "at": "strictRevert",
+      "key": "id",
+      "required": {
+        "firstKills": "integer",
+        "minRate": "number",
+        "maxUncheckedRun": "integer",
         "note": "string"
       }
     }

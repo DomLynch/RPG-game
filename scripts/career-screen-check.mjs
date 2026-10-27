@@ -1,6 +1,7 @@
 // The Career tab (core slice 2, src/core/career-screen.ts) in the Pit's journal, GUEST (the signed-in read is the stubbed-RPC unit test, tests/career-client.test.ts): ten title rows of five rungs, the rung the seeded
 // 7 marks give lit (Legionary III), the sign-in note where the account's scorecard would be, nothing scrolls sideways, every tab target >= 44 px, and no two visible controls overlap, at 375x812, 812x375 (landscape) and 1024x768.
 // Stills: artifacts/career-screen/. Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own (software) GL, for the VPS.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const profile = { version: 1, id: 'career-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: [], equipped: {} } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], views: {}, passed: false };
 const verify = async (page, name, W) => {
   const v = await page.evaluate(() => {
@@ -21,7 +22,7 @@ const verify = async (page, name, W) => {
     return { rows: root.querySelectorAll('.career-title').length, rungs: root.querySelectorAll('.career-rung').length, now: [...root.querySelectorAll('.career-rung.now')].map((e) => e.title), rank: root.querySelector('.career-rank')?.textContent, note: root.querySelector('.career-note')?.textContent, boards: root.querySelector('.career-boards .career-note')?.textContent, profile: { name: root.querySelector('.career-name strong')?.textContent, pencil: !!root.querySelector('.career-pencil'), record: root.querySelector('.career-record')?.textContent, notes: [...root.querySelectorAll('.career-profile .career-note')].map((e) => e.textContent), links: [...root.querySelectorAll('.career-link')].map((e) => e.textContent), controls: [...root.querySelectorAll('.career-pencil, .career-link')].map((e) => ({ id: e.className, ...box(e) })) }, tabs, wide: [document.documentElement.scrollWidth, j.scrollWidth] };
   });
   receipt.views[name] = v;
-  assert.equal(v.rows, 10, `${name}: ten titles`); assert.equal(v.rungs, 50, `${name}: fifty rungs`); assert.deepEqual(v.now, ['Legionary III'], `${name}: the rung 7 marks give`);
+  assert.equal(v.rows, 2, `${name}: two titles (the beta cut, #3024: careerRule betaCut.titles)`); assert.equal(v.rungs, 10, `${name}: ten rungs (two titles of five)`); assert.deepEqual(v.now, ['Legionary III'], `${name}: the rung 7 marks give`);
   assert.equal(v.rank, 'Legionary III'); assert.match(v.note, /Sign in/, `${name}: the guest note`); assert.equal(v.boards, 'Sign in to see the boards.', `${name}: the guest boards note`);
   assert.equal(v.profile.name, 'Wanderer', `${name}: the profile name`); assert.match(v.profile.record, /^0 fights · 0 wins · 0 losses$/, `${name}: the device record`); assert.ok(v.profile.notes.some((n) => /Sign in to keep it/.test(n)), `${name}: the guest record note`);
   assert.equal(v.profile.pencil, true, `${name}: a guest has the pencil in the Pit and in the zone`); assert.deepEqual(v.profile.links, ['Gear'], `${name}: the Gear link`);

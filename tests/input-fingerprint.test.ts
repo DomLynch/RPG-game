@@ -1,5 +1,6 @@
 // What the control layer maps its inputs to, fingerprinted: every cut push, slash slide and guard slide (with each held side) over a fine grid, plus the timing and sprint thresholds.
 // The digest is pinned BEFORE the thresholds (src/fight/input.ts) became rows (src/fight/input-rows.json), so a change to any of them, or to the mapping, fails here. INPUT_PRINT=1 prints the digest instead of asserting it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

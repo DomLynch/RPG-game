@@ -3,6 +3,7 @@
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) from the first press on: every wait below is page time, so the
 // scripted duel lands on the same ticks on a loaded MacBook and on a software-GL CI runner (the real-time version hung in
 // locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and presentation setup stay on real time.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -22,7 +23,7 @@ const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=proces
 // The finishers this row can read from the held clip (The Quiet One left the game, Dom 2026-09-27; the file keeps its name for the release rows).
 assert.ok(['splitCrown','decapitation','opened'].includes(finisher), `--finisher ${finisher}: this row reads splitCrown, decapitation or opened`);
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'splitCrown' ? 'split-crown' : finisher}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage(); await quietDebug(page);
 // A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
@@ -47,6 +48,14 @@ await page.waitForFunction(() => document.querySelector('#art-status').textConte
 await page.waitForFunction(() => typeof globalThis.__view?.setFinisherOverride === 'function');
 await page.evaluate(selected => globalThis.__view.setFinisherOverride(selected), finisher);
 const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after presentation setup before the first press
+// The foe's Special tell (actor 1), read off the game's own ?debug=1 combat stream (the same frankendom:combat events browser-check.mjs reads).
+// Since RV80 (one-button pad, specials ready 2 s in and every 6 s, a foe special share) the Goblin's Dirty Jab decides the duel: a special
+// is unblockable and undodgeable on release (duel.ts step 4), so a player who waits it out takes -30 every few seconds and dies before
+// the kill. A real player answers the wind-up (RULES.special.windup) the one way the rules allow: walk in and STRIKE the caster, who
+// takes no other input while it winds up, until the cast is cut (interruptAt of his health -> SpecialInterrupted). __foeCast is the
+// tick of the foe's open SpecialStarted, null once it lands, fizzles or is cut; the tallies are logged per duel, with one line per cast
+// (__castLog: the ticks it ran, how it ended, and the damage of each of our blows that landed on the caster meanwhile).
+await page.evaluate(() => { window.__foeCast = null; window.__casts = { started: 0, landed: 0, interrupted: 0, fizzled: 0 }; window.__castLog = []; window.addEventListener('frankendom:combat', e => { for (const ev of e.detail?.events ?? []) { const open = window.__castLog.at(-1); if (ev.type === 'Hit' && ev.actor === 0 && ev.target === 1 && window.__foeCast !== null && open) { open.hits.push(`${ev.move}:${ev.damage}@${ev.tick - open.at}`); continue; } if (ev.actor !== 1) continue; if (ev.type === 'SpecialStarted') { window.__foeCast = ev.tick; window.__casts.started++; window.__castLog.push({ at: ev.tick, hits: [] }); } else if (ev.type === 'SpecialLanded' || ev.type === 'SpecialFizzled' || ev.type === 'SpecialInterrupted') { const how = { SpecialLanded: 'landed', SpecialFizzled: 'fizzled', SpecialInterrupted: 'interrupted' }[ev.type]; window.__foeCast = null; window.__casts[how]++; if (open && open.how === undefined) Object.assign(open, { how, ticks: ev.tick - open.at }); } } }); });
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
 // paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Fight" (was "Draw sword" before 2026-09-29)),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
@@ -80,7 +89,7 @@ async function fight(name) {
   const step = async ms => { await run(ms); elapsed += ms; };
 
   while (elapsed < 90000) {
-    const state=await page.evaluate(()=>({text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',thrust:document.querySelector('#thrust-button').getAttribute('aria-disabled')==='false'}));
+    const state=await page.evaluate(()=>({casting:window.__foeCast!==null,text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',thrust:document.querySelector('#thrust-button').getAttribute('aria-disabled')==='false'}));
     // Under the paused clock a Playwright tap must never wait for a control to enable — time only moves when this loop moves it.
     const enabled = async id => (await page.locator('#'+id).getAttribute('aria-disabled')) === 'false';
     if(!state.hp || !state.enemy)break;
@@ -88,6 +97,16 @@ async function fight(name) {
     const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|-]+)/);
     const stamina=+(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0);
     const punish=+(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
+    // The foe's Special tell: close and strike the caster until the cast is cut (see __foeCast above). Keys, as everywhere below.
+    // The cut needs interruptAt of the goblin's health (three light blows) inside the 2 s wind-up, so every tick counts: strike from the light's
+    // own reach (move-defs light_right 1.65 m) and press again the frame the sim accepts it, so the blows chain (chained windup 16, not 20).
+    // A thrust lands softer on the caster (~3 vs ~5 a blow in the 2026-10-19 runs) and a 120 ms wait between presses let casts release with
+    // the third blow still in the air.
+    if(state.casting) {
+      if(distance>1.6) { await page.keyboard.down('KeyW');await step(32);await page.keyboard.up('KeyW');continue; }
+      if(state.light) { await page.keyboard.press('KeyF');await step(16);continue; }
+      await step(16);continue;
+    }
     if(punish>0 && state.light && stamina>=22 && distance<2) {
       await page.keyboard.press('KeyF');await step(200);continue;   // keys, not taps: no actionability wait under the paused clock, and tick-exact
     }
@@ -117,6 +136,8 @@ async function fight(name) {
     }
     await step(40);
   }
+  const casts = await page.evaluate(() => { const c = { ...window.__casts, casts: window.__castLog }; window.__casts = { started: 0, landed: 0, interrupted: 0, fizzled: 0 }; window.__castLog = []; window.__foeCast = null; return c; });   // per duel: the tally restarts with the rematch
+  console.log(`duel ${attempt}: foe specials`, JSON.stringify({ started: casts.started, landed: casts.landed, interrupted: casts.interrupted, fizzled: casts.fizzled }), 'casts', JSON.stringify(casts.casts));
   if (await page.locator('#target-health').evaluate(e => +e.value) === 0) { killed = true; break; }
   if (attempt === 3) break;
   console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());

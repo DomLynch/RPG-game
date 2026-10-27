@@ -14,39 +14,47 @@ const sound = row('sound', 'World', false), population = row('population', 'Char
 
 export const FIELDS: readonly Field[] = [
   // The facts every zone folder already states (zone.ts, spawns.ts, kit.ts, look.ts, mob-looks.ts, place.ts): wired.
-  legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 1 }),
+  legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 0 }),
+  legacy('band', 'list', [], { donor: 'AzerothCore instance_template / EQEmu zone.min_level..max_level (the level band a dungeon row names; [] = none, the zone-number rule applies)' }),
   legacy('spawns', 'map', { openers: {}, rows: [] }), legacy('kit', 'map', { url: '', nodes: [], landmarks: [], kinds: [] }), legacy('looks', 'map', {}), legacy('mobLooks', 'map', null as never, { nullable: true }), legacy('place', 'map', null as never, { nullable: true }),
-  legacy('biome', 'string', 'ash-wastes'), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
+  legacy('biome', 'string', 'ash-wastes'), legacy('unlisted', 'boolean', false, { donor: 'EQEmu zone.min_status (a zone only some can enter)' }), legacy('defaultKind', 'string', 'goblin'), legacy('alias', 'string', '', { wired: true }), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.
-  position('exits', 'list', [], { donor: 'EQEmu zone_points' }), position('entry', 'point', null, { nullable: true }), position('respawn', 'point', null, { nullable: true, donor: 'EQEmu zone.safe_x/z' }),
+  position('exits', 'list', [], { donor: 'EQEmu zone_points', wired: true }), position('warps', 'list', [], { donor: 'AzerothCore game_graveyard (a destination the server holds; the client only names it)', wired: true, owner: 'Backend' }), position('entry', 'point', null, { nullable: true, wired: true }), position('respawn', 'point', { x: 0, z: 3, warp: 'town-respawn' }, { nullable: true, wired: true, donor: 'EQEmu zone.safe_x/z' }),
   position('fastTravel', 'list', []), position('instance.mode', 'enum', 'shared', { values: ['shared', 'instanced'], owner: 'Backend', donor: 'EQEmu zone.insttype' }),
   position('instance.cap', 'number', 0, { min: 0, owner: 'Backend', donor: 'EQEmu zone.maxclients' }), position('instance.seeding', 'boolean', false, { owner: 'Backend' }),
   // LOOK. Wire first (Strategy): sky/time, fog, grade, ground, prop density.
-  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky' }), look('look.arena', 'string', '1', { donor: 'the Pit\'s arena themes (src/arena-themes.ts): the walk-out\'s Pit, Exchange and base light' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
+  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky', wired: true }), look('look.arena', 'string', '1', { donor: 'the Pit\'s arena themes (src/arena-themes.ts): the walk-out\'s Pit, Exchange and base light' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
   look('look.fog.colour', 'color', '#c9a47a', { donor: 'EQEmu zone.fog_*' }), look('look.fog.density', 'number', 0.02, { min: 0, max: 1 }), look('look.fog.far', 'number', 107, { min: 10, max: 2000 }),
   look('look.sun.colour', 'color', '#ffb46a'), look('look.sun.intensity', 'number', 5.2, { min: 0, max: 30 }), look('look.sun.pos', 'list', [-24, 12, -15]),
   look('look.ambient.sky', 'color', '#9fb2d4'), look('look.ambient.ground', 'color', '#4a3426'), look('look.ambient.intensity', 'number', 1.25, { min: 0, max: 10 }),
   look('look.exposure', 'number', 1.3, { min: 0.1, max: 4 }), look('look.grade', 'string', 'none'),
-  look('look.ground.tint', 'list', [1, 1, 1]), look('look.ground.material', 'string', ''), look('look.terrain', 'terrain', { kind: 'generated', seed: 0, params: {} }),
-  look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', ''), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
+  // A0 (2026-10-18, the Test Zone's row, tests/zone-a0-fields.test.ts): fields DECLARED so the row loads. None of these has a reader on trunk yet unless marked, so none is `wired` (wired means read, Auditor 2026-10-18); each names who promotes it and flips it to wired in the same PR.
+  //   reader: World (promotion list "goblin-field look, props, dome, ground"): look.dress, look.buildings, look.props.rim, look.ground.material (trunk reads it already), sound.ambience (trunk reads it already)
+  //   reader: Combat (promotion list "combat camera" + "creature stand-off"): camera.combat, camera.combatPreset, camera.fightBack, camera.fightBackPortrait, camera.landscapeZoom
+  //   reader: Web (promotion list "creature-card.ts" / the zone's hud): look.creatures.alert, name, card, ring, lock, growl
+  //   reader: World (promotion list "frontier*.ts"): boundary.margin, boundary.slow, boundary.line (the mist wall)
+  look('look.ground.tint', 'list', [1, 1, 1]), look('look.ground.material', 'string', '', { wired: true }), look('look.dress', 'string', '', { wired: true, donor: 'Veloren scatter density' }), look('look.creatures.alert', 'boolean', true, { wired: true }), look('look.creatures.name', 'boolean', true, { wired: true }), look('look.creatures.card', 'enum', 'full', { values: ['full', 'target'], wired: true }), look('look.creatures.ring', 'boolean', true, { wired: true }), look('look.creatures.lock', 'enum', 'hard', { values: ['hard', 'soft'], wired: true, donor: 'Gothic / Zelda soft focus' }), look('look.creatures.growl', 'boolean', false, { wired: true, donor: 'Gothic: the aggro tell is body language and sound' }), look('look.terrain', 'terrain', { kind: 'generated', seed: 0, params: {} }),
+  look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', '', { wired: true }), look('look.props.camp', 'string', '', { wired: true }), look('look.props.rim', 'boolean', false, { wired: true }), look('look.buildings', 'string', '', { donor: 'Morrowind culture kits (Hlaalu / Redoran / Telvanni)', wired: true }), look('boundary.margin', 'number', 0, { min: 0, max: 30, wired: true }), look('boundary.slow', 'number', 1, { min: 0.05, max: 1, wired: true }), look('boundary.line', 'string', '', { wired: true }), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
   look('look.weather.preset', 'string', 'clear', { donor: 'EQEmu zone.rain_*/snow_* (by reference)' }), look('look.weather.intensity', 'number', 1, { min: 0, max: 2 }), look('look.weather.probability', 'number', 1, { min: 0, max: 1 }),
   look('look.post', 'list', []),
   // The walk camera's limits (src/fight/follow-camera.ts): where it tightens under a vault. null = none (Zone 2). {zMax, zMin, halfWidth?, back, up}; the page passes this and holds no camera number itself.
-  look('camera.passage', 'map', null, { nullable: true, wired: true }),
+  look('camera.passage', 'map', null, { nullable: true, wired: true }), look('camera.landscapeZoom', 'number', 1, { min: 1, max: 3 }), look('camera.fightBack', 'number', 1, { min: 1, max: 2, wired: true }), look('camera.fightBackPortrait', 'number', 1, { min: 1, max: 2, wired: true }), look('camera.combat', 'map', {}), look('camera.combatPreset', 'string', ''),
   look('camera.presets', 'map', { a: { back: 3.6, up: 2.1, side: 0.8, ahead: 4, lookY: 1.5 }, b: { back: 6.4, up: 3.5, side: 0, ahead: 2, lookY: 1.1 } }, { wired: true }), look('camera.preset', 'string', 'b', { wired: true }),   // named open-walk framings {back, up, side?, ahead?, lookY?} (a = over the shoulder, b = the fight frame) and which one the zone walks with (DEFAULT 'b', Dom's pick: every zone walks the fight frame unless its row names another preset or its own presets map; '' = the generic framing); ?camera=a|b picks one on a page
   // SOUND (World, sound)
-  sound('sound.ambience', 'string', ''), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
+  sound('sound.ambience', 'string', '', { wired: true }), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
   sound('sound.footsteps', 'string', 'dirt'), sound('sound.cries', 'string', 'default'), sound('sound.reverb', 'string', 'open'),
   // WHAT LIVES THERE. Camps are the spawns rows + place.ts spawn groups today (wired through them); these lists are the zone-level rows for the rest.
   population('camps', 'list', [], { wired: true, donor: 'EQEmu spawn2/spawngroup/spawnentry' }), population('rares', 'list', [], { wired: true }), population('bosses', 'list', []),
   population('townsfolk', 'list', []), population('vendors', 'list', [], { owner: 'Backend' }), population('questGivers', 'list', [], { owner: 'Backend' }),
   // WHAT YOU CAN DO
   interaction('gather', 'list', [], { donor: 'EQEmu ground_spawns' }), interaction('containers', 'list', []), interaction('interactables', 'list', [], { donor: 'EQEmu doors' }),
-  interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp' }), interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp' }),
+  interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp', wired: true, owner: 'Backend' }),   // entries {id, name, shape: "rect", min: [x, z], max: [x, z], pvp: "off"|"on", spawnsAllowed}: read by pvp.ts (Dungeon slice A); its call site is slice B's
+  interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp', wired: true }),
   // HOW IT PLAYS (the warm-up list is DERIVED from camps + the player, warm-plan.ts: not a field)
   play('loot.overrides', 'map', {}), play('difficulty.mult', 'number', 1, { min: 0.1, max: 10 }), play('reward.mult', 'number', 1, { min: 0, max: 10, donor: 'EQEmu zone.zone_exp_multiplier' }),
+  play('presence', 'map', {}, { donor: 'EQEmu zone.maxclients (per world zone: speed, quiet, caps {floor, soft, hard}; fields only, nothing enforces caps)' }),
   play('dayNight.on', 'boolean', true, { owner: 'World' }), play('dayNight.cycleSeconds', 'number', 0, { min: 0, owner: 'World' }),
   // BUDGET (0 = no zone limit: the global gate applies)
   budget('budget.triangles', 'number', 0, { min: 0 }), budget('budget.textures', 'number', 0, { min: 0 }), budget('budget.drawCalls', 'number', 0, { min: 0 }),

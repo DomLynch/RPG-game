@@ -134,7 +134,8 @@
     "gear": {
       "path": "gear",
       "slot": "required",
-      "single": true
+      "single": true,
+      "gear": true
     },
     "material": {
       "path": "stock",

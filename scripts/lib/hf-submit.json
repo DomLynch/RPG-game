@@ -1,0 +1,10 @@
+{
+  "note": "Where Hugging Face jobs are submitted from (Dom 2026-10-21: HF jobs from the VPS; Strategy's four conditions on the PR). submit = 'mac' keeps today's path (the Mac's own hf login); 'vps' puts scripts/hf-vps/bin/hf first on PATH so every `hf` call of the train, pre-launch and the cleanup goes to the box, where the token is read only inside scripts/hf-vps/box.sh. Stays 'mac' until the A/A proof (one wall-rows leg both ways on the same sha, same receipts) is in the PR.",
+  "submit": "mac",
+  "host": "root@49.12.7.18",
+  "sshKey": "~/.ssh/binance_futures_tool",
+  "sshConnectTimeoutS": 15,
+  "ledgerDir": "/srv/dev-jobs/hf-vps-ledger",
+  "reapSlackS": 300,
+  "gpuWithCpuInflight": "warn"
+}

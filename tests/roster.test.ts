@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { ON_DEMAND_BEASTS } from '../src/fight/beast-scale.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 17);
+  assert.equal(ENCOUNTERS.length, 19);
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);

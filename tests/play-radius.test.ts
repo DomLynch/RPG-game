@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/fight/play-radius.ts';

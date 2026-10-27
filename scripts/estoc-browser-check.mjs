@@ -1,4 +1,5 @@
 // Read-only browser receipt: the real Nightborn route loads the baked rig and fights on a phone viewport.
+import { launchBrowser } from './lib/harness-browser-launch.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -8,7 +9,7 @@ import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('opponent', 'nightborn'); url.searchParams.set('debug', '1');
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await launchBrowser(chromium, { headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, physicalPhone: false, errors: [], views: [] };
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {

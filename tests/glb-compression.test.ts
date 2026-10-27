@@ -1,3 +1,4 @@
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -61,7 +62,7 @@ test('shared external textures preserve the real rig and reject missing or corru
 });
 
 test('build quantization: int8 normals and uint8 weights summing to 255 pass the judge within one step; a drifted normal or weight row is rejected; lossless packing is still bit-exact [slow]', async () => {
-  const source = readFileSync(new URL('../src/assets/warrior.glb', import.meta.url));
+  const source = readFileSync(new URL('../src/assets/hero-classic.glb', import.meta.url));
   const exact = await optimizeGlb(source, undefined, { quantize: false }), packed = await optimizeGlb(source);
   await assertGlbEquivalent(source, exact);
   const { doc } = parseGlb(exact);

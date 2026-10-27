@@ -28,7 +28,8 @@ const sha = process.argv[2];
 const gh = process.env.CI_TRUST_GH || 'gh';
 const say = message => process.stderr.write(`ci-trusted-checks: ${message}\n`);
 const exec = (command, args) => {
-  const result = spawnSync(command, args, { encoding: 'utf8' });
+  const result = spawnSync(command, args, { encoding: 'utf8', timeout: Number(process.env.CI_TRUST_CALL_S || 120) * 1000, killSignal: 'SIGKILL' });   // a hung gh was unbounded here: deploy.sh waited on it (2026-10-16)
+  if (result.error?.code === 'ETIMEDOUT') throw new Error(`${command} ${args.slice(0, 2).join(' ')} timed out after ${process.env.CI_TRUST_CALL_S || 120}s`);
   if (result.error || result.status !== 0) throw new Error(`${command} ${args.slice(0, 3).join(' ')} failed: ${(result.stderr || result.error?.message || '').trim().slice(0, 200)}`);
   return result.stdout;
 };
@@ -145,6 +146,16 @@ try {
   const tree = git(['rev-parse', `${sha}^{tree}`]);
   const t0 = Date.now();
   let seen = look(tree);
+  // DISPATCH FIRST (Dom 2026-10-20 via Strategy: a resume head had no CI run, so every untrusted row ran on the Mac): with CI_DISPATCH_IF_MISSING=1 (deploy.sh sets it) and
+  // a wait window, a tree with no release-checks run gets ONE workflow_dispatch on the trunk ref (ref=<sha>, as post-publish does); the run is awaited and trusted below
+  // exactly like a PR's own run. A failed dispatch (GitHub HTTP 500 happened) changes nothing: every row runs locally, as before.
+  if (!seen && process.env.CI_DISPATCH_IF_MISSING === '1' && waitS > 0) {
+    try {
+      exec(gh, ['workflow', 'run', 'release-checks.yml', '--ref', process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1', '-f', `ref=${sha}`]);
+      say(`no release-checks run for tree ${tree.slice(0, 7)}: dispatched one on ${process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1'} (ref=${sha.slice(0, 9)}); waiting for it`);
+      for (let tries = 0; !seen && tries < 12 && Date.now() < deadline; tries++) { sleep(Math.max(1, Math.min(10, Math.ceil((deadline - Date.now()) / 1000)))); seen = look(tree); }   // GitHub lists the run a few seconds later
+    } catch (error) { say(`dispatch failed (${error.message}); all checks run locally`); }
+  }
   while (seen?.pending.length && Date.now() < deadline) {
     say(`waiting for ${seen.pending.filter(Boolean).length ? `CI row(s) [${seen.pending.filter(Boolean).join(',')}]` : 'the row matrix to start'} (${Math.round((Date.now() - t0) / 1000)}s of ${waitS}s)`);
     sleep(Math.max(1, Math.min(pollS, Math.ceil((deadline - Date.now()) / 1000))));

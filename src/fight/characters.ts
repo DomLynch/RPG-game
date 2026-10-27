@@ -1,15 +1,21 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
+import { bowSpecialRows, missileOf } from './sandbox-rules.ts';
+import { rangedModelOf, rangedModelUrl } from './ranged-model-rows.ts';
+import { rangedPartOf } from './ranged-model.ts';
 import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
+import { heroContact, heroSwing } from './hero-body-rows.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.ts';
-import { weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, type Direction, type WeaponId } from './moves.ts';
+import { weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, SKILL_ROWS, skillOfMove, type Direction, type WeaponId } from './moves.ts';
+import SPECIAL_CLIP_ROWS from '../assets/special-clips.json' with { type: 'json' };
+import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE, pickStyle } from './character-style-rows.ts';
 import { bloodDark, bloodHidden, type BloodMode } from './blood-mode.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
-import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -43,7 +49,27 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // Death_Hamstrung is appended to the GLBs of the creatures that fall to it; the killer's Fin_Hamstrung ships beside warrior.glb (src/assets/hamstrung-killer.json,
 // fitted to the hero) and is adopted by the player's actor only in a fight that can play the scene (adoptClip), so the hero's GLB and every other fight are untouched.
 // Execution (scripts/build-execution.mjs) ships the same way for every hero-rig body: src/assets/execution-killer.json and execution-victim-hero.json, adopted on demand.
-export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'] as const;
+// The beta specials' own motion (Dom 2026-10-17, scripts/build-special-clips.mjs; rows in src/assets/special-clips.json): one clip per move, adopted on demand by the actor the
+// first time a special that names it (skill row `specialClip`) is cast on a weapon the row lists, and played in place of the weapon's Heavy / Attack / Thrust, which a weapon
+// the row does not list keeps (the fallback).
+export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge', 'Special_BowPower', 'Special_BowFan', 'Special_BowPin', 'Special_BowQuick'] as const;   // the Bow* roles are a bow carrier's draw-and-loose (sandbox bowSpecial rows name them), played in place of the melee special's clip
+export type SpecialRole = (typeof SPECIAL_ROLES)[number];
+export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES] as const;
+const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> = {
+  Special_SkullCrack: () => import('../assets/special-skullcrack.json'), Special_Whirlwind: () => import('../assets/special-whirlwind.json'),
+  Special_GroundSlam: () => import('../assets/special-groundslam.json'), Special_Lunge: () => import('../assets/special-lunge.json'),
+  Special_BowPower: () => import('../assets/special-bowpower.json'), Special_BowFan: () => import('../assets/special-bowfan.json'),
+  Special_BowPin: () => import('../assets/special-bowpin.json'), Special_BowQuick: () => import('../assets/special-bowquick.json'),
+};
+const isBowRole = (r: SpecialRole): boolean => r.startsWith('Special_Bow');
+export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
+// The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
+export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare' | 'bowSpecial' | 'special' | 'specialRecover' | 'weapon'>): SpecialRole | null => {
+  if (f.bowSpecial && ((f.special ?? 0) > 0 || (f.specialRecover ?? 0) > 0)) return (bowSpecialRows().find((r) => r.skill === f.bowSpecial)?.clip as SpecialRole | undefined) ?? null;   // a bow special's draw and loose, through the windup and the recovery
+  if (f.phase === 'ready' && f.specialShare !== undefined && f.skill && missileOf(f.weapon)?.kind === 'bow') return (bowSpecialRows().find((r) => r.skill === f.skill)?.clip as SpecialRole | undefined) ?? null;   // an armed archer asks for its bow clips while it stands ready, so they are fetched before the first press (a 14-tick Quick Shot windup finishes before a fetch on the press would land; the swing played the stand-in's Heavy)
+  const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
+  return (row?.specialClip as SpecialRole | undefined) ?? null;
+};
 // Clips only the player's rig (warrior.glb) carries: the SKILL casts (docs/briefs/skill-witch-arm.md). Opponents never cast, so
 // their rigs are the hero's clip set without these.
 export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm', 'Skill_Pommel'];
@@ -60,6 +86,7 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   longsword: { Thrust: 'Riposte' },
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
+  bow: { Thrust: 'Riposte' },   // the bow (extends knife in weapon-defs.json): the knife's clip family, as the sandbox's stand-in played it
   estoc: { Thrust: 'Riposte' },   // the Nightborn's, likewise
   // The Ash Wolf's bite (Combat, 2026-10-07; the quadruped rig of #1662, src/assets/wolf.glb): the role map is this row, no second loader. One attack clip, 'Bite', serves every strike role
   // (the sim's path timings tell a bite, a lunge and a maul apart); Hit is 'Hurt', Flee is the backstep. No Guard, Parry, Roll, Kick or Draw: the wolf never guards, never kicks and evades by
@@ -75,9 +102,11 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   warhammer: { Idle: 'Warhammer_Idle', Walk: 'Warhammer_Walk', Jog: 'Warhammer_Walk', Run: 'Warhammer_Walk', Armed: 'Warhammer_Idle', ArmedWalk: 'Warhammer_Walk', StrafeLeft: 'Warhammer_StrafeLeft', StrafeRight: 'Warhammer_StrafeRight', Attack: 'Warhammer_Slash', Return: 'Warhammer_Slash', Heavy: 'Warhammer_Heavy', Thrust: 'Warhammer_Thrust', Riposte: 'Warhammer_Thrust', Guard: 'Warhammer_Guard', BlockImpact: 'Warhammer_BlockImpact', Parry: 'Warhammer_Guard', Deflected: 'Warhammer_Deflected', Hit: 'Warhammer_Hit', Death: 'Warhammer_Death' },
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
+WEAPON_CLIPS.staff = WEAPON_CLIPS.trident!;   // the staff (extends trident in weapon-defs.json): the trident's clip family, as the sandbox's stand-in played it
 // The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
 // pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
 export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { ...Object.fromEntries([...POMMEL_BASH].map(w => [w, { Pommel: 'Skill_Pommel' }])), trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw', Pommel: 'Trident_Pommel' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw', Pommel: 'Warhammer_Pommel' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw', Pommel: 'Maul_Pommel' } };
+PLAYER_CLIPS.staff = PLAYER_CLIPS.trident;   // the staff carries and draws as the trident does (its equip file is the trident's)
 // Pommel is the Pommel Strike's role: the hero's Skill_Pommel where the player's row names it, else the weapon's thrust clip.
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? (role === 'Pommel' ? clipFor(weapon, 'Thrust') : role);
 // A quadruped (scripts/character/quadruped_rig.py) carries seven clips, not the humanoid set. It is recognised by its Bite clip, not by a weapon id, so
@@ -97,7 +126,7 @@ export const isQuadruped = (asset: { animations: readonly { name: string }[] }):
 // and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
 export const NO_HIP_DRAW: readonly WeaponId[] = [];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -125,6 +154,15 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
 import { MissingTextures, retryTransient } from '../retry.ts';
+import { CHARGE_LEANS, MAPPED_PALETTE, SHARED_MAPPED, type ChargeLean } from './character-looks-rows.ts';   // the per-opponent label maps are rows (character-looks-defs.json)
+import { fxNum } from './fx-rows.ts';
+const STEP_MAX = fxNum('fx.characters.stepMax');
+const WALK_RATE_MIN = fxNum('fx.characters.walkRateMin');
+const RUN_RATE_MIN = fxNum('fx.characters.runRateMin');
+const CLIP_END_MAX = fxNum('fx.characters.clipEndMax');
+const PROP_RADIUS_MIN = fxNum('fx.characters.propRadiusMin');
+const PROP_RADIUS_MAX = fxNum('fx.characters.propRadiusMax');
+const JOINT_REACH_MIN = fxNum('fx.characters.jointReachMin');
 import { DEFLECT_FROM } from './characters-dials-rows.ts';   // the dials are rows (characters-dials-defs.json)
 export { MissingTextures, retryTransient, transientLoadError } from '../retry.ts';
 // The skin map a parsed fighter lacks ('' when it has them all): a creature's body needs map + roughnessMap, a warrior's Steel map + normalMap.
@@ -166,7 +204,7 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   const [hero, enemy, part, enemyPart] = await Promise.all([
     loadFighter(url),
     opponentUrl === url ? undefined : loadFighter(opponentUrl),
-    equip(equipUrl),
+    loadRangedPart(weapons[0], equipUrl).then((ranged) => ranged ?? equip(equipUrl)),   // the ranged model (the bow, the orb staff) replaces the equip file of a weapon the missile rows bind to a kind with a model row; every other weapon is its equip file
     opponentUrl === url ? undefined : equip(opponentEquipUrl),
   ]);
   let opponent: FighterAsset | undefined = enemy;
@@ -179,7 +217,7 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
 const PEER_RIG_KEY = '#peer';
 export async function loadPeerWarriors(url: string, weapons: [WeaponId, WeaponId], equipUrl?: string, peerEquipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
   const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
-  const [hero, foe, part, foePart] = await Promise.all([loadFighter(url), loadFighter(url + PEER_RIG_KEY), equip(equipUrl), equip(peerEquipUrl)]);
+  const [hero, foe, part, foePart] = await Promise.all([loadFighter(url), loadFighter(url + PEER_RIG_KEY), loadRangedPart(weapons[0], equipUrl).then((ranged) => ranged ?? equip(equipUrl)), loadRangedPart(weapons[1], peerEquipUrl).then((ranged) => ranged ?? equip(peerEquipUrl))]);   // a bow or a staff is its ranged model for either fighter, as loadWarriors draws it (equip bow.glb is a knife copy)
   let peer = foe;
   if (foePart) try { if (foePart instanceof Error) throw foePart; peer = equipWeapon(foe, foePart); } catch (error) { equipFailed(error); }
   return armWarriors(hero, peer, weapons, part, equipFailed);
@@ -196,18 +234,31 @@ export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden', 've
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
 export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
+  { const ranged = (globalThis as { __SANDBOX_RANGED__?: (weapon: WeaponId) => Object3D | undefined }).__SANDBOX_RANGED__?.(weapons[0]); if (ranged) part = { scene: new Group().add(ranged) as Group, animations: part && !(part instanceof Error) ? part.animations : [] }; }   // sandbox-mech: a stand-in weapon shown as the staff / bow model, keeping the stand-in's own clip family (the trident's Trident_Idle...) (sandbox/entry.ts); absent everywhere else
   if (carry && enemy) withShieldCarry(enemy);
-  if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
-  if (part) equipFailed(part);
+  // `asset`: the hero's parsed file as the player was built from it, so a page that needs a second actor of the same rig (a remote player, a warm-up probe) builds it from this with buildWarriors (it clones) and fetches and parses nothing.
+  if (part && !(part instanceof Error)) try { const armed = equipWeapon(hero, part); return { ...buildWarriors(armed, enemy, weapons), playerWeapon: weapons[0], asset: armed }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
+  if (part) { if ((globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__) (globalThis as { __SANDBOX_ERR__?: string }).__SANDBOX_ERR__ = String((part as Error).stack ?? part); equipFailed(part); }   // sandbox: keep why a ranged model fell back to the longsword
   const playerWeapon: WeaponId = part ? DEFAULT_WEAPON : weapons[0];
-  return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
+  return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon, asset: hero };
 }
 // A player weapon's equip file (scripts/build-player-weapon.mjs, the #309 contract): its WeaponDrawn part, placed under hand_r exactly as
 // the hero build places it, and the weapon's own clip family when it has one. Nothing of the body.
-async function loadEquip(url: string): Promise<FighterAsset> {
+export async function loadEquip(url: string): Promise<FighterAsset> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return asset;
+}
+// The painted ranged model for a weapon the missile rows bind to a kind that has a model row (ranged-model-defs.json: the bow only, CS23), as an equip part; undefined for every other weapon, so nothing
+// changes for them. A failed load is the Error armWarriors already reports and falls back from (the longsword), as for any equip file. No weapon is bound to the bow yet, so this answers undefined everywhere.
+// `equipUrl`: the weapon's own equip file, for a model whose row says `clips: "equip"` (the staff: its Trident_* clip family lives in that file, the bow's knife family is already on the hero); without it such a row fails like a missing clip would.
+export async function loadRangedPart(weapon: WeaponId, equipUrl?: string): Promise<FighterAsset | Error | undefined> {
+  const model = rangedModelOf(missileOf(weapon)?.kind ?? '');
+  if (!model) return undefined;
+  try {
+    const [asset, clipsFile] = await Promise.all([loadEquip(rangedModelUrl(model)), model.clips === 'equip' && equipUrl ? loadEquip(equipUrl) : undefined]);
+    return { scene: new Group().add(rangedPartOf(asset.scene, model)) as Group, animations: clipsFile?.animations ?? [] };
+  } catch (error) { return error instanceof Error ? error : Error(String(error)); }
 }
 // A weapon shape file (weapon-shapes.ts): its one mesh, in the file's own frame (hand at the origin, +Y), with GPT's painted material as it is.
 export async function loadShape(url: string): Promise<Mesh> {
@@ -226,7 +277,7 @@ export function shapeMeshOf(scene: Object3D): Mesh {
 // The hero rig with the equip file's weapon in place of the sword pair (a WeaponDrawn is always in hand: no sheath), and the file's clips
 // played over warrior.glb's same-named ones. A copy: the loaded rig stays whole for the longsword fallback.
 export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsset {
-  const scene = clone(hero.scene) as Group, hand = scene.getObjectByName('hand_r'), weapon = part.scene.getObjectByName('WeaponDrawn');
+  const scene = clone(hero.scene) as Group, weapon = part.scene.getObjectByName('WeaponDrawn'), hand = scene.getObjectByName((weapon?.userData.hand as string | undefined) ?? 'hand_r');   // a part may name its hand (the sandbox bow: hand_l)
   if (!hand || !weapon) throw new Error('Equip file has no WeaponDrawn, or the rig no hand_r');
   // Whatever the rig carries goes: warrior.glb's sword pair, or an opponent's baked weapon (the Centurion's trident is WeaponDrawn, _1, _2).
   const carriedNodes: Object3D[] = []; scene.traverse(o => { if (/^(SwordSheathed|SwordDrawn|WeaponDrawn|WeaponSheathed)(_\d+)?$/.test(o.name)) carriedNodes.push(o); });
@@ -309,18 +360,34 @@ export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent
 // piece's mapless palette material for the wearer's same-named mapped one only where the SOURCE opponent's rig maps that name too, so the
 // hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, ungraded).
 // Nothing is graded: not the hero's pieces, not an opponent's kit. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
-export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
-  dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Wrap'], knight: ['Leather'],
-  nightborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], plaguedoctor: [],
-  shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Wrap'], veteran: ['Bronze'], witch: [],
-};
+export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = MAPPED_PALETTE;   // rows: character-looks-defs.json (mapped)
 // A rig's mapped palette materials by name (skipping `skip`, e.g. the worn copies), and the material a loot piece shows on that rig: its mapless
 // palette material swapped for the rig's same-named mapped one where the piece's source rig maps that name too (ruling C). `wear` and the
 // Pit's rack both resolve a piece this way, so a piece on the rack reads as it will on him (goblin.Boots' Wrap is mapless white alone).
 export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new Set()): Map<string, MeshStandardMaterial> {
   const materials = new Map<string, MeshStandardMaterial>();
   root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
+  for (const name of SHARED_MAPPED) { const copy = materials.get(name); if (copy && !sharedCopies.has(name)) { sharedCopies.set(name, copy); settleShared(name, copy); } }
   return materials;
+}
+// A name whose map is one shared texture on every rig that maps it (SHARED_MAPPED rows) is remembered from the first rig that shows it, so a wearer that
+// maps nothing of the name (the cave troll: one `WorldBody` material) wears the shared copy, not loot.glb's mapless white (the troll's pitborn Wrap).
+const sharedCopies = new Map<string, MeshStandardMaterial>();
+// A cold load: a piece worn before any rig has shown the shared copy keeps the mapless white for now, and is swapped (at its rank tint) when the first rig shows it.
+const awaitingShared: { mesh: Mesh; name: string; tier: Tier | undefined }[] = [];
+export function awaitShared(mesh: Mesh, piece: Mesh, mapped: unknown, tier: Tier | undefined) {
+  const own = piece.material;
+  if (mapped !== own || !(own instanceof MeshStandardMaterial) || !SHARED_MAPPED.includes(own.name) || !SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(own.name)) return;
+  for (let i = awaitingShared.length - 1; i >= 0; i--) if (!awaitingShared[i]!.mesh.parent) awaitingShared.splice(i, 1);   // a piece taken off is forgotten
+  awaitingShared.push({ mesh, name: own.name, tier });
+}
+function settleShared(name: string, copy: MeshStandardMaterial) {
+  for (let i = awaitingShared.length - 1; i >= 0; i--) {
+    const waiting = awaitingShared[i]!;
+    if (waiting.name !== name) continue;
+    if (waiting.mesh.parent) waiting.mesh.material = waiting.tier ? tinted(copy, waiting.tier) : copy;
+    awaitingShared.splice(i, 1);
+  }
 }
 // A palette name the source rig does not map keeps loot.glb's own entry, and loot.glb's palette is the HERO's (build-warrior.mjs): the
 // Executioner's hood came out in the hero's madder red on the player (Dom, 2026-10-07). Where the source opponent wears a different dye of
@@ -330,7 +397,7 @@ const dyed = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
 export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) {
   const own = piece.material, opponent = piece.userData.opponent as OpponentId;
   if (!(own instanceof MeshStandardMaterial)) return own;
-  if (SOURCE_MAPPED[opponent]?.includes(own.name)) return materials.get(own.name) ?? own;
+  if (SOURCE_MAPPED[opponent]?.includes(own.name)) return materials.get(own.name) ?? sharedCopies.get(own.name) ?? own;
   const dye = SOURCE_DYE[opponent]?.[own.name];
   if (!dye) return own;
   let copy = dyed.get(own);
@@ -340,8 +407,15 @@ export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshS
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
+// A rig that lacks (or carries an empty) clip for the weapon it was handed. Named so a caller can tell it from any other build failure and never settle for a stand-in: a creature body must carry the clip pack of the weapon it wields.
+export class MissingClip extends Error {
+  readonly clip: string;
+  readonly role: string;
+  readonly weapon: WeaponId;
+  constructor(clip: string, role: string, weapon: WeaponId) { super(`Warrior is missing ${clip} (role ${role}, weapon ${weapon})`); this.name = 'MissingClip'; this.clip = clip; this.role = role; this.weapon = weapon; }
+}
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
-function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
+export function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>(), quadruped = isQuadruped(asset);
   for (const role of [...ROLES, ...ADDITIVE_ROLES]) {
     // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
@@ -349,7 +423,7 @@ function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): R
     const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
     const name = own && asset.animations.some(a => a.name === own) ? own : (quadruped && QUADRUPED_CLIPS[role]) || clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
     if (!clip && (ADDITIVE_ROLES as readonly string[]).includes(role)) continue;   // an appended scene this rig does not carry
-    if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
+    if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new MissingClip(name, role, weapon);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
   }
   return clips;
@@ -366,18 +440,11 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
 // opponent, so a held heavy read as a plain one. While the swing is parked at its chamber the whole upper body leans out to the side, clear
 // of the player's silhouette, the weapon arm lifting the head of the weapon skyward. Added after the mixer like the guard tilt (radians:
 // spine_01 yaw and side-bend, spine_02 side-bend, upperarm_r lift), eased in over the hold and out through the swing. Presentation only.
-export type ChargeLean = { yaw: number; side: number; chest: number; arm: number; lift?: number };   // lift: upperarm_r pitch, negative raises the arm
+export type { ChargeLean };   // lift: upperarm_r pitch, negative raises the arm (character-looks-rows.ts)
 const NO_LEAN: ChargeLean = { yaw: 0, side: 0, chest: 0, arm: 0 };
-// One entry per active opponent, fitted on the roster sheet (held heavy at 375x812, the player guarding). Tall rigs share the Witch's lean;
-// the Dwarf sits under the player's shoulder, so he bends further and twists the other way to bring the hammer head up clear. The Goblin is
-// too short for any lean to clear the player (LEAN_LOW hid his knife behind the left shoulder, Strategy 2026-09-24): he leans the other way
-// and throws the knife arm straight up, so the hooked blade stands above the player's right shoulder.
-const LEAN_OUT: ChargeLean = { yaw: .25, side: .55, chest: .25, arm: .55 }, LEAN_LOW: ChargeLean = { yaw: -.5, side: .9, chest: .35, arm: .3 };
-const LEAN_HIGH: ChargeLean = { yaw: .4, side: -.7, chest: -.3, arm: 1, lift: -1.6 };
-export const CHARGE_LEAN: Partial<Record<OpponentId, ChargeLean>> = {
-  veteran: LEAN_OUT, pitborn: LEAN_OUT, nightborn: LEAN_OUT, executioner: LEAN_OUT, plaguedoctor: LEAN_OUT, knight: LEAN_OUT, witch: LEAN_OUT,
-  shieldmaiden: LEAN_OUT, dwarf: LEAN_LOW, goblin: LEAN_HIGH,
-};
+// One row per active opponent (character-looks-defs.json, `lean`), fitted on the roster sheet (held heavy at 375x812, the player guarding). Tall rigs share the Witch's lean;
+// the Dwarf and the Goblin carry their own (the rows' notes say why).
+export const CHARGE_LEAN: Partial<Record<OpponentId, ChargeLean>> = CHARGE_LEANS;
 // A charging swing parked at its chamber (duel.ts rewinds age to the chamber while held); false from the tick it is released.
 export function holdingCharge(f: Pick<Fighter, 'phase' | 'move' | 'charge' | 'age' | 'weapon'>): boolean {
   if (f.phase !== 'attack' || !f.move || f.charge <= 0) return false;
@@ -426,6 +493,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
     const roles = [...ROLES, ...ADDITIVE_ROLES].filter(role => clips[role]);   // the roles this rig carries clips for (the appended scenes are optional)
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
+    rigMaterials(root);   // a rig is built before it wears anything: let it register a shared mapped copy (Wrap) now, so a creature wearing pieces before the hero ever does is not left white
     // A re-proportioned fighter's walk cycle covers less ground than a man's (build-warrior.mjs writes `stride`, root scale × leg scale, on
     // the rig node): his locomotion clips play faster by that so the feet keep planting at the simulation's travel speed. A man's is 1.
     let stride = 1; asset.scene.traverse(o => { if (typeof o.userData.stride === 'number' && o.userData.stride > 0) stride = o.userData.stride; });
@@ -462,7 +530,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     for (const role of ONE_SHOT) { const action = actions[role]; if (!action) continue; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
     if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
     mixer.update(0);
-    const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
+    const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(24 * 6 * 3);   // 24 samples: a special's trail row may be longer than a swing's 7
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
     trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
@@ -472,6 +540,29 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let aimedRotation: Quaternion | undefined;
     const offHand = ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => root.getObjectByName(n)), swordHand = root.getObjectByName('hand_r');
     let aimedOffHand: [Quaternion, Quaternion] | undefined;
+    // A two-handed weapon in a special's one-handed clip (special-clips.json `twoHanded`, the grip gap in metres per weapon): re-solve the left arm onto the haft `gap` behind the sword hand, keeping the clip's own elbow bend
+    // (two-bone reach, the finishers' grip below). The left-arm bones are put back by the restore at the start of the next update (aimedOffHand).
+    const holdHaft = (gap: number) => {
+      const [upperL, lowerL, handL] = offHand;
+      if (!upperL?.parent || !lowerL || !handL || !swordHand || shieldArm) return;
+      root.updateWorldMatrix(true, true);
+      const s = upperL.getWorldPosition(new Vector3()), e = lowerL.getWorldPosition(new Vector3()), h = handL.getWorldPosition(new Vector3());
+      const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
+      const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, gap);
+      const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
+      const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+      const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
+      bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
+      const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
+      aimedOffHand ??= [upperL.quaternion.clone(), lowerL.quaternion.clone()];
+      for (const [bone, child, dest] of [[upperL, lowerL, elbow], [lowerL, handL, goal]] as const) {
+        root.updateWorldMatrix(true, true);
+        const origin = bone.getWorldPosition(new Vector3());
+        const delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dest.clone().sub(origin).normalize());
+        bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(delta).multiply(bone.getWorldQuaternion(new Quaternion())));
+      }
+      root.updateWorldMatrix(true, true);
+    };
     // The shield carry's state: whether he holds a shield on the off hand, the carry's, the guard lift's and the strike's eased weights, and the three
     // left-arm bones as the mixer left them (restored before every update, as the guard tilt is: a held clip does not rewrite them).
     let shieldArm = false, carry = 0, raise = 0, strike = 0, carried = false, faceLocal: Vector3 | undefined;
@@ -481,6 +572,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let specialRole: SpecialRole | null = null; const specialLoading = new Set<SpecialRole>();
+    let special: { samples: number; opacity: number; color: string } | null = null, trailKey = '';   // a melee special's weapon trail (sandbox specialTrail rows; the scene sets it while the special is in its swing): longer, brighter, on without the swing pose
     let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
       const [upperL, lowerL, handL] = offHand;
@@ -516,7 +609,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // relative to the pelvis, the fighter's right = −x): left +.14 m across, right −.23 m, overhead +.35 m up, low −.37 m down. Code-
     // tilted for the beta; the weapons lane replaces it with authored guard clips family by family. Blended so a slide never snaps.
     const spine1 = root.getObjectByName('spine_01'), spine2 = root.getObjectByName('spine_02');
-    const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
+    const search = typeof location === 'undefined' ? '' : location.search, hurtStyle = pickStyle(HURT_STYLES, 'hurt', search), readyStyle = pickStyle(READY_STYLES, 'ready', search);   // ?hurt= / ?ready= (character-style-rows.ts): no query = today's pose
+    let hurtDrive = 0, readyDrive = 0;
+    const spine3 = root.getObjectByName('spine_03'), neckBone = root.getObjectByName('neck_01');
+    const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm, spine3, neckBone].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
     let open: Opening | null = null, openW = 0;   // opening-pose.ts: the sim's open stagger on this body, and its eased weight
     let tired: Pick<Fatigue, 'level' | 'gassed' | 'second'> = { level: 0, gassed: 0, second: 0 }, tune: FatigueTune | undefined, breath = 0, calmWeight = 0;   // fatigue.ts: the tired-body layer (presentation only), its body's tuning, the breath clock and how calm the pose is
     // ?look=fatigue-read (fatigue-read.ts): the extra bones its pose moves, restored before every update like the guard tilt; empty and untouched without the flag.
@@ -569,6 +665,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // contact extras and the sim's blade tables stay: reach and contact never move. Its finish is GPT's painted one, never the rung's tint
       // (Strategy 2026-09-28: painted per band, no runtime tint on shaped weapons), so `grade` leaves it be. None = his own.
       reshape(shape: Mesh | undefined) {
+        if (weaponNode?.userData.sandboxRanged || weaponNode?.userData.rangedModel) return;   // a ranged model (the sandbox's stand-in, or the painted bow's row) stands in for the weapon; the rank's painted shape must not hide it
         if (!shape && !shaped.length) return;   // never shaped: nothing to give back, and his own draws' visibility stays the rig's
         for (const draw of shaped) draw.removeFromParent();
         shaped = [];
@@ -588,7 +685,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // His own draws are never touched.
       wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
-        for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
+        for (const [draw, visible] of covered) draw.visible = visible; covered.clear(); if (root.userData.noLoot) return;   // a rig whose asset says so wears no loot: every loot.glb draw is authored on the classic hero's bind pose, and the Exo body (other proportions) would carry them off its joints. Follow-up: fit the pieces to Exo
         let body: SkinnedMesh | undefined; const materials = rigMaterials(root);
         root.traverse(object => {
           // A creature-pipeline body (Veteran, Dwarf, Executioner) is one untagged `CreatureBody` draw on the same skeleton; its Body slot names empty nodes.
@@ -612,7 +709,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             const copy = new SkinnedMesh(typeof piece.userData.gripBone === 'string' ? gripFit(piece.geometry, rig, piece.userData.gripBone) : piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
             copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
-            body.parent!.add(copy); worn.push(copy);
+            body.parent!.add(copy); worn.push(copy); if (!painted) awaitShared(copy, piece, mapped, tier);
           } catch (error) {
             const id = lootId(piece); console.warn(`loot: ${id} (${piece.name}) could not be worn and was skipped`, error); failed(id, error);
           }
@@ -701,6 +798,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       slam(weight: number) { slam = weight; },
+      specialTrail(t: { samples: number; opacity: number; color: string } | null) { special = t; },
+      // The special clip to play while a special's swing runs (specialRoleOf; null clears it). Fetched on the first ask, and only for a weapon the row lists: until it lands, or on any other weapon, the swing plays the weapon's own clip.
+      specialMove(role: SpecialRole | null) {
+        specialRole = role;
+        // Once any special is asked for, fetch every special clip this weapon plays (a second slot's clip is otherwise first asked for on its first press, and that cast shows the weapon's own swing until it lands).
+        if (role) for (const r of SPECIAL_ROLES) if (!clips[r] && !specialLoading.has(r) && specialRow(r).weapons.includes(weapon) && isBowRole(r) === isBowRole(role)) {   // a bow carrier fetches the bow clips, a melee caster the melee ones
+          specialLoading.add(r);
+          void SPECIAL_LOADERS[r]().then(m => this.adoptClip(r, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(r); /* the weapon's own clip keeps playing */ });
+        }
+      },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
@@ -718,29 +825,32 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const fin = finisherBodyPose(pose), tmpl = fin?.row.template, staged = tmpl === 'hamstring' || tmpl === 'execute', fell = fin?.side === 'victim';
         if (tmpl !== 'bisect' && opened) { opened.group.visible = false; root.visible = true; }
         if (fin && staged && !clips[fin.role as Role]) throw new Error(`${fin.row.id[0]!.toUpperCase()}${fin.row.id.slice(1)} clips are not installed on this rig`);
-        const step = Math.max(0, Math.min(dt, 0.1));
+        const step = Math.max(0, Math.min(dt, STEP_MAX));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
         for (const role of ['Walk', 'Jog', 'Run'] as const) actions[role].setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1);
         const gait = gaitWeights(speed), weights: Partial<Record<Role, number>> = { Idle: gait[0], Walk: gait[1], Jog: gait[2], Run: gait[3] };
         // An armed rig with its own run (armedRun) blends ArmedWalk into it from 3.2 to 4 m/s and keeps it above; without one the armed walk holds to 4.2 and the plain Run takes over, as before.
         if (pose !== 'sheathed' && (speed < 4.2 || armedRun)) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)), run = armedRun ? MathUtils.smoothstep(speed, 3.2, 4) : 0; weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side)*(1-run); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side*(1-run); weights.ArmedRun = movement*run; }
-        actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
-        actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.5,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
-        for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : fin ? fin.role as Role : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(WALK_RATE_MIN,speed/(1.7*stride)));
+        actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(RUN_RATE_MIN,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
+        for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(WALK_RATE_MIN,speed/(.75*stride)));
+        let combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : fin ? fin.role as Role : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const specialPlay = pose === 'attack' && specialRole && clips[specialRole] && specialRow(specialRole).weapons.includes(weapon) ? specialRole : null;   // the move's own clip, once adopted, in place of the weapon's strike clip
+        if (specialPlay) combatRole = specialPlay;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || fell;
         for (const role of roles) {
           const a = actions[role];
           const fade = tmpl === 'bisect' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) || fin?.side === 'killer' ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
-          const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
+          const hurtFade = hurtStyle && combatRole === 'Hit' ? fade * (hurtStyle.weight / 1000) : fade;   // ?hurt=: only part of the recorded Hit clip stays
+          const target = (weights[role] || 0) * (1 - hurtFade) + Number(role === combatRole) * hurtFade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
           // A parried attacker is thrown off line on the impact tick itself (Strategy 2026-09-24: the parry's tell is the attacker, not a spark):
           // the weight snaps like a live blade does — the parry's hit-stop runs at dt 0, where an eased weight would hold the attack pose.
           a.setEffectiveWeight(tmpl === 'bisect' || (staged && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
-          if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
+          if (role === combatRole) a.time = Math.min(CLIP_END_MAX, Math.max(0, pose === 'attack' ? heroSwing(role, swingProgress(progress, contact, specialPlay ? specialRow(specialPlay).strike : (asset === hero.asset && clips[role].name === role ? heroContact(role) : undefined) ?? specs[attack].source), !specialPlay && asset === hero.asset && clips[role].name === role) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
         anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through
@@ -757,22 +867,28 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const k of ['yaw', 'arm', 'spine'] as const) tilt[k] += (guarding[k] - tilt[k]) * ease;
         // Two cascaded eases: the lean starts and stops at zero speed, so neither the hold nor the release pops.
         const follow = 1 - Math.exp(-step * 18);
-        leanDrive += (Number(!!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
+        leanDrive += (Number(!PLAIN_POSTURE && !!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
         if (leaning < 1e-3 && leanDrive < 1e-3) leaning = leanDrive = 0;
         const l = lean ?? NO_LEAN;
         // The tired body (fatigue.ts): breathing in the chest, a hunch, the sword arm sagging; only while the pose is calm (a swing's contact pose is the sim's blade).
         calmWeight += (Number(!dead && (pose === 'ready' || pose === 'guard' || pose === 'sheathed')) - calmWeight) * ease;
         breath += step * breathe(tired, tune); readBreath += step * readRate(tired, tune);
-        const layer = tired.level > 0 || tired.gassed > 0 || calmWeight > .001 ? fatigueLayer(tired, breath, calmWeight, tune) : null;
+        const layer = !PLAIN_POSTURE && (tired.level > 0 || tired.gassed > 0 || calmWeight > .001) ? fatigueLayer(tired, breath, calmWeight, tune) : null;
         openW += (openWeight(open) - openW) * (1 - Math.exp(-step * 30));   // quick: it follows the sim's own ramp, which is already eased
         if (openW < 1e-3 && !open) openW = 0;
-        const gap = dead || pose === 'attack' ? NO_OPEN : openPose(openW, open?.kind);
-        if (tilt.yaw || tilt.spine || tilt.arm || leaning || layer || gap !== NO_OPEN) {
+        const gap = PLAIN_POSTURE || dead || pose === 'attack' ? NO_OPEN : openPose(openW, open?.kind);
+        hurtDrive += ((hurtStyle && pose === 'hit' ? Math.sin(Math.min(1, progress) * Math.PI) : 0) - hurtDrive) * ease;   // ?hurt=: up and back over the hurt, eased
+        if (hurtDrive < 1e-3) hurtDrive = 0;
+        readyDrive += ((readyStyle && (pose === 'ready' || pose === 'guard') ? 1 : 0) - readyDrive) * ease;   // ?ready=: while the fighter stands armed and calm
+        if (readyDrive < 1e-3) readyDrive = 0;
+        if (tilt.yaw || tilt.spine || tilt.arm || leaning || layer || gap !== NO_OPEN || hurtDrive || readyDrive) {
           tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
           if (spine1) { spine1.rotation.y += tilt.yaw + leaning * l.yaw; spine1.rotation.z += leaning * l.side; }
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
           if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
           if (gap !== NO_OPEN) { if (spine1) { spine1.rotation.x += gap.lean; spine1.rotation.z += gap.tilt; } if (upperArm) upperArm.rotation.x += gap.arm; }
+          if (readyStyle && readyDrive) { if (spine1) spine1.rotation.x += (readyDrive * readyStyle.s1) / 1000; if (spine2) spine2.rotation.x += (readyDrive * readyStyle.s2) / 1000; if (spine3) spine3.rotation.x += (readyDrive * readyStyle.s3) / 1000; if (neckBone) neckBone.rotation.x += (readyDrive * readyStyle.neck) / 1000; }
+          if (hurtStyle && hurtDrive) { if (spine1) { spine1.rotation.x += (hurtDrive * hurtStyle.s1) / 1000; spine1.rotation.y += (hurtDrive * hurtStyle.twist) / 1000; } if (spine2) spine2.rotation.x += (hurtDrive * hurtStyle.s2) / 1000; }
           if (layer && tune?.read) {   // ?look=fatigue-read: the whole spine, head and shoulders carry the tell; the sword arm keeps the live sag
             const r = fatigueRead(tired, readBreath, calmWeight, layer, tune); readGuard = r.guard;
             if (spine1) spine1.rotation.x += r.spine1; if (spine2) spine2.rotation.x += r.spine2; if (upperArm) upperArm.rotation.x += r.arm;
@@ -787,12 +903,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
           }
         }
-        uprightW += (Number(!!upright && !dead && (pose === 'ready' || pose === 'guard')) - uprightW) * ease;
+        uprightW += (Number(!PLAIN_POSTURE && !!upright && !dead && (pose === 'ready' || pose === 'guard')) - uprightW) * ease;
         if (upright && uprightW > .001) {   // the counter-pitch on the calm pose (upright-ready.ts); restored at the top of the next update
           const b = uprightBones; b.forEach((bone, i) => bone && uprightSaved[i].copy(bone.quaternion)); uprightApplied = true;
           if (b[0]) b[0].rotation.x += upright.spine2 * uprightW; if (b[1]) b[1].rotation.x += upright.spine3 * uprightW; if (b[2]) b[2].rotation.x += upright.neck * uprightW;
         }
-        stanceW += (Number(stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
+        stanceW += (Number(!PLAIN_POSTURE && stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
         if (stanceW > .001) {   // ?look=stances: the stance's bones on top of the calm pose (stance-pose.ts); restored at the top of the next update
           const sp = stancePose(stance, stanceW, stanceClock), b = stanceBones;
           b.forEach((bone, i) => bone && stanceSaved[i].copy(bone.quaternion)); if (b[0]) stancePelvis.copy(b[0].position); stanceApplied = true;
@@ -806,6 +922,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
         if (carry < .001) carry = 0;
         carryShield(carry, raise, strike);
+        const haftGap = specialPlay ? (SPECIAL_CLIP_ROWS as { twoHanded?: Record<string, number> }).twoHanded?.[weapon] : undefined;
+        if (haftGap) holdHaft(haftGap);   // a two-handed weapon's special plays a one-handed clip: the left hand stays on the haft
         spectralLife = spectral?.(step, dead, progress, fell && (tmpl === 'bisect' || staged), fell && tmpl === 'hamstring' ? HAMSTRUNG_BEATS.duration + .6 : fell && tmpl === 'execute' ? EXECUTION_BEATS.duration / EXECUTION_BEATS.speed + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
         droppedWeapon?.apply(fell && tmpl === 'hamstring' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : fell && tmpl === 'execute' ? (progress - EXECUTION_BEATS.drop) * EXECUTION_BEATS.duration / EXECUTION_BEATS.speed : -1);   // seconds since the knee blow; negative keeps it in his hand
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
@@ -825,12 +943,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           upperArm.quaternion.premultiply(new Quaternion().slerp(new Quaternion().setFromUnitVectors(from, to), amount));
           root.updateWorldMatrix(true, true);
         }
-        trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
+        trail.visible = (pose === 'attack' && progress > contact * .7 && progress < contact + .18) || (!!special && !dead);
+        { const key = special ? `${special.opacity}|${special.color}` : ''; if (key !== trailKey) { trailKey = key; const m = trail.material as MeshBasicMaterial; m.opacity = special?.opacity ?? .12; m.color.set(special?.color ?? '#e8dfc8'); } }
         if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
           const override = combatRole && contactByClip?.[clips[combatRole].name], strike = override ? [override.from, override.to] : segment;
           samples.unshift(strike.map(y => anchor.worldToLocal(blade.localToWorld(new Vector3(0, y, 0)))));
-          if (samples.length > 7) samples.pop();
+          while (samples.length > Math.min(24, special?.samples ?? 7)) samples.pop();
           let offset = 0;
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }
           ribbon.setDrawRange(0, offset / 3); ribbon.attributes.position.needsUpdate = true;
@@ -901,7 +1020,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const prop of group.children) if (prop instanceof Mesh) prop.geometry.translate(-center.x, -center.y, -center.z);
         group.position.copy(center);
         bone.scale.setScalar(.0001);   // no clip tracks bone scale, so the collapse holds; the neck-blend smear hides under the sever burst
-        return { group, radius: Math.max(.07, Math.min(.24, Math.max(size.x, size.z) * .38)) };
+        return { group, radius: Math.max(PROP_RADIUS_MIN, Math.min(PROP_RADIUS_MAX, Math.max(size.x, size.z) * .38)) };
       },
       // A fresh match (rematch): the rig grows its head back; the caller has already disposed the world-parented prop.
       unsever() {
@@ -1072,7 +1191,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
         const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, .07);
         const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
-        const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+        const d = Math.max(JOINT_REACH_MIN, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
         const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
         bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
         const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
@@ -1090,5 +1209,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     };
   }
   const player = create(false);
-  return { player, opponent: solo ? player : create(true) };
+  // spawn: one more actor of the hero's own rig from the same asset (shared geometry, skins and materials, so no new program): the zone's other players (origins/preview/remote-heroes.ts).
+  return { player, opponent: solo ? player : create(true), spawn: () => create(false) };
 }

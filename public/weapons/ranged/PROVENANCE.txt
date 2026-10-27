@@ -1,0 +1,16 @@
+bow-v1.glb  (240,404 bytes; sha256 ff14366e9a62fcfd43a309f797806480aeedc6ef01158bf2d6d76ba4f0967b94, pinned in tests/ranged-model.test.ts)
+  2026-10-21 (Characters, phone budgets): the sandbox's file with its one PNG texture re-encoded as WebP (scripts/glb-png-to-webp.py, q88): 647,332 -> 240,404 bytes; geometry byte-identical. Was sha256 79dd891035c0201ac916173276efffcac32a4eceb5442f53d234d2a1862a8edd, 647,332 bytes.
+
+The painted bow of the combat sandbox, ported to the game (CS23, Dom's blanket approval 2026-10-18 "port all of it"; Lead's ruling (b) 2026-10-19: the model, its loader and its row, dormant).
+Origin: Dom's own pick, the concept image bow-concept-s71 (his word at the time: the picks bow-concept-s71 / crossbow-concept-top-s71). Mesh by TRELLIS.2 from that concept, fitted and exported by Characters & Art
+in Blender (glTF Blender I/O 5.2.40), single mesh, two WebP maps (EXT_texture_webp), node WeaponDrawn with its own userData (weapon bow-v1, hand hand_l, contact 0.1-0.7, nock 0,0,0.0797).
+Source of this file: sandbox/painted/bow-v1.glb in the BULK-CS tree (DomLynch/RPG-game #3257 @9611442f6), first added at Characters & Art 3febe084b on sandbox/page; copied byte for byte, nothing edited.
+The hold (rotation -1.9, 34.6, 114.3 deg under hand_l) is the sandbox's own (scripts/weapon-stage/holds.json, Characters & Art 2026-10-15), now a row: src/fight/ranged-model-defs.json.
+The crossbow (crossbow-v1.glb) is NOT shipped: removed by Dom 2026-10-18 (CS22, DROPPED-BY-DOM).
+TRELLIS exports metalness 1 / roughness 1, which draws black with no environment map; the row carries the matte (0.08 / 0.85) the sandbox applied (only a material with that exact 1 / 1 signature is matted).
+
+staff-v1.glb  (93,928 bytes; sha256 aaadfdbb7159314af6547f85c6fe486aab058f9d493ee67a770132403ffd3ea0, pinned in tests/ranged-model.test.ts)
+
+The orb staff of the combat sandbox, ported to the game (Dom 2026-10-20: "a cool staff with a white glowing tip, you should use that"; Strategy's order): a tall wooden staff, wrapped grip, brass rings, a three-pronged cradle holding a pale ivory orb (emissive #fff4d8 at 0.55).
+Origin: plain three.js geometry (no textures), Characters & Art's staff() in scripts/build-ranged-weapons.mjs (char/ranged-weapons @47c653222), identical to the sandbox's sandbox/ranged-weapons.mjs @93b1138c7 on sandbox/page. Baked with that script's own CLI (WEAPON_OUT=public/weapons/ranged/staff-v1.glb node build-ranged-weapons.mjs staff-v1), nothing edited.
+Node WeaponDrawn with userData weapon staff-v1, hand hand_r, muzzle 0,1.36,0 (the orb), contact 1.0-1.45. The hold (rotation 90, 0, 0 deg and offset 0, 0.08, 0.015 m under hand_r: SwordDrawn's offset, the staff points out from the fist) is the sandbox's (sandbox/entry.ts HOLD + scripts/weapon-stage/holds.json), now a row: src/fight/ranged-model-defs.json.

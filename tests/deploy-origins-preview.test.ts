@@ -1,5 +1,6 @@
 // scripts/deploy.sh publishes the origins preview after the switch and fails the run when /zone1/ does not serve the bundle just built
 // (deploy.sh only carried previews forward, so /zone1/ stayed on the 2026-10-08 build through Releases A to H).
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,8 +26,12 @@ test('DEPLOY_ORIGINS_PREVIEW=off skips the publish', () => {
 });
 
 test('the preview script runs through bash on a clean artifact folder, and an nginx conf drift fails the run loudly (Release I: no exec bit, stale build, /zone/ alias never installed)', () => {
-  assert.match(deploy, /rm -rf artifacts\/origins-preview[^\n]*\n\s*bash scripts\/publish-origins-preview\.sh/);
-  assert.match(deploy, /bash scripts\/provision\.sh --dry-run[\s\S]{0,400}previews_ok=0/);
+  // Re-pinned (K6o2, 2026-10-21): the publish is now tried up to 3 times (a transient ssh timeout in this step left /zone1/ stale), so comment lines and the retry loop sit between the clean-up and the
+  // publish line. The intent is unchanged: the artifact folder is removed BEFORE the first attempt, and the publish runs through bash.
+  assert.match(deploy, /rm -rf artifacts\/origins-preview[^\n]*\n(?:\s*#[^\n]*\n)*\s*for _pv_try in 1 2 3; do\n\s*if bash scripts\/publish-origins-preview\.sh; then previews_ok=1; break; fi/);
+  // Re-pinned (2026-10-22): a drift the release itself explains (it changes deploy/frankendom.com.conf or ops/nginx) is PROVISION PENDING and no longer sets previews_ok=0; an UNEXPLAINED drift still does,
+  // in the else branch, so it fails the run loudly as before (the Release I case). The distance grew with the explanation block.
+  assert.match(deploy, /bash scripts\/provision\.sh --dry-run[\s\S]{0,1200}else previews_ok=0; fi/);
 });
 
 test('publish-origins-preview.sh is executable in git', () => {

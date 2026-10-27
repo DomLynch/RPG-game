@@ -3,6 +3,7 @@
 // zone-own copy of engine code. What fails today is pinned below, each entry with the slice that removes it; the lists only shrink (a new violation fails, and a listed one that is gone
 // fails until you delete the line). Zone 2 (and any zone N >= 2) must be data: a JSON row (zone-rows/zone<N>.row.json), no code, so no src/ import. Classified by module NAME, so moving a module (src/audio/creature.ts
 // -> src/fight/sound/creature.ts) does not change its row. An import of a src/ module that is neither a row nor ALLOWED fails: classify it.
+import './lib/era-off.ts';   // RV78: the legacy suite runs on trunk's rules; sandbox-era.ts is the one switch (tests/lib/era-off.ts)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -35,12 +36,13 @@ export const ROWS: Record<string, readonly [number, Own]> = {
 // never a folder or a module wildcard; the post-K7 ledger unification revisits them. Combat stays strict: nothing from a combat module outside src/fight.
 const LEDGER_UI: readonly string[] = [];   // EMPTY since CORE 1a (the account/ledger modules live in src/core, behind src/core/index.ts and server.ts; tests/core-boundary.test.ts pins them): nothing may be added back
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
-const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
+// gfx-lift: the zone page imports the lift LAZILY, by dynamic import (#3436): an eager re-export through src/fight/index.ts would put the post-processing code in the main chunk and defeat ?gfx=0 ("off = that chunk is never fetched"). Its flag, gfxOn, does go through the door.
+const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index', 'gfx-lift']);
 // WRITER-SAFE DOOR, by EXACT path (Lead 2026-10-12, release DF): catalogue-rows.ts is the renderer-free creature-row door the origins writer may load, which is why origins/preview/mobs.ts (page data the writer also loads) takes catalogueRow from it and not from the page door. One file -> one module.
 // SERVER-ONLY by EXACT path (Auditor 2026-10-13): the grimoire's 700-spell catalogue (7 spells-*.json) stays out of src/fight/server.ts, which the page's bundle reaches via src/core/luck.ts; the one server file that needs it takes it directly. Never add boss-spells to ALLOWED (module-wide: a page could take it).
-const WRITER_SAFE: readonly string[] = ['origins/preview/mobs.ts -> catalogue-rows', 'origins/server/grimoire.ts -> boss-spells', 'origins/server/spell-check.ts -> boss-spells'];
+const WRITER_SAFE: readonly string[] = ['origins/preview/mobs.ts -> catalogue-rows', 'origins/zones/height-ladder.ts -> catalogue-rows', 'origins/server/grimoire.ts -> boss-spells', 'origins/server/spell-check.ts -> boss-spells'];
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
-const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/boss/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts); origins/boss/: legend-boss.ts is read by the writer's resolve (encounter-setup.ts) and by the page, through the node-safe door
+const SERVER_DIRS = ['origins/server/', 'origins/encounters/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/boss/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts); origins/boss/: legend-boss.ts is read by the writer's resolve (encounter-setup.ts) and by the page, through the node-safe door
 
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
