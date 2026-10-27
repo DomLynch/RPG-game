@@ -33,6 +33,10 @@ Add `"<name>": { "lane": "<who>" }` under `boxes` in `data/hf-boxes.json`, merge
 
 Changed the runner? `hfjob box-up <name> --update` re-uploads it (the Space rebuilds and drops running jobs). Never touch `Domlynch/char-tool-stage` (the Blender dataset).
 
+## Clone depth
+
+The sha is fetched at `HFJOB_DEPTH` (default 1) and the repo's tags are fetched too (shallow), so tests that read `git show <tag>:file` work (V3's Gate 0 seed tag). Jobs and boxes share `inner.sh`, so both get it. History other than the sha and the tagged commits is not there: set `HFJOB_DEPTH=0` for full history.
+
 ## Limits
 
 Public GitHub repos only: the box clones without a credential. `DomLynch/opentrident-steam` is private, so `box-opentrident` has no `repos` (the spill never routes there) and stays paused: Strategy ruled 2026-10-27 the repo stays private (third-party assets) and boxes get no GitHub token. OpenTrident's heavy work goes through the `Domlynch/char-tool-stage` Space with files pushed in.
