@@ -128,17 +128,19 @@ test('job record: run writes it, and tick (cron) ledgers every end: a finished j
   writeFileSync(fast, JSON.stringify({ ...rows, watchMaxMisses: 2, watchMarginSeconds: 2 }));
   const argv = Buffer.from("'true'").toString('base64'), lines = () => readFileSync(open, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const future = () => Math.floor(Date.now() / 1000) + 600;
+  const repo = join(fx.dir, 'src.git'), g = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
   try {
-    const r = py(env, ['run', 'v3', '--repo', '/nonexistent', '--sha', 'a'.repeat(40), '--argv-b64', argv, '--timeout', '30']);
+    mkdirSync(repo); g('init', '-q'); writeFileSync(join(repo, 'f'), 'x'); g('add', '.'); g('commit', '-q', '-m', 'x'); g('config', 'uploadpack.allowAnySHA1InWant', 'true');
+    const r = py(env, ['run', 'v3', '--repo', repo, '--sha', g('rev-parse', 'HEAD').trim(), '--argv-b64', argv, '--timeout', '30']);
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const [rec] = lines();
     assert.equal(rec.box, 'v3');
     assert.match(r.stdout, new RegExp(`job=${rec.id}`));
     appendFileSync(open, JSON.stringify({ box: 'v3', id: 'deadbeef0000', deadline: future(), misses: 0 }) + '\n');
-    await new Promise((res) => setTimeout(res, 6000));   // the clone of /nonexistent fails fast, so the first job is over
+    await new Promise((res) => setTimeout(res, 4000));   // a local clone and `true` finish at once
     assert.equal(py(env, ['tick']).status, 0);
     const led = readFileSync(ledger, 'utf8');
-    assert.match(led, new RegExp(`tier=hf-box box=v3 job=${rec.id} ended=failed`));
+    assert.match(led, new RegExp(`tier=hf-box box=v3 job=${rec.id} ended=done`));
     assert.match(led, /job=deadbeef0000 ended=unknown reason=job lost/);
     assert.equal(lines().length, 0, 'both ended, so the record is empty');
     rn.stop();
@@ -194,8 +196,8 @@ test('spill pick: the repo\'s box only when Jobs would queue (jobsConcurrent act
     const none = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING,RUNNING' }, ['pick', 'acme/unknown']);
     assert.equal(none.stdout.trim(), '');
     assert.match(none.stderr, /no box owns acme\/unknown; using a Job/);
-    const second = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING' }, ['pick', 'DomLynch/opentrident-steam']);
-    assert.equal(second.stdout.trim(), 'opentrident');
+    const private_ = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING' }, ['pick', 'DomLynch/opentrident-steam']);
+    assert.equal(private_.stdout.trim(), '', 'a private repo has no box route (Strategy 2026-10-27)');
   } finally { fx.done(); }
 });
 
