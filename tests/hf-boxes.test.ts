@@ -181,6 +181,15 @@ test('the shared clone step (Jobs and boxes) fetches the repo\'s tags: a test th
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('logs --follow on a job the box does not know ends at once with "gone from the box" (it used to spin forever and keep the box awake)', async () => {
+  const fx = fixture(), rn = await startRunner(fx.dir);
+  try {
+    const r = spawnSync('python3', [boxes, 'logs', 'v3', 'deadbeef0000', '--follow'], { env: { ...fx.env, HFBOX_URL: `http://127.0.0.1:${rn.port}` }, encoding: 'utf8', timeout: 20000 });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /job deadbeef0000 is gone from the box/);
+  } finally { rn.stop(); fx.done(); }
+});
+
 test('the default runner only takes plain public github https repos and 40-hex shas', async () => {
   const fx = fixture(), port = await freePort();
   const child = spawn('node', [runner], { env: { ...process.env, PORT: String(port), HFBOX_INNER: inner, HFBOX_LOGDIR: join(fx.dir, 'l'), HFBOX_WORK: join(fx.dir, 'w') }, stdio: 'ignore' });
