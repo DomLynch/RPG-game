@@ -116,6 +116,24 @@ test('run on the real runner: clones the sha, runs the command with its argument
   } finally { rn.stop(); fx.done(); }
 });
 
+test('watch never ends silently: a finished job, a lost job (404) and a dead box each write an ended= line to the ledger', async () => {
+  const fx = fixture(), rn = await startRunner(fx.dir), ledger = fx.env.HFJOB_LEDGER as string, fast = join(fx.dir, 'fast.json'), env = { ...fx.env, HFBOX_URL: `http://127.0.0.1:${rn.port}`, HFBOX_DATA: fast };
+  writeFileSync(fast, JSON.stringify({ ...rows, pollSeconds: 1, watchMaxMisses: 2, watchMarginSeconds: 2 }));
+  try {
+    const res = await fetch(`http://127.0.0.1:${rn.port}/run`, { method: 'POST', body: JSON.stringify({ repo: '/nonexistent', sha: 'a'.repeat(40), argv_b64: Buffer.from('true').toString('base64'), timeout: 30 }) });
+    const { id } = (await res.json()) as { id: string };
+    await new Promise((r) => setTimeout(r, 6000));   // the clone fails fast, so the job is over
+    assert.equal(py(env, ['watch', 'v3', id, '--timeout', '30']).status, 0);
+    assert.match(readFileSync(ledger, 'utf8'), new RegExp(`tier=hf-box box=v3 job=${id} ended=failed`));
+    assert.equal(py(env, ['watch', 'v3', 'deadbeef0000', '--timeout', '30']).status, 0);
+    assert.match(readFileSync(ledger, 'utf8'), /job=deadbeef0000 ended=unknown reason=job lost/);
+    rn.stop();
+    await new Promise((r) => setTimeout(r, 300));
+    py(env, ['watch', 'v3', id, '--timeout', '30']);
+    assert.match(readFileSync(ledger, 'utf8').trim().split('\n').pop()!, /ended=unknown reason=box stopped answering|ended=unknown reason=watch ceiling/);
+  } finally { rn.stop(); fx.done(); }
+});
+
 test('the default runner only takes plain public github https repos and 40-hex shas', async () => {
   const fx = fixture(), port = await freePort();
   const child = spawn('node', [runner], { env: { ...process.env, PORT: String(port), HFBOX_INNER: inner, HFBOX_LOGDIR: join(fx.dir, 'l'), HFBOX_WORK: join(fx.dir, 'w') }, stdio: 'ignore' });

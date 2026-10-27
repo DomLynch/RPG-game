@@ -7,6 +7,8 @@
   "pricePerHour": 0.03,
   "port": 7860,
   "pollSeconds": 60,
+  "watchMarginSeconds": 300,
+  "watchMaxMisses": 5,
   "readyTimeoutSeconds": 900,
   "defaultTimeoutSeconds": 1800,
   "awakeStages": ["RUNNING", "RUNNING_BUILDING", "APP_STARTING", "BUILDING"],

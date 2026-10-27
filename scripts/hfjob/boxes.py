@@ -148,17 +148,39 @@ def run(name, repo, sha, argv_b64, timeout, depth, wait):
         print(f'job {jid} {state} exit={code}')
         sys.exit(0 if state == 'done' else 1)
     # fire and forget: a detached watcher keeps traffic flowing so the Hub's idle timer does not sleep the box mid-run (the token goes in the env, not argv)
-    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'watch', name, jid], env=dict(os.environ, HF_TOKEN=token()), stdin=subprocess.DEVNULL,
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'watch', name, jid, '--timeout', str(timeout)], env=dict(os.environ, HF_TOKEN=token()), stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
-def watch(name, jid):
-    sid = space_id(name)
-    while True:
-        _, _, body = http(sid, f'/status/{jid}', retries=5)
-        if json.loads(body).get('state') != 'running':
-            return
+def ledger(line):
+    try:
+        with open(os.environ.get('HFJOB_LEDGER', '/var/log/hfjob.log'), 'a') as f:
+            f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} user={os.environ.get('USER', '?')} {line}\n")
+    except OSError:
+        pass
+
+
+def watch(name, jid, timeout):
+    """Keep-alive poll until the job ends. Never dies silently: every exit writes an ended= line to the ledger. A runner that went quiet, lost the job (404) or outlived
+    timeout + watchMarginSeconds is ended=unknown, not a hang."""
+    sid, tag = space_id(name), f'tier=hf-box box={name} job={jid}'
+    deadline, misses = time.time() + timeout + cfg['watchMarginSeconds'], 0
+    while time.time() < deadline:
+        try:
+            code, _, body = http(sid, f'/status/{jid}', retries=2)
+        except SystemExit:
+            code, body = 0, b'{}'
+        state = json.loads(body).get('state') if code == 200 else None
+        if state and state != 'running':
+            return ledger(f'{tag} ended={state}')
+        if state is None:
+            misses += 1
+            if code == 404 or misses >= cfg['watchMaxMisses']:
+                return ledger(f'{tag} ended=unknown reason={"job lost (box restarted or slept)" if code == 404 else "box stopped answering"}')
+        else:
+            misses = 0
         time.sleep(cfg['pollSeconds'])
+    ledger(f'{tag} ended=unknown reason=watch ceiling (timeout+margin) reached')
 
 
 def listing():
@@ -193,14 +215,14 @@ def main():
         r.add_argument(k, required=True)
     r.add_argument('--timeout', type=int, default=cfg['defaultTimeoutSeconds']); r.add_argument('--depth', type=int, default=1); r.add_argument('--wait', action='store_true')
     l = s.add_parser('logs'); l.add_argument('name'); l.add_argument('id'); l.add_argument('--follow', action='store_true')
-    w = s.add_parser('watch'); w.add_argument('name'); w.add_argument('id')
+    w = s.add_parser('watch'); w.add_argument('name'); w.add_argument('id'); w.add_argument('--timeout', type=int, default=cfg['defaultTimeoutSeconds'])
     s.add_parser('list')
     z = s.add_parser('pause'); z.add_argument('name')
     a = p.parse_args()
     if a.op == 'up': up(a.name, a.update)
     elif a.op == 'run': run(a.name, a.repo, a.sha, a.argv_b64, a.timeout, a.depth, a.wait)
     elif a.op == 'logs': follow(space_id(a.name), a.id, a.follow)
-    elif a.op == 'watch': watch(a.name, a.id)
+    elif a.op == 'watch': watch(a.name, a.id, a.timeout)
     elif a.op == 'list': listing()
     elif a.op == 'pause': pause(a.name)
 
