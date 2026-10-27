@@ -36,7 +36,7 @@ depth=${HFJOB_DEPTH:-1}
 
 # the command travels base64 in the environment with its argument boundaries intact (printf %q), so nothing is re-quoted or interpolated into the job script
 argv=$(printf '%q ' "$@" | base64 | tr -d '\n')
-lane=$(basename "$top" | sed 's/^frankendom-//' | tr -c 'A-Za-z0-9_.-\n' '-' | cut -c1-40)
+lane=$(basename "$top" | sed -e 's/^frankendom-//' -e 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
 
 inner='set -euo pipefail; t0=$(date +%s); lap(){ echo "LAP $1 $(( $(date +%s) - t0 ))s"; }
 mkdir -p /w && cd /w && git init -q && git remote add origin "$HFJOB_REPO"
