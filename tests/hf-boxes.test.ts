@@ -136,11 +136,17 @@ test('job record: run writes it, and tick (cron) ledgers every end: a finished j
     const [rec] = lines();
     assert.equal(rec.box, 'v3');
     assert.match(r.stdout, new RegExp(`job=${rec.id}`));
+    const w = py(env, ['run', 'v3', '--repo', repo, '--sha', g('rev-parse', 'HEAD').trim(), '--argv-b64', argv, '--timeout', '30', '--wait']);   // --wait records too: a killed terminal loses nothing
+    assert.equal(w.status, 0, w.stdout + w.stderr);
+    const waitedId = /job=([0-9a-f]{12})/.exec(w.stdout)![1];
+    assert.ok(lines().some((l) => l.id === waitedId && typeof l.user === 'string' && l.user !== '?'), 'the --wait job and its submitter are on the record');
     appendFileSync(open, JSON.stringify({ box: 'v3', id: 'deadbeef0000', deadline: future(), misses: 0 }) + '\n');
     await new Promise((res) => setTimeout(res, 4000));   // a local clone and `true` finish at once
     assert.equal(py(env, ['tick']).status, 0);
     const led = readFileSync(ledger, 'utf8');
     assert.match(led, new RegExp(`tier=hf-box box=v3 job=${rec.id} ended=done`));
+    assert.match(led, new RegExp(`tier=hf-box box=v3 job=${waitedId} ended=done`));
+    assert.doesNotMatch(led, /user=\? /, 'the ended line names the submitting user, not ?');
     assert.match(led, /job=deadbeef0000 ended=unknown reason=job lost/);
     assert.equal(lines().length, 0, 'both ended, so the record is empty');
     rn.stop();

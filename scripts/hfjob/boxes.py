@@ -6,7 +6,7 @@ Every name, flavor, sleep time and price comes from data/hf-boxes.json (HFBOX_DA
   boxes.py logs NAME ID [--follow]            boxes.py tick (cron: poll every recorded job, ledger the ends)
   boxes.py list                               boxes.py pause NAME
 The token is read here, from HF_TOKEN or /root/.hf/token, and is only ever sent to the Hub as a bearer header. It is never printed or put on a command line."""
-import argparse, json, os, sys, tempfile, time, urllib.error, urllib.request
+import argparse, json, os, pwd, sys, tempfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -143,17 +143,24 @@ def run(name, repo, sha, argv_b64, timeout, depth, wait):
     jid = res['id']
     print(f"tier=hf-box box={name} repo={repo.split('github.com/')[-1].removesuffix('.git')} sha={sha[:12]} job={jid}")
     print(f'space: https://huggingface.co/spaces/{sid}   follow: hfjob box-logs {name} {jid}')
+    record(name, jid, timeout)   # every box job, --wait or not: the cron tick (hfjob box-tick) polls it, keeps the box awake and ledgers the end (a killed terminal loses nothing)
     if wait:
         state, code = follow(sid, jid, True)
         print(f'job {jid} {state} exit={code}')
         sys.exit(0 if state == 'done' else 1)
-    record(name, jid, timeout)   # fire and forget: the cron tick (hfjob box-tick) polls it, keeps the box awake and ledgers the end
 
 
-def ledger(line):
+def whoami():
+    try:
+        return pwd.getpwuid(os.getuid()).pw_name   # cron has no $USER
+    except KeyError:
+        return str(os.getuid())
+
+
+def ledger(line, user=None):
     try:
         with open(os.environ.get('HFJOB_LEDGER', '/var/log/hfjob.log'), 'a') as f:
-            f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} user={os.environ.get('USER', '?')} {line}\n")
+            f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} user={user or whoami()} {line}\n")
     except OSError:
         pass
 
@@ -167,7 +174,7 @@ def record(name, jid, timeout):
     f = open_file()
     f.parent.mkdir(parents=True, exist_ok=True)
     with open(f, 'a') as h:
-        h.write(json.dumps({'box': name, 'id': jid, 'deadline': int(time.time()) + timeout + cfg['watchMarginSeconds'], 'misses': 0}) + '\n')
+        h.write(json.dumps({'box': name, 'id': jid, 'deadline': int(time.time()) + timeout + cfg['watchMarginSeconds'], 'misses': 0, 'user': whoami()}) + '\n')
 
 
 def poll(row):
@@ -204,7 +211,7 @@ def tick():
         row = json.loads(line)
         ended, row = poll(row)
         if ended:
-            ledger(f"tier=hf-box box={row['box']} job={row['id']} {ended}")
+            ledger(f"tier=hf-box box={row['box']} job={row['id']} {ended}", row.get('user'))
         else:
             keep.append(json.dumps(row))
     tmp = f.with_suffix('.tmp')
