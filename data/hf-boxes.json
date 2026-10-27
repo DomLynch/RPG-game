@@ -3,6 +3,8 @@
   "owner": "Domlynch",
   "prefix": "box-",
   "flavor": "cpu-upgrade",
+  "image": "mcr.microsoft.com/playwright:v1.62.1-noble",
+  "imageUser": "ubuntu",
   "sleepMinutes": 15,
   "pricePerHour": 0.03,
   "port": 7860,

@@ -22,7 +22,7 @@ class HfApi:
     def __init__(s, token=None): _log('token_given', bool(token))
     def repo_exists(s, sid, repo_type=None): _log('exists', sid); return os.environ.get('STUB_ABSENT') != '1'
     def create_repo(s, sid, **k): _log('create', sid, k)
-    def upload_folder(s, **k): _log('upload', sorted(os.listdir(k['folder_path'])))
+    def upload_folder(s, **k): _log('upload', sorted(os.listdir(k['folder_path'])), open(os.path.join(k['folder_path'], 'Dockerfile')).read())
     def get_space_runtime(s, sid):
         if os.environ.get('STUB_MISSING') == sid: raise Exception('404 not found')
         return _RT()
@@ -75,6 +75,10 @@ test('up on a missing Space creates it private, docker, on the row flavor, with 
     assert.equal(create[1], 'Domlynch/box-v3');
     assert.deepEqual([create[2].space_sdk, create[2].space_hardware, create[2].space_sleep_time, create[2].private], ['docker', 'cpu-upgrade', 900, true]);
     assert.deepEqual(c.find((x) => x[0] === 'upload')![1], ['Dockerfile', 'README.md', 'inner.sh', 'runner.mjs']);
+    const docker = c.find((x) => x[0] === 'upload')![2] as string;
+    assert.ok(docker.startsWith(`FROM ${rows.image}\n`), 'the box image is the Playwright image from the data row (Chromium baked in)');
+    assert.match(docker, new RegExp(`\nUSER ${rows.imageUser}\n`), 'the Space runs as the image\'s uid-1000 user, not root');
+    assert.doesNotMatch(docker, /__[A-Z]+__/, 'every placeholder is filled');
     assert.match(r.stdout, /box=v3 space=Domlynch\/box-v3 stage=RUNNING hardware=cpu-upgrade sleep_time=900s created=yes/);
     assert.doesNotMatch(r.stdout + r.stderr, /FAKEFAKE/);
   } finally { rn.stop(); fx.done(); }

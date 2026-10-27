@@ -64,7 +64,7 @@ def http(sid, path, body=None, retries=1):
 
 def box_files(tmp):
     box = HERE / 'box'
-    (tmp / 'Dockerfile').write_text((box / 'Dockerfile.tmpl').read_text().replace('__PORT__', str(cfg['port'])))
+    (tmp / 'Dockerfile').write_text((box / 'Dockerfile.tmpl').read_text().replace('__PORT__', str(cfg['port'])).replace('__IMAGE__', cfg['image']).replace('__USER__', cfg['imageUser']))
     (tmp / 'runner.mjs').write_text((box / 'runner.mjs').read_text())
     (tmp / 'inner.sh').write_text((HERE / 'inner.sh').read_text())
     (tmp / 'README.md').write_text(f"---\ntitle: {{BOX}}\nsdk: docker\napp_port: {cfg['port']}\npinned: false\n---\nStanding HF CPU box for `hfjob --box`. Private. Managed by scripts/hfjob/boxes.py.\n")

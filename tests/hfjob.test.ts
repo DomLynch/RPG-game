@@ -32,7 +32,8 @@ test('dry run: submits a detached node:22 cpu-upgrade job for THIS checkout\'s o
     assert.match(r.stdout, /jobs run --detach --timeout 30m --flavor cpu-upgrade /);
     assert.match(r.stdout, new RegExp(`HFJOB_REPO=https://github\\.com/acme/Frankendom-v3\\.git`));
     assert.ok(r.stdout.includes(`HFJOB_SHA=${c.sha}`));
-    assert.match(r.stdout, / node:22 bash -c /);
+    const image = JSON.parse(readFileSync(join(process.cwd(), 'data/hf-boxes.json'), 'utf8')).image as string;
+    assert.ok(r.stdout.includes(` ${image} bash -c `), 'the job runs the one image from data/hf-boxes.json (Chromium baked in)');
     assert.doesNotMatch(r.stdout, /HF_TOKEN|hf_[A-Za-z0-9]{10}/);
     assert.doesNotMatch(r.stdout, /--label sha=/, 'the HF API rejects a "sha" label key (labels.sha: Invalid key in record, smoke 2026-10-27); the sha is in the env and the ledger');
   } finally { c.done(); }
