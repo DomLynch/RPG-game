@@ -100,14 +100,14 @@ test('real path with a stub hf: prints the tier line and the logs line, appends 
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.stdout.includes(`tier=hf-cpu job=${'b'.repeat(24)} repo=acme/Frankendom-v3 sha=${c.sha.slice(0, 12)}`), r.stdout);
     assert.ok(r.stdout.includes(`hfjob logs ${'b'.repeat(24)}`));
+    assert.doesNotMatch(r.stdout + r.stderr, /SECRETSECRET/);
+    assert.match(readFileSync(seen, 'utf8'), /^jobs\nrun\n--detach\n/);
+    assert.match(readFileSync(ledger, 'utf8'), new RegExp(`tier=hf-cpu job=${'b'.repeat(24)} repo=acme/Frankendom-v3 .*flavor=cpu-upgrade timeout=30m`));
     // logs|inspect|cancel|ps pass straight through to `hf jobs`, with the token in the hf process's env only
     const l = run(c.work, ['logs', 'x1'], { HFJOB_BIN: hf, HF_TOKEN: 'hf_SECRETSECRETSECRET' });
     assert.equal(l.status, 0, l.stderr);
     assert.match(readFileSync(seen, 'utf8'), /^jobs\nlogs\nx1\ntoken=hf_SECRETSECRETSECRET/);
-    assert.doesNotMatch(l.stdout + l.stderr, /SECRETSECRET/);
-    assert.doesNotMatch(r.stdout + r.stderr, /SECRETSECRET/);
-    assert.match(readFileSync(seen, 'utf8'), /^jobs\nrun\n--detach\n/);
-    assert.match(readFileSync(ledger, 'utf8'), new RegExp(`tier=hf-cpu job=${'b'.repeat(24)} repo=acme/Frankendom-v3 .*flavor=cpu-upgrade timeout=30m`));
+    assert.doesNotMatch(l.stdout.replace('Job started with ID', '') + l.stderr, /SECRETSECRET/);
     // hf failing is exit 1 with its last line, not a silent success
     writeFileSync(hf, '#!/bin/sh\necho "quota exceeded" >&2; exit 3\n');
     const f = run(c.work, ['--', 'true'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger });
