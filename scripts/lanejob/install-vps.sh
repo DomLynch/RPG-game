@@ -57,6 +57,14 @@ if [ "$hfjob" = 1 ]; then   # /usr/local/bin/hfjob (beside the lanejob shim), sa
   if [ -e "$hshim" ] && ! cmp -s "$tmp" "$hshim"; then cp -p "$hshim" "$hshim.bak-$stamp"; fi
   mv "$tmp" "$hshim"
   echo "hfjob installed -> $hshim"
+  # the box job record's poller: a cron entry (path and open-jobs file are data rows) so a dead terminal or reboot never loses a box job. Only when the row exists and we are root.
+  cronf=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("cronFile",""))' "$root/$sha/data/hf-boxes.json" 2>/dev/null || true)
+  openf=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("openJobsFile",""))' "$root/$sha/data/hf-boxes.json" 2>/dev/null || true)
+  if [ -n "$cronf" ] && [ -n "$openf" ] && [ "$(id -u)" = 0 ] && [ "$root" = /opt/frankendom/lanejob ] && [ -d "$(dirname "$cronf")" ]; then
+    install -d -m 1777 "$(dirname "$openf")"
+    printf '# hfjob box job record poller (scripts/lanejob/install-vps.sh): every minute, polls recorded box jobs and ledgers their end\n* * * * * root %s box-tick >/dev/null 2>&1\n' "$hshim" > "$cronf.tmp" && chmod 644 "$cronf.tmp" && mv "$cronf.tmp" "$cronf"
+    echo "hfjob box-tick cron -> $cronf"
+  fi
 fi
 echo "$(date -u +%FT%TZ) lanejob installed $sha" >>"${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true
 echo "lanejob installed $sha -> $shim"

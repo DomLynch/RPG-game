@@ -2,7 +2,7 @@
 // in-Space runner (scripts/hfjob/box/runner.mjs) runs on localhost against a throwaway local git repo. No HF call, no token.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -122,21 +122,35 @@ test('run on the real runner: clones the sha, runs the command with its argument
   } finally { rn.stop(); fx.done(); }
 });
 
-test('watch never ends silently: a finished job, a lost job (404) and a dead box each write an ended= line to the ledger', async () => {
-  const fx = fixture(), rn = await startRunner(fx.dir), ledger = fx.env.HFJOB_LEDGER as string, fast = join(fx.dir, 'fast.json'), env = { ...fx.env, HFBOX_URL: `http://127.0.0.1:${rn.port}`, HFBOX_DATA: fast };
-  writeFileSync(fast, JSON.stringify({ ...rows, pollSeconds: 1, watchMaxMisses: 2, watchMarginSeconds: 2 }));
+test('job record: run writes it, and tick (cron) ledgers every end: a finished job, a lost job (404) and a dead box, then forgets them', async () => {
+  const fx = fixture(), rn = await startRunner(fx.dir), ledger = fx.env.HFJOB_LEDGER as string, fast = join(fx.dir, 'fast.json'), open = join(fx.dir, 'open.jsonl');
+  const env = { ...fx.env, HFBOX_URL: `http://127.0.0.1:${rn.port}`, HFBOX_DATA: fast, HFBOX_OPEN: open };
+  writeFileSync(fast, JSON.stringify({ ...rows, watchMaxMisses: 2, watchMarginSeconds: 2 }));
+  const argv = Buffer.from("'true'").toString('base64'), lines = () => readFileSync(open, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const future = () => Math.floor(Date.now() / 1000) + 600;
+  const repo = join(fx.dir, 'src.git'), g = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
   try {
-    const res = await fetch(`http://127.0.0.1:${rn.port}/run`, { method: 'POST', body: JSON.stringify({ repo: '/nonexistent', sha: 'a'.repeat(40), argv_b64: Buffer.from('true').toString('base64'), timeout: 30 }) });
-    const { id } = (await res.json()) as { id: string };
-    await new Promise((r) => setTimeout(r, 6000));   // the clone fails fast, so the job is over
-    assert.equal(py(env, ['watch', 'v3', id, '--timeout', '30']).status, 0);
-    assert.match(readFileSync(ledger, 'utf8'), new RegExp(`tier=hf-box box=v3 job=${id} ended=failed`));
-    assert.equal(py(env, ['watch', 'v3', 'deadbeef0000', '--timeout', '30']).status, 0);
-    assert.match(readFileSync(ledger, 'utf8'), /job=deadbeef0000 ended=unknown reason=job lost/);
+    mkdirSync(repo); g('init', '-q'); writeFileSync(join(repo, 'f'), 'x'); g('add', '.'); g('commit', '-q', '-m', 'x'); g('config', 'uploadpack.allowAnySHA1InWant', 'true');
+    const r = py(env, ['run', 'v3', '--repo', repo, '--sha', g('rev-parse', 'HEAD').trim(), '--argv-b64', argv, '--timeout', '30']);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const [rec] = lines();
+    assert.equal(rec.box, 'v3');
+    assert.match(r.stdout, new RegExp(`job=${rec.id}`));
+    appendFileSync(open, JSON.stringify({ box: 'v3', id: 'deadbeef0000', deadline: future(), misses: 0 }) + '\n');
+    await new Promise((res) => setTimeout(res, 4000));   // a local clone and `true` finish at once
+    assert.equal(py(env, ['tick']).status, 0);
+    const led = readFileSync(ledger, 'utf8');
+    assert.match(led, new RegExp(`tier=hf-box box=v3 job=${rec.id} ended=done`));
+    assert.match(led, /job=deadbeef0000 ended=unknown reason=job lost/);
+    assert.equal(lines().length, 0, 'both ended, so the record is empty');
     rn.stop();
-    await new Promise((r) => setTimeout(r, 300));
-    py(env, ['watch', 'v3', id, '--timeout', '30']);
-    assert.match(readFileSync(ledger, 'utf8').trim().split('\n').pop()!, /ended=unknown reason=box stopped answering|ended=unknown reason=watch ceiling/);
+    await new Promise((res) => setTimeout(res, 300));
+    appendFileSync(open, JSON.stringify({ box: 'v3', id: 'cafe00000000', deadline: future(), misses: 0 }) + '\n');
+    py(env, ['tick']);
+    assert.equal(lines().length, 1, 'one miss: kept');
+    py(env, ['tick']);
+    assert.match(readFileSync(ledger, 'utf8').trim().split('\n').pop()!, /job=cafe00000000 ended=unknown reason=box stopped answering/);
+    assert.equal(lines().length, 0);
   } finally { rn.stop(); fx.done(); }
 });
 
@@ -182,8 +196,8 @@ test('spill pick: the repo\'s box only when Jobs would queue (jobsConcurrent act
     const none = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING,RUNNING' }, ['pick', 'acme/unknown']);
     assert.equal(none.stdout.trim(), '');
     assert.match(none.stderr, /no box owns acme\/unknown; using a Job/);
-    const second = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING' }, ['pick', 'DomLynch/opentrident-steam']);
-    assert.equal(second.stdout.trim(), 'opentrident');
+    const private_ = py({ ...fx.env, STUB_JOBS: 'RUNNING,RUNNING' }, ['pick', 'DomLynch/opentrident-steam']);
+    assert.equal(private_.stdout.trim(), '', 'a private repo has no box route (Strategy 2026-10-27)');
   } finally { fx.done(); }
 });
 
