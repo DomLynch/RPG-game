@@ -50,6 +50,16 @@ V3). One review round per PR; a second fail comes to Strategy. OpenTrident repo 
   first thing). A worktree with b22f333 (text-only perf.json edit) may not be on main. The #158 agent runs until done.
 - V3 Dev: reply pending; state note memory `v3-state-2026-10-27-afternoon-handoff` (live 819ab46 at that time).
 
+## Save-your-work roll call (18:30 Dubai, verified on disk)
+Fresh memory note today: Armagedom Lead, Auditor, Backend, Combat, Deploy, Web, World, Characters & Art
+(`armagedom-art-lane-state`); V3 Dev (`v3-state-2026-10-27-wind-down`); Physics (`physics-dev-state`); OpenTrident
+(11:00 handoff); Hooks (`handoff-disk-sweep-2026-10-27`); Make Human (`project_makehuman_lane-state_2026-10-27`);
+Frankendom Deploy (`project_deploy_handoff_2026-10-27_v1_standby`, V1 K6q36 on standby); Micro-Manager
+(`project-pm-state-20261027-consolidated`, saved ONLY in its own memory folder, which is an expiring scratch workspace
+(deleted after a week idle); it will copy into the shared frankendom-main memory on Dom's yes; better: re-home that
+session to a real folder); Strategy (this doc + memory).
+V1 lanes (Lead, Combat, Web, World, Characters, Backend): standby since 10-25, notes from then, nothing changed today.
+
 ## Sessions
 Frankendom v3 Dev local_1ca78c9a (merger of V3), Physics Dev local_e7ad7655, ARMAGEDOM Lead local_5e22da4d, Hooks
 Dev local_ae8459e7 (sweeps, hooks), Frankendom Deploy local_1bfdae3e (V1 standby, hfjob owner), z- Agent
