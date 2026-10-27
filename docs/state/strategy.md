@@ -2,8 +2,9 @@
 
 ## Now
 Next account/session: read memory `strategy-handoff-2026-10-27-evening` then `HANDOVER-STRATEGY-2026-10-27-evening.md`
-(repo root, pushed). Altitude: CEO / MBB consultant, rulings only, hand fixes over, never implement. Lanes are wound
-down; V3 Dev's receipt was still pending (finishing #158 M4 flip, #157, #155, #152, presence redeploy).
+(repo root, pushed). Altitude: CEO / MBB consultant, rulings only, hand fixes over, never implement. All lanes are wound
+down with fresh memory notes (roll call in the handover doc); V3 main 05dd15f, presence server redeployed, #158 ruled
+"flip now", #155 awaits a reviewer PASS. Micro-Manager's notes are being copied into the shared memory on Dom's yes.
 
 ## Done today
 V3 live aac879c as one endless MMO world with physics combat (75 PRs); Physics M1-M9 (12 PRs); Armagedom 281 live
