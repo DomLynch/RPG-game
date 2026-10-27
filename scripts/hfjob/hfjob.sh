@@ -1,7 +1,7 @@
 #!/bin/bash
 # hfjob [--timeout 30m] [--flavor cpu-upgrade] -- CMD ARGS... : run CMD on a Hugging Face CPU job ($0.03/h, 8 vCPU / 32 GB) at the CURRENT checkout's pushed HEAD.
 # Repo-agnostic (Dom 2026-10-27: "any dev any time can use hugging face"): no repo name lives in this file. It reads `git remote get-url origin` and HEAD of the cwd, refuses
-# if HEAD is not pushed, then submits a detached node:22 job that clones that repo at that sha, runs `npm ci` when there is a package-lock.json, and execs CMD.
+# if HEAD is not pushed, then submits a detached job (the Playwright image from data/hf-boxes.json: Node, git, Chromium) that clones that repo at that sha, runs `npm ci` when there is a package-lock.json, and execs CMD.
 # Prints `tier=hf-cpu job=<id> repo=<owner/name> sha=<sha>` and the `hfjob logs <id>` line (hfjob logs|inspect|cancel|ps pass through to `hf jobs`, with the token), and appends one line to the ledger. Exit 0 = submitted, 2 = usage/refused, 1 = hf failed.
 # Public GitHub repos only (no secret goes into the job). The HF token is read here, inside the script, from /root/.hf/token when HF_TOKEN is unset; it is never echoed, logged or passed on a command line.
 # Env: HFJOB_REPO (override origin), HFJOB_DEPTH (git fetch depth, default 1, 0 = full history), HFJOB_LEDGER (default /var/log/hfjob.log), HFJOB_BIN (the hf CLI, default hf), HFJOB_DRY=1 (print the hf command, run nothing).
@@ -57,6 +57,7 @@ argv=$(printf '%q ' "$@" | base64 | tr -d '\n')
 lane=$(basename "$top" | sed -e 's/^frankendom-//' -e 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
 
 inner=$(cat "$here/inner.sh")   # the clone + npm ci + exec body, shared with the box runner
+image=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["image"])' "${HFBOX_DATA:-$here/../../data/hf-boxes.json}")   # one image (Chromium baked in) for Jobs and boxes: data/hf-boxes.json
 
 if [ "$spill" = 1 ] && [ -z "$box" ]; then   # lanejob's spill: the repo's box when Jobs would queue, a Job otherwise (the reason goes to stderr)
   with_token
@@ -73,7 +74,7 @@ fi
 
 hf=${HFJOB_BIN:-hf}
 args=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$lane"
-  -e "HFJOB_REPO=$repo" -e "HFJOB_SHA=$sha" -e "HFJOB_DEPTH=$depth" -e "HFJOB_ARGV_B64=$argv" node:22 bash -c "$inner")
+  -e "HFJOB_REPO=$repo" -e "HFJOB_SHA=$sha" -e "HFJOB_DEPTH=$depth" -e "HFJOB_ARGV_B64=$argv" "$image" bash -c "$inner")
 
 if [ "${HFJOB_DRY:-}" = 1 ]; then printf '%q' "$hf"; printf ' %q' "${args[@]}"; printf '\n'; exit 0; fi
 
