@@ -1,4 +1,35 @@
-# Strategy state (2026-10-28 16:15 Dubai / 12:15Z, before the clear)
+# Strategy state (2026-10-28 ~18:30 Dubai / 14:30Z, before the clear)
+
+## Now (delta since 12:15Z; the 12:15Z entry below still holds)
+**Valheim-derived items delegated 12:4xZ (Dom approved):** V3: star variants (1/2-star bosses), corpse run (coins +
+weapon drop where you fell, killer boss lingers), terrain from seed noise (Physics slope ground MERGED #92, bodies
+settle to 30 deg), biome rings by distance (ring 1 = Minotaur/Gargantua/Arachne, rings 2-3 = the new seven), boss
+landmarks + trophy unlocks. Armagedom: star variants, corpse run (body bag, hunters converge, scavengers loot after a
+timer), seeded area variation (#462), post-boss raids (#463). **Standing rule 12:5xZ (Dom):** OpenTrident FIRST for
+any asset (asset desk + tagged index at /mnt/HC_Volume_107195252/asset-desk/asset-index.json), new assets only on
+"none"; everything on the data layer, Auditor checks both (memory feedback-dom-opentrident-first-for-assets).
+**Disk standing rule:** one reusable clone per lane under /srv/dev-jobs/<lane>/, swept on merge; Mac agent worktrees
+removed on merge; Hooks Dev builds a nightly sweep + 85% alert. **V3 13:35Z:** all seven boss bodies + two anime
+bodies (anime-girl-blonde, anime-boy-black, Dom to name or cut) merged, not yet wired; feat/rings-spawns wires all
+nine; CI boot check being added (two live breaks today: Gargantua freeze #193, hero sword #228); Dom must make the
+check REQUIRED in branch protection. **Armagedom aligned six (Lead + Strategy, Dom's go asked):** Hunt/Heat + Salvage,
+Daily London modifier, Big Gamble at extraction, 12-min Apocalypse runs, Don't Leave Me (revive/carry), share-card
+death cam (still, not video). Rejected as rule breaks: Underground train (new area), underground economy, Nightfall
+building, weekly campaign (backend). **Armagedom market five (Dom answered 14:1xZ):** Scrapper BUY AND SELL with a
+GLOBAL shared daily stock (Dom authorised Supabase persistence), NPC-led Black Market, kill Bounty Board, rare drops
+(6-8 parts from elites/bosses, NOT a 27-relic album), Mystery Crate post-alpha; heat_tier visible on presence now,
+PvP bounty post-alpha. Strategy's design shape sent to Lead 14:3xZ (items/inventory/market_stock/bounties tables,
+grant_loot/buy/sell/claim/roll_daily rpcs, migrations 000019-000022, 4-slot inventory strip; donor AzerothCore vendor
+pattern); Backend writes the doc, Lead applies migrations. **Heat indicator:** scales hunter pressure, decays ~1 mark
+per 90 s, resets on death; Dom picking the look. **Kachujin:** garment layers broke the cut validator; Physics built
+a general rigid-accessory feature (#90). **Titan's Envoy** body = Parasite L Starkie (Zlorp/Alien Soldier not in the
+library). **Hub NPCs:** Marsh quartermaster = Scrapper, Reyes radio = Bounty Board, Dr. Okafor medic = medical stock;
+19 of 30 MakeHuman crowd bodies ship as one PR; Make Human Dev stood down by Dom unless he says go.
+Open with Dom: Armagedom DB connection string (backups), phone passes (seven bosses stand soon), "go" to Hooks Dev for
+the disk plan + 3-day archive cut + SanDisk dedupe, V3 boot check required in branch protection, name/cut the two
+anime bodies, pick the heat look.
+
+# Entry 2026-10-28 16:15 Dubai / 12:15Z
 
 ## Now
 Next session: read memory `strategy-handoff-2026-10-28` first. Altitude (Dom, repeated 10-27/28): CEO / MBB consultant;
