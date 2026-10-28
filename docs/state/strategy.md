@@ -11,9 +11,9 @@ any asset (asset desk + tagged index at /mnt/HC_Volume_107195252/asset-desk/asse
 **Disk standing rule:** one reusable clone per lane under /srv/dev-jobs/<lane>/, swept on merge; Mac agent worktrees
 removed on merge; Hooks Dev builds a nightly sweep + 85% alert. **V3 13:35Z:** all seven boss bodies + two anime
 bodies (anime-girl-blonde, anime-boy-black, Dom to name or cut) merged, not yet wired; feat/rings-spawns wires all
-nine; CI boot check being added (two live breaks today: Gargantua freeze #193, hero sword #228); Dom must make the
-check REQUIRED in branch protection. **Armagedom aligned six (Lead + Strategy, Dom's go asked):** Hunt/Heat + Salvage,
-Daily London modifier, Big Gamble at extraction, 12-min Apocalypse runs, Don't Leave Me (revive/carry), share-card
+nine; CI boot check being added (two live breaks today: Gargantua freeze #193, hero sword #228); Check confirmed REQUIRED on main
+17:16Z; V3 Dev makes `test` required too on Strategy's ruling. **Armagedom aligned six (Lead + Strategy; Dom later ruled Big Gamble = NO, withdrawn 10-28 17:4xZ):** Hunt/Heat + Salvage,
+Daily London modifier, ~~Big Gamble~~, 12-min Apocalypse runs, Don't Leave Me (revive/carry), share-card
 death cam (still, not video). Rejected as rule breaks: Underground train (new area), underground economy, Nightfall
 building, weekly campaign (backend). **Armagedom market five (Dom answered 14:1xZ):** Scrapper BUY AND SELL with a
 GLOBAL shared daily stock (Dom authorised Supabase persistence), NPC-led Black Market, kill Bounty Board, rare drops
