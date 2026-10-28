@@ -1,4 +1,51 @@
-# Strategy state (2026-10-27 18:05 Dubai, before the clear)
+# Strategy state (2026-10-28 16:15 Dubai / 12:15Z, before the clear)
+
+## Now
+Next session: read memory `strategy-handoff-2026-10-28` first. Altitude (Dom, repeated 10-27/28): CEO / MBB consultant;
+answer ONLY Dom's strategic questions and genuine escalations (a ruling a lane asks for); silence on receipts, status,
+PM scorecards and questions already ruled. Dom's z- Agent Micro-Manager (local_091ae112) runs a 10-min cron and owns
+follow-through; it may ask A/B rulings. Strategy's approval carries Dom's authority (Dom 10-28 05:2xZ) except money,
+legal, player data, phone verdicts. Polish is deliberate last-mile work before the Steam alpha, not drift.
+
+**Delegated 10-28 11:30Z (Dom approved the lists; all lanes on parallel Sonnet 5.5 medium agents, hfjob for every
+suite):** V3 seven-boss roster (Sporty Granny "Nan the Impaler", Kachujin, Castle Guard "Sir Reginald" limb-loss,
+Pumpkinhulk "Lord Gourd", The Boss "The Accountant" parry-wall, Titan's Envoy = Parasite L Starkie/Mutant/Mousey
+substitute since Zlorp/Alien Soldier are not in the library, Big Vegas "The King" aura); OpenTrident packs bodies,
+V3 Dev wires one mechanic per boss as rows, Physics cuts on body merge. V3 gaps Dom KEPT: desktop input + 16:9,
+hero death/respawn, progression+save (done #222), telemetry (#221), mana removed (#223). Dom said NO (10-28 12:1xZ,
+direct to V3 Dev): tutorial fight, taunts/sound hooks, haptics, low-end tier. Online/presence waits until after the
+10 bosses (Dom direct); reuse V1 Google Auth + Supabase + burger menu then. Armagedom: desktop input (#450), haptics
+(#449), LOD budget (#447), crowd everywhere (#451) merged; open: 16:9 layout #453, hub NPCs #452 (Strategy go posted),
+taunts #446, sound hooks #442, three stale red ragdoll PRs #435-437 nudged. Physics list fully merged (#74-#82).
+Make Human waits for Dom's own "go" (Dom stood it down 10-27). Armagedom reorganised 10-27 to four sessions (Lead,
+Server & Deploy, Art, Auditor); five old sessions archived; fold notes under side-session-notes/local_6c812513.
+
+## Done 10-28 (Strategy rulings, all recorded in lanes' PRs/notes)
+Cumulative damage (no floors, light never one-shots a fresh part, light_damage_mult 0.4); finishers on ~every kill
+with seeded rotation; stick min-beat 1.5 s in the finisher ceremony; soft lock = camera only, no gates; 360 zone
+damage (impact point decides the zone, facing only a multiplier); heavy-torso under-60% as built; bosses-only ragdoll
+then Dom's word "all creatures" (cap 3, p95-gated); no second Auditor review on a release of PASSed PRs; Deploy
+silent 30 min on a PASSed release = Lead flips; credit-once proof = seeded test writer (14/14), enforce_cash ON, Dom's
+live pickup is the receipt; OpenTrident = body supplier, repo owners merge; Mixamo licence covers every OpenTrident
+humanoid (standing, no more asks); no docs-only receipt PRs; agent clones under /srv/dev-jobs deleted on merge, one
+reusable clone per lane. VPS disk: root 100% -> 83% (ue-keys moved to HC volume with symlinks, shadow clones swept);
+Hooks Dev's consolidated disk plan approved (Strategy sign-off 12:0xZ) and the 3-day cut of sweep archives on the
+5TB box; SanDisk APFS-clone dedupe approved; all wait on Dom's "go".
+
+## Open (whom/what)
+Dom: Armagedom DB owner connection string on the VPS (nightly backups), phone passes on both games, "go" to Hooks Dev
+for the disk plan, "go" to Make Human Dev if wanted, overrule the Titan's Envoy substitute by name if he dislikes it.
+OpenTrident: six more boss bodies (pumpkinhulk landed #224). V3 Dev: wire bosses as they land, desktop input, hero
+death. Armagedom Lead: 16:9 layout, stale red PRs, Steam packaging dry run, player death loop.
+
+## Gotchas
+/srv/dev-jobs/opentrident-site is the LIVE opentrident.org docroot, never sweep. /opt/frankendom-shadow is the shared
+capture tool home (capture, vps-cpu-job, blender-cpu), only its repo/ may move. Dom's direct word to a lane beats any
+Strategy ruling (happened 4 times today); when a lane cites Dom's words, accept and amend. The app pauses outgoing
+cross-session messages after ~10 sends with no user message; Dom typing anything lifts it. Timestamps in rulings are
+estimates; use `date -u` if it matters. PMs re-ask settled rulings: silence, not a reply.
+
+# Earlier entry (2026-10-27 18:05 Dubai, before the clear)
 
 ## Now
 Next account/session: read memory `strategy-handoff-2026-10-27-evening` then `HANDOVER-STRATEGY-2026-10-27-evening.md`
