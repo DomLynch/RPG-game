@@ -28,6 +28,7 @@ PATHS=()   # the --path values, one array element each: never split or glob-expa
 #   file   three exact one-off regular files in /tmp (rev2354-dist.tgz, wk.tgz, wk2.tgz; Lead 2026-10-15): archive first, then delete. The tool is NOT taught files in general: any other file is refused (a lane kind needs a directory)
 # Anything else is refused: this list is the only place a root is added, and it needs a ruling by Lead.
 AGED_MIN=${AGED_MIN:-120}
+ROOT_IDLE_H=${ROOT_IDLE_H:-48}   # a /root child is swept only after this many hours without a change (Strategy 2026-10-28)
 sweep_kind() {
   local p=$1
   case "$p" in *..*|*" "*) return 0;; esac
@@ -44,6 +45,8 @@ sweep_kind() {
     /tmp/rev2354-dist.tgz|/tmp/wk.tgz|/tmp/wk2.tgz) echo file;;   # the only regular files the tool will take, exact (Lead 2026-10-15)
     /tmp/rank-job) echo aged;;   # Web's rank-job tree (Lead 2026-10-14): exact, aged, and refused while anything runs inside (the sweep_in_use checks)
     /root/cn[0-9]*) [ "$(dirname "$p")" = /root ] && [[ "$(basename "$p")" =~ ^cn[0-9]+$ ]] && echo aged;;   # the preflight full clones /root/cnNN (Lead 2026-10-14): digits only, direct children of /root
+    /root/frankendom-worktrees|/root/frankendom-worktrees/*) ;;   # Dom's sandbox rule: refused, even as a /root child
+    /root/*) [ "$(dirname "$p")" = /root ] && case "$(basename "$p")" in .*) ;; *) echo lane;; esac;;   # Strategy + Dom 2026-10-28 (the root disk hit 98% twice; /root held 70 GB of per-task clones this tool could not reach): any DIRECT child of /root is a lane root, archive-first, and only once idle ROOT_IDLE_H hours (the check is in named-path mode below). Dotdirs (.ssh, .claude, .cache) and anything deeper stay refused.
     /tmp/.*|/tmp/claude*|/tmp/systemd-private-*|/tmp/snap-private-tmp|/tmp/pulse-*|/tmp/tmux-*|/tmp/ssh-*) ;;   # refused outright, even by exact path: dotfiles (.X11-unix, .ICE-unix ...), a Claude session's scratch (idle between turns), a live service's PrivateTmp, other session/OS dirs (Lead + Auditor 2026-10-15)
     /tmp/*) [ "$(dirname "$p")" = /tmp ] && echo lane;;   # Strategy 2026-10-15: an exact direct child of /tmp, archive first; the hooks-*, cq-*, rank-job and one-off arms above win first
   esac
@@ -308,6 +311,8 @@ if [ "${#PATHS[@]}" -gt 0 ]; then
       if sweep_in_use "$target"; then say "REFUSE(bind source in use, or the in-use probe could not tell) $p -> $target"; continue; fi
     fi
     if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
+    # A /root child (Strategy + Dom 2026-10-28): archive-first like any lane dir, but only once nothing inside changed for ROOT_IDLE_H hours (node_modules excluded, as for the aged kinds).
+    if [ "$(dirname "$p")" = /root ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$ROOT_IDLE_H hours ago" -o -newerct "$ROOT_IDLE_H hours ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(a /root dir changed within the last ${ROOT_IDLE_H}h) $p"; continue; fi
     if [ "$orphan" = 1 ]; then
       if [ $APPLY = 0 ]; then say "would umount the ORPHAN bind $p (its source is already gone), remove the empty mount point and drop its fstab line; nothing is archived"
       else say "$(sweep_bind_release "$p")"; fi
