@@ -21,7 +21,8 @@ test('sweep_kind: the lane roots keep the archive-first rule', () => {
   // The volume's copies of the two job roots (2026-10-21): a moved dir's real path is a lane dir; the volume roots themselves and anything else on it are refused.
   // /root/work-cc is a lane root by exact path (2026-10-21); /root/frankendom-worktrees, its sandbox dirs and anything under work-cc stay refused (Dom's sandbox rule).
   assert.equal(kind('/root/work-cc'), 'lane');
-  for (const p of ['/root/work-cc/dist', '/root/work-cc/', '/root/work-cc2', '/root/frankendom-worktrees', '/root/frankendom-worktrees/sandbox', '/root/frankendom-worktrees/sandbox-base', '/root/frankendom-worktrees/sandbox-test2.log', '/root/work-1880'])
+  assert.equal(kind('/root/work-cc2'), 'lane');   // a plain /root child since 2026-10-28 (Strategy + Dom): swept only after ROOT_IDLE_H hours idle
+  for (const p of ['/root/work-cc/dist', '/root/work-cc/', '/root/frankendom-worktrees', '/root/frankendom-worktrees/sandbox', '/root/frankendom-worktrees/sandbox-base', '/root/frankendom-worktrees/sandbox-test2.log'])
     assert.equal(kind(p), '', `${p} is refused`);
   assert.equal(kind('/mnt/HC_Volume_107195252/work/combat-er86'), 'lane');
   assert.equal(kind('/mnt/HC_Volume_107195252/dev-jobs/s2x'), 'lane');
@@ -43,9 +44,19 @@ test('sweep_kind: the six retired lane homes and the two /tmp one-offs, exactly;
     assert.equal(kind(p), '', `${p} is refused`);
 });
 
+// Strategy + Dom 2026-10-28: the root disk hit 98% twice in a day and /root held 70 GB of per-task clones (f3v-*, bw-*, boss-*, v3-*, arma-*) the tool refused. Any DIRECT child of /root is now a lane root
+// (archive-first); dotdirs, anything deeper, the exact /root/frankendom-worktrees sandbox tree (Dom's sandbox rule) and non-children stay refused.
+test('sweep_kind: a direct child of /root is a lane root; dotdirs, grandchildren and the sandbox tree are refused', () => {
+  for (const p of ['/root/f3v-load', '/root/bw-nan', '/root/boss-big-vegas2', '/root/work-1880', '/root/arma-chain', '/root/bossrows', '/root/cn', '/root/cnx1', '/root/xcn1']) assert.equal(kind(p), 'lane', p);
+  for (const p of ['/root/.ssh', '/root/.cache', '/root/.hf', '/root/f3v-load/sub', '/root/f3v-load/', '/root/f3v-load/../x', '/root', '/root/', '/tmp/root/foo', '/rootx/foo', '/root/frankendom-worktrees', '/root/frankendom-worktrees/sandbox']) assert.equal(kind(p), '', `${p} is refused`);
+  // the narrower pre-existing kinds still win: /root/work-cc is a lane by its exact rule and /root/cnNN stays aged
+  assert.equal(kind('/root/work-cc'), 'lane');
+  assert.equal(kind('/root/cn7'), 'aged');
+});
+
 test('sweep_kind: /tmp/rank-job and /root/cnNN are aged roots, exact (Lead 2026-10-14); lookalikes, children and other parents are refused', () => {
   for (const p of ['/tmp/rank-job', '/root/cn1', '/root/cn20', '/root/cn007']) assert.equal(kind(p), 'aged', p);
-  for (const p of ['/tmp/rank-job/sub', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/rank-job/sub', '/var/tmp/rank-job', '/rank-job', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/home/lanes/cn1']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: odd paths are refused', () => {
@@ -81,8 +92,8 @@ test('sweep_safe_path: an idle systemd-private dir (a real directory, nothing ru
 // Lead 2026-10-15: three regular files get an exact one-off arm (kind "file": archive first, then delete); nothing else is taught files.
 test('sweep_kind: exactly /tmp/rev2354-dist.tgz, /tmp/wk.tgz and /tmp/wk2.tgz are kind file; a neighbour, a child, a lookalike and another parent are not', () => {
   for (const p of ['/tmp/rev2354-dist.tgz', '/tmp/wk.tgz', '/tmp/wk2.tgz']) assert.equal(kind(p), 'file', p);
-  for (const p of ['/tmp/wk3.tgz', '/tmp/wk.tgz.bak', '/tmp/rev2355-dist.tgz', '/tmp/wk.tar']) assert.equal(kind(p), 'lane', `${p} is an ordinary /tmp child (a directory-only kind)`);
-  for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/root/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/wk3.tgz', '/tmp/wk.tgz.bak', '/tmp/rev2355-dist.tgz', '/tmp/wk.tar', '/root/wk.tgz']) assert.equal(kind(p), 'lane', `${p} is an ordinary /tmp or /root child (a directory-only kind: a regular file is refused later by sweep_safe_path; /root children since 2026-10-28)`);
+  for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour regular file of kind lane passes since 2026-10-21', { skip: process.platform !== 'linux' }, () => {
