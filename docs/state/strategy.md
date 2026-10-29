@@ -1,4 +1,31 @@
-# Strategy state (2026-10-28 ~18:30 Dubai / 14:30Z, before the clear)
+# Strategy state (2026-10-29 06:50Z) — Dom low on tokens: AUDIT ONLY, no game dev (Micro-Manager relayed 06:46Z)
+
+## Now
+**Mode:** Dom ruled audit-only 06:46Z; Micro-Manager stopped its sweep; every lane finishes its audit items and sends Dom
+a 5-line scorecard, then stands down. Strategy: silence unless a ruling is asked. Parked until Dom lifts: V3 #289
+mechanics batch (final head f9dbf0519, CI green, needs one Mac real-GPU 7-boss proof with MAC_HEAVY_OK), games-platform
+slice 0, platform steps 1-3, Armagedom backup (needs Dom's DB owner string as a root-only file on the VPS).
+**Rulings 10-28 evening to 10-29 (all sent, all accepted):** V3 beta = top 6 (workshop + name your monster, share-card
+still, mid-fight dismemberment, text commentator, Daily Pit, minimal Pit Crawl); V3 `test` + `built-game boot` REQUIRED
+on main (done); one weapons PR (#286 merged) and ONE mechanics batch (#289) instead of serial chains; WIP cap 6 agents
+(raised to 10 for the audit window, back to 6 at 12:00Z); V3 repo 815 MB at HEAD is the GitHub "TLS" cause, agents use
+--filter=blob:none, body binaries move to the OpenTrident asset desk (OpenTrident Dev owns, sizing first, no CDN spend);
+no git history purge, no key rotation (only a filename was committed); Armagedom Big Gamble WITHDRAWN (Dom's NO); extraction
+= 20 s hold-out (live 326+); Armagedom content freeze; market server-first (done, live); Hooks: sweep roots extended to
+/root (#3668), /root clone guard (#183), hfjob enforcement LIVE on the Mac (#184 ssh/heavy refusal, #185 Agent-brief
+injection, #3669 auto-push), VPS wrapper #3670 approved with token as /etc/hfjob/token root:hf 0640, refinement asked:
+allow Mac browser/GPU proof rows at load < 12 (Dom's 10-17 waterfall); disk audit signed off (17 worktrees, all 5TB moves,
+regenerable caches; VM image 9.9G is Dom's call); Frankendom Lead Dev = second auditor for Armagedom drafts (#498 #499 PASS).
+**Platform plan (final, Dom "ok" 10-29 ~06:00Z):** ONE PLATFORM, TWO GAMES, layered L0-L3; item core = id, game_id, type,
+asset + optional weapon/character blocks, per-game extensions (V3 #292 merged); Armagedom's live Supabase = platform
+project (Dom's one decision, pending); separate ledgers per game, cosmetic-only cross-game rewards; repo `games-platform`
+PUBLIC schema-only (V3 Dev creates when lifted); steps: 0 backup restored-and-verified (Server & Deploy) -> 1 item core
+(done) -> 2 identity package + copied migrations on the restore receipt -> 3 market engine; Armagedom changes additive,
+flagged, Auditor-gated; no auth cut-over before Dom's phone pass; no new platform dev, Make Human stays stood down.
+**Open with Dom:** Supabase platform project yes/no; DB owner string on the VPS (root-only); Armagedom test-account yes
+(ARMA_TEST_JWT env var, notes/shop-on-checklist.md) for the shop/drops flip; phone passes 326-330 and V3; VM image delete.
+
+# Entry 2026-10-28 ~18:30 Dubai / 14:30Z (before the clear)
 
 ## Now (delta since 12:15Z; the 12:15Z entry below still holds)
 **Valheim-derived items delegated 12:4xZ (Dom approved):** V3: star variants (1/2-star bosses), corpse run (coins +
