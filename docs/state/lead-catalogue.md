@@ -5,6 +5,7 @@
 ## Done (10-28 to 10-29)
 - V3 (DomLynch/Frankendom-v3) audit PRs, all PASS with comments on the PRs: #294 @b6f1da1cf (docs), #296 @bd18fbd1e (typed rows loader; hfjob 6ae2e3cf, 1245 pass / 0 fail), #297 @ff5ac798c (shared Playwright helper; hfjob 6ae2e3d4, 1250/0; stills scripts not run), #253 @d22ea5bcc (Minotaur hit matrix test; hfjob 6ae2e3da, 1206/0), #122 @646e39ed2 (zone live design doc; from 10-27, so check the A/B/C assumptions before merging). Sent to V3 Dev, who merges one at a time.
 - ARMAGEDOM second auditor (Strategy's ask): #498 PASS @c6ce7b8d8 (combat.js split 1: moved code identical, the import cycle is safe because the bindings are used only at call time), #499 PASS @b83eb156d (dog calf pose narrowing: only calf()'s update is narrowed; the rat/saw/grenade/rocket/boss paths are unaffected). Both stay draft until Dom's phone pass; the auditor-pass label is not added (not mine). ARMAGEDOM - Lead told.
+- ARMAGEDOM #504 (import-cycle fix, enemy-core.js leaf + nextSerial) PASS @e2aac308d, posted after the pause at the Micro-Manager's relay of Dom; ARMAGEDOM Lead merges.
 - V1 share clip: sent V3 Dev the file list (RPG-game #827/#1008, src/clip.ts, captureStream + MediaRecorder, MP4 first and WebM as fallback, 720x1280, record-on-trigger re-play rather than a ring buffer).
 ## Open
 - Nothing owed by Lead. V3 merges are V3 Dev's. ARMAGEDOM #498/#499: Strategy said draft until Dom's phone pass, but Dom's 10-29 audit ruling says the phone pass no longer gates audit merges, so the normal gates apply (ARMAGEDOM - Lead's call).
