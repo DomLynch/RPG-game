@@ -42,7 +42,23 @@ case "$flavor" in cpu-upgrade|cpu-basic) ;; *) echo "hfjob: --flavor '$flavor' i
 top=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "hfjob: the cwd is not inside a git checkout" >&2; exit 2; }
 sha=$(git -C "$top" rev-parse HEAD 2>/dev/null) || { echo "hfjob: no HEAD commit in $top" >&2; exit 2; }
 pushed() { [ -n "$(git -C "$top" branch -r --contains "$sha" 2>/dev/null)" ]; }
-pushed || { git -C "$top" fetch -q origin 2>/dev/null || true; pushed; } || { echo "hfjob: HEAD ${sha:0:9} is not pushed; push it first (the job clones the sha from GitHub)" >&2; exit 2; }
+if ! pushed; then
+  git -C "$top" fetch -q origin 2>/dev/null || true
+  if ! pushed; then
+    # Strategy + Dom 2026-10-29: "HEAD is unpushed" was the excuse for not using hfjob. Push the sha to a temp branch on origin instead of failing (HFJOB_NO_PUSH=1 keeps the old refusal; a dry run only says what it would do).
+    ref="hfjob/$(id -un | sed 's/[^A-Za-z0-9_.-]/-/g')-${sha:0:12}"
+    if [ "${HFJOB_NO_PUSH:-}" = 1 ]; then
+      echo "hfjob: HEAD ${sha:0:9} is not pushed; push it first (the job clones the sha from GitHub)" >&2; exit 2
+    elif [ "${HFJOB_DRY:-}" = 1 ]; then
+      echo "hfjob: HEAD ${sha:0:9} is not pushed; would push it to origin $ref (dry run pushes nothing)" >&2
+    elif perr=$(git -C "$top" push -q origin "$sha:refs/heads/$ref" 2>&1); then
+      echo "hfjob: pushed HEAD ${sha:0:9} to origin $ref (temp branch; delete it when the job is done)" >&2
+    else
+      echo "hfjob: HEAD ${sha:0:9} is not pushed, and the auto-push to origin failed ($(printf '%s' "$perr" | grep -v '^[[:space:]]*$' | tail -n 1 | cut -c1-200)); push it yourself (the job clones the sha from GitHub)" >&2; exit 2
+    fi
+  fi
+fi
+[ -z "$(git -C "$top" status --porcelain --untracked-files=no 2>/dev/null)" ] || echo "hfjob: uncommitted changes are NOT in the job; it runs the committed sha ${sha:0:9} only" >&2
 
 repo="${HFJOB_REPO:-$(git -C "$top" remote get-url origin 2>/dev/null || true)}"
 case "$repo" in git@github.com:*) repo="https://github.com/${repo#git@github.com:}" ;; esac
