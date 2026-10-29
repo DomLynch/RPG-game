@@ -34,7 +34,7 @@ So the first move after setup is PLATFORM STEP 0 (backup), then step 2 (shared l
 ## 2. Live state (receipts in each lane's file)
 - V3: main e44150d (after audit merges), live equals main; `test` + `built-game boot` REQUIRED on main. V3 repo is 815 MB at HEAD (agents clone with --filter=blob:none; binaries to move to the asset desk, OpenTrident owns).
 - ARMAGEDOM: live 330 (cfd2eda0), rollback 329, floor 323; main ef0b01ea → cut 331 (import-cycle fix). Shops + kill drops OFF until Dom's test. Market server + migrations live; hosted migration 20261029000028 market guard applied.
-- Hooks: hfjob enforcement LIVE on the Mac (Codex-Hooks #184 ssh/heavy refusal, #185 Agent-brief injection; RPG-game #3669 auto-push). Refinement asked: allow Mac browser/GPU proof rows at load < 12 (Dom's waterfall). VPS wrapper #3670 approved, not installed; token to be /etc/hfjob/token root:hf 0640.
+- Hooks: hfjob enforcement LIVE on the Mac (Codex-Hooks #184 ssh/heavy refusal, #185 Agent-brief injection; RPG-game #3669 auto-push). Refinement asked: allow Mac browser/GPU proof rows at load < 12 (Dom's waterfall). VPS wrapper #3670 (hfguard) INSTALLED and live since 10-29 08:03Z (verified by Strategy 14:44Z: npm/npx/blender/playwright symlink to hfguard.sh); lanes-user token still missing: Dom provisions /etc/hfjob/token root:hf 0640, never in chat.
 - Disks: Mac ~40 GB free (91%); SanDisk→5TB transfer script running (safe to rerun); VPS root sweep tool installed, /root is a sweep root now.
 
 ## 3. THE PLATFORM PLAN (final, Dom "ok" 10-29) — first move after setup
