@@ -21,9 +21,10 @@ def die(msg, code=1):
 
 def token():
     t = os.environ.get('HF_TOKEN')
-    if not t and os.access('/root/.hf/token', os.R_OK):
-        t = Path('/root/.hf/token').read_text().strip()
-    return t or die('no HF token (HF_TOKEN unset and /root/.hf/token unreadable)')
+    for f in ('/etc/hfjob/token', '/root/.hf/token'):   # /etc/hfjob/token is root:hf 0640 so lane users in group hf can read it (Dom 2026-10-29)
+        if not t and os.access(f, os.R_OK):
+            t = Path(f).read_text().strip()
+    return t or die('no HF token (HF_TOKEN unset and /etc/hfjob/token, /root/.hf/token unreadable)')
 
 
 def space_id(name):

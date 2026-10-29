@@ -9,7 +9,8 @@
 set -euo pipefail
 
 # the hf CLI is not logged in as root: the token is read here, inside the script, and exported to the hf process only (never printed, never on a command line)
-with_token() { if [ -z "${HF_TOKEN:-}" ] && [ -r /root/.hf/token ]; then HF_TOKEN=$(cat /root/.hf/token); export HF_TOKEN; fi; }
+# /etc/hfjob/token (root:hf 0640, provisioned by Dom 2026-10-29) is read first so lane users in group hf can spill; root falls back to its own file.
+with_token() { if [ -z "${HF_TOKEN:-}" ]; then for f in /etc/hfjob/token /root/.hf/token; do if [ -r "$f" ]; then HF_TOKEN=$(cat "$f"); export HF_TOKEN; break; fi; done; fi; }
 # hfjob logs|inspect|cancel|ps ARGS... : the same hf subcommands, with the token, so a job can be followed without `hf auth login`
 case "${1:-}" in logs|inspect|cancel|ps) with_token; exec "${HFJOB_BIN:-hf}" jobs "$@" ;; esac
 
