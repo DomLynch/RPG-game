@@ -47,7 +47,7 @@ One platform, two games; never one game with two front-ends. Layered: L0 service
 - Staffing: no stand-down, no new "platform dev"; existing owners. A dedicated platform session only at step 2 if Server & Deploy is at capacity. Three standing rules: new data uses the core shape, no refactor of existing; check the other game before building loot/inventory/NPC AI/trading; no auth or DB change by anyone but Server & Deploy.
 
 ## 4. Open with Dom (only Dom can clear these)
-1. Yes/no: ARMAGEDOM's live Supabase project becomes the platform project (recommended yes).
+1. DECIDED 10-29 ~14:5xZ: Dom typed "yes" in the Micro-Manager chat, ARMAGEDOM's live Supabase project IS the platform project (verified by Strategy in the transcript).
 2. DB owner connection string placed at `/root/.armagedom/db-url` on the VPS, root-only, never in chat. Blocks step 0.
 3. ARMAGEDOM test account for the shop/drops flip: token via env var ARMA_TEST_JWT only (`notes/shop-on-checklist.md`); then Dom's real buy/sell test on #490.
 4. Phone passes: ARMAGEDOM 326–331, V3 current build (gates gameplay drafts #498 #499 and tuning; does NOT gate audit merges).
