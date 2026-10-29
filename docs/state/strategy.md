@@ -22,7 +22,11 @@ project (Dom's one decision, pending); separate ledgers per game, cosmetic-only 
 PUBLIC schema-only (V3 Dev creates when lifted); steps: 0 backup restored-and-verified (Server & Deploy) -> 1 item core
 (done) -> 2 identity package + copied migrations on the restore receipt -> 3 market engine; Armagedom changes additive,
 flagged, Auditor-gated; no auth cut-over before Dom's phone pass; no new platform dev, Make Human stays stood down.
-**Open with Dom:** Supabase platform project yes/no; DB owner string on the VPS (root-only); Armagedom test-account yes
+**Dom's audit rulings (via Micro-Manager 06:55Z):** no LICENSE work, no LFS or history rewrite, phone pass does NOT gate
+audit merges (it gates gameplay drafts). Armagedom audit leftovers: migration 000027, import-cycle fix, audit-gate
+allow-list, drift-allow, verify-hosted.sql, drift check. 06:55Z: Dom PAUSED every dev except V3 Dev, and the
+Micro-Manager and Strategy too; Strategy restarts only on Dom's word ("Project Strategy, read the handoff").
+**Open with Dom:** Supabase platform project yes/no; DB owner string at /root/.armagedom/db-url on the VPS (root-only, blocks the backup); Armagedom test-account yes
 (ARMA_TEST_JWT env var, notes/shop-on-checklist.md) for the shop/drops flip; phone passes 326-330 and V3; VM image delete.
 
 # Entry 2026-10-28 ~18:30 Dubai / 14:30Z (before the clear)
