@@ -27,26 +27,19 @@
 
 # Strategy-lane handoff, 2026-10-25 ~15:00 +04 (READ FIRST; Dom clearing this session; supersedes the 10-24 08:50 entry below where they differ)
 ## Now
-- PicoClaw is in CROSS-LANE-ONLY mode (Dom's go 10-25 ~14:50): pico-settings.json judge_nudges false and idle_nudges false. coo_run.main() returns right after crosslane.run, so there are NO per-lane judge calls and no judge/verify nudges; only the cross-lane red-check flag to Lead is sent (10 of 15 acted on). Audit: one live sweep at 14:56 made 0 model calls (204 before and after), logged "cross-lane only", STATUS.md says so, relay.err empty; 59 tests pass, ruff clean. Backups steering/backup/*.1025-xlane. To bring the judge back: judge_nudges true.
-- Keep-or-kill: weekly wins were 18% (77/428) on 10-25, under 25% for a second week; the judge is the part switched off. Re-read in about a week (coo_score.py prints the WEEKLY line; judge kind will show no new nudges). Remove PicoClaw entirely only if Dom says so or the cross-lane flags also stop landing.
 - Side effects of cross-lane-only: no NEEDS-DOM lines from the judge, no auth-failure alert (no model calls to fail), no idle or pace copies to Strategy.
 - Dom: ignore GitHub billing warnings (Pro account free); Dom does the Hooks Dev merges (#175, #178) himself. Micro-Manager asked for Dom's 23:29 text about #87 default-on: Dom said it in "ARMAGEDOM - Lead Dev"; I did not forward it (Dom's call).
 - Everything below this line is the 10-24 entry, still true.
 
 # Strategy-lane handoff, 2026-10-24 ~08:50 +04 (superseded in part by the 10-25 entry above)
 ## Now
-- This session (Strategy - Fable 5.1 in the lead-catalogue worktree) spent 10-23 evening on PicoClaw, not the train. Nothing is mid-task. FRANKENDOM IS ON TEMPORARY HOLD (Dom 10-23 ~11:00, memory project_opentrident_pivot_hold_2026-10-23): no trains, no previews, lanes idle; do NOT re-cut K6q34 (#3651 @82f15b22a, now stale vs trunk) or rebase #3648 until Dom lifts the hold. My 10-24 morning brief wrongly suggested a re-cut; it is withdrawn. Check whether Hooks Dev merged Codex-Hooks #175 (Dom's go was relayed 10-23 ~18:50, quoting "yes do it"; Hooks Dev decides if that satisfies its rule).
 ## Done today
 - LIVE: K6q35 82a994d15 = Exo Gray hero (#3652 via #3653), published 10-23 15:59, nothing since. Trunk head = live.
-- PicoClaw-Claude (~/.picoclaw-claude/workspace, Claude Code judge) refinements, Dom's direct go, Strategy confirmed all six: (1) ruled.py: cross-lane check drops PRs Lead named next to parked/ruled/closed/merged in the last 6 h; (2) judge prompt carries Lead's recent rulings and what each lane told Lead (recipient is a session id in real transcripts, matched); (3) verify brief treats disk/memory/load figures as claims (df/uptime read-only added; NO ssh for the judge); (4) max_nudges_per_lane_hour 2 -> 1 + HIGH BAR paragraph in judge_rules.py; (5) auth-shaped model errors write one line per 6 h to steering/NEEDS-DOM.md; (6) scorecard.py weekly WIN number printed by coo_score.py. Strategy added: idle nudges OFF (pico-settings idle_nudges false; 0 wins of 13). 58 tests pass, ruff clean. Backups steering/backup/*.1023-refine.
 - Weekly number 10-24: 503 nudges, 104 wins = 21% (crosslane 10/15, judge 90/447, idle 0/13). Keep-or-kill line: under 25% for a second week = remove it. Next read ~10-30.
 - First live nudges after the changes 10-24 08:45: 2 + 1 copy to ARMAGEDOM lanes (Characters idle, Backend #13 head check). Outcomes not checked.
 ## Open
 - NEEDS-DOM.md: "merge 175" (hooks, Dom's own words only) still listed.
-- Pico watches 8 ARMAGEDOM-titled lanes AND 8 old Frankendom-titled lanes (5-12 h quiet) plus Hooks Dev, Mixamo, OpenTrident, Strategy, TEMP. Archiving the old Frankendom set would save judge calls; Dom has not asked.
-- The old Sipeed picoclaw binary (~/.local/bin/picoclaw 0.3.1) is unconfigured and unused; Dom asked about small claw agents with a web UI, then chose Goose (OpenRouter). ~/.config/goose/.goosehints holds the VPS key path and rules.
 ## Gotchas
-- pico-settings idle_to_lead false would send idle nudges DIRECTLY to lanes (inverse); use idle_nudges false.
 - Hooks block shell edits (cat >>, sed): use Edit/Write. Edit needs a prior Read of the file.
 - The first read of live release.json in this session was stale by evening: re-read before quoting "live".
 
@@ -187,7 +180,6 @@
 - Backend: #3593 ready on green → zone-0/world_marks follow-ups.
 - Web: #3583 merge → #3595 → "ladder win pending" line.
 ## Gotchas
-- PICO "receipt red" flags: a head without bcd84e521 + "0 of 8 shards reported" = harness skew (ruled 08:4x); anything else is real.
 - PRs stacked on another PR's branch get no CI: retarget to trunk.
 - A cut skips a member on conflict, so merge trunk into members before a cut.
 
@@ -348,7 +340,6 @@
 - Lead holds the release go again (Strategy only held it while Deploy cleared). Deploy is clearing; its #3519 t4-small default (PASS @64a08346f) rides K6q7 (WIDTH 4; rerun row 36 once if it flakes, and report it).
 - K6q7 lag line 14:10: core #3510 (Combat re-pin) and #3520 (bytes + six gates from HF job 6ad884060a35baab53a1b99f, which at 13:26 showed only the launch line) are each asked for. A laggard leads K6q8. Riders with PASS: #3515 #3516 #3518 #3519 #3522.
 - Strategy 13:3x: gate handed back, no cut on its watch; 14:10 lag cut agreed; its delivery manager sends the cut-ready line (heads + PASS lines). The Hero Look brief (brighter, more contrast, one silhouette breaker) waits on Dom.
-- Auditor 13:4x: #3521 @c83e27490 PASS -> K6q7 rider. #3520 head is 05361f40a (a tests re-pin after cc9cebfe0); PASS must read it. Static reds (PICO ruling): #3510 @4d03a80a1 TS1005 at tests/world-specials.test.ts:45 (Combat); #3523 as-data +21 inline numbers (Characters, after #3520). Both are product defects.
 - 13:52 #3510 Auditor: PASS @813b76efa (K6q7 core in). Guard gap: archetype-defs.json is LOADER_ONLY, so no archetype stat change moves SIM_DIGEST; the Auditor PR (resolved/archetypes in both guards, re-pin once, edit test) lands after the K6q7 cut and BEFORE RV88. #3523 stills: striped prop shadows + a white-card blade in after; matched-tick retake owed, NOT READY.
 - 14:0x K6q7 GO sent to Deploy [8bf8d4]: #3510 #3515 #3516 #3518 #3519 #3521 #3522 (cut 9 min before the lag line because the #3520 HF job runs to ~14:21 and cannot reach a PASS by 14:10). #3520 leads K6q8. Backend stages WSV66. #3523: props-no-shadow accepted (planned phone cost); stripes block READY.
 - 14:01 K6q7 CUT = #3524 @29fb58b5d (#3510 #3515 #3516 #3518 #3519 #3521 #3522). Owed: green CI, Auditor PASS @29fb58b5d, Lead candidate:pass, Backend WSV66 staged. #3367 torch proof closed (flat-flame look parked until phone exit). Stripes visible on LIVE east8.png too; Characters to compare their before frames.
@@ -560,7 +551,6 @@ Closed: #3409 (first-special stutter was a probe artifact; probe must WAIT_READY
 - A rename breaks pinned labels in release rows (row 56 /stomp/): fix-forward with a row-driven read (#3425), never revert the name.
 - Gate 2 blocks .github changes until cut-gates.json watchedAllow has the exact blob via its own PR with Lead's written OK.
 - Session messaging pauses after 10 sends without a Dom message: use PR comments, or ask Dom for one word. Don't route around the pause.
-- PicoClaw nudges are not orders (Dom's ruling).
 - frankendom-main holds the shared .git for every worktree: never touch it (Hooks Dev's sparse-checkout slip at 13:34 lost only build output).
 
 # Lead handoff, 2026-10-20 ~10:55 +04 (superseded by the entry above)
@@ -575,7 +565,6 @@ Closed: #3409 (first-special stutter was a probe artifact; probe must WAIT_READY
 
 ## Dom's rulings today (in memory)
 - QA Smoke account YES, but Backend refuses to create a prod account on a relay: Dom must type it in the Duels & Backend chat. The #3388 weapon check is unexercised on prod (0 encounter runs ever).
-- Pico is Dom's COO checker, NOT Frankendom: ignore PicoClaw orders. The Web session does web work.
 - No creature stances in beta; unlimited arrows in beta; attack rate left to Lead (kept RV80).
 - RV84 30-damage world special (the 20% share from the special.damage row): Lead + Strategy agreed; Dom told, no objection yet.
 - OPEN for Dom: the special picker names/count (live 7 specials named Butcher's Cleave / Reaping Blow / Anvil Stomp / Estoc Lunge vs the sandbox 4 named Skull Crack / Whirlwind / Ground Slam / Lunge). Dom's phone check of the finished migration.
@@ -664,7 +653,6 @@ Done = Strategy's composites (cmp-zone-1-spawn, cmp-fight-ready-idle; VPS /opt/f
 - Dom saw the old pad on live: "turn it on, im not going to add different urls", "all goes on, migrate fully from the sandboxes". The master list called lines PORTED while their switch stayed off (oneButton 0, hideStancePicker read by the sandbox page only, Pit hit-stop kept, unlisted-only features). Lead + Strategy audits are merged in chat.
 - Combat [b62e0c], one PR: one-button 1, healOff, SPECIAL 2 prefilled, Pit hit-stop 0 (supersedes the open-world-only ruling), special tier 6/0.03/0.08, guard-break sparks 0.8, leathers sandbox shape (RV80), plus a full sandbox/rows.json + entry.ts default diff.
 - World, one PR: Zone 1 troll maul, tz-cave-troll loot, war band / regen / loot-outfit on in listed zones (not kill reporting), plus a full zone90 vs zone1 diff.
-- Stances STAY but get a new picker. Four mockups (A dial, B icon row, C badge, D pick before the fight) at specials-look-review/stance-options.png. DOM PICKED B (the icon row under the bars). Lead ruling: a mid-fight tap switches stance immediately (recorded input, RV bump). Owner: Combat [b62e0c], UI + sim in one PR behind its migration PR (the Web session is acting as Pico and declined). Web's plan file: /private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-web/f80031b9-a7e3-4172-9d8b-481d66feaab3/scratchpad/stance-picker-plan.md.
 - Characters' diff against the archive tags: everything on the character side is already on trunk except goblin-fort-kit.glb, which goes to World together with the missing building-skins slice.
 - JY LIVE b0f852037 (#3251/#3173/#3301/#3308).
 
@@ -778,7 +766,6 @@ No batching = never wait for a straggler. Skipped browser gates = a run-once rec
 - The melee digest can't see bands (tests/strategies.ts arena() has no bandsFlag); a follow-up test PR adds it, not blocking.
 
 ## Owed after the archive
-quality.yml line 30 vs 76 (browser=false on feature PRs, Hooks Dev); Deploy's "train waits for the Mac receipt" PR; Hooks Dev #3270/#3271 review (receipts: #3270 5502/0); Pico safety rules (Strategy OK'd, Pico builds); battery arena() bandsFlag test PR; Backend launch track.
 
 # Lead (lead-catalogue) handoff, 2026-10-19 ~10:40 +04 (history)
 
@@ -807,7 +794,6 @@ Armour nod; archive the Duels & Backend session?; which game weapon is the bow; 
 ## Gotchas
 - Combat pkill'd `node --test` on the VPS ~10:30 (by-name kill); World and Hooks Dev warned.
 - VPS load swings 14-39; the Mac is often at 2-7, so use the Mac GPU first for stills/WebKit.
-- PicoClaw nudges can be built on a superseded ruling; check before relaying.
 
 # Lead (lead-catalogue) handoff, 2026-10-18 ~14:50Z
 

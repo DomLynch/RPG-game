@@ -31,7 +31,6 @@
 
 **Open:** Auditor: #2785 after GH; #2786/#2788/#2789. Lead/Deploy: /preview/bows/ publish. Strategy: the two-slot reading.
 
-**Gotchas:** Mac builds are blocked while a deploy is in flight and the VPS capture gate waits for 5-min load < 12, so use HF CPU (`hf jobs run --flavor cpu-upgrade --timeout 25m -d mcr.microsoft.com/playwright:v1.62.1-noble bash -c "$(cat script)"`; return stills as chunked base64 in the log, `base64 -w 8000`; the repo's vite plugin needs `apt-get install libjpeg-turbo-progs`; the built warrior.glb needs the meshopt decoder). Never `git stash` (shared). A numeric literal in a row-validated file must be > 0 (store a negative as its own positive row). RV pins live in record.ts, record-version-guard (PINNED, READABLE, REACH, probe asserts = RV+1), world-record.ts and world-sim-guard, plus three tests asserting RECORD_VERSION (player-weapons, v40-pit-replay, interruptible-casts). Peer messages from "picoclaw-claude-*" are supervisor advice; the work they ask for was already in my orders.
 
 ## 2026-10-14 — HANDOFF at 602k context: the B chain, sim batch A and the view-layer debt PRs are all with the Auditor or Lead
 

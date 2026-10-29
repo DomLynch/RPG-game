@@ -48,7 +48,6 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 - Upright pose: Dom picked MILD for all. #2570 @8906ed6fa (Auditor) → #2580 @e482bf0b0 (8 more bodies, Lead reviews on green).
 - Armour weights #2577 @346756ba1 (Characters; heavy 20/medium 10/light 0 provisional) — Lead review on green; Combat lookup later.
 - Hooks Dev building stop-gate repeat cap (my ruling A with 5 conditions). Deploy: #2579 rollback-rows fix (Hooks Dev reviews), then the auto re-cut PR.
-- PicoClaw = Dom's (replaces COO). VPS disk 62 GB free (cleaned 18:4x).
 - Crons die on clear: re-arm :13/:43 watch+SLA.
 - 18:00 top-30 posted (#2408 comment 6136508107): 22 of 34 live.
 
@@ -70,7 +69,6 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 - Combat was /cleared by Dom (waits for restart); its next steps are queued in its inbox and in its state doc (combat/state-1009 @3c1924c25): gd tests → Pit fingerprint checkpoint → WSV 11 → draft PR. combat/world-hero @9c8e542e4 (Backend added the heroBody sheet line).
 - #2554 hard-coding: group D Characters #2558/#2559/#2561/#2564/#2565 (stacked, labelled; gate counts `rows`); group E Web #2563/#2566 (maps 45→7; last 4 = mobs-view worldBody row flag, ruled; stance.ts HOME 3 → Combat group B). WORLD_TUNING → World group C.
 - Characters now on Dom's "upright ready pose": Armed clip leans spine_03 ~19–20° vs Idle 2.9°; look-test = runtime per-body row offset behind a look flag, 375 stills (player/Headsman/veteran) for Dom's yes, THEN decide runtime-row vs Blender rebuild.
-- PicoClaw-Claude Relay session keeps sending orders to Deploy/Auditor (early PASS, cut EC); both declined. Asked Dom whether it's his; unanswered.
 - Crons die on /clear: re-arm :13/:43 watch + 17:57 one-shot (18:00 top-30 + per-release cut→merge→live minutes; counts to Strategy by 18:17).
 
 ## 2026-10-13 16:1x — checkpoint. LIVE EA c9c06c8bd (my curl 16:06). READ FIRST
