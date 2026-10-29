@@ -122,3 +122,49 @@ test('real path with a stub hf: prints the tier line and the logs line, appends 
     assert.equal(existsSync(join(c.dir, 'no-such')), false);
   } finally { c.done(); }
 });
+
+// Strategy + Dom 2026-10-29: "HEAD is unpushed" was the excuse for not using hfjob. An unpushed HEAD is now pushed to a temp branch hfjob/<user>-<sha12> on origin and the job runs that sha.
+test('an unpushed HEAD is auto-pushed to a temp branch (not in a dry run), HFJOB_NO_PUSH=1 keeps the old refusal, a failed push says why', () => {
+  const c = checkout('https://github.com/acme/y.git', false);
+  try {
+    const bare = join(c.dir, 'bare.git');
+    execFileSync('git', ['init', '-q', '--bare', bare], { stdio: 'ignore' });
+    git(['config', `url.${bare}.insteadOf`, 'https://github.com/acme/y.git'], c.work);
+    const repo = { HFJOB_REPO: 'https://github.com/acme/y.git' };   // `git remote get-url` applies insteadOf, so name the https URL for the check and let the push resolve to the bare repo
+    const refs = () => execFileSync('git', ['--git-dir', bare, 'for-each-ref', '--format=%(refname) %(objectname)'], { encoding: 'utf8' });
+    const hf = join(c.dir, 'hf'), ledger = join(c.dir, 'ledger.log');
+    writeFileSync(hf, `#!/bin/sh\necho "Job started with ID: ${'c'.repeat(24)}"\n`); chmodSync(hf, 0o755);
+
+    const dry = run(c.work, ['--', 'true'], { HFJOB_DRY: '1', ...repo });
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.match(dry.stderr, /would push/);
+    assert.equal(refs(), '', 'a dry run pushes nothing');
+
+    const off = run(c.work, ['--', 'true'], { HFJOB_DRY: '1', HFJOB_NO_PUSH: '1', ...repo });
+    assert.equal(off.status, 2);
+    assert.match(off.stderr, /HEAD [0-9a-f]{9} is not pushed/);
+
+    const r = run(c.work, ['--', 'npm', 'test'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger, ...repo });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /pushed HEAD [0-9a-f]{9} to origin hfjob\//);
+    assert.match(refs(), new RegExp(`refs/heads/hfjob/[A-Za-z0-9_.-]+-${c.sha.slice(0, 12)} ${c.sha}`));
+    assert.ok(r.stdout.includes(`sha=${c.sha.slice(0, 12)}`));
+
+    git(['config', `url.${join(c.dir, 'missing.git')}.insteadOf`, 'https://github.com/acme/y.git'], c.work);
+    git(['config', '--unset', `url.${bare}.insteadOf`], c.work);
+    writeFileSync(join(c.work, 'g'), 'y'); git(['add', 'g'], c.work); git(['commit', '-q', '-m', 'y'], c.work);   // the first push made the old HEAD "pushed"; this one is new
+    const bad = run(c.work, ['--', 'true'], { HFJOB_BIN: hf, HFJOB_LEDGER: ledger, ...repo });
+    assert.equal(bad.status, 2);
+    assert.match(bad.stderr, /HEAD [0-9a-f]{9} is not pushed.*auto-push to origin failed/s);
+  } finally { c.done(); }
+});
+
+test('uncommitted changes are called out: the job runs the committed sha only', () => {
+  const c = checkout('https://github.com/acme/z.git');
+  try {
+    writeFileSync(join(c.work, 'f'), 'changed');
+    const r = run(c.work, ['--', 'true'], { HFJOB_DRY: '1' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /uncommitted changes are NOT in the job/);
+  } finally { c.done(); }
+});
