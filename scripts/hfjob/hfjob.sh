@@ -26,6 +26,8 @@ case "${1:-}" in
   # hfjob --batch FILE : each non-comment line is the args of one hfjob call; they are submitted concurrently, one `tier=hf-cpu job=<id> ...` line each (a single command, no shell loop)
   --batch) [ $# -eq 2 ] || { echo "usage: hfjob --batch FILE   (each non-comment line = the args of one hfjob call)" >&2; exit 2; }
     exec python3 "$here/bundle.py" batch "$2" --script "$(readlink -f "$0")" ;;
+  # hfjob bundle-gc [--hours 24] [--dry-run] [--squash|--no-squash] : delete orphan bundles/results older than N hours from the private repo, then squash its history
+  bundle-gc) shift; with_token; exec python3 "$here/bundle.py" gc "$@" ;;
   # hfjob collect JOB_ID [--out DIR] [--wait SECS] | collect --all-from FILE_OR_IDS [--out DIR] [--wait SECS] : download + extract a --bundle job's results, then delete them from the private repo
   collect) shift; with_token
     if [ "${1:-}" = --all-from ]; then [ $# -ge 2 ] || { echo "usage: hfjob collect --all-from FILE_OR_IDS [--out DIR]" >&2; exit 2; }

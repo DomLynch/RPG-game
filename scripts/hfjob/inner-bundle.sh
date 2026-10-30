@@ -20,7 +20,7 @@ api.delete_file(f"bundles/{bid}.tar.gz", repo_id=rid, repo_type="dataset", commi
 with tarfile.open(p, "r:gz") as tf:
     for m in tf.getmembers():
         n = os.path.normpath(m.name)
-        if n.startswith("/") or n.startswith("..") or m.isdev() or m.isfifo():
+        if n.startswith("/") or n.startswith("..") or m.isdev() or m.isfifo() or m.issym() or m.islnk():
             sys.exit(f"unsafe member {m.name}")
     tf.extractall(w, filter="data") if sys.version_info >= (3, 12) else tf.extractall(w)
 os.remove(p)
@@ -39,7 +39,7 @@ fi
 echo "hfjob: command exited $rc"; lap done
 mkdir -p "$W/hfjob-out"; echo "$rc" > "$W/hfjob-out/.exit"
 out=(); for d in $HFJOB_OUT; do [ "$d" != hfjob-out ] && [ -e "$W/$d" ] && out+=("$d"); done   # hfjob-out is always included once (a repeat would be stored as a hard link, which collect refuses)
-(cd "$W" && tar -czf /tmp/hfjob-result.tar.gz --hard-dereference hfjob-out ${out[@]+"${out[@]}"} 2>/dev/null) || { echo "hfjob: could not tar the results" >&2; }
+(cd "$W" && tar -czf /tmp/hfjob-result.tar.gz --dereference --hard-dereference hfjob-out ${out[@]+"${out[@]}"} 2>/dev/null) || { echo "hfjob: could not tar the results" >&2; }
 python3 - <<'PY' || echo "hfjob: result upload failed" >&2
 import os
 from huggingface_hub import HfApi

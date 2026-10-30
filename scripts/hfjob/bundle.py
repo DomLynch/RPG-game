@@ -6,7 +6,8 @@
   bundle.py upload TAR --id UUID                                                         (token from HF_TOKEN; private repo only)
   bundle.py collect JOB_ID [--out DIR] [--wait SECS]                                     (token from HF_TOKEN; downloads results/<JOB_ID>.tar.gz, extracts, deletes it)
   bundle.py collect JOB_ID --stdout                                                      (VPS side of a Mac collect: stream the tarball, then delete it)
-  bundle.py extract --out DIR                                                            (safe extract of a tarball on stdin; the Mac side of a collect)
+  bundle.py gc [--hours 24] [--dry-run] [--squash|--no-squash]                           (delete bundles/results older than N hours from the private repo; squash its history)
+  bundle.py extract --out DIR                                                          (safe extract of a tarball on stdin; the Mac side of a collect)
   bundle.py batch FILE --script PATH                                                     (each non-comment line = one `PATH args...` call, run concurrently, printed in order)
   bundle.py collect-all SPEC --out DIR --script PATH [--wait SECS]                       (SPEC = file or comma list of job ids / `tier=hf-cpu job=<id>` lines; each lands in DIR/<id>)
   bundle.py drop UUID                                                                    (delete bundles/<UUID>.tar.gz; used when a submit fails)
@@ -30,7 +31,8 @@ SECRET_PATTERNS = [
     (re.compile(rb"-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----"), "private key header"),
     (re.compile(rb"xox[abprs]-[A-Za-z0-9-]{20,}"), "Slack token"),
 ]
-SCAN_MAX_FILE = 8 * 1024 * 1024   # content-scan the first 8 MB of every file; larger binaries are checked by name only beyond that
+SCAN_CHUNK = 8 * 1024 * 1024   # content is scanned in 8 MB chunks over the WHOLE file (overlapping by SCAN_OVERLAP bytes), however large
+SCAN_OVERLAP = 512
 CRED_NAMES = [".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*", "id_ed25519*", "id_ecdsa*", "id_dsa*", "credentials*", "secrets*", ".npmrc", ".netrc", ".git-credentials", "*.keystore"]
 
 
@@ -93,11 +95,9 @@ def build_manifest(root, includes, excludes):
             continue
         full = os.path.join(root, rel)
         if os.path.islink(full):
-            tgt = os.path.realpath(full)
-            if not (tgt == os.path.realpath(root) or tgt.startswith(os.path.realpath(root) + os.sep)):
-                skipped_links.append(rel)   # a link out of the checkout would pull other files in: dropped, reported
-                continue
-        elif not os.path.isfile(full):
+            skipped_links.append(rel)   # no links in a bundle (in or out of the tree): dropped and reported; archives with links are refused on upload and on collect
+            continue
+        if not os.path.isfile(full):
             continue
         files.append(rel)
     return sorted(files), skipped_links
@@ -108,6 +108,19 @@ def scan_bytes(rel, data):
         if rx.search(data):
             return what
     return None
+
+
+def scan_stream(fh, chunk=SCAN_CHUNK):
+    """Secret-pattern scan of a whole file in chunks with an overlap, so a token split across a chunk edge is still seen. No size limit."""
+    tail = b""
+    while True:
+        buf = fh.read(chunk)
+        if not buf:
+            return None
+        hit = scan_bytes("", tail + buf)
+        if hit:
+            return hit
+        tail = buf[-SCAN_OVERLAP:]
 
 
 def human(n):
@@ -137,8 +150,7 @@ def cmd_pack(a):
         if os.path.islink(full):
             continue
         with open(full, "rb") as fh:
-            data = fh.read(SCAN_MAX_FILE)
-        hit = scan_bytes(rel, data)
+            hit = scan_stream(fh)
         if hit:
             die(f"refused: {rel} contains a {hit}. Remove it or --exclude it; nothing was packed.")
     os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", exist_ok=True)
@@ -162,9 +174,7 @@ def safe_members(tf):
         if n.startswith("/") or n.startswith("..") or "/../" in n or m.isdev() or m.isfifo():
             die(f"refused: unsafe path in archive: {m.name}")
         if m.issym() or m.islnk():
-            tgt = os.path.normpath(os.path.join(os.path.dirname(n), m.linkname)) if m.issym() else os.path.normpath(m.linkname)
-            if tgt.startswith("/") or tgt.startswith(".."):
-                die(f"refused: link {m.name} escapes the archive")
+            die(f"refused: {m.name} is a {'symlink' if m.issym() else 'hardlink'}; archives may hold regular files and directories only")
         yield m
 
 
@@ -180,7 +190,7 @@ def cmd_scan(a):
                 die(f"refused: credential-looking name in the tarball: {m.name}")
             if total > cap:
                 die(f"refused: tarball expands beyond --max-mb {a.max_mb}")
-            hit = scan_bytes(m.name, tf.extractfile(m).read(SCAN_MAX_FILE))
+            hit = scan_stream(tf.extractfile(m))
             if hit:
                 die(f"refused: {m.name} contains a {hit}")
     print(json.dumps({"bytes": total}))
@@ -232,6 +242,41 @@ def cmd_drop(a):
         h.delete_file(f"bundles/{a.id}.tar.gz", repo_id=repo_id(), repo_type="dataset", commit_message=f"drop {a.id}")
     except Exception as e:   # noqa: BLE001
         print(f"hfjob: bundle {a.id} was already gone ({e.__class__.__name__})", file=sys.stderr)
+
+
+def gc_plan(entries, now, hours):
+    """entries: [(path, unix_ts)]. Returns the paths older than `hours` (ts 0 = unknown date = old)."""
+    cutoff = now - hours * 3600
+    return sorted(p for p, ts in entries if ts < cutoff)
+
+
+def cmd_gc(a):
+    """Delete bundles/ and results/ older than --hours (orphans of dead or never-collected jobs), then squash the dataset history so the deleted blobs are really gone."""
+    h = api()
+    rid = ensure_private(h)
+    entries = []
+    for folder in ("bundles", "results"):
+        try:
+            for e in h.list_repo_tree(rid, path_in_repo=folder, repo_type="dataset", expand=True):
+                if getattr(e, "type", "file") != "file":
+                    continue
+                lc = getattr(e, "last_commit", None)
+                entries.append((e.path, lc.date.timestamp() if lc is not None else 0))
+        except Exception as ex:   # noqa: BLE001 - an absent folder is just empty
+            if "404" not in str(ex) and ex.__class__.__name__ not in ("EntryNotFoundError", "RemoteEntryNotFoundError"):
+                raise
+    old = gc_plan(entries, time.time(), float(a.hours))
+    print(f"gc: {len(entries)} remote entries, {len(old)} older than {a.hours}h" + (" (dry run)" if a.dry_run else ""))
+    for p in old:
+        print(f"  {p}")
+    if a.dry_run:
+        return
+    if old:
+        from huggingface_hub import CommitOperationDelete
+        h.create_commit(rid, repo_type="dataset", operations=[CommitOperationDelete(path_in_repo=p) for p in old], commit_message=f"gc: {len(old)} entries older than {a.hours}h")
+    if (old or a.squash) and not a.no_squash:
+        h.super_squash_history(repo_id=rid, repo_type="dataset")   # one commit of the current tree: deleted bundles/results leave the history too
+        print("gc: dataset history squashed")
 
 
 def job_finished(h, job):
@@ -386,16 +431,19 @@ def main():
     s = sp.add_parser("upload"); s.add_argument("tar"); s.add_argument("--id", required=True)
     s = sp.add_parser("drop"); s.add_argument("id")
     s = sp.add_parser("collect"); s.add_argument("job"); s.add_argument("--out"); s.add_argument("--stdout", action="store_true"); s.add_argument("--wait", default=0); s.add_argument("--discard", action="store_true")
+    s = sp.add_parser("gc"); s.add_argument("--hours", default="24"); s.add_argument("--dry-run", action="store_true"); s.add_argument("--squash", action="store_true"); s.add_argument("--no-squash", action="store_true")
     s = sp.add_parser("extract"); s.add_argument("--out", required=True)
     s = sp.add_parser("batch"); s.add_argument("file"); s.add_argument("--script", required=True)
     s = sp.add_parser("collect-all"); s.add_argument("spec"); s.add_argument("--out"); s.add_argument("--script", required=True); s.add_argument("--wait", default=0)
     a = p.parse_args()
+    if a.cmd == "gc" and not re.fullmatch(r"[0-9]+(\.[0-9]+)?", a.hours):
+        die("--hours must be a number")
     if getattr(a, "max_mb", None) is not None and not re.fullmatch(r"[0-9]+", str(a.max_mb)):
         die("--max-mb must be a whole number")
     if a.cmd in ("upload", "collect", "drop"):
         if not re.fullmatch(r"[0-9a-f]{24}|[0-9a-f-]{36}", getattr(a, "id", None) or getattr(a, "job", None) or ""):
             die("id must be a job id (24 hex) or a bundle uuid")
-    {"pack": cmd_pack, "scan": cmd_scan, "upload": cmd_upload, "drop": cmd_drop, "collect": cmd_collect, "extract": cmd_extract,
+    {"pack": cmd_pack, "scan": cmd_scan, "upload": cmd_upload, "drop": cmd_drop, "collect": cmd_collect, "extract": cmd_extract, "gc": cmd_gc,
      "batch": cmd_batch, "collect-all": cmd_collect_all}[a.cmd](a)
 
 
