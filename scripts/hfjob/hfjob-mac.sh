@@ -21,7 +21,7 @@ ssh_run() { ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$@"; }
 need_bpy() { [ -n "$bpy" ] && [ -f "$bpy" ] || { echo "hfjob: bundle.py not found next to this wrapper (install it as ~/.local/bin/hfjob-bundle.py)" >&2; exit 2; }; }
 
 case "${1:-}" in
-  logs|inspect|cancel|ps|boxes|box-up|box-pause|box-logs)
+  logs|inspect|cancel|ps|boxes|box-up|box-pause|box-logs|bundle-gc)
     args=$(printf '%q ' "$@"); exec ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$rhf $args" ;;
   --batch)
     need_bpy; [ $# -eq 2 ] || { echo "usage: hfjob --batch FILE" >&2; exit 2; }
