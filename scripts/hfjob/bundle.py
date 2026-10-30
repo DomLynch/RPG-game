@@ -164,7 +164,10 @@ def cmd_pack(a):
                     tf.addfile(ti, fh)
             else:
                 tf.addfile(ti)
-    summary = {"files": len(files), "bytes": total, "tar_bytes": os.path.getsize(a.out), "skipped_links": links}
+    kept = set(files)
+    excluded = sorted(n for n in set(git_manifest(root)) if n not in kept)   # names only, never contents
+    summary = {"files": len(files), "bytes": total, "tar_bytes": os.path.getsize(a.out), "skipped_links": links,
+               "excluded": len(excluded), "excluded_sample": excluded[:20]}
     print(json.dumps(summary))
 
 
@@ -214,7 +217,12 @@ def api():
     return HfApi()   # picks HF_TOKEN from the environment; never passed as an argument
 
 
-def ensure_private(h):
+def dry():
+    """HFJOB_DRY=1: nothing is uploaded, submitted, created or deleted anywhere. Checked by every mutating command here, whatever the caller did or forgot to forward."""
+    return os.environ.get("HFJOB_DRY") == "1"
+
+
+def ensure_private(h, create=True):
     rid = repo_id()
     try:
         info = h.repo_info(rid, repo_type="dataset")
@@ -223,6 +231,8 @@ def ensure_private(h):
     except Exception as e:   # noqa: BLE001 - only "not found" creates the repo
         if e.__class__.__name__ != "RepositoryNotFoundError" and "404" not in str(e):
             raise
+        if not create:
+            return None
         h.create_repo(rid, repo_type="dataset", private=True, exist_ok=True)
         if not h.repo_info(rid, repo_type="dataset").private:
             die(f"refused: created {rid} but it is not private")
@@ -230,6 +240,9 @@ def ensure_private(h):
 
 
 def cmd_upload(a):
+    if dry():
+        print(f"hfjob: dry run: would upload {a.tar} as bundles/{a.id}.tar.gz to the private dataset {repo_id()}; nothing uploaded", file=sys.stderr)
+        return
     h = api()
     rid = ensure_private(h)
     h.upload_file(path_or_fileobj=a.tar, path_in_repo=f"bundles/{a.id}.tar.gz", repo_id=rid, repo_type="dataset", commit_message=f"bundle {a.id}")
@@ -237,6 +250,9 @@ def cmd_upload(a):
 
 
 def cmd_drop(a):
+    if dry():
+        print(f"hfjob: dry run: would delete bundles/{a.id}.tar.gz; nothing deleted", file=sys.stderr)
+        return
     h = api()
     try:
         h.delete_file(f"bundles/{a.id}.tar.gz", repo_id=repo_id(), repo_type="dataset", commit_message=f"drop {a.id}")
@@ -252,8 +268,13 @@ def gc_plan(entries, now, hours):
 
 def cmd_gc(a):
     """Delete bundles/ and results/ older than --hours (orphans of dead or never-collected jobs), then squash the dataset history so the deleted blobs are really gone."""
+    if dry():
+        a.dry_run = True   # HFJOB_DRY=1 turns any gc into a listing
     h = api()
-    rid = ensure_private(h)
+    rid = ensure_private(h, create=not a.dry_run)   # a dry run never creates the repo
+    if rid is None:
+        print("gc: the bundle repo does not exist; nothing to do (dry run)")
+        return
     entries = []
     for folder in ("bundles", "results"):
         try:
@@ -306,6 +327,10 @@ def fetch_result(h, rid, job, wait):
 
 
 def cmd_collect(a):
+    if dry():
+        what = "discard" if a.discard else ("stream" if a.stdout else f"extract to {os.path.abspath(a.out or 'hfjob-result-' + a.job)}")
+        print(f"hfjob: dry run: would download results/{a.job}.tar.gz from the private dataset {repo_id()}, {what}, then delete the remote result; nothing downloaded or deleted", file=sys.stderr)
+        return
     h = api()
     rid = repo_id()
     if a.discard:   # delete the remote result without downloading it (an abandoned job)
@@ -386,6 +411,12 @@ def run_many(script, jobs):
             for ln in r.stdout.splitlines():
                 if ln.startswith(("tier=", "collected ", "extracted ")):
                     print(ln, flush=True)
+                elif dry() and ln.strip():
+                    print(f"[{label}] {ln[:200]}", flush=True)   # a dry batch shows what each line would run (the hf command, cut)
+            if dry():
+                for ln in r.stderr.splitlines():
+                    if "dry run" in ln or ln.startswith("hfjob: bundled"):
+                        print(f"[{label}] {ln[:300]}", flush=True)
             if r.returncode != 0:
                 bad += 1
                 tail = [x for x in r.stderr.splitlines() if x.strip()][-1:] or ["failed"]
