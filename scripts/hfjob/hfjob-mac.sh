@@ -19,7 +19,9 @@ bpy=${HFJOB_BUNDLE_PY:-}
 if [ -z "$bpy" ]; then for c in "$here/bundle.py" "$here/hfjob-bundle.py" "$HOME/.local/bin/hfjob-bundle.py"; do [ -f "$c" ] && { bpy=$c; break; }; done; fi
 ssh_run() { ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$@"; }
 # HFJOB_DRY=1 is forwarded to the VPS on every remote call (and honoured again there, in hfjob.sh and bundle.py): nothing is uploaded, submitted, created or deleted. Dry means dry: no job, no remote file.
-dry=0; dryenv=""; [ "${HFJOB_DRY:-}" = 1 ] && { dry=1; dryenv="HFJOB_DRY=1 "; }
+dry=0; dryenv=""
+# fail CLOSED: any non-empty value except 0/false/no/off (any case) is a dry run; normalised to HFJOB_DRY=1 for every child and for the VPS
+case "$(printf %s "${HFJOB_DRY:-}" | tr '[:upper:]' '[:lower:]')" in ""|0|false|no|off) unset HFJOB_DRY ;; *) dry=1; dryenv="HFJOB_DRY=1 "; export HFJOB_DRY=1 ;; esac
 need_bpy() { [ -n "$bpy" ] && [ -f "$bpy" ] || { echo "hfjob: bundle.py not found next to this wrapper (install it as ~/.local/bin/hfjob-bundle.py)" >&2; exit 2; }; }
 
 case "${1:-}" in

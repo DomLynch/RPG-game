@@ -14,6 +14,8 @@ with_token() { if [ -z "${HF_TOKEN:-}" ]; then for f in /etc/hfjob/token /root/.
 # hfjob logs|inspect|cancel|ps ARGS... : the same hf subcommands, with the token, so a job can be followed without `hf auth login`
 case "${1:-}" in logs|inspect|cancel|ps) with_token; exec "${HFJOB_BIN:-hf}" jobs "$@" ;; esac
 
+# HFJOB_DRY fails CLOSED: any non-empty value except 0/false/no/off (any case) is a dry run. Normalised to HFJOB_DRY=1 here so every child (bundle.py, boxes.py) sees one spelling; a live run has it unset.
+case "$(printf %s "${HFJOB_DRY:-}" | tr '[:upper:]' '[:lower:]')" in ""|0|false|no|off) unset HFJOB_DRY ;; *) export HFJOB_DRY=1 ;; esac
 here=$(dirname "$(readlink -f "$0")")
 # Standing boxes (Dom 2026-10-27): hfjob boxes | box-up NAME [--update] | box-pause NAME | box-logs NAME ID [--follow] ; hfjob --box NAME [--wait] -- CMD runs on the Space <owner>/<prefix>NAME
 # (names, flavor, sleep time all in data/hf-boxes.json; docs/HF-BOXES.md). Jobs below stay for fire-and-forget and need no box.

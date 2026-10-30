@@ -219,7 +219,7 @@ def api():
 
 def dry():
     """HFJOB_DRY=1: nothing is uploaded, submitted, created or deleted anywhere. Checked by every mutating command here, whatever the caller did or forgot to forward."""
-    return os.environ.get("HFJOB_DRY") == "1"
+    return os.environ.get("HFJOB_DRY", "").strip().lower() not in ("", "0", "false", "no", "off")   # fail closed: any other value is dry
 
 
 def ensure_private(h, create=True):

@@ -136,7 +136,7 @@ def follow(sid, jid, live):
 def run(name, repo, sha, argv_b64, timeout, depth, wait):
     sid = space_id(name)
     payload = {'repo': repo, 'sha': sha, 'depth': depth, 'argv_b64': argv_b64, 'timeout': timeout}
-    if os.environ.get('HFJOB_DRY') == '1':
+    if os.environ.get('HFJOB_DRY', '').strip().lower() not in ('', '0', 'false', 'no', 'off'):   # fail closed, same rule as hfjob.sh
         print(f'box run {sid}: {json.dumps(payload)}')
         return
     up(name)
