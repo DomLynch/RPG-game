@@ -23,10 +23,27 @@ case "${1:-}" in
   box-pause) shift; exec python3 "$here/boxes.py" pause "$@" ;;
   box-logs) shift; exec python3 "$here/boxes.py" logs "$@" ;;
   box-tick) shift; exec python3 "$here/boxes.py" tick "$@" ;;   # cron, every minute (install-vps.sh): polls the recorded box jobs
+  # hfjob --batch FILE : each non-comment line is the args of one hfjob call; they are submitted concurrently, one `tier=hf-cpu job=<id> ...` line each (a single command, no shell loop)
+  --batch) [ $# -eq 2 ] || { echo "usage: hfjob --batch FILE   (each non-comment line = the args of one hfjob call)" >&2; exit 2; }
+    exec python3 "$here/bundle.py" batch "$2" --script "$(readlink -f "$0")" ;;
+  # hfjob collect JOB_ID [--out DIR] [--wait SECS] | collect --all-from FILE_OR_IDS [--out DIR] [--wait SECS] : download + extract a --bundle job's results, then delete them from the private repo
+  collect) shift; with_token
+    if [ "${1:-}" = --all-from ]; then [ $# -ge 2 ] || { echo "usage: hfjob collect --all-from FILE_OR_IDS [--out DIR]" >&2; exit 2; }
+      spec=$2; shift 2; exec python3 "$here/bundle.py" collect-all "$spec" --script "$(readlink -f "$0")" "$@"
+    fi
+    [ $# -ge 1 ] || { echo "usage: hfjob collect JOB_ID [--out DIR] [--wait SECS]" >&2; exit 2; }
+    exec python3 "$here/bundle.py" collect "$@" ;;
 esac
 timeout=30m; flavor=cpu-upgrade; timeout_set=0; box=""; wait=(); spill=0
+bundle=0; includes=(); excludes=(); max_mb=500; outs=(); bundle_tar=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    --bundle) bundle=1; shift ;;
+    --include) includes+=("${2:?--include needs a PATH}"); shift 2 ;;
+    --exclude) excludes+=("${2:?--exclude needs a GLOB}"); shift 2 ;;
+    --max-mb) max_mb=${2:-}; shift 2 ;;
+    --out) outs+=("${2:?--out needs a DIR}"); shift 2 ;;
+    --bundle-tar) bundle_tar=${2:-}; bundle=1; shift 2 ;;   # internal: the Mac wrapper packs and scans locally, ships the tarball here
     --timeout) timeout=${2:-}; timeout_set=1; shift 2 ;;
     --flavor) flavor=${2:-}; shift 2 ;;
     --box) box=${2:-}; shift 2 ;;
@@ -36,9 +53,70 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] [--box NAME [--wait]] -- <cmd...>   |   hfjob boxes | box-up NAME | box-pause NAME | box-logs NAME ID" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] [--box NAME [--wait]] -- <cmd...>   |   hfjob --bundle [--include PATH]... [--exclude GLOB]... [--max-mb N] [--out DIR]... -- <cmd...>   |   hfjob --batch FILE   |   hfjob collect ID|--all-from SPEC [--out DIR]   |   hfjob boxes | box-up NAME | box-pause NAME | box-logs NAME ID" >&2; exit 2; }
 [[ "$timeout" =~ ^[0-9]+[mh]$ ]] || { echo "hfjob: --timeout must look like 30m or 2h, got '$timeout'" >&2; exit 2; }
 case "$flavor" in cpu-upgrade|cpu-basic) ;; *) echo "hfjob: --flavor '$flavor' is not a CPU flavor (cpu-upgrade, cpu-basic); GPU jobs go through scripts/gpu-run.mjs" >&2; exit 2 ;; esac
+
+if [ "$bundle" = 0 ] && { [ ${#includes[@]} -gt 0 ] || [ ${#excludes[@]} -gt 0 ] || [ ${#outs[@]} -gt 0 ]; }; then echo "hfjob: --include/--exclude/--out only make sense with --bundle" >&2; exit 2; fi
+
+if [ "$bundle" = 1 ]; then
+  # ---- hfjob --bundle: a PRIVATE checkout (or any folder) runs on HF CPU with no git credential and no public push. Design + security model: docs/HF-BOXES.md "hfjob --bundle".
+  [ -z "$box" ] || { echo "hfjob: --bundle and --box cannot be combined (a box clones a public sha)" >&2; exit 2; }
+  [[ "$max_mb" =~ ^[0-9]+$ ]] || { echo "hfjob: --max-mb must be a whole number, got '$max_mb'" >&2; exit 2; }
+  out_list="hfjob-out"
+  if [ ${#outs[@]} -gt 0 ]; then
+    for o in "${outs[@]}"; do [[ "$o" =~ ^[A-Za-z0-9_][A-Za-z0-9_./-]*$ ]] && [[ "$o" != *..* ]] || { echo "hfjob: --out '$o' must be a relative path inside the checkout (no .., no spaces)" >&2; exit 2; }; done
+    out_list="${outs[*]}"
+  fi
+  btmp=$(mktemp -d "${TMPDIR:-/tmp}/hfjob-bundle.XXXXXX"); trap 'rm -rf "$btmp"; case "$bundle_tar" in /tmp/hfjob-bundle-*.tar.gz) rm -f "$bundle_tar" ;; esac' EXIT
+  if [ -n "$bundle_tar" ]; then
+    [ -f "$bundle_tar" ] || { echo "hfjob: --bundle-tar $bundle_tar not found" >&2; exit 2; }
+    tarball=$bundle_tar; sumj=$(python3 "$here/bundle.py" scan "$tarball" --max-mb "$max_mb") || exit 2   # the VPS never trusts a tarball it did not scan itself
+    btop=${HFJOB_BUNDLE_NAME:-bundle}; bsha=${HFJOB_BUNDLE_SHA:-none}
+    nfiles=$(python3 -c 'import sys,tarfile;print(sum(1 for m in tarfile.open(sys.argv[1]) if m.isfile()))' "$tarball"); mb=$(python3 -c 'import json,sys;print(round(json.loads(sys.argv[1])["bytes"]/1048576,1))' "$sumj")
+  else
+    top=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "hfjob: the cwd is not inside a git checkout (the bundle manifest is git ls-files -co --exclude-standard)" >&2; exit 2; }
+    btop=$(basename "$top"); bsha=$(git -C "$top" rev-parse HEAD 2>/dev/null | cut -c1-12 || true); bsha=${bsha:-none}
+    pargs=(pack --root "$top" --out "$btmp/b.tar.gz" --max-mb "$max_mb")
+    for i in ${includes[@]+"${includes[@]}"}; do pargs+=(--include "$i"); done
+    for x in ${excludes[@]+"${excludes[@]}"}; do pargs+=(--exclude "$x"); done
+    sumj=$(python3 "$here/bundle.py" "${pargs[@]}") || exit 2
+    tarball="$btmp/b.tar.gz"
+    nfiles=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["files"])' "$sumj"); mb=$(python3 -c 'import json,sys;print(round(json.loads(sys.argv[1])["bytes"]/1048576,1))' "$sumj")
+  fi
+  bid=$(python3 -c 'import uuid;print(uuid.uuid4())')
+  bargv=$(printf '%q ' "$@" | base64 | tr -d '\n')
+  blane=$(printf '%s' "$btop" | sed -e 's/^frankendom-//' -e 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
+  brepo=$(python3 - "${HFBOX_DATA:-$here/../../data/hf-boxes.json}" <<'PY'
+import json, os, sys
+print(os.environ.get("HFJOB_BUNDLE_REPO") or json.load(open(sys.argv[1]))["owner"] + "/hfjob-bundles")
+PY
+)
+  bimage=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["image"])' "${HFBOX_DATA:-$here/../../data/hf-boxes.json}")
+  binner=$(cat "$here/inner-bundle.sh")
+  hf=${HFJOB_BIN:-hf}
+  # HF_TOKEN reaches the job as a SECRET by name only (`--secrets HF_TOKEN` reads it from this process's environment): it is never in argv, a -e value, the bundle, the logs or the ledger
+  bargs=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$blane" --secrets HF_TOKEN
+    -e "HFJOB_BUNDLE_ID=$bid" -e "HFJOB_BUNDLE_REPO=$brepo" -e "HFJOB_OUT=$out_list" -e "HFJOB_ARGV_B64=$bargv" "$bimage" bash -c "$binner")
+  if [ "${HFJOB_DRY:-}" = 1 ]; then
+    echo "hfjob: dry run: bundle $bid ($nfiles files, $mb MB) would go to private dataset $brepo as bundles/$bid.tar.gz; nothing uploaded" >&2
+    printf '%q' "$hf"; printf ' %q' "${bargs[@]}"; printf '\n'; exit 0
+  fi
+  with_token
+  python3 "$here/bundle.py" upload "$tarball" --id "$bid" >/dev/null || { echo "hfjob: bundle upload failed (see above); nothing was submitted" >&2; exit 1; }
+  out=$("$hf" "${bargs[@]}" 2>&1) && rc=0 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    python3 "$here/bundle.py" drop "$bid" >/dev/null 2>&1 || true
+    echo "hfjob: hf jobs run failed (rc=$rc): $(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -v -e '^[[:space:]]*$' -e 'HF_DEBUG' | tail -n 3 | tr '\n' ' ' | cut -c1-300)" >&2; exit 1
+  fi
+  id=$(printf '%s\n' "$out" | sed -n 's/.*Job started with ID: *\([0-9a-f]\{24\}\).*/\1/p' | head -n 1)
+  [ -n "$id" ] || { python3 "$here/bundle.py" drop "$bid" >/dev/null 2>&1 || true; echo "hfjob: submitted, but no job id in the hf output" >&2; exit 1; }
+  line="tier=hf-cpu job=$id repo=$btop sha=$bsha bundle=$bid files=$nfiles mb=$mb"
+  echo "$line"
+  echo "follow: hfjob logs $id   (state: hfjob inspect $id, results: hfjob collect $id --out DIR)"
+  echo "$(date -u +%FT%TZ) user=$(id -un) $line flavor=$flavor timeout=$timeout" >> "${HFJOB_LEDGER:-/var/log/hfjob.log}" 2>/dev/null || true
+  exit 0
+fi
 
 top=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "hfjob: the cwd is not inside a git checkout" >&2; exit 2; }
 sha=$(git -C "$top" rev-parse HEAD 2>/dev/null) || { echo "hfjob: no HEAD commit in $top" >&2; exit 2; }
