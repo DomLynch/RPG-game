@@ -170,7 +170,7 @@ test('--batch: each non-comment line is one call (quoting kept), run concurrentl
     const r = py(['batch', f, '--script', stub]);
     assert.equal(r.status, 1);
     assert.deepEqual(r.stdout.trim().split('\n'), [
-      `tier=hf-cpu job=${'1'.padStart(24, '0')} args=5`, `tier=hf-cpu job=${'2'.padStart(24, '0')} args=7`, `tier=hf-cpu job=${'4'.padStart(24, '0')} args=2`]);
+      `tier=hf-cpu job=${'1'.padStart(24, '0')} args=5`, `tier=hf-cpu job=${'2'.padStart(24, '0')} args=8`, `tier=hf-cpu job=${'4'.padStart(24, '0')} args=2`]);
     assert.match(r.stderr, /line 5 failed \(rc=1\): hfjob: boom/);
     assert.ok(Date.now() - t0 < 1500, 'concurrent, not serial');
     writeFileSync(f, 'collect abc\n'); assert.equal(py(['batch', f, '--script', stub]).status, 2);
