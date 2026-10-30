@@ -38,12 +38,15 @@ install_blender5() {
   local tb=/tmp/blender5.tar.xz u got
   rm -f "$tb"
   for u in $BLENDER_MIRRORS; do
-    curl -fsSL --retry 2 -A "Mozilla/5.0" -o "$tb" "$u/blender-$BLENDER_VER-linux-x64.tar.xz" 2>/dev/null || { echo "hfjob: blender mirror failed: ${u#https://}" >&2; continue; }
-    got=$(sha256sum "$tb" | cut -d' ' -f1)
+    # any curl failure (even one that left a full body, e.g. rc 18) discards the file: only a download that exits 0 AND matches the pin is kept
+    curl -fsSL --retry 2 -A "Mozilla/5.0" -o "$tb" "$u/blender-$BLENDER_VER-linux-x64.tar.xz" 2>/dev/null || { echo "hfjob: blender mirror failed: ${u#https://}" >&2; rm -f "$tb"; continue; }
+    got=$(sha256sum "$tb" 2>/dev/null | cut -d' ' -f1)
     [ "$got" = "$BLENDER_SHA256" ] && break
     echo "hfjob: blender sha256 mismatch from ${u#https://}" >&2; rm -f "$tb"
   done
-  [ -s "$tb" ] || return 1
+  # re-verify after the loop and before anything is extracted: never trust loop state
+  got=$([ -s "$tb" ] && sha256sum "$tb" 2>/dev/null | cut -d' ' -f1)
+  [ -n "$got" ] && [ "$got" = "$BLENDER_SHA256" ] || { echo "hfjob: no blender tarball matches the pinned sha256; not extracting" >&2; rm -f "$tb"; return 1; }
   # the shared libraries Blender links (headless still loads them); best effort, a missing one shows up in the --version check below
   apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libgl1 libegl1 xz-utils >/dev/null 2>&1 || true
   rm -rf "$BLENDER_ROOT"; mkdir -p "$BLENDER_ROOT" && tar -xJf "$tb" -C "$BLENDER_ROOT" --strip-components=1 || return 1

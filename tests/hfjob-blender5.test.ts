@@ -36,6 +36,7 @@ echo "$url" >> "$STUB_LOG"
 host=\${url#https://}; host=\${host%%/*}
 for kv in \${STUB_MAP//,/ }; do [ "\${kv%%=*}" = "$host" ] && what=\${kv#*=}; done
 [ "\${what:-fail}" = fail ] && exit 22
+if [ "$what" = good18 ]; then cp "$STUB_FX/good.tar.xz" "$out"; exit 18; fi   # a COMPLETE, correct body but curl exits 18 (partial-transfer error): must still be discarded
 cp "$STUB_FX/$what.tar.xz" "$out"
 `); chmodSync(join(bin, 'curl'), 0o755);
   writeFileSync(join(bin, 'apt-get'), '#!/bin/sh\necho "$@" >> "$STUB_LOG"\nexit 0\n'); chmodSync(join(bin, 'apt-get'), 0o755);
@@ -69,6 +70,37 @@ test('mirror order: a failing mirror, then one serving the wrong bytes (sha mism
     assert.match(r.stdout, /rc=0/, r.stderr);
     assert.deepEqual(calls.filter((c) => c.startsWith('https://')).map((c) => c.split('/')[2]), ['mirrors.ocf.berkeley.edu', 'ftp.nluug.nl', 'download.blender.org']);
     assert.match(r.stderr, /mirror failed: mirrors\.ocf/); assert.match(r.stderr, /sha256 mismatch from ftp\.nluug\.nl/);
+  } finally { s.done(); }
+});
+
+test('curl exit 18 with a full body on every mirror: the file is discarded, nothing is extracted or run (rc=1)', { skip: !hasXz && 'no xz' }, () => {
+  const s = sandbox();
+  try {
+    const { r, calls } = s.run('mirrors.ocf.berkeley.edu=good18,ftp.nluug.nl=good18,download.blender.org=good18');
+    assert.match(r.stdout, /rc=1/, r.stderr);
+    assert.equal(calls.filter((c) => c.startsWith('https://')).length, 3);
+    assert.ok(!existsSync(join(s.root, 'blender')), 'not extracted');
+    assert.ok(!existsSync(join(s.dir, 'blender-link')), 'not linked, so never run');
+    assert.ok(!existsSync('/tmp/blender5.tar.xz'), 'the leftover tarball is removed');
+    assert.match(r.stderr, /not extracting|mirror failed/);
+  } finally { s.done(); }
+});
+
+test('rc 18 on the first mirror leaves a verifiable body, yet the install uses the SECOND mirror\'s verified download', { skip: !hasXz && 'no xz' }, () => {
+  const s = sandbox();
+  try {
+    const { r, calls } = s.run('mirrors.ocf.berkeley.edu=good18,ftp.nluug.nl=good');
+    assert.match(r.stdout, /rc=0/, r.stderr);
+    assert.deepEqual(calls.filter((c) => c.startsWith('https://')).map((c) => c.split('/')[2]), ['mirrors.ocf.berkeley.edu', 'ftp.nluug.nl']);
+  } finally { s.done(); }
+});
+
+test('every mirror fails outright: rc=1, nothing extracted', { skip: !hasXz && 'no xz' }, () => {
+  const s = sandbox();
+  try {
+    const { r } = s.run('mirrors.ocf.berkeley.edu=fail,ftp.nluug.nl=fail,download.blender.org=fail');
+    assert.match(r.stdout, /rc=1/);
+    assert.ok(!existsSync(join(s.root, 'blender')));
   } finally { s.done(); }
 });
 
