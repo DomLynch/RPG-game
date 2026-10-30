@@ -27,9 +27,40 @@ os.remove(p)
 PY
 cd "$W"; lap extract
 cmd=$(printf %s "$HFJOB_ARGV_B64" | base64 -d)
-case "$cmd" in *blender*)   # no Blender in the Playwright image: apt's package (4.0.x on Ubuntu noble), installed only for commands that mention it
-  apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq blender >/dev/null 2>&1 || echo "hfjob: blender install failed" >&2; lap blender ;;
+# BEGIN blender5 (tests/hfjob-blender5.test.ts runs this block with a stub curl)
+# No Blender in the Playwright image. Only for commands that mention it: the official Blender 5.2.1 LTS tarball (same major as the Macs; apt's 4.0.2 cannot read meshopt GLBs and has no
+# numpy), pinned by sha256, mirrors tried in order (download.blender.org answers 403 to some datacenter ranges). Its bundled Python carries numpy. apt's package is the last fallback.
+BLENDER_VER=${BLENDER_VER:-5.2.1}
+BLENDER_SHA256=${BLENDER_SHA256:-a31f524fa99a527d3d52b7f5aaa68c34e1a19d5a1c9473f79c5cc610fd5b10e9}   # blender-5.2.1-linux-x64.tar.xz, from download.blender.org/release/Blender5.2/blender-5.2.1.sha256
+BLENDER_ROOT=${BLENDER_ROOT:-/opt/blender5}; BLENDER_LINK=${BLENDER_LINK:-/usr/local/bin/blender}
+BLENDER_MIRRORS=${BLENDER_MIRRORS:-"https://mirrors.ocf.berkeley.edu/blender/release/Blender5.2 https://ftp.nluug.nl/pub/graphics/blender/release/Blender5.2 https://download.blender.org/release/Blender5.2"}
+install_blender5() {
+  local tb=/tmp/blender5.tar.xz u got
+  rm -f "$tb"
+  for u in $BLENDER_MIRRORS; do
+    # any curl failure (even one that left a full body, e.g. rc 18) discards the file: only a download that exits 0 AND matches the pin is kept
+    curl -fsSL --retry 2 -A "Mozilla/5.0" -o "$tb" "$u/blender-$BLENDER_VER-linux-x64.tar.xz" 2>/dev/null || { echo "hfjob: blender mirror failed: ${u#https://}" >&2; rm -f "$tb"; continue; }
+    got=$(sha256sum "$tb" 2>/dev/null | cut -d' ' -f1)
+    [ "$got" = "$BLENDER_SHA256" ] && break
+    echo "hfjob: blender sha256 mismatch from ${u#https://}" >&2; rm -f "$tb"
+  done
+  # re-verify after the loop and before anything is extracted: never trust loop state
+  got=$([ -s "$tb" ] && sha256sum "$tb" 2>/dev/null | cut -d' ' -f1)
+  [ -n "$got" ] && [ "$got" = "$BLENDER_SHA256" ] || { echo "hfjob: no blender tarball matches the pinned sha256; not extracting" >&2; rm -f "$tb"; return 1; }
+  # the shared libraries Blender links (headless still loads them); best effort, a missing one shows up in the --version check below
+  apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libgl1 libegl1 xz-utils >/dev/null 2>&1 || true
+  rm -rf "$BLENDER_ROOT"; mkdir -p "$BLENDER_ROOT" && tar -xJf "$tb" -C "$BLENDER_ROOT" --strip-components=1 || return 1
+  ln -sf "$BLENDER_ROOT/blender" "$BLENDER_LINK" && "$BLENDER_LINK" --version >/dev/null 2>&1 || return 1
+}
+case "$cmd" in *blender*)
+  if install_blender5; then echo "hfjob: blender $("$BLENDER_LINK" --version 2>/dev/null | head -n 1) (pinned tarball)"
+  else
+    echo "hfjob: blender $BLENDER_VER tarball unavailable; falling back to apt blender (older, no numpy guarantee)" >&2
+    apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq blender python3-numpy >/dev/null 2>&1 || echo "hfjob: blender install failed" >&2
+  fi
+  lap blender ;;
 esac
+# END blender5
 if [ -f package-lock.json ]; then timeout 600 npm ci --no-audit --no-fund >/dev/null 2>&1 || { echo "hfjob: npm ci failed" >&2; rc=1; }; lap npm-ci; fi
 rc=${rc:-0}
 if [ "$rc" = 0 ]; then
