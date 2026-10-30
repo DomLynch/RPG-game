@@ -214,7 +214,7 @@ test('the job body never echoes the token, and the Mac wrapper reads no secret',
   const inner = readFileSync(join(process.cwd(), 'scripts/hfjob/inner-bundle.sh'), 'utf8');
   assert.doesNotMatch(inner, /echo[^\n]*HF_TOKEN|printf[^\n]*HF_TOKEN|set -x|bash -x/);
   const mac = readFileSync(join(process.cwd(), 'scripts/hfjob/hfjob-mac.sh'), 'utf8');
-  assert.doesNotMatch(mac, /HF_TOKEN|\.hf\/token|\/etc\/hfjob/);
+  assert.doesNotMatch(mac, /\$\{?HF_TOKEN|HF_TOKEN=|\.hf\/token|\/etc\/hfjob/, 'the wrapper may name the secret in a message but never reads or sets it');
   const sh = readFileSync(script, 'utf8');
   assert.doesNotMatch(sh, /-e "HF_TOKEN|--secrets HF_TOKEN=/, 'the secret is passed by name only');
 });

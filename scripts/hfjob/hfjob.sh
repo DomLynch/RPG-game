@@ -55,7 +55,7 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] [--box NAME [--wait]] -- <cmd...>   |   hfjob --bundle [--include PATH]... [--exclude GLOB]... [--max-mb N] [--out DIR]... -- <cmd...>   |   hfjob --batch FILE   |   hfjob collect ID|--all-from SPEC [--out DIR]   |   hfjob boxes | box-up NAME | box-pause NAME | box-logs NAME ID" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] [--box NAME [--wait]] -- <cmd...>   |   hfjob --bundle [--include PATH]... [--exclude GLOB]... [--max-mb N] [--out DIR]... -- <cmd...>   |   hfjob --batch FILE   |   hfjob collect ID|--all-from SPEC [--out DIR]   |   hfjob bundle-gc [--hours 24] [--dry-run]   |   (HFJOB_DRY=1 on any of these uploads, submits, creates and deletes nothing)   |   hfjob boxes | box-up NAME | box-pause NAME | box-logs NAME ID" >&2; exit 2; }
 [[ "$timeout" =~ ^[0-9]+[mh]$ ]] || { echo "hfjob: --timeout must look like 30m or 2h, got '$timeout'" >&2; exit 2; }
 case "$flavor" in cpu-upgrade|cpu-basic) ;; *) echo "hfjob: --flavor '$flavor' is not a CPU flavor (cpu-upgrade, cpu-basic); GPU jobs go through scripts/gpu-run.mjs" >&2; exit 2 ;; esac
 
@@ -101,7 +101,10 @@ PY
   bargs=(jobs run --detach --timeout "$timeout" --flavor "$flavor" --label "lane=$blane" --secrets HF_TOKEN
     -e "HFJOB_BUNDLE_ID=$bid" -e "HFJOB_BUNDLE_REPO=$brepo" -e "HFJOB_OUT=$out_list" -e "HFJOB_ARGV_B64=$bargv" "$bimage" bash -c "$binner")
   if [ "${HFJOB_DRY:-}" = 1 ]; then
-    echo "hfjob: dry run: bundle $bid ($nfiles files, $mb MB) would go to private dataset $brepo as bundles/$bid.tar.gz; nothing uploaded" >&2
+    echo "hfjob: dry run: bundle $bid ($nfiles files, $mb MB) would go to private dataset $brepo as bundles/$bid.tar.gz; nothing uploaded, nothing submitted, no repo created" >&2
+    python3 -c 'import json,sys
+d=json.loads(sys.argv[1]);n=d.get("excluded")
+if n is not None: print("hfjob: dry run: %d names excluded%s" % (n, (": " + ", ".join(d.get("excluded_sample", []))) if n else ""), file=sys.stderr)' "$sumj" || true
     printf '%q' "$hf"; printf ' %q' "${bargs[@]}"; printf '\n'; exit 0
   fi
   with_token

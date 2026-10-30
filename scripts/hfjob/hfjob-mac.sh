@@ -18,11 +18,13 @@ here=$(dirname "$self")
 bpy=${HFJOB_BUNDLE_PY:-}
 if [ -z "$bpy" ]; then for c in "$here/bundle.py" "$here/hfjob-bundle.py" "$HOME/.local/bin/hfjob-bundle.py"; do [ -f "$c" ] && { bpy=$c; break; }; done; fi
 ssh_run() { ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$@"; }
+# HFJOB_DRY=1 is forwarded to the VPS on every remote call (and honoured again there, in hfjob.sh and bundle.py): nothing is uploaded, submitted, created or deleted. Dry means dry: no job, no remote file.
+dry=0; dryenv=""; [ "${HFJOB_DRY:-}" = 1 ] && { dry=1; dryenv="HFJOB_DRY=1 "; }
 need_bpy() { [ -n "$bpy" ] && [ -f "$bpy" ] || { echo "hfjob: bundle.py not found next to this wrapper (install it as ~/.local/bin/hfjob-bundle.py)" >&2; exit 2; }; }
 
 case "${1:-}" in
   logs|inspect|cancel|ps|boxes|box-up|box-pause|box-logs|bundle-gc)
-    args=$(printf '%q ' "$@"); exec ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$rhf $args" ;;
+    args=$(printf '%q ' "$@"); exec ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$dryenv$rhf $args" ;;
   --batch)
     need_bpy; [ $# -eq 2 ] || { echo "usage: hfjob --batch FILE" >&2; exit 2; }
     exec python3 "$bpy" batch "$2" --script "$self" ;;
@@ -38,6 +40,7 @@ case "${1:-}" in
     out=${out:-hfjob-result-$job}
     # the VPS streams the result tarball and deletes it remotely only after the stream completed; extraction here is member-by-member and refuses links, devices and .. paths
     set -o pipefail
+    if [ "$dry" = 1 ]; then ssh_run "$dryenv$rhf collect $job --stdout ${wait:+--wait $wait}"; echo "hfjob: dry run: would extract into $out; nothing downloaded or deleted" >&2; exit 0; fi
     ssh_run "$rhf collect $job --stdout ${wait:+--wait $wait}" | python3 "$bpy" extract --out "$out"
     exit 0 ;;
 esac
@@ -58,7 +61,7 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] -- <cmd...>   |   hfjob --bundle [--include PATH]... [--exclude GLOB]... [--max-mb N] [--out DIR]... -- <cmd...>   |   hfjob --batch FILE   |   hfjob collect ID   |   hfjob logs|inspect|cancel|ps ID" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: hfjob [--timeout 30m] [--flavor cpu-upgrade] -- <cmd...>   |   hfjob --bundle [--include PATH]... [--exclude GLOB]... [--max-mb N] [--out DIR]... -- <cmd...>   |   hfjob --batch FILE   |   hfjob collect ID|--all-from SPEC [--out DIR]   |   hfjob bundle-gc [--hours 24] [--dry-run]   |   hfjob logs|inspect|cancel|ps ID   (HFJOB_DRY=1 on any of these uploads, submits, creates and deletes nothing)" >&2; exit 2; }
 [[ "$timeout" =~ ^[0-9]+[mh]$ ]] || { echo "hfjob: --timeout must look like 30m or 2h" >&2; exit 2; }
 
 top=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "hfjob: the cwd is not inside a git checkout" >&2; exit 2; }
@@ -71,7 +74,14 @@ if [ "$bundle" = 1 ]; then
   pargs=(pack --root "$top" --out "$tmp/b.tar.gz" --max-mb "$max_mb")
   for i in ${includes[@]+"${includes[@]}"}; do pargs+=(--include "$i"); done
   for x in ${excludes[@]+"${excludes[@]}"}; do pargs+=(--exclude "$x"); done
-  python3 "$bpy" "${pargs[@]}" >/dev/null   # refuses (exit 2, with the reason) on a credential-looking name or content or over the size cap: nothing leaves the Mac
+  sumj=$(python3 "$bpy" "${pargs[@]}")   # refuses (exit 2, with the reason) on a credential-looking name or content or over the size cap: nothing leaves the Mac
+  if [ "$dry" = 1 ]; then   # dry: pack + scan happen (local, read-only) and are reported; no tarball is sent, no ssh, no job
+    python3 -c 'import json,sys
+d=json.loads(sys.argv[1])
+print("hfjob: dry run: bundle of %s: %d files, %.1f MB (%.1f MB compressed); %d names excluded%s; %d symlinks dropped" % (sys.argv[2], d["files"], d["bytes"]/1048576, d["tar_bytes"]/1048576, d["excluded"], (": " + ", ".join(d["excluded_sample"])) if d["excluded"] else "", len(d["skipped_links"])), file=sys.stderr)' "$sumj" "$(basename "$top")"
+    echo "hfjob: dry run: would send the tarball to the VPS, which re-scans it, uploads it to the private dataset and runs: hf jobs run --detach --timeout $timeout --flavor $flavor --label lane=... --secrets HF_TOKEN -e HFJOB_BUNDLE_ID=... -e HFJOB_ARGV_B64=... <image> bash -c <inner-bundle.sh>; nothing sent, nothing uploaded, nothing submitted" >&2
+    exit 0
+  fi
   rtar="/tmp/hfjob-bundle-$(python3 -c 'import uuid;print(uuid.uuid4().hex)').tar.gz"
   ssh_run "umask 077; cat > $rtar" < "$tmp/b.tar.gz"
   rargs=(--bundle-tar "$rtar" --max-mb "$max_mb" --timeout "$timeout" --flavor "$flavor")
@@ -87,6 +97,7 @@ pushed() { [ -n "$(git -C "$top" branch -r --contains "$sha" 2>/dev/null)" ]; }
 if ! pushed; then
   git -C "$top" fetch -q origin 2>/dev/null || true
   if ! pushed; then
+    if [ "$dry" = 1 ]; then echo "hfjob: dry run: HEAD ${sha:0:9} is not pushed; would push it to a temp branch on origin and submit the job; nothing pushed, nothing submitted" >&2; exit 0; fi
     ref="hfjob/$(id -un | sed 's/[^A-Za-z0-9_.-]/-/g')-${sha:0:12}"
     git -C "$top" push -q origin "$sha:refs/heads/$ref" 2>/dev/null \
       && echo "hfjob: pushed HEAD ${sha:0:9} to origin $ref (temp branch; delete it when the job is done)" >&2 \
@@ -103,6 +114,6 @@ case "$repo" in *.git) ;; *) repo="${repo%/}.git" ;; esac
 argv=$(printf '%q ' "$@" | base64 | tr -d '\n')
 lane=$(basename "$top" | sed 's/[^A-Za-z0-9_.-]/-/g' | cut -c1-40)
 # VPS side: a throwaway git checkout of exactly that sha (public repo, depth 1), then the real hfjob inside it; the job id comes back on stdout.
-remote="set -euo pipefail; d=\$(mktemp -d /tmp/hfjob-mac-XXXXXX); trap 'rm -rf \"\$d\"' EXIT; cd \"\$d\"; git init -q; git fetch -q --depth 1 '$repo' '$sha'; git checkout -q --detach FETCH_HEAD; git update-ref refs/remotes/origin/hfjob-mac '$sha'; git remote add origin '$repo'; a=\$(echo '$argv' | base64 -d); export HFJOB_REPO='$repo'; eval \"$rhf --timeout '$timeout' --flavor '$flavor' ${box:+--box '$box'} $wait -- \$a\""
+remote="set -euo pipefail; d=\$(mktemp -d /tmp/hfjob-mac-XXXXXX); trap 'rm -rf \"\$d\"' EXIT; cd \"\$d\"; git init -q; git fetch -q --depth 1 '$repo' '$sha'; git checkout -q --detach FETCH_HEAD; git update-ref refs/remotes/origin/hfjob-mac '$sha'; git remote add origin '$repo'; a=\$(echo '$argv' | base64 -d); export HFJOB_REPO='$repo'; ${dryenv:+export HFJOB_DRY=1;} eval \"$rhf --timeout '$timeout' --flavor '$flavor' ${box:+--box '$box'} $wait -- \$a\""
 echo "hfjob: forwarding to the VPS for ${repo##*/} @ ${sha:0:9} (lane $lane)" >&2
 exec ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$key" "$host" "$remote"
