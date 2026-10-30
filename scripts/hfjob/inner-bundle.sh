@@ -38,8 +38,8 @@ if [ "$rc" = 0 ]; then
 fi
 echo "hfjob: command exited $rc"; lap done
 mkdir -p "$W/hfjob-out"; echo "$rc" > "$W/hfjob-out/.exit"
-out=(); for d in $HFJOB_OUT; do [ -e "$W/$d" ] && out+=("$d"); done
-(cd "$W" && tar -czf /tmp/hfjob-result.tar.gz hfjob-out ${out[@]+"${out[@]}"} 2>/dev/null) || { echo "hfjob: could not tar the results" >&2; }
+out=(); for d in $HFJOB_OUT; do [ "$d" != hfjob-out ] && [ -e "$W/$d" ] && out+=("$d"); done   # hfjob-out is always included once (a repeat would be stored as a hard link, which collect refuses)
+(cd "$W" && tar -czf /tmp/hfjob-result.tar.gz --hard-dereference hfjob-out ${out[@]+"${out[@]}"} 2>/dev/null) || { echo "hfjob: could not tar the results" >&2; }
 python3 - <<'PY' || echo "hfjob: result upload failed" >&2
 import os
 from huggingface_hub import HfApi

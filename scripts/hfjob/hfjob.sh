@@ -60,7 +60,7 @@ case "$flavor" in cpu-upgrade|cpu-basic) ;; *) echo "hfjob: --flavor '$flavor' i
 if [ "$bundle" = 0 ] && { [ ${#includes[@]} -gt 0 ] || [ ${#excludes[@]} -gt 0 ] || [ ${#outs[@]} -gt 0 ]; }; then echo "hfjob: --include/--exclude/--out only make sense with --bundle" >&2; exit 2; fi
 
 if [ "$bundle" = 1 ]; then
-  # ---- hfjob --bundle: a PRIVATE checkout (or any folder) runs on HF CPU with no git credential and no public push. Design + security model: docs/HF-BOXES.md "hfjob --bundle".
+  # ---- hfjob --bundle: a PRIVATE checkout (or any folder) runs on HF CPU with no git credential and no public push. Design + security model: docs/HFJOB-BUNDLE.md.
   [ -z "$box" ] || { echo "hfjob: --bundle and --box cannot be combined (a box clones a public sha)" >&2; exit 2; }
   [[ "$max_mb" =~ ^[0-9]+$ ]] || { echo "hfjob: --max-mb must be a whole number, got '$max_mb'" >&2; exit 2; }
   out_list="hfjob-out"

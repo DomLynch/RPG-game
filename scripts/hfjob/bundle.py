@@ -263,6 +263,10 @@ def fetch_result(h, rid, job, wait):
 def cmd_collect(a):
     h = api()
     rid = repo_id()
+    if a.discard:   # delete the remote result without downloading it (an abandoned job)
+        h.delete_file(f"results/{a.job}.tar.gz", repo_id=rid, repo_type="dataset", commit_message=f"discarded {a.job}")
+        print(f"collected job={a.job} remote result discarded")
+        return
     path, local = fetch_result(h, rid, a.job, a.wait)
     out = None
     if a.stdout:
@@ -291,8 +295,12 @@ def cmd_collect(a):
 
 
 def cmd_extract(a):
+    try:
+        tf = tarfile.open(fileobj=sys.stdin.buffer, mode="r|gz")   # streamed: each member is checked as it arrives
+    except tarfile.ReadError:
+        die("no result data received (the job has no result yet, or it was already collected): hfjob inspect <id>", 3)
     os.makedirs(a.out, exist_ok=True)
-    with tarfile.open(fileobj=sys.stdin.buffer, mode="r|gz") as tf:   # streamed: each member is checked as it arrives
+    with tf:
         for m in tf:
             n = os.path.normpath(m.name)
             if n.startswith("/") or n.startswith("..") or m.isdev() or m.isfifo() or m.issym() or m.islnk():
@@ -331,7 +339,7 @@ def run_many(script, jobs):
     with ThreadPoolExecutor(max_workers=max(1, width)) as ex:
         for label, r in ex.map(one, jobs):
             for ln in r.stdout.splitlines():
-                if ln.startswith("tier=") or ln.startswith("collected "):
+                if ln.startswith(("tier=", "collected ", "extracted ")):
                     print(ln, flush=True)
             if r.returncode != 0:
                 bad += 1
@@ -377,7 +385,7 @@ def main():
     s = sp.add_parser("scan"); s.add_argument("tar"); s.add_argument("--max-mb", default=DEFAULT_MAX_MB)
     s = sp.add_parser("upload"); s.add_argument("tar"); s.add_argument("--id", required=True)
     s = sp.add_parser("drop"); s.add_argument("id")
-    s = sp.add_parser("collect"); s.add_argument("job"); s.add_argument("--out"); s.add_argument("--stdout", action="store_true"); s.add_argument("--wait", default=0)
+    s = sp.add_parser("collect"); s.add_argument("job"); s.add_argument("--out"); s.add_argument("--stdout", action="store_true"); s.add_argument("--wait", default=0); s.add_argument("--discard", action="store_true")
     s = sp.add_parser("extract"); s.add_argument("--out", required=True)
     s = sp.add_parser("batch"); s.add_argument("file"); s.add_argument("--script", required=True)
     s = sp.add_parser("collect-all"); s.add_argument("spec"); s.add_argument("--out"); s.add_argument("--script", required=True); s.add_argument("--wait", default=0)
